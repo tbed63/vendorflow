@@ -51,7 +51,7 @@ function installVendorFlowBranding(){
   if(loading){
     loading.innerHTML=`
       <div class="vf-loading-brand">
-        <img src="vendorflow-logo.png" alt="VendorFlow">
+        <img src="vendorflow-logo-dark.png" alt="VendorFlow">
         <span>Opening VendorFlow…</span>
       </div>
     `;
@@ -77,7 +77,22 @@ function installVendorFlowBranding(){
     authCard.insertBefore(brand,authCard.firstChild);
   }
 
-  // Onboarding
+  
+  // Remove duplicate legacy AI Vendor Assistant copy
+  if(authCard){
+    [...authCard.children].forEach(el=>{
+      if(
+        el.classList &&
+        !el.classList.contains('vf-auth-brand') &&
+        el.textContent &&
+        el.textContent.trim()==='AI Vendor Assistant'
+      ){
+        el.classList.add('vf-hide-old-auth-copy');
+      }
+    });
+  }
+
+// Onboarding
   const onboardingCard=document.querySelector('.onboarding-card');
   if(onboardingCard && !onboardingCard.querySelector('.vf-onboarding-logo')){
     const brand=document.createElement('div');
@@ -97,7 +112,7 @@ function installVendorFlowBranding(){
     brand.className='vf-sidebar-brand';
     brand.innerHTML=`
       <img class="vf-sidebar-logo"
-           src="vendorflow-logo.png"
+           src="vendorflow-logo-dark.png"
            alt="VendorFlow">
       <div class="vf-sidebar-subtitle">AI VENDOR ASSISTANT</div>
     `;
@@ -119,7 +134,69 @@ function installVendorFlowBranding(){
     });
   }
 
-  // Main app header
+  
+  // Navigation icons
+  const vfNavIconMap={
+    dashboard:`<svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 11.5 12 4l9 7.5"/>
+      <path d="M5.5 10v10h5v-6h3v6h5V10"/>
+    </svg>`,
+
+    classes:`<svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="8" cy="8" r="3"/>
+      <circle cx="17" cy="9" r="2.5"/>
+      <path d="M2.5 20c.5-4 2.6-6 5.5-6s5 2 5.5 6"/>
+      <path d="M14 15c3.5-.5 6 1.1 6.8 5"/>
+    </svg>`,
+
+    payments:`<svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3" y="5" width="18" height="14" rx="2"/>
+      <path d="M3 9h18"/>
+      <path d="M7 15h4"/>
+    </svg>`,
+
+    certificates:`<svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 3h9l4 4v14H6z"/>
+      <path d="M15 3v5h5"/>
+      <circle cx="11" cy="14" r="2.5"/>
+      <path d="m9.5 16 1.5 3 1.5-3"/>
+    </svg>`,
+
+    compliance:`<svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 3 20 6v6c0 5-3.4 8-8 9-4.6-1-8-4-8-9V6z"/>
+      <path d="m8.5 12 2.2 2.2 4.8-5"/>
+    </svg>`,
+
+    review:`<svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="9"/>
+      <path d="M12 7v6"/>
+      <path d="M12 17h.01"/>
+    </svg>`,
+
+    history:`<svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="9"/>
+      <path d="M12 7v5l3 2"/>
+    </svg>`,
+
+    profile:`<svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 21V4h10v17"/>
+      <path d="M15 9h4v12"/>
+      <path d="M8 8h2M8 12h2M8 16h2"/>
+      <path d="M3 21h18"/>
+    </svg>`
+  };
+
+  document.querySelectorAll('nav button[data-view]').forEach(btn=>{
+    if(btn.querySelector('.vf-nav-icon')) return;
+
+    const icon=document.createElement('span');
+    icon.className='vf-nav-icon';
+    icon.innerHTML=vfNavIconMap[btn.dataset.view]||'';
+
+    btn.insertBefore(icon,btn.firstChild);
+  });
+
+// Main app header
   const header=document.querySelector('main header');
   if(header && !header.querySelector('.vf-header-logo')){
     header.classList.add('vf-app-header');

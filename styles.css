@@ -262,3 +262,382 @@ textarea:focus{
     width:min(300px,88%);
   }
 }
+
+/* ==========================================================
+   VENDORFLOW POLISHED DASHBOARD — AUGUST 2026
+   ========================================================== */
+
+/* Login + loading backgrounds */
+
+#auth.center,
+#loading.center{
+  background:
+    radial-gradient(
+      circle at 50% 18%,
+      #24498E 0%,
+      #1A346F 38%,
+      #132753 100%
+    );
+}
+
+#auth .auth-card{
+  background:#FFFFFF;
+  border:0;
+  box-shadow:
+    0 24px 70px rgba(0,0,0,.26),
+    0 2px 8px rgba(0,0,0,.10);
+}
+
+#loading .vf-loading-brand{
+  color:#FFFFFF;
+}
+
+#loading .vf-loading-brand img{
+  width:min(430px,78vw);
+}
+
+.vf-hide-old-auth-copy{
+  display:none !important;
+}
+
+
+/* ----------------------------------------------------------
+   SIDEBAR
+   ---------------------------------------------------------- */
+
+.shell{
+  grid-template-columns:280px 1fr;
+}
+
+aside{
+  padding:28px 20px 20px;
+  background:
+    linear-gradient(
+      180deg,
+      #132753 0%,
+      #18346D 48%,
+      #102852 100%
+    );
+}
+
+.vf-sidebar-brand{
+  margin-bottom:4px;
+}
+
+.vf-sidebar-logo{
+  width:235px;
+  max-width:100%;
+  margin:0 auto 14px;
+  filter:
+    drop-shadow(0 4px 10px rgba(0,0,0,.18));
+}
+
+.vf-sidebar-subtitle{
+  font-size:11px;
+  letter-spacing:.14em;
+  color:#FFFFFF;
+  opacity:.92;
+  margin-bottom:8px;
+}
+
+
+/* Navigation */
+
+nav{
+  margin-top:18px;
+  gap:8px;
+}
+
+nav button{
+  min-height:48px;
+  padding:10px 13px;
+  border-radius:12px;
+  display:flex;
+  align-items:center;
+  gap:13px;
+  font-size:15px;
+  color:#F1F4F7;
+  transition:
+    background .15s ease,
+    color .15s ease,
+    transform .08s ease;
+}
+
+nav button:hover{
+  background:rgba(255,255,255,.09);
+}
+
+nav button:active{
+  transform:translateY(1px);
+}
+
+nav button.active{
+  background:#FFFFFF;
+  color:#1A346F;
+  box-shadow:0 5px 16px rgba(0,0,0,.10);
+}
+
+.vf-nav-icon{
+  width:24px;
+  height:24px;
+  flex:0 0 24px;
+  display:grid;
+  place-items:center;
+}
+
+.vf-nav-icon svg{
+  width:23px;
+  height:23px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+
+/* Account box */
+
+.account{
+  padding:15px;
+  border-radius:14px;
+  background:rgba(255,255,255,.10);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+.account strong{
+  font-size:15px;
+}
+
+.account span{
+  font-size:11px;
+  color:#DDE5EA;
+}
+
+
+/* ----------------------------------------------------------
+   MAIN APP HEADER
+   ---------------------------------------------------------- */
+
+main{
+  padding:30px 34px;
+}
+
+.vf-app-header{
+  min-height:88px;
+  align-items:flex-start;
+  margin-bottom:18px;
+}
+
+.vf-app-header h1,
+header h1{
+  font-size:34px;
+  letter-spacing:-.035em;
+}
+
+.vf-header-logo{
+  width:285px;
+  max-width:31vw;
+  height:auto;
+  margin-top:-8px;
+}
+
+
+/* ----------------------------------------------------------
+   HERO
+   ---------------------------------------------------------- */
+
+.hero{
+  min-height:188px;
+  border-radius:22px;
+  padding:32px 34px;
+  background:
+    linear-gradient(
+      110deg,
+      #132753 0%,
+      #1A346F 52%,
+      #214584 100%
+    );
+  box-shadow:
+    0 10px 26px rgba(26,52,111,.13);
+}
+
+.hero h2{
+  font-size:28px;
+  letter-spacing:-.025em;
+  margin-bottom:14px;
+}
+
+.hero p{
+  font-size:15px;
+}
+
+.hero .white{
+  min-width:180px;
+  min-height:44px;
+  font-size:14px;
+}
+
+
+/* ----------------------------------------------------------
+   DASHBOARD CARDS
+   ---------------------------------------------------------- */
+
+.stats{
+  gap:16px;
+  margin-top:20px;
+}
+
+.stat{
+  min-height:112px;
+  border-radius:16px;
+  padding:18px;
+  border:1px solid #D8DEE4;
+  border-top:4px solid #1A346F;
+  box-shadow:0 4px 12px rgba(29,52,81,.035);
+}
+
+.stat span{
+  font-size:12px;
+}
+
+.stat strong{
+  font-size:31px;
+  line-height:1;
+}
+
+.card{
+  border-color:#D8DEE4;
+  box-shadow:
+    0 5px 18px rgba(29,52,81,.045);
+}
+
+#dashboardView > .card{
+  padding:26px 24px;
+}
+
+
+/* ----------------------------------------------------------
+   LOGIN CARD POLISH
+   ---------------------------------------------------------- */
+
+#auth .auth-card{
+  padding:32px 28px 28px;
+}
+
+#auth .vf-auth-logo{
+  width:min(390px,90%);
+}
+
+#auth .vf-auth-subtitle{
+  color:#5D757D;
+  margin-top:6px;
+}
+
+#auth .primary{
+  min-height:42px;
+}
+
+#auth .vf-auth-help{
+  margin-top:11px;
+}
+
+
+/* ----------------------------------------------------------
+   RESPONSIVE
+   ---------------------------------------------------------- */
+
+@media(max-width:1050px){
+
+  .shell{
+    grid-template-columns:245px 1fr;
+  }
+
+  .vf-sidebar-logo{
+    width:205px;
+  }
+
+  .vf-header-logo{
+    width:235px;
+  }
+
+  main{
+    padding:26px;
+  }
+}
+
+@media(max-width:900px){
+
+  .shell{
+    grid-template-columns:1fr;
+  }
+
+  aside{
+    padding:18px;
+  }
+
+  .vf-sidebar-brand{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+
+  .vf-sidebar-logo{
+    width:210px;
+    margin:0 auto 8px;
+  }
+
+  nav{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .vf-header-logo{
+    width:210px;
+    max-width:42vw;
+  }
+}
+
+@media(max-width:600px){
+
+  main{
+    padding:16px;
+  }
+
+  .vf-app-header{
+    min-height:70px;
+  }
+
+  .vf-app-header h1,
+  header h1{
+    font-size:29px;
+  }
+
+  .vf-header-logo{
+    width:145px;
+    max-width:42vw;
+  }
+
+  nav button{
+    font-size:13px;
+    gap:8px;
+  }
+
+  .vf-nav-icon{
+    width:20px;
+    flex-basis:20px;
+  }
+
+  .vf-nav-icon svg{
+    width:20px;
+    height:20px;
+  }
+
+  .hero{
+    min-height:auto;
+    padding:24px;
+  }
+
+  .stats{
+    grid-template-columns:1fr 1fr;
+  }
+}
