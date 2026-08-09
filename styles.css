@@ -641,3 +641,82 @@ header h1{
     grid-template-columns:1fr 1fr;
   }
 }
+
+/* =========================================================
+   VENDORFLOW HORIZONTAL HEADER LOGO
+   ========================================================= */
+
+main > header{
+  position:relative;
+  min-height:132px;
+  margin-bottom:0;
+}
+
+/* Keep the horizontal logo as the highest item on the page */
+main > header img{
+  content:url("vendorflow-logo-horizon.png");
+  position:absolute;
+  top:0;
+  right:0;
+  width:min(500px,45vw);
+  height:105px;
+  object-fit:contain;
+  object-position:right top;
+}
+
+/* Move VendorFlow Beta + page title down near the hero box */
+main > header .eyebrow{
+  position:absolute;
+  left:0;
+  bottom:44px;
+  margin:0;
+}
+
+main > header h1,
+main > header h2{
+  position:absolute;
+  left:0;
+  bottom:0;
+  margin:0;
+}
+
+/* Keep the important content snug below the header */
+main > header + .hero{
+  margin-top:10px;
+}
+
+/* Tablet */
+@media(max-width:1000px){
+  main > header{
+    min-height:122px;
+  }
+
+  main > header img{
+    width:min(390px,45vw);
+    height:92px;
+  }
+}
+
+/* Mobile */
+@media(max-width:700px){
+  main > header{
+    min-height:185px;
+    padding-top:110px;
+  }
+
+  main > header img{
+    left:0;
+    right:auto;
+    width:min(360px,92%);
+    height:100px;
+  }
+
+  main > header .eyebrow{
+    bottom:40px;
+  }
+
+  main > header h1,
+  main > header h2{
+    bottom:0;
+  }
+}
