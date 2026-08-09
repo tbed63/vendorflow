@@ -775,3 +775,82 @@ main > header + .hero{
     top:0 !important;
   }
 }
+
+/* =========================================================
+   FINAL HEADER SPACING
+   Keep horizontal logo in place while pulling content upward
+   ========================================================= */
+
+main{
+  padding-top:10px !important;
+}
+
+/* Shorter header pulls Dashboard and hero upward */
+main > header,
+.vf-app-header{
+  min-height:112px !important;
+  margin-bottom:0 !important;
+}
+
+/* Compensate for reduced main padding so logo stays
+   approximately where it already looked good */
+main > header img,
+.vf-header-logo{
+  top:14px !important;
+}
+
+/* Keep title tucked immediately above the blue panel */
+main > header .eyebrow{
+  bottom:43px !important;
+}
+
+main > header h1,
+main > header h2{
+  bottom:0 !important;
+}
+
+/* Small, deliberate gap between Dashboard and command center */
+main > header + .hero{
+  margin-top:8px !important;
+}
+
+/* Preserve comfortable side/bottom padding */
+main{
+  padding-right:34px !important;
+  padding-bottom:28px !important;
+  padding-left:34px !important;
+}
+
+@media(max-width:1050px){
+  main{
+    padding-top:10px !important;
+    padding-right:26px !important;
+    padding-left:26px !important;
+  }
+
+  main > header,
+  .vf-app-header{
+    min-height:108px !important;
+  }
+
+  main > header img,
+  .vf-header-logo{
+    top:12px !important;
+  }
+}
+
+@media(max-width:700px){
+  main{
+    padding:12px 16px 20px !important;
+  }
+
+  main > header,
+  .vf-app-header{
+    min-height:170px !important;
+  }
+
+  main > header img,
+  .vf-header-logo{
+    top:4px !important;
+  }
+}
