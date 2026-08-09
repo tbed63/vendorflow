@@ -5,7 +5,8 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
-  updateProfile
+  updateProfile,
+  sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 
 import {
@@ -31,6 +32,195 @@ let user=null,profile={},classes=[],roster=[],payments=[],certs=[],compliance=[]
 const questions=[['businessName','What is the name of your business?','This will appear on invoices.'],['ownerName','What name should VendorFlow use for you?','Your name as vendor or owner.'],['address','What is your business mailing address?','Street address.'],['cityStateZip','What city, state, and ZIP go with that address?','Example: Encinitas, CA 92024'],['phone','What business phone number should VendorFlow use?','You can change this later.'],['locations','Where do you teach or conduct business?','Learning centers, campuses, tutoring locations, etc.'],['schools','Which charter schools or organizations do you work with?','List as many as you know now.']];
 const aliases={registrationId:['id','registration id'],status:['status','registration status'],classTitle:['title','class title','class'],studentFirst:['registrant first name','student first name','child first name'],studentLast:['registrant last name','student last name','child last name'],parentFirst:['primary first name','parent first name','guardian first name'],parentLast:['primary last name','parent last name','guardian last name'],parentEmail:['email address','parent email','guardian email'],parentPhone:['phone','parent phone','guardian phone'],grade:['grade level','grade']};
 const vendorDoc=()=>doc(db,'vendors',user.uid),sub=n=>collection(db,'vendors',user.uid,n),toast=m=>{let t=$('#toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)};
+
+
+function installVendorFlowBranding(){
+
+  // Browser icon
+  let favicon=document.querySelector('link[rel="icon"]');
+  if(!favicon){
+    favicon=document.createElement('link');
+    favicon.rel='icon';
+    document.head.appendChild(favicon);
+  }
+  favicon.type='image/png';
+  favicon.href='vendorflow-logo.png';
+
+  // Loading screen
+  const loading=$('#loading');
+  if(loading){
+    loading.innerHTML=`
+      <div class="vf-loading-brand">
+        <img src="vendorflow-logo.png" alt="VendorFlow">
+        <span>Opening VendorFlow…</span>
+      </div>
+    `;
+  }
+
+  // Login / create account
+  const authCard=document.querySelector('.auth-card');
+  if(authCard && !authCard.querySelector('.vf-auth-logo')){
+    const brand=document.createElement('div');
+    brand.className='vf-auth-brand';
+    brand.innerHTML=`
+      <img class="vf-auth-logo"
+           src="vendorflow-logo.png"
+           alt="VendorFlow">
+      <div class="vf-auth-subtitle">AI Vendor Assistant</div>
+    `;
+
+    const oldHeading=[...authCard.children].find(
+      el => el.textContent && el.textContent.trim()==='VendorFlow'
+    );
+    if(oldHeading) oldHeading.style.display='none';
+
+    authCard.insertBefore(brand,authCard.firstChild);
+  }
+
+  // Onboarding
+  const onboardingCard=document.querySelector('.onboarding-card');
+  if(onboardingCard && !onboardingCard.querySelector('.vf-onboarding-logo')){
+    const brand=document.createElement('div');
+    brand.className='vf-onboarding-brand';
+    brand.innerHTML=`
+      <img class="vf-onboarding-logo"
+           src="vendorflow-logo.png"
+           alt="VendorFlow">
+    `;
+    onboardingCard.insertBefore(brand,onboardingCard.firstChild);
+  }
+
+  // Sidebar
+  const side=document.querySelector('aside');
+  if(side && !side.querySelector('.vf-sidebar-logo')){
+    const brand=document.createElement('div');
+    brand.className='vf-sidebar-brand';
+    brand.innerHTML=`
+      <img class="vf-sidebar-logo"
+           src="vendorflow-logo.png"
+           alt="VendorFlow">
+      <div class="vf-sidebar-subtitle">AI VENDOR ASSISTANT</div>
+    `;
+
+    const oldLogo=side.querySelector('.logo');
+    if(oldLogo){
+      oldLogo.replaceWith(brand);
+    } else {
+      side.insertBefore(brand,side.firstChild);
+    }
+
+    [...side.children].forEach(el=>{
+      if(el.tagName==='H2' && el.textContent.trim()==='VendorFlow'){
+        el.style.display='none';
+      }
+      if(el.tagName==='SMALL' && el.textContent.includes('AI VENDOR')){
+        el.style.display='none';
+      }
+    });
+  }
+
+  // Main app header
+  const header=document.querySelector('main header');
+  if(header && !header.querySelector('.vf-header-logo')){
+    header.classList.add('vf-app-header');
+
+    const img=document.createElement('img');
+    img.src='vendorflow-logo.png';
+    img.alt='VendorFlow';
+    img.className='vf-header-logo';
+
+    header.appendChild(img);
+  }
+
+  // Password visibility eye
+  const password=$('#password');
+
+  if(password && !password.parentElement.classList.contains('vf-password-wrap')){
+    const wrapper=document.createElement('div');
+    wrapper.className='vf-password-wrap';
+
+    password.parentNode.insertBefore(wrapper,password);
+    wrapper.appendChild(password);
+
+    const eye=document.createElement('button');
+    eye.type='button';
+    eye.className='vf-password-eye';
+    eye.setAttribute('aria-label','Show password');
+    eye.title='Show password';
+    eye.innerHTML='👁';
+
+    wrapper.appendChild(eye);
+
+    eye.addEventListener('click',()=>{
+      const showing=password.type==='text';
+      password.type=showing?'password':'text';
+      eye.setAttribute(
+        'aria-label',
+        showing?'Show password':'Hide password'
+      );
+      eye.title=showing?'Show password':'Hide password';
+    });
+  }
+
+  // Recovery links
+  const authToggle=$('#authToggle');
+
+  if(authToggle && !document.querySelector('.vf-auth-help')){
+    const help=document.createElement('div');
+    help.className='vf-auth-help';
+
+    const forgotPassword=document.createElement('button');
+    forgotPassword.type='button';
+    forgotPassword.className='vf-help-link';
+    forgotPassword.textContent='Forgot password?';
+
+    const forgotEmail=document.createElement('button');
+    forgotEmail.type='button';
+    forgotEmail.className='vf-help-link';
+    forgotEmail.textContent='Forgot which email you used?';
+
+    help.appendChild(forgotPassword);
+    help.appendChild(document.createTextNode(' · '));
+    help.appendChild(forgotEmail);
+
+    authToggle.parentNode.insertBefore(help,authToggle);
+
+    forgotPassword.addEventListener('click',async()=>{
+      let email=$('#email')?.value.trim()||'';
+
+      if(!email){
+        email=prompt(
+          'Enter the email address you use for VendorFlow:'
+        )?.trim()||'';
+      }
+
+      if(!email) return;
+
+      try{
+        await sendPasswordResetEmail(auth,email);
+
+        alert(
+          'VendorFlow sent a password-reset email to ' +
+          email +
+          '. Check your inbox and spam folder.'
+        );
+      }catch(e){
+        alert(
+          'VendorFlow could not send the reset email. ' +
+          (e?.message||'Please check the email address and try again.')
+        );
+      }
+    });
+
+    forgotEmail.addEventListener('click',()=>{
+      alert(
+        'VendorFlow does not use a separate username. ' +
+        'Your login is your email address. Try the email addresses ' +
+        'you normally use for your education or business work.'
+      );
+    });
+  }
+}
 
 function setAuthMode(m){
   authMode=m;
@@ -849,4 +1039,4 @@ $$('[data-go]').forEach(
   b=>b.onclick=()=>switchView(b.dataset.go)
 );
 
-setAuthMode('login');
+installVendorFlowBranding();setAuthMode('login');

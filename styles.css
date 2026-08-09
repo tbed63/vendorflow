@@ -1,1 +1,264 @@
 :root{--navy:#172337;--ink:#18202b;--muted:#667085;--line:#e5e7eb;--bg:#f5f6f8;--gold:#b7791f;--danger:#b42318}*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--ink)}button,input,select,textarea{font:inherit}.hidden{display:none!important}.center{min-height:100vh;display:grid;place-items:center;padding:24px}.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:22px;margin-bottom:20px;box-shadow:0 6px 20px rgba(0,0,0,.04)}.auth-card,.onboarding-card{width:min(560px,94vw)}.onboarding-card{width:min(760px,94vw)}h1,h2{margin-top:0}.input{width:100%;padding:12px;border:1px solid #d0d5dd;border-radius:10px;margin:7px 0;background:#fff}.primary{background:var(--navy);color:#fff;border:0;border-radius:11px;padding:11px 15px;font-weight:700;cursor:pointer}.full{width:100%}.linkbtn{width:100%;border:0;background:transparent;padding:14px;font-weight:700;cursor:pointer}.error,.warn{padding:12px;border-radius:10px;background:#fff1f0;color:var(--danger);margin:10px 0}.row{display:flex;gap:12px;align-items:center}.between{justify-content:space-between}.progress{height:8px;background:#eef1f5;border-radius:999px;margin:20px 0;overflow:hidden}.progress div{height:100%;background:var(--gold);width:0}.question{background:#f8f9fb;border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:18px}.shell{display:grid;grid-template-columns:250px 1fr;min-height:100vh}aside{background:var(--navy);color:#fff;padding:22px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}.logo{width:44px;height:44px;border-radius:14px;background:#fff;color:var(--navy);display:grid;place-items:center;font-weight:800}aside h2{margin:10px 0 0}aside small{color:#c9d2df}nav{display:grid;gap:6px;margin-top:24px}nav button{border:0;background:transparent;color:#d9e0ea;text-align:left;padding:11px;border-radius:10px;font-weight:700;cursor:pointer}nav button.active{background:#fff;color:var(--navy)}.account{margin-top:auto;background:rgba(255,255,255,.07);padding:12px;border-radius:12px;display:grid;gap:5px}.account span{font-size:11px;color:#c9d2df}.account button{background:transparent;border:0;color:#fff;text-align:left;padding:0;cursor:pointer}main{padding:28px;min-width:0}header{margin-bottom:20px}.eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;color:var(--gold)}.hero{background:var(--navy);color:#fff;border-radius:22px;padding:28px;display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:18px}.hero p{color:#d9e0ea}.gold{color:#f2cd8d}.white{background:#fff;color:var(--navy);border:0;border-radius:11px;padding:11px 15px;font-weight:700}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}.stat{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;display:grid;gap:8px}.stat span{color:var(--muted);font-size:13px;font-weight:700}.stat strong{font-size:30px}.view{display:none}.view.active{display:block}.grid2{display:grid;grid-template-columns:.8fr 1.2fr;gap:18px}.drop{min-height:170px;border:2px dashed #c9ced6;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;gap:5px}.drop span{color:var(--muted)}hr{border:0;border-top:1px solid var(--line);margin:18px 0}.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:12px}table{width:100%;border-collapse:collapse;min-width:700px}th,td{padding:11px;border-bottom:1px solid var(--line);text-align:left;font-size:13px}th{background:#f8f9fb;color:var(--muted);font-size:11px;text-transform:uppercase}.empty{padding:24px;border:1px dashed #d0d5dd;border-radius:12px;color:var(--muted);text-align:center}.formgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-items:end;background:#f8f9fb;padding:14px;border-radius:14px;margin:14px 0}.danger{background:#fff1f0;color:var(--danger);border:1px solid #fecdca;border-radius:10px;padding:9px 12px}.record,.history{border-bottom:1px solid var(--line);padding:12px 0}.record:last-child,.history:last-child{border-bottom:0}.meta{color:var(--muted);font-size:12px;margin-top:4px}.history{display:grid;grid-template-columns:150px 1fr;gap:12px}.history small{color:var(--gold);font-weight:800;text-transform:uppercase}.narrow{max-width:720px}#toast{position:fixed;right:20px;bottom:20px;background:var(--navy);color:#fff;padding:12px 16px;border-radius:10px;opacity:0;transition:.2s}#toast.show{opacity:1}@media(max-width:900px){.shell{grid-template-columns:1fr}aside{height:auto;position:static}.account{display:none}nav{grid-template-columns:1fr 1fr}.stats{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.formgrid{grid-template-columns:1fr 1fr}}@media(max-width:600px){main{padding:14px}.hero{flex-direction:column;align-items:flex-start}.formgrid{grid-template-columns:1fr}.history{grid-template-columns:1fr}}
+
+/* ==========================================================
+   VENDORFLOW BRAND SYSTEM
+   Logo palette:
+   Navy      #1A346F
+   Deep Gray #5D757D
+   Light Gray #9FA4A9
+   ========================================================== */
+
+:root{
+  --navy:#1A346F;
+  --ink:#26353B;
+  --muted:#5D757D;
+  --line:#D8DEE1;
+  --bg:#F4F6F7;
+  --gold:#5D757D;
+  --danger:#B42318;
+  --vf-navy:#1A346F;
+  --vf-deep-gray:#5D757D;
+  --vf-light-gray:#9FA4A9;
+}
+
+body{
+  background:#F4F6F7;
+}
+
+.primary{
+  background:#1A346F;
+}
+
+.progress div{
+  background:#1A346F;
+}
+
+aside{
+  background:linear-gradient(
+    180deg,
+    #132753 0%,
+    #1A346F 100%
+  );
+}
+
+nav button.active{
+  color:#1A346F;
+}
+
+.eyebrow{
+  color:#1A346F;
+}
+
+.hero{
+  background:linear-gradient(
+    135deg,
+    #132753 0%,
+    #1A346F 100%
+  );
+}
+
+.hero .eyebrow{
+  color:#DDE3E6;
+}
+
+.stat{
+  border-top:4px solid #1A346F;
+}
+
+.stat span{
+  color:#5D757D;
+}
+
+.stat strong{
+  color:#1A346F;
+}
+
+.drop:hover{
+  border-color:#1A346F;
+}
+
+.history small{
+  color:#1A346F;
+}
+
+#toast{
+  background:#1A346F;
+}
+
+/* Loading */
+
+.vf-loading-brand{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:14px;
+  color:#5D757D;
+  font-weight:700;
+}
+
+.vf-loading-brand img{
+  width:min(360px,76vw);
+  height:auto;
+}
+
+/* Authentication */
+
+.vf-auth-brand{
+  text-align:center;
+  margin-bottom:22px;
+}
+
+.vf-auth-logo{
+  display:block;
+  width:min(360px,88%);
+  height:auto;
+  margin:0 auto 8px;
+}
+
+.vf-auth-subtitle{
+  color:#5D757D;
+  font-size:14px;
+  font-weight:600;
+  letter-spacing:.02em;
+}
+
+.vf-password-wrap{
+  position:relative;
+  width:100%;
+}
+
+.vf-password-wrap #password{
+  padding-right:48px;
+}
+
+.vf-password-eye{
+  position:absolute;
+  right:10px;
+  top:50%;
+  transform:translateY(-50%);
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border:0;
+  background:transparent;
+  cursor:pointer;
+  padding:0;
+  font-size:18px;
+  opacity:.72;
+}
+
+.vf-password-eye:hover{
+  opacity:1;
+}
+
+.vf-auth-help{
+  text-align:center;
+  margin:8px 0 2px;
+  color:#9FA4A9;
+  font-size:12px;
+}
+
+.vf-help-link{
+  border:0;
+  background:transparent;
+  color:#5D757D;
+  padding:3px;
+  cursor:pointer;
+  font-size:12px;
+  text-decoration:underline;
+  text-underline-offset:2px;
+}
+
+.vf-help-link:hover{
+  color:#1A346F;
+}
+
+/* Onboarding */
+
+.vf-onboarding-brand{
+  text-align:center;
+  margin-bottom:18px;
+}
+
+.vf-onboarding-logo{
+  width:min(270px,65vw);
+  height:auto;
+}
+
+/* Sidebar */
+
+.vf-sidebar-brand{
+  text-align:center;
+}
+
+.vf-sidebar-logo{
+  display:block;
+  width:190px;
+  max-width:100%;
+  height:auto;
+  margin:0 auto 6px;
+}
+
+.vf-sidebar-subtitle{
+  color:#DCE2E5;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.13em;
+}
+
+/* App header */
+
+.vf-app-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:24px;
+}
+
+.vf-header-logo{
+  width:135px;
+  height:auto;
+}
+
+/* Inputs */
+
+.input:focus,
+input:focus,
+select:focus,
+textarea:focus{
+  outline:none;
+  border-color:#1A346F;
+  box-shadow:0 0 0 3px rgba(26,52,111,.12);
+}
+
+/* Responsive branding */
+
+@media(max-width:900px){
+  .vf-sidebar-brand{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    text-align:left;
+  }
+
+  .vf-sidebar-logo{
+    width:145px;
+    margin:0;
+  }
+}
+
+@media(max-width:600px){
+  .vf-header-logo{
+    width:95px;
+  }
+
+  .vf-onboarding-logo{
+    width:min(235px,72vw);
+  }
+
+  .vf-auth-logo{
+    width:min(300px,88%);
+  }
+}
