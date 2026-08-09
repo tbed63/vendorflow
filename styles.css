@@ -720,3 +720,58 @@ main > header + .hero{
     bottom:0;
   }
 }
+
+/* =========================================================
+   VENDORFLOW FINAL HORIZONTAL HEADER LOGO
+   ========================================================= */
+
+/* Large, readable horizontal logo without adding height */
+main > header img,
+.vf-header-logo{
+  content:url("vendorflow-logo-horizon.png");
+  width:min(610px,52vw) !important;
+  height:118px !important;
+  object-fit:contain !important;
+  object-position:right top !important;
+  top:-6px !important;
+  right:0 !important;
+}
+
+/* Keep header compact so dashboard content stays high */
+main > header,
+.vf-app-header{
+  min-height:132px !important;
+}
+
+/* Keep title snug immediately above command-center panel */
+main > header .eyebrow{
+  bottom:43px !important;
+}
+
+main > header h1,
+main > header h2{
+  bottom:0 !important;
+}
+
+main > header + .hero{
+  margin-top:8px !important;
+}
+
+@media(max-width:1100px){
+  main > header img,
+  .vf-header-logo{
+    width:min(500px,50vw) !important;
+    height:105px !important;
+  }
+}
+
+@media(max-width:700px){
+  main > header img,
+  .vf-header-logo{
+    width:min(390px,92vw) !important;
+    height:96px !important;
+    left:0 !important;
+    right:auto !important;
+    top:0 !important;
+  }
+}
