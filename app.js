@@ -27,6 +27,11 @@ import {
 
 const firebaseConfig={apiKey:"AIzaSyCjAnrOfpmDMGB3O5x9i0yDZ-JR8NZMa0o",authDomain:"vendorflow-68828.firebaseapp.com",projectId:"vendorflow-68828",storageBucket:"vendorflow-68828.firebasestorage.app",messagingSenderId:"803061946107",appId:"1:803061946107:web:fe9622dd2d0c1c5c13c25e"};
 
+
+
+const VENDORFLOW_API =
+  "https://vendorflow-api.tbed63.workers.dev";
+
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),$=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],show=e=>e.classList.remove("hidden"),hide=e=>e.classList.add("hidden"),esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 let user=null,profile={},classes=[],roster=[],students=[],services=[],payments=[],certs=[],compliance=[],reviews=[],history=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
 let selectedPaymentStudentId=null;
@@ -2444,34 +2449,439 @@ $('#savePayment').onclick=async()=>{
 };
 
 
-$('#addCertificate').onclick=()=>toggle('#certificateForm');
 
-$('#saveCertificate').onclick=async()=>{
-  let d={
-    student:$('#certStudent').value.trim(),
-    school:$('#certSchool').value.trim(),
-    amount:Number($('#certAmount').value)||0,
-    number:$('#certNumber').value.trim(),
-    status:$('#certStatus').value,
-    source:'Manual',
-    createdAt:serverTimestamp()
-  };
 
-  if(!d.student)
-    return toast('Enter student name.');
+/* ==========================================================
+   SECURE CERTIFICATE PDF STORAGE
+   ========================================================== */
 
-  await addDoc(sub('certificates'),d);
+async function uploadCertificatePdf(file){
 
-  await log(
-    'Certificate added',
-    `${d.school||'Charter'} certificate for ${d.student} — $${d.amount.toFixed(2)}.`,
-    'Manual'
+  if(!user){
+    throw new Error('You must be logged in.');
+  }
+
+  if(!file){
+    return null;
+  }
+
+  if(
+    file.type!=='application/pdf' &&
+    !file.name.toLowerCase().endsWith('.pdf')
+  ){
+    throw new Error(
+      'Certificate file must be a PDF.'
+    );
+  }
+
+  const MAX_BYTES =
+    15 * 1024 * 1024;
+
+  if(file.size > MAX_BYTES){
+    throw new Error(
+      'Certificate PDF must be smaller than 15 MB.'
+    );
+  }
+
+  const token =
+    await user.getIdToken();
+
+  const form =
+    new FormData();
+
+  form.append(
+    'file',
+    file,
+    file.name
   );
+
+  const response =
+    await fetch(
+      `${VENDORFLOW_API}/certificate/upload`,
+      {
+        method:'POST',
+        headers:{
+          Authorization:`Bearer ${token}`
+        },
+        body:form
+      }
+    );
+
+  let data={};
+
+  try{
+    data=await response.json();
+  }catch{}
+
+  if(!response.ok){
+    throw new Error(
+      data.error ||
+      data.detail ||
+      'Certificate upload failed.'
+    );
+  }
+
+  return data;
+}
+
+
+async function openCertificatePdf(objectKey){
+
+  if(!user || !objectKey){
+    return;
+  }
+
+  try{
+
+    const token =
+      await user.getIdToken();
+
+    const response =
+      await fetch(
+        `${VENDORFLOW_API}/certificate/file/` +
+        encodeURIComponent(objectKey),
+        {
+          headers:{
+            Authorization:`Bearer ${token}`
+          }
+        }
+      );
+
+    if(!response.ok){
+
+      let data={};
+
+      try{
+        data=await response.json();
+      }catch{}
+
+      throw new Error(
+        data.error ||
+        'Could not open certificate PDF.'
+      );
+    }
+
+    const blob =
+      await response.blob();
+
+    const url =
+      URL.createObjectURL(blob);
+
+    const link =
+      document.createElement('a');
+
+    link.href=url;
+    link.target='_blank';
+    link.rel='noopener';
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    setTimeout(
+      ()=>URL.revokeObjectURL(url),
+      60000
+    );
+
+  }catch(error){
+
+    console.error(error);
+
+    toast(
+      error.message ||
+      'Could not open certificate PDF.'
+    );
+  }
+}
+
+
+function wireCertificatePdfButtons(){
+
+  $$('[data-cert-pdf]').forEach(button=>{
+
+    button.onclick=()=>{
+
+      openCertificatePdf(
+        button.dataset.certPdf
+      );
+    };
+  });
+}
+
+
+
+
+
+/* CERTIFICATE PDF FILE PICKER */
+
+if($('#certPdf')){
+
+  $('#certPdf').addEventListener(
+    'change',
+    ()=>{
+
+      const file =
+        $('#certPdf').files?.[0];
+
+      const status =
+        $('#certPdfStatus');
+
+      if(!file){
+
+        status.textContent =
+          'No PDF selected.';
+
+        return;
+      }
+
+      if(
+        file.type!=='application/pdf' &&
+        !file.name.toLowerCase().endsWith('.pdf')
+      ){
+
+        $('#certPdf').value='';
+
+        status.textContent =
+          'Please choose a PDF file.';
+
+        return;
+      }
+
+      const mb =
+        (file.size / 1024 / 1024)
+          .toFixed(2);
+
+      status.textContent =
+        `${file.name} — ${mb} MB`;
+    }
+  );
+}
+
+
+
+$('#addCertificate').onclick=()=>{
+
+  toggle('#certificateForm');
+
+};
+
+
+
+$('#cancelCertificate').onclick=()=>{
 
   hide($('#certificateForm'));
 
-  await refreshAll();
+  if($('#certPdf')){
+    $('#certPdf').value='';
+  }
+
+  if($('#certPdfStatus')){
+    $('#certPdfStatus').textContent=
+      'No PDF selected.';
+  }
 };
+
+
+
+$('#saveCertificate').onclick=async()=>{
+
+  const button =
+    $('#saveCertificate');
+
+  const studentTyped =
+    $('#certStudent').value.trim();
+
+  const school =
+    $('#certSchool').value.trim();
+
+  const amount =
+    Number($('#certAmount').value) || 0;
+
+  const number =
+    $('#certNumber').value.trim();
+
+  const status =
+    $('#certStatus').value;
+
+  const pdfFile =
+    $('#certPdf')?.files?.[0] || null;
+
+
+  if(!studentTyped){
+    return toast(
+      'Enter the student name.'
+    );
+  }
+
+  if(!amount){
+    return toast(
+      'Enter the certificate amount.'
+    );
+  }
+
+
+  const studentMatch =
+    students.find(
+      s=>
+        normalizedName(s.studentName) ===
+        normalizedName(studentTyped)
+    );
+
+
+  button.disabled=true;
+
+  button.textContent =
+    pdfFile
+      ? 'Uploading PDF…'
+      : 'Saving…';
+
+
+  try{
+
+    let pdf=null;
+
+    if(pdfFile){
+
+      $('#certPdfStatus').textContent =
+        'Uploading securely…';
+
+      pdf =
+        await uploadCertificatePdf(
+          pdfFile
+        );
+
+      $('#certPdfStatus').textContent =
+        'PDF uploaded securely.';
+    }
+
+
+    const data={
+
+      studentId:
+        studentMatch?.id || '',
+
+      student:
+        studentMatch?.studentName ||
+        studentTyped,
+
+      parentName:
+        studentMatch?.parentName || '',
+
+      parentEmail:
+        studentMatch?.parentEmail || '',
+
+      school,
+
+      amount,
+
+      number,
+
+      status,
+
+      source:'Manual',
+
+      matchedBy:
+        studentMatch
+          ? 'Student name match'
+          : 'Manual text',
+
+      pdfObjectKey:
+        pdf?.objectKey || '',
+
+      pdfName:
+        pdf?.originalName || '',
+
+      pdfSize:
+        pdf?.size || 0,
+
+      pdfStored:
+        Boolean(pdf?.objectKey),
+
+      createdAt:
+        serverTimestamp(),
+
+      updatedAt:
+        serverTimestamp()
+    };
+
+
+    await addDoc(
+      sub('certificates'),
+      data
+    );
+
+
+    await log(
+      'Certificate added',
+      `${school||'Charter'} certificate for ` +
+      `${data.student} — ${money(amount)}` +
+      `${pdf?' — PDF stored securely.':''}`,
+      'Manual'
+    );
+
+
+    [
+      '#certStudent',
+      '#certSchool',
+      '#certAmount',
+      '#certNumber'
+    ].forEach(id=>{
+
+      const el=$(id);
+
+      if(el){
+        el.value='';
+      }
+    });
+
+
+    if($('#certPdf')){
+      $('#certPdf').value='';
+    }
+
+
+    if($('#certPdfStatus')){
+      $('#certPdfStatus').textContent=
+        'No PDF selected.';
+    }
+
+
+    hide($('#certificateForm'));
+
+    await refreshAll();
+
+
+    toast(
+      pdf
+        ? 'Certificate and PDF saved.'
+        : 'Certificate saved.'
+    );
+
+
+  }catch(error){
+
+    console.error(error);
+
+    if($('#certPdfStatus')){
+      $('#certPdfStatus').textContent=
+        'Upload failed. Certificate was not saved.';
+    }
+
+    toast(
+      error.message ||
+      'Certificate could not be saved.'
+    );
+
+
+  }finally{
+
+    button.disabled=false;
+
+    button.textContent=
+      'Save certificate';
+  }
+};
+
 
 $('#addCompliance').onclick=()=>toggle('#complianceForm');
 
@@ -2518,9 +2928,23 @@ function renderRecords(){
         `<div class="record">
           <strong>${esc(d.student)} — $${Number(d.amount).toFixed(2)}</strong>
           <div class="meta">${esc(d.school)} · ${esc(d.number)} · ${esc(d.status)}</div>
+
+          ${d.pdfObjectKey
+            ? `<div class="vf-cert-actions">
+                 <button
+                   type="button"
+                   class="vf-small-button"
+                   data-cert-pdf="${esc(d.pdfObjectKey)}">
+                   View PDF
+                 </button>
+               </div>`
+            : ''}
+
         </div>`
       ).join('')
     : '<div class="empty">No certificates yet.</div>';
+
+  wireCertificatePdfButtons();
 
   $('#complianceList').innerHTML=
     compliance.length

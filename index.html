@@ -296,9 +296,116 @@
     class="vf-student-matches hidden"></div>
 </div><input id="payClass" class="input" placeholder="Class"><input id="payAmount" class="input" type="number" step=".01" placeholder="Amount"><select id="payMethod" class="input"><option>Venmo</option><option>Zelle</option><option>Cash</option><option>Check</option><option>Charter payment</option><option>Other</option></select><button id="savePayment" class="primary">Save payment</button></div><div id="paymentList"></div></div></section>
 
-    <section id="certificatesView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Manual control</div><h2>Certificates</h2><p>Forwarded certificate emails will automate this later.</p></div><button id="addCertificate" class="primary">Add certificate</button></div><div id="certificateForm" class="formgrid hidden"><input id="certStudent" class="input" placeholder="Student"><input id="certSchool" class="input" placeholder="Charter school"><input id="certAmount" class="input" type="number" step=".01" placeholder="Amount"><input id="certNumber" class="input" placeholder="Certificate / PO #"><select id="certStatus" class="input"><option>Received - Not Billed</option><option>Billed - Not Paid</option><option>Paid</option><option>Needs Review</option></select><button id="saveCertificate" class="primary">Save certificate</button></div><div id="certificateList"></div></div></section>
+    
+    <section id="certificatesView" class="view">
 
-    <section id="complianceView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Vendor approval & compliance</div><h2>Requirements & renewals</h2><p>Track applications, TB tests, Live Scan, training, insurance, W-9s and more.</p></div><button id="addCompliance" class="primary">Add task</button></div><div id="complianceForm" class="formgrid hidden"><input id="compSchool" class="input" placeholder="School / organization"><input id="compTask" class="input" placeholder="Requirement"><input id="compDue" class="input" type="date"><select id="compStatus" class="input"><option>Not started</option><option>In progress</option><option>Submitted</option><option>Approved</option><option>Complete</option><option>Needs renewal</option></select><button id="saveCompliance" class="primary">Save task</button></div><div id="complianceList"></div></div></section>
+      <div class="card">
+
+        <div class="row between">
+          <div>
+            <div class="eyebrow">Charter funding</div>
+            <h2>Certificates</h2>
+            <p>
+              Upload the original charter certificate PDF.
+              VendorFlow keeps the PDF securely with the certificate
+              so it can be used later when creating invoices.
+            </p>
+          </div>
+
+          <button id="addCertificate" class="primary">
+            Add certificate
+          </button>
+        </div>
+
+
+        <div id="certificateForm"
+             class="hidden vf-certificate-form">
+
+          <div class="vf-certificate-upload">
+
+            <div>
+              <strong>Certificate PDF</strong>
+              <p>
+                Choose the original PDF from the charter school.
+                VendorFlow will soon read these details automatically.
+              </p>
+            </div>
+
+            <label class="vf-file-button">
+              Choose PDF
+              <input
+                id="certPdf"
+                type="file"
+                accept="application/pdf,.pdf">
+            </label>
+
+            <div id="certPdfStatus"
+                 class="vf-file-status">
+              No PDF selected.
+            </div>
+
+          </div>
+
+
+          <div class="formgrid">
+
+            <input
+              id="certStudent"
+              class="input"
+              placeholder="Student">
+
+            <input
+              id="certSchool"
+              class="input"
+              placeholder="Charter school">
+
+            <input
+              id="certAmount"
+              class="input"
+              type="number"
+              min="0"
+              step=".01"
+              placeholder="Certificate amount">
+
+            <input
+              id="certNumber"
+              class="input"
+              placeholder="Certificate / PO #">
+
+            <select id="certStatus" class="input">
+              <option>Received - Not Billed</option>
+              <option>Billed - Not Paid</option>
+              <option>Paid</option>
+              <option>Needs Review</option>
+            </select>
+
+          </div>
+
+
+          <div class="row">
+
+            <button id="saveCertificate"
+                    class="primary">
+              Save certificate
+            </button>
+
+            <button id="cancelCertificate"
+                    type="button">
+              Cancel
+            </button>
+
+          </div>
+
+        </div>
+
+
+        <div id="certificateList"></div>
+
+      </div>
+
+    </section>
+
+<section id="complianceView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Vendor approval & compliance</div><h2>Requirements & renewals</h2><p>Track applications, TB tests, Live Scan, training, insurance, W-9s and more.</p></div><button id="addCompliance" class="primary">Add task</button></div><div id="complianceForm" class="formgrid hidden"><input id="compSchool" class="input" placeholder="School / organization"><input id="compTask" class="input" placeholder="Requirement"><input id="compDue" class="input" type="date"><select id="compStatus" class="input"><option>Not started</option><option>In progress</option><option>Submitted</option><option>Approved</option><option>Complete</option><option>Needs renewal</option></select><button id="saveCompliance" class="primary">Save task</button></div><div id="complianceList"></div></div></section>
 
     <section id="reviewView" class="view"><div class="card"><div class="eyebrow">Safety net</div><h2>Needs Review</h2><p>VendorFlow should never quietly guess.</p><div id="reviewList"></div></div></section>
     <section id="historyView" class="view"><div class="card"><div class="eyebrow">Permanent audit trail</div><h2>History</h2><p>See what happened, when, and whether it was manual, imported, or automated.</p><div id="historyList"></div></div></section>
