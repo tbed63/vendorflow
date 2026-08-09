@@ -29,6 +29,7 @@ const firebaseConfig={apiKey:"AIzaSyCjAnrOfpmDMGB3O5x9i0yDZ-JR8NZMa0o",authDomai
 
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),$=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],show=e=>e.classList.remove("hidden"),hide=e=>e.classList.add("hidden"),esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 let user=null,profile={},classes=[],roster=[],students=[],services=[],payments=[],certs=[],compliance=[],reviews=[],history=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
+let selectedPaymentStudentId=null;
 const questions=[['businessName','What is the name of your business?','This will appear on invoices.'],['ownerName','What name should VendorFlow use for you?','Your name as vendor or owner.'],['address','What is your business mailing address?','Street address.'],['cityStateZip','What city, state, and ZIP go with that address?','Example: Encinitas, CA 92024'],['phone','What business phone number should VendorFlow use?','You can change this later.'],['locations','Where do you teach or conduct business?','Learning centers, campuses, tutoring locations, etc.'],['schools','Which charter schools or organizations do you work with?','List as many as you know now.']];
 const aliases={registrationId:['id','registration id'],status:['status','registration status'],classTitle:['title','class title','class'],studentFirst:['registrant first name','student first name','child first name'],studentLast:['registrant last name','student last name','child last name'],parentFirst:['primary first name','parent first name','guardian first name'],parentLast:['primary last name','parent last name','guardian last name'],parentEmail:['email address','parent email','guardian email'],parentPhone:['phone','parent phone','guardian phone'],grade:['grade level','grade']};
 const vendorDoc=()=>doc(db,'vendors',user.uid),sub=n=>collection(db,'vendors',user.uid,n),toast=m=>{let t=$('#toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)};
@@ -451,6 +452,15 @@ async function refreshAll(){
   compliance=await getList('compliance');
   reviews=await getList('review');
   history=await getList('history');
+
+  const repaired=
+    await repairUnmatchedPayments();
+
+  if(repaired>0){
+    payments=await getList('payments');
+    history=await getList('history');
+  }
+
   renderAll();
 }
 
@@ -974,18 +984,41 @@ function refreshStudentServiceSelectors(){
 
 
 
-function studentPayments(studentName){
+function studentPayments(student){
 
-  const target=normalizedName(studentName);
+  const targetId=student?.id||'';
+  const targetName=
+    normalizedName(student?.studentName||'');
 
-  return payments.filter(
-    p=>
-      normalizedName(p.student)===target ||
-      (
-        !p.student &&
-        normalizedName(p.payer)===target
-      )
-  );
+  const parentName=
+    normalizedName(student?.parentName||'');
+
+  return payments.filter(p=>{
+
+    if(targetId && p.studentId===targetId){
+      return true;
+    }
+
+    const paymentStudent=
+      normalizedName(p.student||'');
+
+    const paymentPayer=
+      normalizedName(p.payer||'');
+
+    if(paymentStudent && paymentStudent===targetName){
+      return true;
+    }
+
+    if(
+      !p.studentId &&
+      parentName &&
+      paymentPayer===parentName
+    ){
+      return true;
+    }
+
+    return false;
+  });
 }
 
 
@@ -1014,7 +1047,7 @@ function studentAccountTotals(student){
 
 
   const paymentList=
-    studentPayments(student.studentName);
+    studentPayments(student);
 
 
   const parentPayments=
@@ -1935,36 +1968,481 @@ function toggle(id){
   $(id).classList.toggle('hidden');
 }
 
+
+/* ==========================================================
+   SMART PAYMENT → STUDENT MATCHING
+   ========================================================== */
+
+function paymentStudentMatches(searchText){
+
+  const q=
+    normalizedName(searchText);
+
+  if(!q){
+    return [];
+  }
+
+  return students
+    .map(student=>{
+
+      const studentName=
+        normalizedName(student.studentName||'');
+
+      const parentName=
+        normalizedName(student.parentName||'');
+
+      const parentEmail=
+        String(student.parentEmail||'')
+          .trim()
+          .toLowerCase();
+
+      let score=0;
+
+      if(studentName===q) score=100;
+      else if(parentName===q) score=95;
+      else if(studentName.startsWith(q)) score=85;
+      else if(parentName.startsWith(q)) score=80;
+      else if(studentName.includes(q)) score=70;
+      else if(parentName.includes(q)) score=65;
+      else if(parentEmail.includes(q)) score=55;
+
+      return {
+        student,
+        score
+      };
+    })
+    .filter(x=>x.score>0)
+    .sort((a,b)=>b.score-a.score)
+    .slice(0,8);
+}
+
+
+function clearPaymentStudentSelection(){
+
+  selectedPaymentStudentId=null;
+
+  const matches=$('#payStudentMatches');
+
+  if(matches){
+    matches.innerHTML='';
+    hide(matches);
+  }
+}
+
+
+function selectPaymentStudent(studentId){
+
+  const student=
+    students.find(s=>s.id===studentId);
+
+  if(!student){
+    return;
+  }
+
+  selectedPaymentStudentId=
+    student.id;
+
+  $('#payStudent').value=
+    student.studentName||'';
+
+  if(
+    $('#payPayer') &&
+    !$('#payPayer').value.trim() &&
+    student.parentName
+  ){
+    $('#payPayer').value=
+      student.parentName;
+  }
+
+  const matches=
+    $('#payStudentMatches');
+
+  if(matches){
+    matches.innerHTML='';
+    hide(matches);
+  }
+}
+
+
+function renderPaymentStudentMatches(){
+
+  const input=$('#payStudent');
+  const matchesBox=$('#payStudentMatches');
+
+  if(!input || !matchesBox){
+    return;
+  }
+
+  const typed=
+    input.value.trim();
+
+  if(!typed){
+    clearPaymentStudentSelection();
+    return;
+  }
+
+  const matches=
+    paymentStudentMatches(typed);
+
+  if(!matches.length){
+    matchesBox.innerHTML=`
+      <div class="vf-match-empty">
+        No matching student or parent yet.
+      </div>
+    `;
+    show(matchesBox);
+    return;
+  }
+
+  matchesBox.innerHTML=
+    matches
+      .map(({student})=>`
+
+        <button
+          type="button"
+          class="vf-student-match"
+          data-payment-student="${student.id}">
+
+          <strong>
+            ${esc(student.studentName||'Unnamed student')}
+          </strong>
+
+          <span>
+            ${student.parentName
+              ? 'Parent: '+esc(student.parentName)
+              : 'No parent name saved'}
+          </span>
+
+          ${student.parentEmail
+            ? `<small>${esc(student.parentEmail)}</small>`
+            : ''}
+
+        </button>
+
+      `)
+      .join('');
+
+
+  show(matchesBox);
+
+
+  $$('[data-payment-student]')
+    .forEach(btn=>{
+
+      btn.onclick=()=>{
+
+        selectPaymentStudent(
+          btn.dataset.paymentStudent
+        );
+      };
+    });
+}
+
+
+function uniqueStudentMatchForPayment(payment){
+
+  if(payment.studentId){
+    return null;
+  }
+
+  const typedStudent=
+    normalizedName(payment.student||'');
+
+  const typedPayer=
+    normalizedName(payment.payer||'');
+
+
+  let candidates=
+    students.filter(student=>{
+
+      const fullName=
+        normalizedName(student.studentName||'');
+
+      const firstName=
+        normalizedName(student.studentFirst||'');
+
+      const parentName=
+        normalizedName(student.parentName||'');
+
+      if(
+        typedStudent &&
+        fullName===typedStudent
+      ){
+        return true;
+      }
+
+      if(
+        typedStudent &&
+        firstName===typedStudent
+      ){
+        return true;
+      }
+
+      if(
+        typedPayer &&
+        parentName===typedPayer
+      ){
+        return true;
+      }
+
+      return false;
+    });
+
+
+  const uniqueIds=
+    [...new Set(candidates.map(s=>s.id))];
+
+  if(uniqueIds.length!==1){
+    return null;
+  }
+
+  return students.find(
+    s=>s.id===uniqueIds[0]
+  )||null;
+}
+
+
+async function repairUnmatchedPayments(){
+
+  const repairs=[];
+
+  for(const payment of payments){
+
+    if(payment.studentId){
+      continue;
+    }
+
+    const student=
+      uniqueStudentMatchForPayment(payment);
+
+    if(!student){
+      continue;
+    }
+
+    repairs.push({
+      payment,
+      student
+    });
+  }
+
+
+  if(!repairs.length){
+    return 0;
+  }
+
+
+  for(const {payment,student} of repairs){
+
+    await setDoc(
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'payments',
+        payment.id
+      ),
+      {
+        studentId:student.id,
+
+        student:
+          student.studentName||payment.student||'',
+
+        parentName:
+          student.parentName||'',
+
+        parentEmail:
+          student.parentEmail||'',
+
+        matchedBy:'VendorFlow safe match',
+
+        updatedAt:
+          serverTimestamp()
+      },
+      {
+        merge:true
+      }
+    );
+
+
+    await log(
+      'Payment matched to student',
+      `${money(payment.amount)} payment matched to `+
+      `${student.studentName}.`,
+      'VendorFlow'
+    );
+  }
+
+
+  return repairs.length;
+}
+
+
+
+
+
+if($('#payStudent')){
+
+  $('#payStudent')
+    .addEventListener(
+      'input',
+      ()=>{
+
+        selectedPaymentStudentId=null;
+
+        renderPaymentStudentMatches();
+      }
+    );
+
+
+  $('#payStudent')
+    .addEventListener(
+      'focus',
+      ()=>{
+
+        if($('#payStudent').value.trim()){
+          renderPaymentStudentMatches();
+        }
+      }
+    );
+}
+
+
 $('#addPayment').onclick=()=>toggle('#paymentForm');
 
 $('#savePayment').onclick=async()=>{
-  let amount=Number($('#payAmount').value);
 
-  if(!amount)return toast('Enter an amount.');
+  let amount=
+    Number($('#payAmount').value);
+
+  if(!amount){
+    return toast('Enter an amount.');
+  }
+
+
+  let selectedStudent=null;
+
+
+  if(selectedPaymentStudentId){
+
+    selectedStudent=
+      students.find(
+        s=>s.id===selectedPaymentStudentId
+      );
+  }
+
+
+  if(!selectedStudent){
+
+    const typed=
+      $('#payStudent').value.trim();
+
+    const possible=
+      paymentStudentMatches(typed);
+
+    if(
+      possible.length===1
+    ){
+      selectedStudent=
+        possible[0].student;
+
+      selectedPaymentStudentId=
+        selectedStudent.id;
+    }
+  }
+
+
+  if(!selectedStudent){
+
+    return toast(
+      'Choose the student from the matching list.'
+    );
+  }
+
 
   let d={
-    date:$('#payDate').value||new Date().toISOString().slice(0,10),
-    payer:$('#payPayer').value.trim(),
-    student:$('#payStudent').value.trim(),
-    className:$('#payClass').value.trim(),
+
+    date:
+      $('#payDate').value ||
+      new Date().toISOString().slice(0,10),
+
+    payer:
+      $('#payPayer').value.trim() ||
+      selectedStudent.parentName ||
+      '',
+
+    studentId:
+      selectedStudent.id,
+
+    student:
+      selectedStudent.studentName||'',
+
+    parentName:
+      selectedStudent.parentName||'',
+
+    parentEmail:
+      selectedStudent.parentEmail||'',
+
+    className:
+      $('#payClass').value.trim(),
+
     amount,
-    method:$('#payMethod').value,
+
+    method:
+      $('#payMethod').value,
+
     source:'Manual',
-    createdAt:serverTimestamp()
+
+    matchedBy:'Vendor selection',
+
+    createdAt:
+      serverTimestamp(),
+
+    updatedAt:
+      serverTimestamp()
   };
 
-  await addDoc(sub('payments'),d);
+
+  await addDoc(
+    sub('payments'),
+    d
+  );
+
 
   await log(
     'Payment recorded',
-    `${d.payer||d.student} — $${amount.toFixed(2)} via ${d.method}.`,
+    `${selectedStudent.studentName} — `+
+    `${money(amount)} via ${d.method}.`,
     'Manual'
   );
+
+
+  [
+    '#payDate',
+    '#payPayer',
+    '#payStudent',
+    '#payClass',
+    '#payAmount'
+  ].forEach(id=>{
+
+    const el=$(id);
+
+    if(el){
+      el.value='';
+    }
+  });
+
+
+  selectedPaymentStudentId=null;
+
+  clearPaymentStudentSelection();
 
   hide($('#paymentForm'));
 
   await refreshAll();
+
+  toast('Payment recorded and credited.');
 };
+
 
 $('#addCertificate').onclick=()=>toggle('#certificateForm');
 
@@ -2029,7 +2507,7 @@ function renderRecords(){
     ? payments.map(d=>
         `<div class="record">
           <strong>$${Number(d.amount).toFixed(2)} — ${esc(d.payer||d.student)}</strong>
-          <div class="meta">${esc(d.date)} · ${esc(d.method)} · ${esc(d.student)} · ${esc(d.className)}</div>
+          <div class="meta">${esc(d.date)} · ${esc(d.method)} · ${esc(d.student)}${d.parentName?' · Parent: '+esc(d.parentName):''}${d.className?' · '+esc(d.className):''}</div>
         </div>`
       ).join('')
     : '<div class="empty">No payments yet.</div>';

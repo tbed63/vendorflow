@@ -1138,3 +1138,70 @@ main{
     margin-left:0;
   }
 }
+
+
+/* ==========================================================
+   SMART PAYMENT STUDENT MATCHING
+   ========================================================== */
+
+.vf-student-search-wrap{
+  position:relative;
+  width:100%;
+}
+
+.vf-student-matches{
+  position:absolute;
+  left:0;
+  right:0;
+  top:calc(100% + 2px);
+  z-index:100;
+  background:#FFFFFF;
+  border:1px solid #CBD5DA;
+  border-radius:12px;
+  box-shadow:
+    0 14px 34px rgba(20,40,70,.16);
+  overflow:hidden;
+  max-height:310px;
+  overflow-y:auto;
+}
+
+.vf-student-match{
+  width:100%;
+  display:grid;
+  gap:3px;
+  text-align:left;
+  padding:11px 13px;
+  border:0;
+  border-bottom:1px solid #E6EAEC;
+  background:#FFFFFF;
+  cursor:pointer;
+  color:#26353B;
+}
+
+.vf-student-match:last-child{
+  border-bottom:0;
+}
+
+.vf-student-match:hover{
+  background:#F2F6FA;
+}
+
+.vf-student-match strong{
+  font-size:13px;
+}
+
+.vf-student-match span{
+  font-size:11px;
+  color:#5D757D;
+}
+
+.vf-student-match small{
+  font-size:10px;
+  color:#7A888E;
+}
+
+.vf-match-empty{
+  padding:12px 13px;
+  color:#7A888E;
+  font-size:12px;
+}

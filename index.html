@@ -285,7 +285,16 @@
 
     </section>
 
-<section id="paymentsView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Manual control</div><h2>Payments</h2><p>Forwarded payment emails will automate this later.</p></div><button id="addPayment" class="primary">Add payment</button></div><div id="paymentForm" class="formgrid hidden"><input id="payDate" class="input" type="date"><input id="payPayer" class="input" placeholder="Payer / parent"><input id="payStudent" class="input" placeholder="Student"><input id="payClass" class="input" placeholder="Class"><input id="payAmount" class="input" type="number" step=".01" placeholder="Amount"><select id="payMethod" class="input"><option>Venmo</option><option>Zelle</option><option>Cash</option><option>Check</option><option>Charter payment</option><option>Other</option></select><button id="savePayment" class="primary">Save payment</button></div><div id="paymentList"></div></div></section>
+<section id="paymentsView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Manual control</div><h2>Payments</h2><p>Forwarded payment emails will automate this later.</p></div><button id="addPayment" class="primary">Add payment</button></div><div id="paymentForm" class="formgrid hidden"><input id="payDate" class="input" type="date"><input id="payPayer" class="input" placeholder="Payer / parent"><div class="vf-student-search-wrap">
+  <input
+    id="payStudent"
+    class="input"
+    autocomplete="off"
+    placeholder="Start typing student or parent name">
+  <div
+    id="payStudentMatches"
+    class="vf-student-matches hidden"></div>
+</div><input id="payClass" class="input" placeholder="Class"><input id="payAmount" class="input" type="number" step=".01" placeholder="Amount"><select id="payMethod" class="input"><option>Venmo</option><option>Zelle</option><option>Cash</option><option>Check</option><option>Charter payment</option><option>Other</option></select><button id="savePayment" class="primary">Save payment</button></div><div id="paymentList"></div></div></section>
 
     <section id="certificatesView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Manual control</div><h2>Certificates</h2><p>Forwarded certificate emails will automate this later.</p></div><button id="addCertificate" class="primary">Add certificate</button></div><div id="certificateForm" class="formgrid hidden"><input id="certStudent" class="input" placeholder="Student"><input id="certSchool" class="input" placeholder="Charter school"><input id="certAmount" class="input" type="number" step=".01" placeholder="Amount"><input id="certNumber" class="input" placeholder="Certificate / PO #"><select id="certStatus" class="input"><option>Received - Not Billed</option><option>Billed - Not Paid</option><option>Paid</option><option>Needs Review</option></select><button id="saveCertificate" class="primary">Save certificate</button></div><div id="certificateList"></div></div></section>
 
