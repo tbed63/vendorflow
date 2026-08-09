@@ -93,8 +93,8 @@
             <div class="eyebrow">Student accounts</div>
             <h2>Students & Services</h2>
             <p>
-              Classes and tutoring both live here. Each service can be paid
-              by a parent, a charter school, or a combination of both.
+              Classes and tutoring both live here. VendorFlow records payments
+              and certificates as they actually arrive.
             </p>
           </div>
 
@@ -106,8 +106,8 @@
 
         <div class="vf-info-strip">
           <strong>Simple rule:</strong>
-          one student can have multiple services. A service can be a class,
-          tutoring, or another type of instruction.
+          VendorFlow does not make you predict how a family will pay.
+          Payments and charter certificates are credited when they arrive.
         </div>
       </div>
 
@@ -161,12 +161,12 @@
 
       <div id="serviceForm" class="card hidden">
 
-        <div class="eyebrow">Service & funding setup</div>
+        <div class="eyebrow">Service setup</div>
         <h2>Add a service</h2>
 
         <p class="vf-form-help">
-          VendorFlow keeps parent responsibility and charter responsibility
-          separate, even when both are paying for the same service.
+          Set what the student owes for the service. Payments and certificates
+          will reduce that balance later as VendorFlow receives them.
         </p>
 
         <div class="formgrid vf-form-2">
@@ -243,35 +243,6 @@
             value="25"
             placeholder="Late fee">
 
-          <input
-            id="serviceCharterSchool"
-            class="input"
-            placeholder="Charter school, if any">
-
-          <input
-            id="serviceCharterExpected"
-            class="input"
-            type="number"
-            min="0"
-            step=".01"
-            placeholder="Expected charter amount">
-
-          <input
-            id="serviceParentExpected"
-            class="input"
-            type="number"
-            min="0"
-            step=".01"
-            placeholder="Expected parent amount">
-
-          <input
-            id="serviceDepositExpected"
-            class="input"
-            type="number"
-            min="0"
-            step=".01"
-            placeholder="Deposit expected">
-
         </div>
 
         <textarea
@@ -279,12 +250,6 @@
           class="input"
           rows="3"
           placeholder="Notes about this arrangement"></textarea>
-
-        <div
-          id="fundingPreview"
-          class="vf-funding-preview">
-          Enter the service price and funding amounts to preview the plan.
-        </div>
 
         <div class="row">
           <button id="saveService" class="primary">

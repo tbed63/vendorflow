@@ -1045,3 +1045,96 @@ main{
     flex-direction:column;
   }
 }
+
+
+/* ==========================================================
+   EVENT-DRIVEN STUDENT ACCOUNTING
+   ========================================================== */
+
+.vf-account-summary{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:14px 24px;
+  padding:14px 18px;
+  border-bottom:1px solid #E2E6E9;
+  background:#FFFFFF;
+}
+
+.vf-account-summary > div{
+  display:grid;
+  gap:3px;
+}
+
+.vf-account-summary small{
+  color:#7A888E;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+
+.vf-account-summary strong{
+  color:#26353B;
+  font-size:15px;
+}
+
+.vf-paid-pill,
+.vf-due-pill,
+.vf-credit-pill{
+  margin-left:auto;
+  display:inline-flex;
+  align-items:center;
+  padding:7px 11px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:800;
+  white-space:nowrap;
+}
+
+.vf-paid-pill{
+  background:#ECFDF3;
+  color:#067647;
+}
+
+.vf-due-pill{
+  background:#FFF4E5;
+  color:#B54708;
+}
+
+.vf-credit-pill{
+  background:#EEF4FF;
+  color:#1A346F;
+}
+
+.vf-charter-receivable{
+  padding:11px 18px;
+  background:#F3F7FB;
+  border-bottom:1px solid #DDE5EB;
+  color:#435A63;
+  font-size:12px;
+}
+
+.vf-charter-receivable strong{
+  color:#1A346F;
+}
+
+.vf-refund-alert{
+  padding:11px 18px;
+  background:#FFF7ED;
+  border-bottom:1px solid #FED7AA;
+  color:#9A3412;
+  font-size:12px;
+}
+
+@media(max-width:700px){
+
+  .vf-account-summary{
+    align-items:flex-start;
+  }
+
+  .vf-paid-pill,
+  .vf-due-pill,
+  .vf-credit-pill{
+    margin-left:0;
+  }
+}

@@ -973,31 +973,136 @@ function refreshStudentServiceSelectors(){
 }
 
 
-function fundingLabel(service){
 
-  if(service.status==='Dropped'){
-    return 'Dropped';
+function studentPayments(studentName){
+
+  const target=normalizedName(studentName);
+
+  return payments.filter(
+    p=>
+      normalizedName(p.student)===target ||
+      (
+        !p.student &&
+        normalizedName(p.payer)===target
+      )
+  );
+}
+
+
+function studentCertificates(studentName){
+
+  const target=normalizedName(studentName);
+
+  return certs.filter(
+    c=>normalizedName(c.student)===target
+  );
+}
+
+
+function studentAccountTotals(student){
+
+  const serviceList=
+    studentServices(student.id)
+      .filter(s=>s.status!=='Dropped');
+
+  const totalDue=
+    serviceList.reduce(
+      (sum,s)=>
+        sum+Number(s.totalPrice||0),
+      0
+    );
+
+
+  const paymentList=
+    studentPayments(student.studentName);
+
+
+  const parentPayments=
+    paymentList
+      .filter(
+        p=>
+          String(p.method||'')
+            .toLowerCase()!=='charter payment'
+      )
+      .reduce(
+        (sum,p)=>
+          sum+Number(p.amount||0),
+        0
+      );
+
+
+  const charterPayments=
+    paymentList
+      .filter(
+        p=>
+          String(p.method||'')
+            .toLowerCase()==='charter payment'
+      )
+      .reduce(
+        (sum,p)=>
+          sum+Number(p.amount||0),
+        0
+      );
+
+
+  const certificateTotal=
+    studentCertificates(student.studentName)
+      .filter(
+        c=>
+          String(c.status||'')
+            .toLowerCase()!=='cancelled'
+      )
+      .reduce(
+        (sum,c)=>
+          sum+Number(c.amount||0),
+        0
+      );
+
+
+  const parentBalance=
+    totalDue-
+    parentPayments-
+    certificateTotal;
+
+
+  const charterReceivable=
+    Math.max(
+      0,
+      certificateTotal-charterPayments
+    );
+
+
+  return {
+    totalDue,
+    parentPayments,
+    charterPayments,
+    certificateTotal,
+    parentBalance,
+    charterReceivable
+  };
+}
+
+
+function balanceStatus(balance){
+
+  if(balance < -.009){
+    return {
+      label:`${money(Math.abs(balance))} credit`,
+      className:'vf-credit-pill'
+    };
   }
 
-  if(service.fundingStatus==='Needs funding setup'){
-    return 'Funding setup needed';
+  if(balance > .009){
+    return {
+      label:`${money(balance)} still due`,
+      className:'vf-due-pill'
+    };
   }
 
-  const charter=
-    Number(service.charterExpected||0);
-
-  const parent=
-    Number(service.parentExpected||0);
-
-  if(charter>0 && parent>0){
-    return 'Split funding';
-  }
-
-  if(charter>0){
-    return 'Charter funded';
-  }
-
-  return 'Parent funded';
+  return {
+    label:'Parent paid',
+    className:'vf-paid-pill'
+  };
 }
 
 
@@ -1011,6 +1116,7 @@ function renderStudentsServices(){
     count.textContent=
       `${students.length} student${students.length===1?'':'s'}`;
   }
+
 
   const list=$('#studentsServicesList');
 
@@ -1038,101 +1144,90 @@ function renderStudentsServices(){
       )
       .map(student=>{
 
-        const studentServiceList=
+        const account=
+          studentAccountTotals(student);
+
+        const balance=
+          balanceStatus(account.parentBalance);
+
+        const serviceList=
           studentServices(student.id);
 
+
         const serviceHTML=
-          studentServiceList.length
-            ? studentServiceList
-                .map(service=>{
+          serviceList.length
 
-                  return `
-                    <div class="vf-service-row">
+            ? serviceList.map(service=>`
 
-                      <div class="vf-service-main">
+                <div class="vf-service-row">
 
-                        <div class="vf-service-name">
-                          ${esc(
-                            service.name ||
-                            service.serviceType ||
-                            'Service'
-                          )}
-                        </div>
+                  <div class="vf-service-main">
 
-                        <div class="vf-service-meta">
+                    <div class="vf-service-name">
+                      ${esc(
+                        service.name ||
+                        service.serviceType ||
+                        'Service'
+                      )}
+                    </div>
 
-                          <span>
-                            ${esc(service.serviceType||'Service')}
-                          </span>
+                    <div class="vf-service-meta">
 
-                          ${service.schedule
-                            ? `<span>${esc(service.schedule)}</span>`
-                            : ''}
+                      <span>
+                        ${esc(service.serviceType||'Service')}
+                      </span>
 
-                          ${service.serviceType==='Tutoring' &&
-                            Number(service.tutoringRate||0)>0
-                            ? `<span>
-                                ${money(service.tutoringRate)}
-                                tutoring rate
-                               </span>`
-                            : ''}
+                      ${service.status
+                        ? `<span>${esc(service.status)}</span>`
+                        : ''}
 
-                          ${service.schedule==='Monthly'
-                            ? `<span>
-                                Due by the
-                                ${esc(service.dueDay||4)}th
-                               </span>`
-                            : ''}
+                      ${service.schedule
+                        ? `<span>${esc(service.schedule)}</span>`
+                        : ''}
 
-                          ${Number(service.lateFee||0)>0
-                            ? `<span>
-                                ${money(service.lateFee)}
-                                late fee
-                               </span>`
-                            : ''}
+                      ${service.serviceType==='Tutoring' &&
+                        Number(service.tutoringRate||0)>0
+                        ? `<span>
+                            ${money(service.tutoringRate)} rate
+                           </span>`
+                        : ''}
 
-                        </div>
+                      ${service.schedule==='Monthly'
+                        ? `<span>
+                            Due by the
+                            ${esc(service.dueDay||4)}th
+                           </span>`
+                        : ''}
 
-                      </div>
-
-
-                      <div class="vf-service-money">
-
-                        <div>
-                          <small>Total</small>
-                          <strong>
-                            ${money(service.totalPrice)}
-                          </strong>
-                        </div>
-
-                        <div>
-                          <small>Charter</small>
-                          <strong>
-                            ${money(service.charterExpected)}
-                          </strong>
-                        </div>
-
-                        <div>
-                          <small>Parent</small>
-                          <strong>
-                            ${money(service.parentExpected)}
-                          </strong>
-                        </div>
-
-                        <span class="vf-status-pill">
-                          ${esc(fundingLabel(service))}
-                        </span>
-
-                      </div>
+                      ${Number(service.lateFee||0)>0
+                        ? `<span>
+                            ${money(service.lateFee)} late fee
+                           </span>`
+                        : ''}
 
                     </div>
-                  `;
-                })
-                .join('')
+
+                  </div>
+
+
+                  <div class="vf-service-money">
+
+                    <div>
+                      <small>Service price</small>
+                      <strong>
+                        ${money(service.totalPrice)}
+                      </strong>
+                    </div>
+
+                  </div>
+
+                </div>
+
+              `).join('')
 
             : `
                 <div class="vf-service-empty">
-                  No service/payment plan set up yet.
+                  No service has been added yet.
                 </div>
               `;
 
@@ -1176,6 +1271,71 @@ function renderStudentsServices(){
 
             </div>
 
+
+            <div class="vf-account-summary">
+
+              <div>
+                <small>Services</small>
+                <strong>
+                  ${money(account.totalDue)}
+                </strong>
+              </div>
+
+              <div>
+                <small>Parent payments</small>
+                <strong>
+                  ${money(account.parentPayments)}
+                </strong>
+              </div>
+
+              <div>
+                <small>Certificates</small>
+                <strong>
+                  ${money(account.certificateTotal)}
+                </strong>
+              </div>
+
+              <div>
+                <small>Parent balance</small>
+                <strong>
+                  ${money(account.parentBalance)}
+                </strong>
+              </div>
+
+              <span class="${balance.className}">
+                ${esc(balance.label)}
+              </span>
+
+            </div>
+
+
+            ${account.charterReceivable>0
+              ? `
+                <div class="vf-charter-receivable">
+                  Charter receivable:
+                  <strong>
+                    ${money(account.charterReceivable)}
+                  </strong>
+                  — parent obligation has already been satisfied
+                  by the certificate.
+                </div>
+              `
+              : ''}
+
+
+            ${account.parentBalance < -.009
+              ? `
+                <div class="vf-refund-alert">
+                  <strong>Possible refund / credit:</strong>
+                  This account has
+                  ${money(Math.abs(account.parentBalance))}
+                  more credited than the current service charges.
+                  Review before refunding.
+                </div>
+              `
+              : ''}
+
+
             <div class="vf-services">
               ${serviceHTML}
             </div>
@@ -1207,56 +1367,6 @@ function renderStudentsServices(){
     });
 }
 
-
-function updateFundingPreview(){
-
-  const box=$('#fundingPreview');
-
-  if(!box) return;
-
-  const total=
-    Number($('#serviceTotal')?.value||0);
-
-  const charter=
-    Number($('#serviceCharterExpected')?.value||0);
-
-  const rawParent=
-    $('#serviceParentExpected')?.value ?? '';
-
-  const parent=
-    rawParent==='' && total>0
-      ? Math.max(0,total-charter)
-      : Number(rawParent||0);
-
-  const difference=
-    total-(charter+parent);
-
-
-  box.innerHTML=`
-    <strong>Total:</strong> ${money(total)}
-    &nbsp;&nbsp;
-    <strong>Charter:</strong> ${money(charter)}
-    &nbsp;&nbsp;
-    <strong>Parent:</strong> ${money(parent)}
-
-    ${
-      total>0 && Math.abs(difference)>.009
-        ? `<div class="vf-funding-warning">
-             Funding is
-             ${money(Math.abs(difference))}
-             ${difference>0?'short':'over'}
-             the service price.
-           </div>`
-
-        : total>0
-          ? `<div class="vf-funding-good">
-               Funding plan balances correctly.
-             </div>`
-
-          : ''
-    }
-  `;
-}
 
 
 /* ----------------------------------------------------------
@@ -1377,23 +1487,6 @@ $('#cancelService').onclick=()=>{
 };
 
 
-[
-  '#serviceTotal',
-  '#serviceCharterExpected',
-  '#serviceParentExpected'
-].forEach(id=>{
-
-  const el=$(id);
-
-  if(el){
-    el.addEventListener(
-      'input',
-      updateFundingPreview
-    );
-  }
-});
-
-
 $('#serviceType').onchange=()=>{
 
   const type=$('#serviceType').value;
@@ -1440,7 +1533,6 @@ $('#serviceClass').onchange=()=>{
   }
 
 
-  updateFundingPreview();
 };
 
 
@@ -1467,34 +1559,17 @@ $('#saveService').onclick=async()=>{
   const totalPrice=
     Number($('#serviceTotal').value||0);
 
-  const charterExpected=
-    Number($('#serviceCharterExpected').value||0);
 
-  const parentRaw=
-    $('#serviceParentExpected').value.trim();
-
-  const parentExpected=
-    parentRaw===''
-      ? Math.max(0,totalPrice-charterExpected)
-      : Number(parentRaw||0);
-
-
-  if(
-    totalPrice>0 &&
-    Math.abs(
-      totalPrice-
-      (charterExpected+parentExpected)
-    )>.009
-  ){
-
+  if(totalPrice<0){
     return toast(
-      'Charter + parent funding must equal the service price.'
+      'Service price cannot be negative.'
     );
   }
 
 
   const classId=
     $('#serviceClass').value;
+
 
   const classRecord=
     classes.find(c=>c.id===classId);
@@ -1510,25 +1585,17 @@ $('#saveService').onclick=async()=>{
     serviceType;
 
 
-  const fundingStatus=
-    charterExpected>0 && parentExpected>0
-      ? 'Split funding'
-
-      : charterExpected>0
-        ? 'Charter funded'
-
-        : 'Parent funded';
-
-
   await addDoc(
     sub('services'),
     {
 
       studentId,
+
       studentName:
         student.studentName||'',
 
       serviceType,
+
       name,
 
       classId:
@@ -1566,40 +1633,22 @@ $('#saveService').onclick=async()=>{
           $('#serviceLateFee').value||25
         ),
 
-      charterSchool:
-        $('#serviceCharterSchool')
-          .value
-          .trim(),
-
-      charterExpected,
-
-      parentExpected,
-
-      depositExpected:
-        Number(
-          $('#serviceDepositExpected').value||0
-        ),
-
-      fundingStatus,
       status:'Active',
-
-      notes:
-        $('#serviceNotes').value.trim(),
 
       source:'Manual',
 
-      createdAt:serverTimestamp(),
-      updatedAt:serverTimestamp()
+      createdAt:
+        serverTimestamp(),
+
+      updatedAt:
+        serverTimestamp()
     }
   );
 
 
   await log(
-    'Service funding plan created',
-    `${student.studentName} — ${name}: `+
-    `${money(totalPrice)} total; `+
-    `${money(charterExpected)} charter; `+
-    `${money(parentExpected)} parent.`,
+    'Service created',
+    `${student.studentName} — ${name}: ${money(totalPrice)}.`,
     'Manual'
   );
 
@@ -1610,22 +1659,21 @@ $('#saveService').onclick=async()=>{
     '#serviceEnd',
     '#serviceTotal',
     '#serviceTutoringRate',
-    '#serviceCharterSchool',
-    '#serviceCharterExpected',
-    '#serviceParentExpected',
-    '#serviceDepositExpected',
     '#serviceNotes'
   ].forEach(id=>{
-    $(id).value='';
+
+    const el=$(id);
+
+    if(el){
+      el.value='';
+    }
   });
 
 
   $('#serviceDueDay').value='4';
   $('#serviceLateFee').value='25';
-
   $('#serviceSchedule').value='Full';
   $('#serviceType').value='Class';
-
   $('#serviceClass').value='';
 
 
@@ -1633,7 +1681,7 @@ $('#saveService').onclick=async()=>{
 
   await refreshAll();
 
-  toast('Service funding plan saved.');
+  toast('Service saved.');
 };
 
 
@@ -1838,18 +1886,6 @@ async function syncRosterToCoreRecords(
           dueDay:4,
 
           lateFee:25,
-
-          charterSchool:'',
-
-          charterExpected:0,
-
-          parentExpected:
-            totalPrice,
-
-          depositExpected:0,
-
-          fundingStatus:
-            'Needs funding setup',
 
           status,
 
