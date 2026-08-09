@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VendorFlow — AI Vendor Assistant</title>
+  <meta name="description" content="VendorFlow helps education vendors organize rosters, payments, charter certificates, invoices, and tax-ready records." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">VF</div>
+        <div>
+          <div class="brand-name">VendorFlow</div>
+          <div class="brand-sub">AI Vendor Assistant</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active" data-view="dashboard">Dashboard</button>
+        <button class="nav-item" data-view="classes">Classes & Rosters</button>
+        <button class="nav-item" data-view="payments">Payments</button>
+        <button class="nav-item" data-view="certificates">Certificates</button>
+        <button class="nav-item" data-view="review">Needs Review <span id="reviewBadge" class="badge">0</span></button>
+      </nav>
+
+      <div class="sidebar-note">
+        <strong>Prototype</strong>
+        <span>Roster import works now. Email forwarding, payments, certificates, and invoicing come next.</span>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="eyebrow">VendorFlow MVP</div>
+          <h1 id="viewTitle">Dashboard</h1>
+        </div>
+        <div class="topbar-actions">
+          <button id="exportBtn" class="button secondary">Export backup</button>
+          <button id="resetBtn" class="button ghost">Reset demo</button>
+        </div>
+      </header>
+
+      <section id="dashboardView" class="view active">
+        <div class="hero-card">
+          <div>
+            <div class="eyebrow light">Your vendor command center</div>
+            <h2>Know what needs your attention.</h2>
+            <p>VendorFlow is being built so the busywork comes to you instead of living across email, spreadsheets, and folders.</p>
+          </div>
+          <button class="button primary" data-go="classes">Import a class roster</button>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Classes</div>
+            <div id="statClasses" class="stat-value">0</div>
+            <div class="stat-note">with saved rosters</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Active students</div>
+            <div id="statStudents" class="stat-value">0</div>
+            <div class="stat-note">across all classes</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Needs review</div>
+            <div id="statReview" class="stat-value">0</div>
+            <div class="stat-note">ambiguous imports or future email events</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Forwarded emails</div>
+            <div class="stat-value muted">Coming next</div>
+            <div class="stat-note">payments, certificates, adds & drops</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="eyebrow">Next build targets</div>
+              <h3>What comes after roster import</h3>
+            </div>
+          </div>
+          <div class="roadmap">
+            <div class="roadmap-item done">
+              <div class="roadmap-num">1</div>
+              <div><strong>CSV → clean roster</strong><span>Upload a class export and let VendorFlow recognize the useful fields.</span></div>
+            </div>
+            <div class="roadmap-item">
+              <div class="roadmap-num">2</div>
+              <div><strong>Forwarded email intake</strong><span>Forward Venmo, certificate, registration, and drop emails to VendorFlow.</span></div>
+            </div>
+            <div class="roadmap-item">
+              <div class="roadmap-num">3</div>
+              <div><strong>Automatic matching</strong><span>Match the event to a known student/class or send it to Needs Review.</span></div>
+            </div>
+            <div class="roadmap-item">
+              <div class="roadmap-num">4</div>
+              <div><strong>Batch charter invoicing</strong><span>Create invoices for certificates that are ready but not yet billed.</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="classesView" class="view">
+        <div class="two-col">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="eyebrow">Step 1</div>
+                <h3>Create or choose a class</h3>
+              </div>
+            </div>
+
+            <label class="field">
+              <span>Class name</span>
+              <input id="className" type="text" placeholder="Example: Math Jam" />
+            </label>
+
+            <label class="field">
+              <span>School year / term <em>optional</em></span>
+              <input id="classTerm" type="text" placeholder="Example: Fall 2026" />
+            </label>
+
+            <label class="field">
+              <span>Tuition <em>optional</em></span>
+              <input id="classTuition" type="number" min="0" step="0.01" placeholder="340" />
+            </label>
+
+            <button id="saveClassBtn" class="button primary full">Save class</button>
+
+            <div class="divider"></div>
+
+            <label class="field">
+              <span>Current class</span>
+              <select id="classSelect">
+                <option value="">Choose a class</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="eyebrow">Step 2</div>
+                <h3>Upload the roster CSV</h3>
+              </div>
+            </div>
+
+            <div class="help-box">
+              <strong>Not tech savvy? This should stay simple.</strong>
+              <span>Download the roster CSV from your learning center, then drag it here. A 60-second screencast can live right beside this box later.</span>
+            </div>
+
+            <label id="dropZone" class="drop-zone">
+              <input id="csvInput" type="file" accept=".csv,text/csv" hidden />
+              <div class="drop-icon">⇧</div>
+              <strong>Drop CSV here</strong>
+              <span>or click to choose the file</span>
+            </label>
+
+            <div id="fileStatus" class="file-status hidden"></div>
+          </div>
+        </div>
+
+        <div id="previewPanel" class="panel hidden">
+          <div class="panel-header split">
+            <div>
+              <div class="eyebrow">Step 3</div>
+              <h3>Preview what VendorFlow found</h3>
+              <p id="mappingSummary" class="subtle"></p>
+            </div>
+            <button id="saveRosterBtn" class="button primary">Save roster</button>
+          </div>
+
+          <div id="warningBox" class="warning-box hidden"></div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Parent / Guardian</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Status</th>
+                  <th>Grade</th>
+                </tr>
+              </thead>
+              <tbody id="previewBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header split">
+            <div>
+              <div class="eyebrow">Saved data</div>
+              <h3>Current roster</h3>
+            </div>
+            <button id="deleteClassBtn" class="button danger hidden">Delete class</button>
+          </div>
+
+          <div id="emptyRoster" class="empty-state">
+            Choose a class to view its saved roster.
+          </div>
+
+          <div id="rosterWrap" class="table-wrap hidden">
+            <table>
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Parent / Guardian</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Status</th>
+                  <th>Grade</th>
+                  <th>Registration ID</th>
+                </tr>
+              </thead>
+              <tbody id="rosterBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="paymentsView" class="view">
+        <div class="placeholder-card">
+          <div class="placeholder-icon">$</div>
+          <h2>Payments are next.</h2>
+          <p>The next working feature will process forwarded Venmo/payment emails, match the payer to the roster, and record the payment without double-counting.</p>
+        </div>
+      </section>
+
+      <section id="certificatesView" class="view">
+        <div class="placeholder-card">
+          <div class="placeholder-icon">PO</div>
+          <h2>Certificates are next.</h2>
+          <p>Forward a charter certificate email. VendorFlow will extract the student, charter, amount, certificate/PO number, service dates, and attachment, then match it to the roster.</p>
+        </div>
+      </section>
+
+      <section id="reviewView" class="view">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="eyebrow">Safety net</div>
+              <h3>Needs Review</h3>
+              <p class="subtle">VendorFlow should never quietly guess when the match is uncertain.</p>
+            </div>
+          </div>
+          <div id="reviewList" class="review-list"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
