@@ -1,34 +1,852 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection,
+  addDoc,
+  getDocs,
+  deleteDoc,
+  writeBatch,
+  serverTimestamp,
+  query,
+  orderBy
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+
 const firebaseConfig={apiKey:"AIzaSyCjAnrOfpmDMGB3O5x9i0yDZ-JR8NZMa0o",authDomain:"vendorflow-68828.firebaseapp.com",projectId:"vendorflow-68828",storageBucket:"vendorflow-68828.firebasestorage.app",messagingSenderId:"803061946107",appId:"1:803061946107:web:fe9622dd2d0c1c5c13c25e"};
+
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),$=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],show=e=>e.classList.remove("hidden"),hide=e=>e.classList.add("hidden"),esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 let user=null,profile={},classes=[],roster=[],payments=[],certs=[],compliance=[],reviews=[],history=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
 const questions=[['businessName','What is the name of your business?','This will appear on invoices.'],['ownerName','What name should VendorFlow use for you?','Your name as vendor or owner.'],['address','What is your business mailing address?','Street address.'],['cityStateZip','What city, state, and ZIP go with that address?','Example: Encinitas, CA 92024'],['phone','What business phone number should VendorFlow use?','You can change this later.'],['locations','Where do you teach or conduct business?','Learning centers, campuses, tutoring locations, etc.'],['schools','Which charter schools or organizations do you work with?','List as many as you know now.']];
 const aliases={registrationId:['id','registration id'],status:['status','registration status'],classTitle:['title','class title','class'],studentFirst:['registrant first name','student first name','child first name'],studentLast:['registrant last name','student last name','child last name'],parentFirst:['primary first name','parent first name','guardian first name'],parentLast:['primary last name','parent last name','guardian last name'],parentEmail:['email address','parent email','guardian email'],parentPhone:['phone','parent phone','guardian phone'],grade:['grade level','grade']};
 const vendorDoc=()=>doc(db,'vendors',user.uid),sub=n=>collection(db,'vendors',user.uid,n),toast=m=>{let t=$('#toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)};
-function setAuthMode(m){authMode=m;$('#authTitle').textContent=m==='login'?'Log in':'Create account';$('#authSubmit').textContent=m==='login'?'Log in':'Create account';$('#authToggle').textContent=m==='login'?'New to VendorFlow? Create an account':'Already have an account? Log in';m==='signup'?show($('#name')):hide($('#name'));hide($('#authError'))}
-$('#authToggle').onclick=()=>setAuthMode(authMode==='login'?'signup':'login');$('#authSubmit').onclick=async()=>{try{hide($('#authError'));if(authMode==='signup'){let n=$('#name').value.trim();if(!n)throw Error('Enter your name.');let r=await createUserWithEmailAndPassword(auth,$('#email').value.trim(),$('#password').value);await updateProfile(r.user,{displayName:n})}else await signInWithEmailAndPassword(auth,$('#email').value.trim(),$('#password').value)}catch(e){$('#authError').textContent=e.message;show($('#authError'))}};$('#logout').onclick=$('#onboardLogout').onclick=()=>signOut(auth);
-onAuthStateChanged(auth,async u=>{hide($('#loading'));hide($('#auth'));hide($('#onboarding'));hide($('#app'));if(!u){user=null;show($('#auth'));return}user=u;let s=await getDoc(vendorDoc());if(!s.exists()||!s.data().onboardingComplete){profile=s.exists()?s.data():{};answers={...profile,ownerName:profile.ownerName||u.displayName||''};step=0;renderQuestion();show($('#onboarding'))}else{profile=s.data();await enterApp()}});
-function renderQuestion(){let[k,q,h]=questions[step];$('#progressBar').style.width=`${(step+1)/questions.length*100}%`;$('#backBtn').disabled=step===0;$('#nextBtn').textContent=step===questions.length-1?'Finish setup':'Next';$('#questionBox').innerHTML=`<div class="eyebrow">Question ${step+1} of ${questions.length}</div><h2>${q}</h2><p>${h}</p>${['locations','schools'].includes(k)?`<textarea id="answer" class="input" rows="5">${esc(answers[k]||'')}</textarea>`:`<input id="answer" class="input" value="${esc(answers[k]||'')}">`}`}
-$('#backBtn').onclick=()=>{if(step){answers[questions[step][0]]=$('#answer').value.trim();step--;renderQuestion()}};$('#nextBtn').onclick=async()=>{let k=questions[step][0];answers[k]=$('#answer').value.trim();if(['businessName','ownerName'].includes(k)&&!answers[k]){toast('Please answer this one first.');return}if(step<questions.length-1){step++;renderQuestion();return}profile={...answers,email:user.email,onboardingComplete:true,updatedAt:serverTimestamp()};await setDoc(vendorDoc(),profile,{merge:true});await log('Business setup completed',`${profile.businessName} workspace created.`,'Onboarding');hide($('#onboarding'));await enterApp()};
-async function enterApp(){show($('#app'));$('#bizNameSide').textContent=profile.businessName||'VendorFlow';$('#userEmail').textContent=user.email||'';fillProfile();await refreshAll()}
-async function log(action,detail,source='Manual'){await addDoc(sub('history'),{action,detail,source,createdAt:serverTimestamp()})}
-async function getList(name,ordered=true){let c=sub(name),q=ordered?query(c,orderBy('createdAt','desc')):c,s=await getDocs(q);return s.docs.map(d=>({id:d.id,...d.data()}))}
-async function refreshAll(){classes=await getList('classes',false);payments=await getList('payments');certs=await getList('certificates');compliance=await getList('compliance');reviews=await getList('review');history=await getList('history');renderAll()}
-function renderAll(){renderClassSelect();renderDashboard();renderRoster();renderRecords();renderReviews();renderHistory()}
-function renderDashboard(){$('#statClasses').textContent=classes.length;$('#statStudents').textContent=classes.reduce((a,c)=>a+(c.activeStudentCount||0),0);$('#statReview').textContent=reviews.length;$('#statHistory').textContent=history.length;$('#reviewBadge').textContent=reviews.length;renderHistoryInto($('#recentHistory'),history.slice(0,6))}
-function renderClassSelect(){let sel=$('#classSelect'),v=sel.value;sel.innerHTML='<option value="">Choose a class</option>'+classes.sort((a,b)=>(a.name||'').localeCompare(b.name||'')).map(c=>`<option value="${c.id}">${esc(c.name)}${c.term?' — '+esc(c.term):''}</option>`).join('');if(classes.some(c=>c.id===v))sel.value=v}
-const currentClass=()=>classes.find(c=>c.id===$('#classSelect').value);async function loadRoster(){let c=currentClass();if(!c){roster=[];return}let s=await getDocs(collection(db,'vendors',user.uid,'classes',c.id,'students'));roster=s.docs.map(d=>({id:d.id,...d.data()}))}
-$('#saveClass').onclick=async()=>{let name=$('#className').value.trim();if(!name)return toast('Enter a class name.');let data={name,term:$('#classTerm').value.trim(),tuition:Number($('#classTuition').value)||null,location:$('#classLocation').value.trim(),activeStudentCount:0,createdAt:serverTimestamp()};let r=await addDoc(sub('classes'),data);await log('Class created',name,'Manual');await refreshAll();$('#classSelect').value=r.id;await loadRoster();renderRoster();toast('Class saved.')};$('#classSelect').onchange=async()=>{preview=[];hide($('#previewCard'));await loadRoster();renderRoster()};
-function norm(v){return String(v||'').trim().toLowerCase()}function find(h,a){let n=h.map(norm);for(let x of a){let i=n.indexOf(norm(x));if(i>=0)return h[i]}return null}function mapHeaders(h){let m={};for(let[k,a]of Object.entries(aliases)){let x=find(h,a);if(x)m[k]=x}return m}function val(r,k){return map[k]?String(r[map[k]]??'').trim():''}function transform(r){let sf=val(r,'studentFirst'),sl=val(r,'studentLast'),pf=val(r,'parentFirst'),pl=val(r,'parentLast');return{registrationId:val(r,'registrationId'),status:val(r,'status')||'Active',studentFirst:sf,studentLast:sl,studentName:[sf,sl].filter(Boolean).join(' '),parentName:[pf,pl].filter(Boolean).join(' '),parentEmail:val(r,'parentEmail'),parentPhone:val(r,'parentPhone'),grade:val(r,'grade'),classTitle:val(r,'classTitle')}}function active(s){return!['dropped','cancelled','canceled','withdrawn','inactive'].includes(norm(s.status))}
-$('#csv').onchange=e=>{let f=e.target.files[0];if(!f)return;if(!currentClass())return toast('Choose a class first.');Papa.parse(f,{header:true,skipEmptyLines:'greedy',complete:r=>{headers=r.meta.fields||[];map=mapHeaders(headers);preview=(r.data||[]).map(transform).filter(x=>x.studentName||x.parentEmail);$('#csvStatus').textContent=`${f.name}: ${preview.length} usable rows found.`;renderPreview()}})};
-function renderPreview(){show($('#previewCard'));$('#mapping').textContent=`${preview.length} rows found. VendorFlow recognized ${Object.keys(map).length} useful fields.`;$('#previewBody').innerHTML=preview.map(s=>`<tr><td>${esc(s.studentName)}</td><td>${esc(s.parentName)}</td><td>${esc(s.parentEmail)}</td><td>${esc(s.parentPhone)}</td><td>${esc(s.status)}</td><td>${esc(s.grade)}</td></tr>`).join('');let issues=[];if(!map.studentFirst||!map.studentLast)issues.push('Student name columns were not fully recognized.');if(issues.length){$('#warnings').textContent=issues.join(' ');show($('#warnings'))}else hide($('#warnings'))}
-$('#saveRoster').onclick=async()=>{let c=currentClass();if(!c||!preview.length)return;let col=collection(db,'vendors',user.uid,'classes',c.id,'students'),old=await getDocs(col),b=writeBatch(db);old.forEach(d=>b.delete(d.ref));preview.forEach(s=>b.set(doc(col),{...s,source:'CSV import',createdAt:serverTimestamp()}));let count=preview.filter(active).length;b.update(doc(db,'vendors',user.uid,'classes',c.id),{activeStudentCount:count,rosterCount:preview.length,lastImportAt:serverTimestamp()});await b.commit();await log('Roster imported',`${preview.length} students imported into ${c.name}; ${count} active.`,'CSV import');await refreshAll();$('#classSelect').value=c.id;await loadRoster();renderRoster();toast('Roster saved.')};
-function renderRoster(){let c=currentClass();if(!c){show($('#rosterEmpty'));hide($('#rosterWrap'));hide($('#addStudent'));hide($('#deleteClass'));return}show($('#addStudent'));show($('#deleteClass'));if(!roster.length){$('#rosterEmpty').textContent='No saved roster yet.';show($('#rosterEmpty'));hide($('#rosterWrap'));return}hide($('#rosterEmpty'));show($('#rosterWrap'));$('#rosterBody').innerHTML=roster.map(s=>`<tr><td>${esc(s.studentName)}</td><td>${esc(s.parentName)}</td><td>${esc(s.parentEmail)}</td><td>${esc(s.status)}</td><td>${esc(s.grade)}</td><td><button data-status="${s.id}">Change status</button></td></tr>`).join('');$$('[data-status]').forEach(b=>b.onclick=()=>changeStatus(b.dataset.status))}
-async function changeStatus(id){let s=roster.find(x=>x.id===id),n=prompt(`Status for ${s.studentName}:`,s.status);if(!n)return;let c=currentClass();await updateDoc(doc(db,'vendors',user.uid,'classes',c.id,'students',id),{status:n});await loadRoster();let count=roster.filter(active).length;await updateDoc(doc(db,'vendors',user.uid,'classes',c.id),{activeStudentCount:count});await log('Student status changed',`${s.studentName}: ${s.status} → ${n} in ${c.name}.`,'Manual');await refreshAll();$('#classSelect').value=c.id;await loadRoster();renderRoster()}
-$('#addStudent').onclick=()=>$('#studentForm').classList.toggle('hidden');$('#saveStudent').onclick=async()=>{let c=currentClass(),sf=$('#sf').value.trim(),sl=$('#sl').value.trim();if(!c||!sf||!sl)return toast('Enter student first and last name.');let s={studentFirst:sf,studentLast:sl,studentName:`${sf} ${sl}`,parentName:$('#pn').value.trim(),parentEmail:$('#pe').value.trim(),status:$('#ss').value,source:'Manual',createdAt:serverTimestamp()};await addDoc(collection(db,'vendors',user.uid,'classes',c.id,'students'),s);await loadRoster();await updateDoc(doc(db,'vendors',user.uid,'classes',c.id),{activeStudentCount:roster.filter(active).length,rosterCount:roster.length});await log('Student added',`${s.studentName} added to ${c.name}.`,'Manual');await refreshAll();$('#classSelect').value=c.id;await loadRoster();renderRoster();hide($('#studentForm'));toast('Student added.')};
-$('#deleteClass').onclick=async()=>{let c=currentClass();if(!c||!confirm(`Delete ${c.name}?`))return;let s=await getDocs(collection(db,'vendors',user.uid,'classes',c.id,'students')),b=writeBatch(db);s.forEach(d=>b.delete(d.ref));b.delete(doc(db,'vendors',user.uid,'classes',c.id));await b.commit();await log('Class deleted',c.name,'Manual');$('#classSelect').value='';roster=[];await refreshAll()};
-function toggle(id){$(id).classList.toggle('hidden')}$('#addPayment').onclick=()=>toggle('#paymentForm');$('#savePayment').onclick=async()=>{let amount=Number($('#payAmount').value);if(!amount)return toast('Enter an amount.');let d={date:$('#payDate').value||new Date().toISOString().slice(0,10),payer:$('#payPayer').value.trim(),student:$('#payStudent').value.trim(),className:$('#payClass').value.trim(),amount,method:$('#payMethod').value,source:'Manual',createdAt:serverTimestamp()};await addDoc(sub('payments'),d);await log('Payment recorded',`${d.payer||d.student} — $${amount.toFixed(2)} via ${d.method}.`,'Manual');hide($('#paymentForm'));await refreshAll()};$('#addCertificate').onclick=()=>toggle('#certificateForm');$('#saveCertificate').onclick=async()=>{let d={student:$('#certStudent').value.trim(),school:$('#certSchool').value.trim(),amount:Number($('#certAmount').value)||0,number:$('#certNumber').value.trim(),status:$('#certStatus').value,source:'Manual',createdAt:serverTimestamp()};if(!d.student)return toast('Enter student name.');await addDoc(sub('certificates'),d);await log('Certificate added',`${d.school||'Charter'} certificate for ${d.student} — $${d.amount.toFixed(2)}.`,'Manual');hide($('#certificateForm'));await refreshAll()};$('#addCompliance').onclick=()=>toggle('#complianceForm');$('#saveCompliance').onclick=async()=>{let d={school:$('#compSchool').value.trim(),task:$('#compTask').value.trim(),due:$('#compDue').value,status:$('#compStatus').value,source:'Manual',createdAt:serverTimestamp()};if(!d.task)return toast('Enter the requirement.');await addDoc(sub('compliance'),d);await log('Compliance task added',`${d.task}${d.school?' — '+d.school:''}.`,'Manual');hide($('#complianceForm'));await refreshAll()};
-function renderRecords(){$('#paymentList').innerHTML=payments.length?payments.map(d=>`<div class="record"><strong>$${Number(d.amount).toFixed(2)} — ${esc(d.payer||d.student)}</strong><div class="meta">${esc(d.date)} · ${esc(d.method)} · ${esc(d.student)} · ${esc(d.className)}</div></div>`).join(''):'<div class="empty">No payments yet.</div>';$('#certificateList').innerHTML=certs.length?certs.map(d=>`<div class="record"><strong>${esc(d.student)} — $${Number(d.amount).toFixed(2)}</strong><div class="meta">${esc(d.school)} · ${esc(d.number)} · ${esc(d.status)}</div></div>`).join(''):'<div class="empty">No certificates yet.</div>';$('#complianceList').innerHTML=compliance.length?compliance.map(d=>`<div class="record"><strong>${esc(d.task)}</strong><div class="meta">${esc(d.school)} · ${esc(d.status)} · ${esc(d.due)}</div></div>`).join(''):'<div class="empty">No compliance tasks yet.</div>'}
-function renderReviews(){$('#reviewList').innerHTML=reviews.length?reviews.map(d=>`<div class="record"><strong>${esc(d.title)}</strong><div class="meta">${esc(d.detail)}</div></div>`).join(''):'<div class="empty">Nothing needs review.</div>'}
-function date(ts){return ts?.toDate?ts.toDate().toLocaleString():'Just now'}function renderHistoryInto(el,list){el.innerHTML=list.length?list.map(d=>`<div class="history"><span>${esc(date(d.createdAt))}</span><div><small>${esc(d.source)}</small><strong>${esc(d.action)}</strong><div class="meta">${esc(d.detail)}</div></div></div>`).join(''):'<div class="empty">No history yet.</div>'}function renderHistory(){renderHistoryInto($('#historyList'),history);renderHistoryInto($('#recentHistory'),history.slice(0,6))}
-function fillProfile(){$('#pBusiness').value=profile.businessName||'';$('#pOwner').value=profile.ownerName||'';$('#pAddress').value=profile.address||'';$('#pPhone').value=profile.phone||'';$('#pLocations').value=profile.locations||'';$('#pSchools').value=profile.schools||''}$('#saveProfile').onclick=async()=>{let d={businessName:$('#pBusiness').value.trim(),ownerName:$('#pOwner').value.trim(),address:$('#pAddress').value.trim(),city:$('#pCity').value.trim(),state:$('#pState').value.trim(),zip:$('#pZip').value.trim(),phone:$('#pPhone').value.trim(),locations:$('#pLocations').value.trim(),schools:$('#pSchools').value.trim(),updatedAt:serverTimestamp()};await setDoc(vendorDoc(),d,{merge:true});profile={...profile,...d};$('#bizNameSide').textContent=d.businessName||'VendorFlow';await log('Business profile updated','Business information was manually updated.','Manual');await refreshAll();toast('Business profile saved.')};
-function switchView(v){$$('.view').forEach(x=>x.classList.remove('active'));$(`#${v}View`).classList.add('active');let names={dashboard:'Dashboard',classes:'Classes & Rosters',payments:'Payments',certificates:'Certificates',compliance:'Compliance',review:'Needs Review',history:'History',profile:'Business Profile'};$('#title').textContent=names[v];$$('nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v))}$$('nav button').forEach(b=>b.onclick=()=>switchView(b.dataset.view));$$('[data-go]').forEach(b=>b.onclick=()=>switchView(b.dataset.go));setAuthMode('login');
+
+function setAuthMode(m){
+  authMode=m;
+  $('#authTitle').textContent=m==='login'?'Log in':'Create account';
+  $('#authSubmit').textContent=m==='login'?'Log in':'Create account';
+  $('#authToggle').textContent=m==='login'?'New to VendorFlow? Create an account':'Already have an account? Log in';
+  m==='signup'?show($('#name')):hide($('#name'));
+  hide($('#authError'));
+}
+
+$('#authToggle').onclick=()=>setAuthMode(authMode==='login'?'signup':'login');
+
+$('#authSubmit').onclick=async()=>{
+  try{
+    hide($('#authError'));
+    if(authMode==='signup'){
+      let n=$('#name').value.trim();
+      if(!n)throw Error('Enter your name.');
+      let r=await createUserWithEmailAndPassword(auth,$('#email').value.trim(),$('#password').value);
+      await updateProfile(r.user,{displayName:n});
+    }else{
+      await signInWithEmailAndPassword(auth,$('#email').value.trim(),$('#password').value);
+    }
+  }catch(e){
+    $('#authError').textContent=e.message;
+    show($('#authError'));
+  }
+};
+
+$('#logout').onclick=$('#onboardLogout').onclick=()=>signOut(auth);
+
+onAuthStateChanged(auth,async u=>{
+  hide($('#loading'));
+  hide($('#auth'));
+  hide($('#onboarding'));
+  hide($('#app'));
+
+  if(!u){
+    user=null;
+    show($('#auth'));
+    return;
+  }
+
+  user=u;
+  let s=await getDoc(vendorDoc());
+
+  if(!s.exists()||!s.data().onboardingComplete){
+    profile=s.exists()?s.data():{};
+    answers={...profile,ownerName:profile.ownerName||u.displayName||''};
+    step=0;
+    renderQuestion();
+    show($('#onboarding'));
+  }else{
+    profile=s.data();
+    await enterApp();
+  }
+});
+
+function renderQuestion(){
+  let[k,q,h]=questions[step];
+
+  $('#progressBar').style.width=`${(step+1)/questions.length*100}%`;
+  $('#backBtn').disabled=step===0;
+  $('#nextBtn').textContent=step===questions.length-1?'Finish setup':'Next';
+
+  $('#questionBox').innerHTML=
+    `<div class="eyebrow">Question ${step+1} of ${questions.length}</div>
+     <h2>${q}</h2>
+     <p>${h}</p>
+     ${
+       ['locations','schools'].includes(k)
+       ? `<textarea id="answer" class="input" rows="5">${esc(answers[k]||'')}</textarea>`
+       : `<input id="answer" class="input" value="${esc(answers[k]||'')}">`
+     }`;
+}
+
+$('#backBtn').onclick=()=>{
+  if(step){
+    answers[questions[step][0]]=$('#answer').value.trim();
+    step--;
+    renderQuestion();
+  }
+};
+
+$('#nextBtn').onclick=async()=>{
+  let k=questions[step][0];
+  answers[k]=$('#answer').value.trim();
+
+  if(['businessName','ownerName'].includes(k)&&!answers[k]){
+    toast('Please answer this one first.');
+    return;
+  }
+
+  if(step<questions.length-1){
+    step++;
+    renderQuestion();
+    return;
+  }
+
+  profile={
+    ...answers,
+    email:user.email,
+    onboardingComplete:true,
+    updatedAt:serverTimestamp()
+  };
+
+  await setDoc(vendorDoc(),profile,{merge:true});
+  await log('Business setup completed',`${profile.businessName} workspace created.`,'Onboarding');
+
+  hide($('#onboarding'));
+  await enterApp();
+};
+
+async function enterApp(){
+  show($('#app'));
+  $('#bizNameSide').textContent=profile.businessName||'VendorFlow';
+  $('#userEmail').textContent=user.email||'';
+  fillProfile();
+  await refreshAll();
+}
+
+async function log(action,detail,source='Manual'){
+  await addDoc(sub('history'),{
+    action,
+    detail,
+    source,
+    createdAt:serverTimestamp()
+  });
+}
+
+async function getList(name,ordered=true){
+  let c=sub(name);
+  let q=ordered?query(c,orderBy('createdAt','desc')):c;
+  let s=await getDocs(q);
+  return s.docs.map(d=>({id:d.id,...d.data()}));
+}
+
+async function refreshAll(){
+  classes=await getList('classes',false);
+  payments=await getList('payments');
+  certs=await getList('certificates');
+  compliance=await getList('compliance');
+  reviews=await getList('review');
+  history=await getList('history');
+  renderAll();
+}
+
+function renderAll(){
+  renderClassSelect();
+  renderDashboard();
+  renderRoster();
+  renderRecords();
+  renderReviews();
+  renderHistory();
+}
+
+function renderDashboard(){
+  $('#statClasses').textContent=classes.length;
+  $('#statStudents').textContent=classes.reduce((a,c)=>a+(c.activeStudentCount||0),0);
+  $('#statReview').textContent=reviews.length;
+  $('#statHistory').textContent=history.length;
+  $('#reviewBadge').textContent=reviews.length;
+  renderHistoryInto($('#recentHistory'),history.slice(0,6));
+}
+
+function renderClassSelect(){
+  let sel=$('#classSelect'),v=sel.value;
+
+  sel.innerHTML='<option value="">Choose a class</option>'+
+    classes
+      .sort((a,b)=>(a.name||'').localeCompare(b.name||''))
+      .map(c=>`<option value="${c.id}">${esc(c.name)}${c.term?' — '+esc(c.term):''}</option>`)
+      .join('');
+
+  if(classes.some(c=>c.id===v))sel.value=v;
+}
+
+const currentClass=()=>classes.find(c=>c.id===$('#classSelect').value);
+
+async function loadRoster(){
+  let c=currentClass();
+
+  if(!c){
+    roster=[];
+    return;
+  }
+
+  let s=await getDocs(
+    collection(db,'vendors',user.uid,'classes',c.id,'students')
+  );
+
+  roster=s.docs.map(d=>({id:d.id,...d.data()}));
+}
+
+$('#saveClass').onclick=async()=>{
+  let name=$('#className').value.trim();
+
+  if(!name)return toast('Enter a class name.');
+
+  let data={
+    name,
+    term:$('#classTerm').value.trim(),
+    tuition:Number($('#classTuition').value)||null,
+    location:$('#classLocation').value.trim(),
+    activeStudentCount:0,
+    createdAt:serverTimestamp()
+  };
+
+  let r=await addDoc(sub('classes'),data);
+
+  await log('Class created',name,'Manual');
+  await refreshAll();
+
+  $('#classSelect').value=r.id;
+  await loadRoster();
+  renderRoster();
+
+  toast('Class saved.');
+};
+
+$('#classSelect').onchange=async()=>{
+  preview=[];
+  hide($('#previewCard'));
+  await loadRoster();
+  renderRoster();
+};
+
+function norm(v){
+  return String(v||'').trim().toLowerCase();
+}
+
+function find(h,a){
+  let n=h.map(norm);
+
+  for(let x of a){
+    let i=n.indexOf(norm(x));
+    if(i>=0)return h[i];
+  }
+
+  return null;
+}
+
+function mapHeaders(h){
+  let m={};
+
+  for(let[k,a]of Object.entries(aliases)){
+    let x=find(h,a);
+    if(x)m[k]=x;
+  }
+
+  return m;
+}
+
+function val(r,k){
+  return map[k]?String(r[map[k]]??'').trim():'';
+}
+
+function transform(r){
+  let sf=val(r,'studentFirst'),
+      sl=val(r,'studentLast'),
+      pf=val(r,'parentFirst'),
+      pl=val(r,'parentLast');
+
+  return{
+    registrationId:val(r,'registrationId'),
+    status:val(r,'status')||'Active',
+    studentFirst:sf,
+    studentLast:sl,
+    studentName:[sf,sl].filter(Boolean).join(' '),
+    parentName:[pf,pl].filter(Boolean).join(' '),
+    parentEmail:val(r,'parentEmail'),
+    parentPhone:val(r,'parentPhone'),
+    grade:val(r,'grade'),
+    classTitle:val(r,'classTitle')
+  };
+}
+
+function active(s){
+  return ![
+    'dropped',
+    'cancelled',
+    'canceled',
+    'withdrawn',
+    'inactive'
+  ].includes(norm(s.status));
+}
+
+$('#csv').onchange=e=>{
+  let f=e.target.files[0];
+
+  if(!f)return;
+
+  if(!currentClass())return toast('Choose a class first.');
+
+  Papa.parse(f,{
+    header:true,
+    skipEmptyLines:'greedy',
+    complete:r=>{
+      headers=r.meta.fields||[];
+      map=mapHeaders(headers);
+
+      preview=(r.data||[])
+        .map(transform)
+        .filter(x=>x.studentName||x.parentEmail);
+
+      $('#csvStatus').textContent=
+        `${f.name}: ${preview.length} usable rows found.`;
+
+      renderPreview();
+    }
+  });
+};
+
+function renderPreview(){
+  show($('#previewCard'));
+
+  $('#mapping').textContent=
+    `${preview.length} rows found. VendorFlow recognized ${Object.keys(map).length} useful fields.`;
+
+  $('#previewBody').innerHTML=
+    preview.map(s=>
+      `<tr>
+        <td>${esc(s.studentName)}</td>
+        <td>${esc(s.parentName)}</td>
+        <td>${esc(s.parentEmail)}</td>
+        <td>${esc(s.parentPhone)}</td>
+        <td>${esc(s.status)}</td>
+        <td>${esc(s.grade)}</td>
+      </tr>`
+    ).join('');
+
+  let issues=[];
+
+  if(!map.studentFirst||!map.studentLast){
+    issues.push('Student name columns were not fully recognized.');
+  }
+
+  if(issues.length){
+    $('#warnings').textContent=issues.join(' ');
+    show($('#warnings'));
+  }else{
+    hide($('#warnings'));
+  }
+}
+
+$('#saveRoster').onclick=async()=>{
+  let c=currentClass();
+
+  if(!c||!preview.length)return;
+
+  let col=collection(db,'vendors',user.uid,'classes',c.id,'students'),
+      old=await getDocs(col),
+      b=writeBatch(db);
+
+  old.forEach(d=>b.delete(d.ref));
+
+  preview.forEach(s=>
+    b.set(
+      doc(col),
+      {
+        ...s,
+        source:'CSV import',
+        createdAt:serverTimestamp()
+      }
+    )
+  );
+
+  let count=preview.filter(active).length;
+
+  b.update(
+    doc(db,'vendors',user.uid,'classes',c.id),
+    {
+      activeStudentCount:count,
+      rosterCount:preview.length,
+      lastImportAt:serverTimestamp()
+    }
+  );
+
+  await b.commit();
+
+  await log(
+    'Roster imported',
+    `${preview.length} students imported into ${c.name}; ${count} active.`,
+    'CSV import'
+  );
+
+  await refreshAll();
+
+  $('#classSelect').value=c.id;
+
+  await loadRoster();
+  renderRoster();
+
+  toast('Roster saved.');
+};
+
+function renderRoster(){
+  let c=currentClass();
+
+  if(!c){
+    show($('#rosterEmpty'));
+    hide($('#rosterWrap'));
+    hide($('#addStudent'));
+    hide($('#deleteClass'));
+    return;
+  }
+
+  show($('#addStudent'));
+  show($('#deleteClass'));
+
+  if(!roster.length){
+    $('#rosterEmpty').textContent='No saved roster yet.';
+    show($('#rosterEmpty'));
+    hide($('#rosterWrap'));
+    return;
+  }
+
+  hide($('#rosterEmpty'));
+  show($('#rosterWrap'));
+
+  $('#rosterBody').innerHTML=
+    roster.map(s=>
+      `<tr>
+        <td>${esc(s.studentName)}</td>
+        <td>${esc(s.parentName)}</td>
+        <td>${esc(s.parentEmail)}</td>
+        <td>${esc(s.status)}</td>
+        <td>${esc(s.grade)}</td>
+        <td>
+          <button data-status="${s.id}">Change status</button>
+        </td>
+      </tr>`
+    ).join('');
+
+  $$('[data-status]').forEach(
+    b=>b.onclick=()=>changeStatus(b.dataset.status)
+  );
+}
+
+async function changeStatus(id){
+  let s=roster.find(x=>x.id===id);
+
+  let n=prompt(
+    `Status for ${s.studentName}:`,
+    s.status
+  );
+
+  if(!n)return;
+
+  let c=currentClass();
+
+  await updateDoc(
+    doc(db,'vendors',user.uid,'classes',c.id,'students',id),
+    {status:n}
+  );
+
+  await loadRoster();
+
+  let count=roster.filter(active).length;
+
+  await updateDoc(
+    doc(db,'vendors',user.uid,'classes',c.id),
+    {activeStudentCount:count}
+  );
+
+  await log(
+    'Student status changed',
+    `${s.studentName}: ${s.status} → ${n} in ${c.name}.`,
+    'Manual'
+  );
+
+  await refreshAll();
+
+  $('#classSelect').value=c.id;
+
+  await loadRoster();
+  renderRoster();
+}
+
+$('#addStudent').onclick=()=>
+  $('#studentForm').classList.toggle('hidden');
+
+$('#saveStudent').onclick=async()=>{
+  let c=currentClass(),
+      sf=$('#sf').value.trim(),
+      sl=$('#sl').value.trim();
+
+  if(!c||!sf||!sl)
+    return toast('Enter student first and last name.');
+
+  let s={
+    studentFirst:sf,
+    studentLast:sl,
+    studentName:`${sf} ${sl}`,
+    parentName:$('#pn').value.trim(),
+    parentEmail:$('#pe').value.trim(),
+    status:$('#ss').value,
+    source:'Manual',
+    createdAt:serverTimestamp()
+  };
+
+  await addDoc(
+    collection(db,'vendors',user.uid,'classes',c.id,'students'),
+    s
+  );
+
+  await loadRoster();
+
+  await updateDoc(
+    doc(db,'vendors',user.uid,'classes',c.id),
+    {
+      activeStudentCount:roster.filter(active).length,
+      rosterCount:roster.length
+    }
+  );
+
+  await log(
+    'Student added',
+    `${s.studentName} added to ${c.name}.`,
+    'Manual'
+  );
+
+  await refreshAll();
+
+  $('#classSelect').value=c.id;
+
+  await loadRoster();
+  renderRoster();
+
+  hide($('#studentForm'));
+  toast('Student added.');
+};
+
+$('#deleteClass').onclick=async()=>{
+  let c=currentClass();
+
+  if(!c||!confirm(`Delete ${c.name}?`))return;
+
+  let s=await getDocs(
+    collection(db,'vendors',user.uid,'classes',c.id,'students')
+  );
+
+  let b=writeBatch(db);
+
+  s.forEach(d=>b.delete(d.ref));
+
+  b.delete(
+    doc(db,'vendors',user.uid,'classes',c.id)
+  );
+
+  await b.commit();
+
+  await log(
+    'Class deleted',
+    c.name,
+    'Manual'
+  );
+
+  $('#classSelect').value='';
+  roster=[];
+
+  await refreshAll();
+};
+
+function toggle(id){
+  $(id).classList.toggle('hidden');
+}
+
+$('#addPayment').onclick=()=>toggle('#paymentForm');
+
+$('#savePayment').onclick=async()=>{
+  let amount=Number($('#payAmount').value);
+
+  if(!amount)return toast('Enter an amount.');
+
+  let d={
+    date:$('#payDate').value||new Date().toISOString().slice(0,10),
+    payer:$('#payPayer').value.trim(),
+    student:$('#payStudent').value.trim(),
+    className:$('#payClass').value.trim(),
+    amount,
+    method:$('#payMethod').value,
+    source:'Manual',
+    createdAt:serverTimestamp()
+  };
+
+  await addDoc(sub('payments'),d);
+
+  await log(
+    'Payment recorded',
+    `${d.payer||d.student} — $${amount.toFixed(2)} via ${d.method}.`,
+    'Manual'
+  );
+
+  hide($('#paymentForm'));
+
+  await refreshAll();
+};
+
+$('#addCertificate').onclick=()=>toggle('#certificateForm');
+
+$('#saveCertificate').onclick=async()=>{
+  let d={
+    student:$('#certStudent').value.trim(),
+    school:$('#certSchool').value.trim(),
+    amount:Number($('#certAmount').value)||0,
+    number:$('#certNumber').value.trim(),
+    status:$('#certStatus').value,
+    source:'Manual',
+    createdAt:serverTimestamp()
+  };
+
+  if(!d.student)
+    return toast('Enter student name.');
+
+  await addDoc(sub('certificates'),d);
+
+  await log(
+    'Certificate added',
+    `${d.school||'Charter'} certificate for ${d.student} — $${d.amount.toFixed(2)}.`,
+    'Manual'
+  );
+
+  hide($('#certificateForm'));
+
+  await refreshAll();
+};
+
+$('#addCompliance').onclick=()=>toggle('#complianceForm');
+
+$('#saveCompliance').onclick=async()=>{
+  let d={
+    school:$('#compSchool').value.trim(),
+    task:$('#compTask').value.trim(),
+    due:$('#compDue').value,
+    status:$('#compStatus').value,
+    source:'Manual',
+    createdAt:serverTimestamp()
+  };
+
+  if(!d.task)
+    return toast('Enter the requirement.');
+
+  await addDoc(sub('compliance'),d);
+
+  await log(
+    'Compliance task added',
+    `${d.task}${d.school?' — '+d.school:''}.`,
+    'Manual'
+  );
+
+  hide($('#complianceForm'));
+
+  await refreshAll();
+};
+
+function renderRecords(){
+  $('#paymentList').innerHTML=
+    payments.length
+    ? payments.map(d=>
+        `<div class="record">
+          <strong>$${Number(d.amount).toFixed(2)} — ${esc(d.payer||d.student)}</strong>
+          <div class="meta">${esc(d.date)} · ${esc(d.method)} · ${esc(d.student)} · ${esc(d.className)}</div>
+        </div>`
+      ).join('')
+    : '<div class="empty">No payments yet.</div>';
+
+  $('#certificateList').innerHTML=
+    certs.length
+    ? certs.map(d=>
+        `<div class="record">
+          <strong>${esc(d.student)} — $${Number(d.amount).toFixed(2)}</strong>
+          <div class="meta">${esc(d.school)} · ${esc(d.number)} · ${esc(d.status)}</div>
+        </div>`
+      ).join('')
+    : '<div class="empty">No certificates yet.</div>';
+
+  $('#complianceList').innerHTML=
+    compliance.length
+    ? compliance.map(d=>
+        `<div class="record">
+          <strong>${esc(d.task)}</strong>
+          <div class="meta">${esc(d.school)} · ${esc(d.status)} · ${esc(d.due)}</div>
+        </div>`
+      ).join('')
+    : '<div class="empty">No compliance tasks yet.</div>';
+}
+
+function renderReviews(){
+  $('#reviewList').innerHTML=
+    reviews.length
+    ? reviews.map(d=>
+        `<div class="record">
+          <strong>${esc(d.title)}</strong>
+          <div class="meta">${esc(d.detail)}</div>
+        </div>`
+      ).join('')
+    : '<div class="empty">Nothing needs review.</div>';
+}
+
+function date(ts){
+  return ts?.toDate
+    ? ts.toDate().toLocaleString()
+    : 'Just now';
+}
+
+function renderHistoryInto(el,list){
+  el.innerHTML=
+    list.length
+    ? list.map(d=>
+        `<div class="history">
+          <span>${esc(date(d.createdAt))}</span>
+          <div>
+            <small>${esc(d.source)}</small>
+            <strong>${esc(d.action)}</strong>
+            <div class="meta">${esc(d.detail)}</div>
+          </div>
+        </div>`
+      ).join('')
+    : '<div class="empty">No history yet.</div>';
+}
+
+function renderHistory(){
+  renderHistoryInto(
+    $('#historyList'),
+    history
+  );
+
+  renderHistoryInto(
+    $('#recentHistory'),
+    history.slice(0,6)
+  );
+}
+
+function fillProfile(){
+  $('#pBusiness').value=profile.businessName||'';
+  $('#pOwner').value=profile.ownerName||'';
+  $('#pAddress').value=profile.address||'';
+  $('#pPhone').value=profile.phone||'';
+  $('#pLocations').value=profile.locations||'';
+  $('#pSchools').value=profile.schools||'';
+}
+
+$('#saveProfile').onclick=async()=>{
+  let d={
+    businessName:$('#pBusiness').value.trim(),
+    ownerName:$('#pOwner').value.trim(),
+    address:$('#pAddress').value.trim(),
+    city:$('#pCity').value.trim(),
+    state:$('#pState').value.trim(),
+    zip:$('#pZip').value.trim(),
+    phone:$('#pPhone').value.trim(),
+    locations:$('#pLocations').value.trim(),
+    schools:$('#pSchools').value.trim(),
+    updatedAt:serverTimestamp()
+  };
+
+  await setDoc(
+    vendorDoc(),
+    d,
+    {merge:true}
+  );
+
+  profile={
+    ...profile,
+    ...d
+  };
+
+  $('#bizNameSide').textContent=
+    d.businessName||'VendorFlow';
+
+  await log(
+    'Business profile updated',
+    'Business information was manually updated.',
+    'Manual'
+  );
+
+  await refreshAll();
+
+  toast('Business profile saved.');
+};
+
+function switchView(v){
+  $$('.view').forEach(
+    x=>x.classList.remove('active')
+  );
+
+  $(`#${v}View`).classList.add('active');
+
+  let names={
+    dashboard:'Dashboard',
+    classes:'Classes & Rosters',
+    payments:'Payments',
+    certificates:'Certificates',
+    compliance:'Compliance',
+    review:'Needs Review',
+    history:'History',
+    profile:'Business Profile'
+  };
+
+  $('#title').textContent=names[v];
+
+  $$('nav button').forEach(
+    b=>b.classList.toggle(
+      'active',
+      b.dataset.view===v
+    )
+  );
+}
+
+$$('nav button').forEach(
+  b=>b.onclick=()=>switchView(b.dataset.view)
+);
+
+$$('[data-go]').forEach(
+  b=>b.onclick=()=>switchView(b.dataset.go)
+);
+
+setAuthMode('login');
