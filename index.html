@@ -37,6 +37,7 @@
     <nav>
       <button data-view="dashboard" class="active">Dashboard</button>
       <button data-view="classes">Classes & Rosters</button>
+      <button data-view="students">Students & Services</button>
       <button data-view="payments">Payments</button>
       <button data-view="certificates">Certificates</button>
       <button data-view="compliance">Compliance</button>
@@ -83,7 +84,243 @@
       <div class="card"><div class="row between"><div><div class="eyebrow">Saved data</div><h2>Current roster</h2></div><div><button id="addStudent" class="hidden">Add student manually</button> <button id="deleteClass" class="danger hidden">Delete class</button></div></div><div id="studentForm" class="formgrid hidden"><input id="sf" class="input" placeholder="Student first name"><input id="sl" class="input" placeholder="Student last name"><input id="pn" class="input" placeholder="Parent / guardian"><input id="pe" class="input" placeholder="Parent email"><select id="ss" class="input"><option>Active</option><option>Dropped</option><option>Waitlist</option></select><button id="saveStudent" class="primary">Save student</button></div><div id="rosterEmpty" class="empty">Choose a class.</div><div id="rosterWrap" class="tablewrap hidden"><table><thead><tr><th>Student</th><th>Parent</th><th>Email</th><th>Status</th><th>Grade</th><th>Action</th></tr></thead><tbody id="rosterBody"></tbody></table></div></div>
     </section>
 
-    <section id="paymentsView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Manual control</div><h2>Payments</h2><p>Forwarded payment emails will automate this later.</p></div><button id="addPayment" class="primary">Add payment</button></div><div id="paymentForm" class="formgrid hidden"><input id="payDate" class="input" type="date"><input id="payPayer" class="input" placeholder="Payer / parent"><input id="payStudent" class="input" placeholder="Student"><input id="payClass" class="input" placeholder="Class"><input id="payAmount" class="input" type="number" step=".01" placeholder="Amount"><select id="payMethod" class="input"><option>Venmo</option><option>Zelle</option><option>Cash</option><option>Check</option><option>Charter payment</option><option>Other</option></select><button id="savePayment" class="primary">Save payment</button></div><div id="paymentList"></div></div></section>
+    
+    <section id="studentsView" class="view">
+
+      <div class="card">
+        <div class="row between">
+          <div>
+            <div class="eyebrow">Student accounts</div>
+            <h2>Students & Services</h2>
+            <p>
+              Classes and tutoring both live here. Each service can be paid
+              by a parent, a charter school, or a combination of both.
+            </p>
+          </div>
+
+          <div class="row">
+            <button id="addCoreStudent">Add student</button>
+            <button id="addService" class="primary">Add service</button>
+          </div>
+        </div>
+
+        <div class="vf-info-strip">
+          <strong>Simple rule:</strong>
+          one student can have multiple services. A service can be a class,
+          tutoring, or another type of instruction.
+        </div>
+      </div>
+
+
+      <div id="coreStudentForm" class="card hidden">
+
+        <div class="eyebrow">Manual control</div>
+        <h2>Add a student</h2>
+
+        <div class="formgrid vf-form-2">
+
+          <input
+            id="coreStudentFirst"
+            class="input"
+            placeholder="Student first name">
+
+          <input
+            id="coreStudentLast"
+            class="input"
+            placeholder="Student last name">
+
+          <input
+            id="coreParentName"
+            class="input"
+            placeholder="Parent / guardian">
+
+          <input
+            id="coreParentEmail"
+            class="input"
+            type="email"
+            placeholder="Parent email">
+
+          <input
+            id="coreParentPhone"
+            class="input"
+            placeholder="Parent phone">
+
+        </div>
+
+        <div class="row">
+          <button id="saveCoreStudent" class="primary">
+            Save student
+          </button>
+
+          <button id="cancelCoreStudent">
+            Cancel
+          </button>
+        </div>
+      </div>
+
+
+      <div id="serviceForm" class="card hidden">
+
+        <div class="eyebrow">Service & funding setup</div>
+        <h2>Add a service</h2>
+
+        <p class="vf-form-help">
+          VendorFlow keeps parent responsibility and charter responsibility
+          separate, even when both are paying for the same service.
+        </p>
+
+        <div class="formgrid vf-form-2">
+
+          <select id="serviceStudent" class="input">
+            <option value="">Choose student</option>
+          </select>
+
+          <select id="serviceType" class="input">
+            <option value="Class">Class</option>
+            <option value="Tutoring">Tutoring</option>
+            <option value="Other">Other</option>
+          </select>
+
+          <input
+            id="serviceName"
+            class="input"
+            placeholder="Service name">
+
+          <select id="serviceClass" class="input">
+            <option value="">
+              Not linked to a roster class
+            </option>
+          </select>
+
+          <input
+            id="serviceStart"
+            class="input"
+            type="date">
+
+          <input
+            id="serviceEnd"
+            class="input"
+            type="date">
+
+          <input
+            id="serviceTotal"
+            class="input"
+            type="number"
+            min="0"
+            step=".01"
+            placeholder="Total price">
+
+          <input
+            id="serviceTutoringRate"
+            class="input"
+            type="number"
+            min="0"
+            step=".01"
+            placeholder="Tutoring rate, if applicable">
+
+          <select id="serviceSchedule" class="input">
+            <option value="Full">Pay in full</option>
+            <option value="Monthly">Monthly payments</option>
+            <option value="Per Session">Per tutoring session</option>
+            <option value="Custom">Custom arrangement</option>
+          </select>
+
+          <input
+            id="serviceDueDay"
+            class="input"
+            type="number"
+            min="1"
+            max="28"
+            value="4"
+            placeholder="Monthly due day">
+
+          <input
+            id="serviceLateFee"
+            class="input"
+            type="number"
+            min="0"
+            step=".01"
+            value="25"
+            placeholder="Late fee">
+
+          <input
+            id="serviceCharterSchool"
+            class="input"
+            placeholder="Charter school, if any">
+
+          <input
+            id="serviceCharterExpected"
+            class="input"
+            type="number"
+            min="0"
+            step=".01"
+            placeholder="Expected charter amount">
+
+          <input
+            id="serviceParentExpected"
+            class="input"
+            type="number"
+            min="0"
+            step=".01"
+            placeholder="Expected parent amount">
+
+          <input
+            id="serviceDepositExpected"
+            class="input"
+            type="number"
+            min="0"
+            step=".01"
+            placeholder="Deposit expected">
+
+        </div>
+
+        <textarea
+          id="serviceNotes"
+          class="input"
+          rows="3"
+          placeholder="Notes about this arrangement"></textarea>
+
+        <div
+          id="fundingPreview"
+          class="vf-funding-preview">
+          Enter the service price and funding amounts to preview the plan.
+        </div>
+
+        <div class="row">
+          <button id="saveService" class="primary">
+            Save service
+          </button>
+
+          <button id="cancelService">
+            Cancel
+          </button>
+        </div>
+
+      </div>
+
+
+      <div class="card">
+
+        <div class="row between">
+          <div>
+            <div class="eyebrow">Accounts</div>
+            <h2>Who are you serving?</h2>
+          </div>
+
+          <span
+            id="coreStudentCount"
+            class="vf-count-pill">
+            0 students
+          </span>
+        </div>
+
+        <div id="studentsServicesList"></div>
+
+      </div>
+
+    </section>
+
+<section id="paymentsView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Manual control</div><h2>Payments</h2><p>Forwarded payment emails will automate this later.</p></div><button id="addPayment" class="primary">Add payment</button></div><div id="paymentForm" class="formgrid hidden"><input id="payDate" class="input" type="date"><input id="payPayer" class="input" placeholder="Payer / parent"><input id="payStudent" class="input" placeholder="Student"><input id="payClass" class="input" placeholder="Class"><input id="payAmount" class="input" type="number" step=".01" placeholder="Amount"><select id="payMethod" class="input"><option>Venmo</option><option>Zelle</option><option>Cash</option><option>Check</option><option>Charter payment</option><option>Other</option></select><button id="savePayment" class="primary">Save payment</button></div><div id="paymentList"></div></div></section>
 
     <section id="certificatesView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Manual control</div><h2>Certificates</h2><p>Forwarded certificate emails will automate this later.</p></div><button id="addCertificate" class="primary">Add certificate</button></div><div id="certificateForm" class="formgrid hidden"><input id="certStudent" class="input" placeholder="Student"><input id="certSchool" class="input" placeholder="Charter school"><input id="certAmount" class="input" type="number" step=".01" placeholder="Amount"><input id="certNumber" class="input" placeholder="Certificate / PO #"><select id="certStatus" class="input"><option>Received - Not Billed</option><option>Billed - Not Paid</option><option>Paid</option><option>Needs Review</option></select><button id="saveCertificate" class="primary">Save certificate</button></div><div id="certificateList"></div></div></section>
 

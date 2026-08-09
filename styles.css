@@ -854,3 +854,194 @@ main{
     top:4px !important;
   }
 }
+
+
+/* ==========================================================
+   STUDENTS, SERVICES & FUNDING
+   ========================================================== */
+
+.vf-info-strip{
+  margin-top:18px;
+  padding:13px 15px;
+  border-radius:12px;
+  background:#EEF3F8;
+  border-left:4px solid #1A346F;
+  color:#435A63;
+  line-height:1.5;
+  font-size:13px;
+}
+
+.vf-form-2{
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+}
+
+.vf-form-help{
+  color:#5D757D;
+  max-width:760px;
+}
+
+.vf-count-pill,
+.vf-status-pill{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:6px 10px;
+  border-radius:999px;
+  background:#EEF3F8;
+  color:#1A346F;
+  font-size:11px;
+  font-weight:800;
+  white-space:nowrap;
+}
+
+.vf-student-account{
+  border:1px solid #D8DEE4;
+  border-radius:16px;
+  overflow:hidden;
+  margin-top:14px;
+  background:#FFFFFF;
+}
+
+.vf-student-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  padding:16px 18px;
+  background:#F8FAFB;
+  border-bottom:1px solid #E2E6E9;
+}
+
+.vf-student-head h3{
+  margin:0 0 5px;
+  font-size:17px;
+}
+
+.vf-student-meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px 14px;
+  color:#5D757D;
+  font-size:12px;
+}
+
+.vf-small-button{
+  border:1px solid #C9D2D7;
+  background:#FFFFFF;
+  color:#1A346F;
+  border-radius:9px;
+  padding:8px 11px;
+  cursor:pointer;
+  font-weight:700;
+  font-size:12px;
+}
+
+.vf-services{
+  padding:0 18px;
+}
+
+.vf-service-row{
+  display:grid;
+  grid-template-columns:
+    minmax(0,1fr) auto;
+  gap:18px;
+  align-items:center;
+  padding:15px 0;
+  border-bottom:1px solid #E7EBED;
+}
+
+.vf-service-row:last-child{
+  border-bottom:0;
+}
+
+.vf-service-name{
+  font-weight:800;
+  margin-bottom:5px;
+}
+
+.vf-service-meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px 12px;
+  color:#68777D;
+  font-size:11px;
+}
+
+.vf-service-money{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:18px;
+}
+
+.vf-service-money > div{
+  display:grid;
+  gap:2px;
+  text-align:right;
+}
+
+.vf-service-money small{
+  color:#7A888E;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+
+.vf-service-money strong{
+  color:#1A346F;
+  font-size:14px;
+}
+
+.vf-service-empty{
+  padding:16px 0;
+  color:#7A888E;
+  font-size:12px;
+}
+
+.vf-funding-preview{
+  margin:12px 0 16px;
+  padding:14px;
+  border-radius:12px;
+  background:#F5F7F8;
+  border:1px solid #DCE2E5;
+  color:#4D6168;
+  line-height:1.6;
+  font-size:13px;
+}
+
+.vf-funding-good{
+  margin-top:7px;
+  color:#067647;
+  font-weight:700;
+}
+
+.vf-funding-warning{
+  margin-top:7px;
+  color:#B54708;
+  font-weight:700;
+}
+
+@media(max-width:900px){
+
+  .vf-service-row{
+    grid-template-columns:1fr;
+  }
+
+  .vf-service-money{
+    justify-content:flex-start;
+    flex-wrap:wrap;
+  }
+}
+
+@media(max-width:650px){
+
+  .vf-form-2{
+    grid-template-columns:1fr;
+  }
+
+  .vf-student-head{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+}

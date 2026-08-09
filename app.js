@@ -28,7 +28,7 @@ import {
 const firebaseConfig={apiKey:"AIzaSyCjAnrOfpmDMGB3O5x9i0yDZ-JR8NZMa0o",authDomain:"vendorflow-68828.firebaseapp.com",projectId:"vendorflow-68828",storageBucket:"vendorflow-68828.firebasestorage.app",messagingSenderId:"803061946107",appId:"1:803061946107:web:fe9622dd2d0c1c5c13c25e"};
 
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),$=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],show=e=>e.classList.remove("hidden"),hide=e=>e.classList.add("hidden"),esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
-let user=null,profile={},classes=[],roster=[],payments=[],certs=[],compliance=[],reviews=[],history=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
+let user=null,profile={},classes=[],roster=[],students=[],services=[],payments=[],certs=[],compliance=[],reviews=[],history=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
 const questions=[['businessName','What is the name of your business?','This will appear on invoices.'],['ownerName','What name should VendorFlow use for you?','Your name as vendor or owner.'],['address','What is your business mailing address?','Street address.'],['cityStateZip','What city, state, and ZIP go with that address?','Example: Encinitas, CA 92024'],['phone','What business phone number should VendorFlow use?','You can change this later.'],['locations','Where do you teach or conduct business?','Learning centers, campuses, tutoring locations, etc.'],['schools','Which charter schools or organizations do you work with?','List as many as you know now.']];
 const aliases={registrationId:['id','registration id'],status:['status','registration status'],classTitle:['title','class title','class'],studentFirst:['registrant first name','student first name','child first name'],studentLast:['registrant last name','student last name','child last name'],parentFirst:['primary first name','parent first name','guardian first name'],parentLast:['primary last name','parent last name','guardian last name'],parentEmail:['email address','parent email','guardian email'],parentPhone:['phone','parent phone','guardian phone'],grade:['grade level','grade']};
 const vendorDoc=()=>doc(db,'vendors',user.uid),sub=n=>collection(db,'vendors',user.uid,n),toast=m=>{let t=$('#toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)};
@@ -147,6 +147,13 @@ function installVendorFlowBranding(){
       <circle cx="17" cy="9" r="2.5"/>
       <path d="M2.5 20c.5-4 2.6-6 5.5-6s5 2 5.5 6"/>
       <path d="M14 15c3.5-.5 6 1.1 6.8 5"/>
+    </svg>`,
+
+    students:`<svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="9" cy="7.5" r="3"/>
+      <path d="M3.5 19c.5-4 2.6-6 5.5-6s5 2 5.5 6"/>
+      <path d="M17 5v8"/>
+      <path d="M13 9h8"/>
     </svg>`,
 
     payments:`<svg viewBox="0 0 24 24" aria-hidden="true">
@@ -437,6 +444,8 @@ async function getList(name,ordered=true){
 
 async function refreshAll(){
   classes=await getList('classes',false);
+  students=await getList('students',false);
+  services=await getList('services',false);
   payments=await getList('payments');
   certs=await getList('certificates');
   compliance=await getList('compliance');
@@ -449,6 +458,7 @@ function renderAll(){
   renderClassSelect();
   renderDashboard();
   renderRoster();
+  renderStudentsServices();
   renderRecords();
   renderReviews();
   renderHistory();
@@ -678,6 +688,8 @@ $('#saveRoster').onclick=async()=>{
 
   await b.commit();
 
+  await syncRosterToCoreRecords(c,preview);
+
   await log(
     'Roster imported',
     `${preview.length} students imported into ${c.name}; ${count} active.`,
@@ -861,6 +873,1027 @@ $('#deleteClass').onclick=async()=>{
 
   await refreshAll();
 };
+
+
+
+/* ==========================================================
+   STUDENTS, SERVICES & FUNDING
+   ========================================================== */
+
+function money(v){
+  return Number(v||0).toLocaleString(
+    undefined,
+    {
+      style:'currency',
+      currency:'USD'
+    }
+  );
+}
+
+
+function normalizedName(v){
+  return String(v||'')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g,' ');
+}
+
+
+function coreStudentById(id){
+  return students.find(
+    s=>s.id===id
+  );
+}
+
+
+function studentServices(studentId){
+  return services.filter(
+    s=>s.studentId===studentId
+  );
+}
+
+
+function refreshStudentServiceSelectors(){
+
+  const studentSelect=$('#serviceStudent');
+
+  if(studentSelect){
+
+    const selected=studentSelect.value;
+
+    studentSelect.innerHTML=
+      '<option value="">Choose student</option>'+
+      [...students]
+        .sort(
+          (a,b)=>
+            (a.studentName||'')
+              .localeCompare(b.studentName||'')
+        )
+        .map(
+          s=>
+            `<option value="${s.id}">
+              ${esc(s.studentName||'Unnamed student')}
+            </option>`
+        )
+        .join('');
+
+    if(students.some(s=>s.id===selected)){
+      studentSelect.value=selected;
+    }
+  }
+
+
+  const classSelect=$('#serviceClass');
+
+  if(classSelect){
+
+    const selected=classSelect.value;
+
+    classSelect.innerHTML=
+      '<option value="">Not linked to a roster class</option>'+
+      [...classes]
+        .sort(
+          (a,b)=>
+            (a.name||'')
+              .localeCompare(b.name||'')
+        )
+        .map(
+          c=>
+            `<option value="${c.id}">
+              ${esc(c.name||'Class')}
+              ${c.term?' — '+esc(c.term):''}
+            </option>`
+        )
+        .join('');
+
+    if(classes.some(c=>c.id===selected)){
+      classSelect.value=selected;
+    }
+  }
+}
+
+
+function fundingLabel(service){
+
+  if(service.status==='Dropped'){
+    return 'Dropped';
+  }
+
+  if(service.fundingStatus==='Needs funding setup'){
+    return 'Funding setup needed';
+  }
+
+  const charter=
+    Number(service.charterExpected||0);
+
+  const parent=
+    Number(service.parentExpected||0);
+
+  if(charter>0 && parent>0){
+    return 'Split funding';
+  }
+
+  if(charter>0){
+    return 'Charter funded';
+  }
+
+  return 'Parent funded';
+}
+
+
+function renderStudentsServices(){
+
+  refreshStudentServiceSelectors();
+
+  const count=$('#coreStudentCount');
+
+  if(count){
+    count.textContent=
+      `${students.length} student${students.length===1?'':'s'}`;
+  }
+
+  const list=$('#studentsServicesList');
+
+  if(!list) return;
+
+
+  if(!students.length){
+
+    list.innerHTML=`
+      <div class="empty">
+        No students yet. Import a roster or add a student manually.
+      </div>
+    `;
+
+    return;
+  }
+
+
+  list.innerHTML=
+    [...students]
+      .sort(
+        (a,b)=>
+          (a.studentName||'')
+            .localeCompare(b.studentName||'')
+      )
+      .map(student=>{
+
+        const studentServiceList=
+          studentServices(student.id);
+
+        const serviceHTML=
+          studentServiceList.length
+            ? studentServiceList
+                .map(service=>{
+
+                  return `
+                    <div class="vf-service-row">
+
+                      <div class="vf-service-main">
+
+                        <div class="vf-service-name">
+                          ${esc(
+                            service.name ||
+                            service.serviceType ||
+                            'Service'
+                          )}
+                        </div>
+
+                        <div class="vf-service-meta">
+
+                          <span>
+                            ${esc(service.serviceType||'Service')}
+                          </span>
+
+                          ${service.schedule
+                            ? `<span>${esc(service.schedule)}</span>`
+                            : ''}
+
+                          ${service.serviceType==='Tutoring' &&
+                            Number(service.tutoringRate||0)>0
+                            ? `<span>
+                                ${money(service.tutoringRate)}
+                                tutoring rate
+                               </span>`
+                            : ''}
+
+                          ${service.schedule==='Monthly'
+                            ? `<span>
+                                Due by the
+                                ${esc(service.dueDay||4)}th
+                               </span>`
+                            : ''}
+
+                          ${Number(service.lateFee||0)>0
+                            ? `<span>
+                                ${money(service.lateFee)}
+                                late fee
+                               </span>`
+                            : ''}
+
+                        </div>
+
+                      </div>
+
+
+                      <div class="vf-service-money">
+
+                        <div>
+                          <small>Total</small>
+                          <strong>
+                            ${money(service.totalPrice)}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <small>Charter</small>
+                          <strong>
+                            ${money(service.charterExpected)}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <small>Parent</small>
+                          <strong>
+                            ${money(service.parentExpected)}
+                          </strong>
+                        </div>
+
+                        <span class="vf-status-pill">
+                          ${esc(fundingLabel(service))}
+                        </span>
+
+                      </div>
+
+                    </div>
+                  `;
+                })
+                .join('')
+
+            : `
+                <div class="vf-service-empty">
+                  No service/payment plan set up yet.
+                </div>
+              `;
+
+
+        return `
+          <div class="vf-student-account">
+
+            <div class="vf-student-head">
+
+              <div>
+
+                <h3>
+                  ${esc(student.studentName||'Unnamed student')}
+                </h3>
+
+                <div class="vf-student-meta">
+
+                  ${student.parentName
+                    ? `<span>${esc(student.parentName)}</span>`
+                    : ''}
+
+                  ${student.parentEmail
+                    ? `<span>${esc(student.parentEmail)}</span>`
+                    : ''}
+
+                  ${student.source
+                    ? `<span>
+                        Added by ${esc(student.source)}
+                       </span>`
+                    : ''}
+
+                </div>
+
+              </div>
+
+              <button
+                class="vf-small-button"
+                data-add-service-student="${student.id}">
+                Add service
+              </button>
+
+            </div>
+
+            <div class="vf-services">
+              ${serviceHTML}
+            </div>
+
+          </div>
+        `;
+      })
+      .join('');
+
+
+  $$('[data-add-service-student]')
+    .forEach(btn=>{
+
+      btn.onclick=()=>{
+
+        refreshStudentServiceSelectors();
+
+        $('#serviceStudent').value=
+          btn.dataset.addServiceStudent;
+
+        show($('#serviceForm'));
+
+        $('#serviceForm')
+          .scrollIntoView({
+            behavior:'smooth',
+            block:'start'
+          });
+      };
+    });
+}
+
+
+function updateFundingPreview(){
+
+  const box=$('#fundingPreview');
+
+  if(!box) return;
+
+  const total=
+    Number($('#serviceTotal')?.value||0);
+
+  const charter=
+    Number($('#serviceCharterExpected')?.value||0);
+
+  const rawParent=
+    $('#serviceParentExpected')?.value ?? '';
+
+  const parent=
+    rawParent==='' && total>0
+      ? Math.max(0,total-charter)
+      : Number(rawParent||0);
+
+  const difference=
+    total-(charter+parent);
+
+
+  box.innerHTML=`
+    <strong>Total:</strong> ${money(total)}
+    &nbsp;&nbsp;
+    <strong>Charter:</strong> ${money(charter)}
+    &nbsp;&nbsp;
+    <strong>Parent:</strong> ${money(parent)}
+
+    ${
+      total>0 && Math.abs(difference)>.009
+        ? `<div class="vf-funding-warning">
+             Funding is
+             ${money(Math.abs(difference))}
+             ${difference>0?'short':'over'}
+             the service price.
+           </div>`
+
+        : total>0
+          ? `<div class="vf-funding-good">
+               Funding plan balances correctly.
+             </div>`
+
+          : ''
+    }
+  `;
+}
+
+
+/* ----------------------------------------------------------
+   Manual student
+   ---------------------------------------------------------- */
+
+$('#addCoreStudent').onclick=()=>{
+  show($('#coreStudentForm'));
+};
+
+
+$('#cancelCoreStudent').onclick=()=>{
+  hide($('#coreStudentForm'));
+};
+
+
+$('#saveCoreStudent').onclick=async()=>{
+
+  const first=
+    $('#coreStudentFirst').value.trim();
+
+  const last=
+    $('#coreStudentLast').value.trim();
+
+
+  if(!first || !last){
+
+    return toast(
+      'Enter the student first and last name.'
+    );
+  }
+
+
+  const studentName=
+    `${first} ${last}`;
+
+
+  if(
+    students.some(
+      s=>
+        normalizedName(s.studentName)===
+        normalizedName(studentName)
+    )
+  ){
+
+    return toast(
+      'That student already exists.'
+    );
+  }
+
+
+  await addDoc(
+    sub('students'),
+    {
+      studentFirst:first,
+      studentLast:last,
+      studentName,
+
+      parentName:
+        $('#coreParentName').value.trim(),
+
+      parentEmail:
+        $('#coreParentEmail').value.trim(),
+
+      parentPhone:
+        $('#coreParentPhone').value.trim(),
+
+      source:'Manual',
+      active:true,
+
+      createdAt:serverTimestamp(),
+      updatedAt:serverTimestamp()
+    }
+  );
+
+
+  await log(
+    'Student added',
+    `${studentName} added to VendorFlow.`,
+    'Manual'
+  );
+
+
+  [
+    '#coreStudentFirst',
+    '#coreStudentLast',
+    '#coreParentName',
+    '#coreParentEmail',
+    '#coreParentPhone'
+  ].forEach(id=>{
+    $(id).value='';
+  });
+
+
+  hide($('#coreStudentForm'));
+
+  await refreshAll();
+
+  toast('Student saved.');
+};
+
+
+/* ----------------------------------------------------------
+   Service setup
+   ---------------------------------------------------------- */
+
+$('#addService').onclick=()=>{
+
+  refreshStudentServiceSelectors();
+
+  show($('#serviceForm'));
+};
+
+
+$('#cancelService').onclick=()=>{
+
+  hide($('#serviceForm'));
+};
+
+
+[
+  '#serviceTotal',
+  '#serviceCharterExpected',
+  '#serviceParentExpected'
+].forEach(id=>{
+
+  const el=$(id);
+
+  if(el){
+    el.addEventListener(
+      'input',
+      updateFundingPreview
+    );
+  }
+});
+
+
+$('#serviceType').onchange=()=>{
+
+  const type=$('#serviceType').value;
+
+  if(
+    type==='Tutoring' &&
+    !$('#serviceName').value.trim()
+  ){
+    $('#serviceName').value='Tutoring';
+  }
+
+  if(
+    type==='Tutoring' &&
+    $('#serviceSchedule').value==='Full'
+  ){
+    $('#serviceSchedule').value='Per Session';
+  }
+};
+
+
+$('#serviceClass').onchange=()=>{
+
+  const classId=
+    $('#serviceClass').value;
+
+  const classRecord=
+    classes.find(c=>c.id===classId);
+
+  if(!classRecord) return;
+
+
+  if(!$('#serviceName').value.trim()){
+    $('#serviceName').value=
+      classRecord.name||'';
+  }
+
+
+  if(
+    !$('#serviceTotal').value &&
+    Number(classRecord.tuition||0)>0
+  ){
+    $('#serviceTotal').value=
+      Number(classRecord.tuition);
+  }
+
+
+  updateFundingPreview();
+};
+
+
+$('#saveService').onclick=async()=>{
+
+  const studentId=
+    $('#serviceStudent').value;
+
+
+  if(!studentId){
+    return toast('Choose a student.');
+  }
+
+
+  const student=
+    coreStudentById(studentId);
+
+
+  if(!student){
+    return toast('Student could not be found.');
+  }
+
+
+  const totalPrice=
+    Number($('#serviceTotal').value||0);
+
+  const charterExpected=
+    Number($('#serviceCharterExpected').value||0);
+
+  const parentRaw=
+    $('#serviceParentExpected').value.trim();
+
+  const parentExpected=
+    parentRaw===''
+      ? Math.max(0,totalPrice-charterExpected)
+      : Number(parentRaw||0);
+
+
+  if(
+    totalPrice>0 &&
+    Math.abs(
+      totalPrice-
+      (charterExpected+parentExpected)
+    )>.009
+  ){
+
+    return toast(
+      'Charter + parent funding must equal the service price.'
+    );
+  }
+
+
+  const classId=
+    $('#serviceClass').value;
+
+  const classRecord=
+    classes.find(c=>c.id===classId);
+
+
+  const serviceType=
+    $('#serviceType').value;
+
+
+  const name=
+    $('#serviceName').value.trim() ||
+    classRecord?.name ||
+    serviceType;
+
+
+  const fundingStatus=
+    charterExpected>0 && parentExpected>0
+      ? 'Split funding'
+
+      : charterExpected>0
+        ? 'Charter funded'
+
+        : 'Parent funded';
+
+
+  await addDoc(
+    sub('services'),
+    {
+
+      studentId,
+      studentName:
+        student.studentName||'',
+
+      serviceType,
+      name,
+
+      classId:
+        classId||'',
+
+      classTerm:
+        classRecord?.term||'',
+
+      location:
+        classRecord?.location||'',
+
+      startDate:
+        $('#serviceStart').value,
+
+      endDate:
+        $('#serviceEnd').value,
+
+      totalPrice,
+
+      tutoringRate:
+        Number(
+          $('#serviceTutoringRate').value||0
+        ),
+
+      schedule:
+        $('#serviceSchedule').value,
+
+      dueDay:
+        Number(
+          $('#serviceDueDay').value||4
+        ),
+
+      lateFee:
+        Number(
+          $('#serviceLateFee').value||25
+        ),
+
+      charterSchool:
+        $('#serviceCharterSchool')
+          .value
+          .trim(),
+
+      charterExpected,
+
+      parentExpected,
+
+      depositExpected:
+        Number(
+          $('#serviceDepositExpected').value||0
+        ),
+
+      fundingStatus,
+      status:'Active',
+
+      notes:
+        $('#serviceNotes').value.trim(),
+
+      source:'Manual',
+
+      createdAt:serverTimestamp(),
+      updatedAt:serverTimestamp()
+    }
+  );
+
+
+  await log(
+    'Service funding plan created',
+    `${student.studentName} — ${name}: `+
+    `${money(totalPrice)} total; `+
+    `${money(charterExpected)} charter; `+
+    `${money(parentExpected)} parent.`,
+    'Manual'
+  );
+
+
+  [
+    '#serviceName',
+    '#serviceStart',
+    '#serviceEnd',
+    '#serviceTotal',
+    '#serviceTutoringRate',
+    '#serviceCharterSchool',
+    '#serviceCharterExpected',
+    '#serviceParentExpected',
+    '#serviceDepositExpected',
+    '#serviceNotes'
+  ].forEach(id=>{
+    $(id).value='';
+  });
+
+
+  $('#serviceDueDay').value='4';
+  $('#serviceLateFee').value='25';
+
+  $('#serviceSchedule').value='Full';
+  $('#serviceType').value='Class';
+
+  $('#serviceClass').value='';
+
+
+  hide($('#serviceForm'));
+
+  await refreshAll();
+
+  toast('Service funding plan saved.');
+};
+
+
+/* ----------------------------------------------------------
+   Roster → core student/service synchronization
+   ---------------------------------------------------------- */
+
+async function syncRosterToCoreRecords(
+  classRecord,
+  rosterRows
+){
+
+  const studentSnapshot=
+    await getDocs(sub('students'));
+
+  const existingStudents=
+    studentSnapshot.docs.map(
+      d=>({
+        id:d.id,
+        ...d.data()
+      })
+    );
+
+
+  const serviceSnapshot=
+    await getDocs(sub('services'));
+
+  const existingServices=
+    serviceSnapshot.docs.map(
+      d=>({
+        id:d.id,
+        ...d.data()
+      })
+    );
+
+
+  const studentMap=
+    new Map(
+      existingStudents.map(
+        s=>[
+          normalizedName(s.studentName),
+          s
+        ]
+      )
+    );
+
+
+  for(const row of rosterRows){
+
+    const normalized=
+      normalizedName(row.studentName);
+
+    if(!normalized) continue;
+
+
+    let coreStudent=
+      studentMap.get(normalized);
+
+
+    if(!coreStudent){
+
+      const data={
+
+        studentFirst:
+          row.studentFirst||'',
+
+        studentLast:
+          row.studentLast||'',
+
+        studentName:
+          row.studentName||'',
+
+        parentName:
+          row.parentName||'',
+
+        parentEmail:
+          row.parentEmail||'',
+
+        parentPhone:
+          row.parentPhone||'',
+
+        source:'CSV import',
+
+        active:
+          active(row),
+
+        createdAt:serverTimestamp(),
+        updatedAt:serverTimestamp()
+      };
+
+
+      const ref=
+        await addDoc(
+          sub('students'),
+          data
+        );
+
+
+      coreStudent={
+        id:ref.id,
+        ...data
+      };
+
+
+      studentMap.set(
+        normalized,
+        coreStudent
+      );
+
+    }else{
+
+      await setDoc(
+        doc(
+          db,
+          'vendors',
+          user.uid,
+          'students',
+          coreStudent.id
+        ),
+        {
+
+          parentName:
+            row.parentName ||
+            coreStudent.parentName ||
+            '',
+
+          parentEmail:
+            row.parentEmail ||
+            coreStudent.parentEmail ||
+            '',
+
+          parentPhone:
+            row.parentPhone ||
+            coreStudent.parentPhone ||
+            '',
+
+          active:
+            active(row),
+
+          updatedAt:
+            serverTimestamp()
+        },
+        {
+          merge:true
+        }
+      );
+    }
+
+
+    const existingService=
+      existingServices.find(
+        s=>
+          s.studentId===coreStudent.id &&
+          s.classId===classRecord.id
+      );
+
+
+    const status=
+      active(row)
+        ? 'Active'
+        : 'Dropped';
+
+
+    if(!existingService){
+
+      const totalPrice=
+        Number(
+          classRecord.tuition||0
+        );
+
+
+      await addDoc(
+        sub('services'),
+        {
+
+          studentId:
+            coreStudent.id,
+
+          studentName:
+            row.studentName||'',
+
+          serviceType:'Class',
+
+          name:
+            classRecord.name||'Class',
+
+          classId:
+            classRecord.id,
+
+          classTerm:
+            classRecord.term||'',
+
+          location:
+            classRecord.location||'',
+
+          totalPrice,
+
+          tutoringRate:0,
+
+          schedule:'Custom',
+
+          dueDay:4,
+
+          lateFee:25,
+
+          charterSchool:'',
+
+          charterExpected:0,
+
+          parentExpected:
+            totalPrice,
+
+          depositExpected:0,
+
+          fundingStatus:
+            'Needs funding setup',
+
+          status,
+
+          source:'CSV import',
+
+          createdAt:
+            serverTimestamp(),
+
+          updatedAt:
+            serverTimestamp()
+        }
+      );
+
+    }else{
+
+      await setDoc(
+        doc(
+          db,
+          'vendors',
+          user.uid,
+          'services',
+          existingService.id
+        ),
+        {
+
+          studentName:
+            row.studentName ||
+            existingService.studentName ||
+            '',
+
+          status,
+
+          updatedAt:
+            serverTimestamp()
+        },
+        {
+          merge:true
+        }
+      );
+    }
+  }
+}
+
+
 
 function toggle(id){
   $(id).classList.toggle('hidden');
@@ -1090,6 +2123,7 @@ function switchView(v){
   let names={
     dashboard:'Dashboard',
     classes:'Classes & Rosters',
+    students:'Students & Services',
     payments:'Payments',
     certificates:'Certificates',
     compliance:'Compliance',
