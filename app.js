@@ -33,7 +33,7 @@ const VENDORFLOW_API =
   "https://vendorflow-api.tbed63.workers.dev";
 
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),$=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],show=e=>e.classList.remove("hidden"),hide=e=>e.classList.add("hidden"),esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
-let user=null,profile={},classes=[],roster=[],students=[],services=[],charterSchools=[],payments=[],certs=[],compliance=[],reviews=[],history=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
+let user=null,profile={},classes=[],roster=[],students=[],services=[],charterSchools=[],payments=[],certs=[],invoices=[],compliance=[],reviews=[],history=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
 let editingCharterSchoolId='';
 let selectedPaymentStudentId=null;
 let pendingCertificatePdf=null;
@@ -475,6 +475,16 @@ async function refreshAll(){
   charterSchools=await getList('charterSchools',false);
   payments=await getList('payments');
   certs=await getList('certificates');
+  invoices=await getList('invoices');
+
+  const createdInvoices=
+    await createDueInvoices();
+
+  if(createdInvoices>0){
+    invoices=await getList('invoices');
+    certs=await getList('certificates');
+  }
+
   compliance=await getList('compliance');
   reviews=await getList('review');
   history=await getList('history');
@@ -577,6 +587,7 @@ function renderAll(){
   renderStudentsServices();
   renderRefundStudentSelect();
   renderRecords();
+  renderInvoices();
   renderReviews();
   renderHistory();
 }
@@ -2169,6 +2180,819 @@ function invoiceReadyCertificates(){
 }
 
 
+
+function invoiceStatus(invoice){
+
+  return String(
+    invoice?.status||'Ready to Send'
+  ).trim();
+}
+
+
+function invoiceCharter(cert){
+
+  if(cert.charterSchoolId){
+
+    const exact=
+      charterSchools.find(
+        charter=>
+          charter.id===cert.charterSchoolId
+      );
+
+    if(exact){
+      return exact;
+    }
+  }
+
+
+  const target=
+    normalizedCharterName(
+      cert.school
+    );
+
+
+  return charterSchools.find(
+    charter=>
+      normalizedCharterName(
+        charter.name
+      )===target
+  ) || null;
+}
+
+
+function invoiceStudent(cert){
+
+  if(cert.studentId){
+
+    const exact=
+      students.find(
+        student=>
+          student.id===cert.studentId
+      );
+
+    if(exact){
+      return exact;
+    }
+  }
+
+
+  const target=
+    normalizedName(
+      cert.student
+    );
+
+
+  return students.find(
+    student=>
+      normalizedName(
+        student.studentName
+      )===target
+  ) || null;
+}
+
+
+function invoiceService(cert,student){
+
+  const possible=
+    services.filter(
+      service=>
+        service.studentId===student?.id &&
+        serviceCountsAsActive(service)
+    );
+
+
+  if(!possible.length){
+    return null;
+  }
+
+
+  if(possible.length===1){
+    return possible[0];
+  }
+
+
+  const certStart=
+    String(
+      cert.serviceStartDate||''
+    );
+
+
+  return possible.find(
+    service=>
+      String(service.startDate||'')===
+      certStart
+  ) || possible[0];
+}
+
+
+function invoiceNumberForCertificate(cert){
+
+  const date=
+    new Date();
+
+  const year=
+    date.getFullYear();
+
+  const tail=
+    String(
+      cert.number ||
+      cert.id ||
+      ''
+    )
+      .replace(
+        /[^A-Za-z0-9]/g,
+        ''
+      )
+      .slice(-8)
+      .toUpperCase();
+
+  return `VF-${year}-${tail||'INVOICE'}`;
+}
+
+
+async function createDueInvoices(){
+
+  const due=
+    invoiceReadyCertificates();
+
+  if(!due.length){
+    return 0;
+  }
+
+
+  let created=0;
+
+
+  for(const cert of due){
+
+    const alreadyExists=
+      invoices.some(
+        invoice=>
+          invoice.certificateId===cert.id
+      );
+
+
+    if(alreadyExists){
+      continue;
+    }
+
+
+    const charter=
+      invoiceCharter(cert);
+
+    const student=
+      invoiceStudent(cert);
+
+
+    /*
+     * VendorFlow never quietly guesses when required billing
+     * relationships are missing.
+     */
+    if(
+      !charter ||
+      !student
+    ){
+      continue;
+    }
+
+
+    const service=
+      invoiceService(
+        cert,
+        student
+      );
+
+
+    const vendorAddress=
+      vendorAddressParts();
+
+
+    const invoiceRef=
+      doc(
+        sub('invoices')
+      );
+
+
+    const invoice={
+      invoiceNumber:
+        invoiceNumberForCertificate(cert),
+
+      status:
+        'Ready to Send',
+
+      certificateId:
+        cert.id,
+
+      certificateNumber:
+        cert.number||'',
+
+      certificateAmount:
+        Number(cert.amount||0),
+
+      amount:
+        Number(cert.amount||0),
+
+      studentId:
+        student.id,
+
+      studentName:
+        student.studentName ||
+        cert.student ||
+        '',
+
+      parentName:
+        student.parentName||'',
+
+      serviceId:
+        service?.id||'',
+
+      serviceName:
+        service?.name ||
+        service?.serviceName ||
+        service?.type ||
+        'Educational services',
+
+      serviceStartDate:
+        cert.serviceStartDate ||
+        service?.startDate ||
+        '',
+
+      serviceEndDate:
+        service?.endDate||'',
+
+      charterSchoolId:
+        charter.id,
+
+      charterSchoolName:
+        charter.name||cert.school||'',
+
+      charterAddress:
+        charter.address||'',
+
+      charterCity:
+        charter.city||'',
+
+      charterState:
+        charter.state||'',
+
+      charterZip:
+        charter.zip||'',
+
+      charterBillingEmail:
+        charter.billingEmail ||
+        charter.contactEmail ||
+        '',
+
+      vendorBusinessName:
+        profile.businessName||'',
+
+      vendorOwnerName:
+        profile.ownerName||'',
+
+      vendorStreet:
+        vendorAddress.street||'',
+
+      vendorCity:
+        vendorAddress.city||'',
+
+      vendorState:
+        vendorAddress.state||'',
+
+      vendorZip:
+        vendorAddress.zip||'',
+
+      vendorPhone:
+        profile.phone||'',
+
+      vendorEmail:
+        user?.email||'',
+
+      invoiceReadyDate:
+        cert.invoiceReadyDate||'',
+
+      preparedBy:
+        'VendorFlow',
+
+      createdAt:
+        serverTimestamp(),
+
+      updatedAt:
+        serverTimestamp()
+    };
+
+
+    await setDoc(
+      invoiceRef,
+      invoice
+    );
+
+
+    await setDoc(
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'certificates',
+        cert.id
+      ),
+      {
+        invoiceId:
+          invoiceRef.id,
+
+        invoiceNumber:
+          invoice.invoiceNumber,
+
+        status:
+          'Invoiced - Ready to Send',
+
+        invoicedAt:
+          serverTimestamp(),
+
+        updatedAt:
+          serverTimestamp()
+      },
+      {
+        merge:true
+      }
+    );
+
+
+    await log(
+      'Invoice prepared',
+      `${invoice.invoiceNumber} for ${invoice.studentName} — ${money(invoice.amount)} — ${invoice.charterSchoolName}.`,
+      'VendorFlow'
+    );
+
+
+    created++;
+  }
+
+
+  return created;
+}
+
+
+function invoiceAddressLines(invoice){
+
+  const cityLine=
+    [
+      invoice.charterCity,
+      [
+        invoice.charterState,
+        invoice.charterZip
+      ]
+        .filter(Boolean)
+        .join(' ')
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+
+  return [
+    invoice.charterAddress,
+    cityLine
+  ]
+    .filter(Boolean);
+}
+
+
+function vendorInvoiceAddressLines(invoice){
+
+  const cityLine=
+    [
+      invoice.vendorCity,
+      [
+        invoice.vendorState,
+        invoice.vendorZip
+      ]
+        .filter(Boolean)
+        .join(' ')
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+
+  return [
+    invoice.vendorStreet,
+    cityLine
+  ]
+    .filter(Boolean);
+}
+
+
+function renderInvoices(){
+
+  const list=
+    $('#invoiceList');
+
+  if(!list){
+    return;
+  }
+
+
+  const ready=
+    invoices.filter(
+      invoice=>
+        invoiceStatus(invoice)==='Ready to Send'
+    );
+
+  const sent=
+    invoices.filter(
+      invoice=>
+        invoiceStatus(invoice)==='Sent'
+    );
+
+  const paid=
+    invoices.filter(
+      invoice=>
+        invoiceStatus(invoice)==='Paid'
+    );
+
+
+  if($('#invoiceReadyCount')){
+    $('#invoiceReadyCount').textContent=
+      ready.length;
+  }
+
+  if($('#invoiceSentCount')){
+    $('#invoiceSentCount').textContent=
+      sent.length;
+  }
+
+  if($('#invoicePaidCount')){
+    $('#invoicePaidCount').textContent=
+      paid.length;
+  }
+
+
+  if(!invoices.length){
+
+    list.innerHTML=
+      '<div class="empty">No invoices yet. VendorFlow will create them automatically when certificate billing dates arrive.</div>';
+
+    return;
+  }
+
+
+  const ordered=[
+    ...ready,
+    ...sent,
+    ...paid,
+    ...invoices.filter(
+      invoice=>
+        ![
+          'Ready to Send',
+          'Sent',
+          'Paid'
+        ].includes(
+          invoiceStatus(invoice)
+        )
+    )
+  ];
+
+
+  list.innerHTML=
+    ordered.map(invoice=>{
+
+      const charterAddress=
+        invoiceAddressLines(invoice);
+
+      const vendorAddress=
+        vendorInvoiceAddressLines(invoice);
+
+      const status=
+        invoiceStatus(invoice);
+
+
+      return `
+        <article class="vf-invoice-card">
+
+          <div class="vf-invoice-card-top">
+
+            <div>
+              <div class="eyebrow">
+                ${esc(status.toUpperCase())}
+              </div>
+
+              <h3>
+                ${esc(invoice.invoiceNumber||'Invoice')}
+              </h3>
+
+              <div class="vf-invoice-charter">
+                ${esc(invoice.charterSchoolName||'Charter school')}
+              </div>
+            </div>
+
+            <div class="vf-invoice-amount">
+              ${money(invoice.amount)}
+            </div>
+
+          </div>
+
+
+          <div class="vf-invoice-paper">
+
+            <div class="vf-invoice-paper-header">
+
+              <div>
+                <strong>
+                  ${esc(invoice.vendorBusinessName||'Vendor')}
+                </strong>
+
+                ${vendorAddress.map(
+                  line=>`<span>${esc(line)}</span>`
+                ).join('')}
+
+                ${
+                  invoice.vendorPhone
+                    ? `<span>${esc(invoice.vendorPhone)}</span>`
+                    : ''
+                }
+
+                ${
+                  invoice.vendorEmail
+                    ? `<span>${esc(invoice.vendorEmail)}</span>`
+                    : ''
+                }
+              </div>
+
+              <div class="vf-invoice-title-block">
+                <strong>INVOICE</strong>
+                <span>
+                  ${esc(invoice.invoiceNumber||'')}
+                </span>
+              </div>
+
+            </div>
+
+
+            <div class="vf-invoice-billto">
+
+              <small>BILL TO</small>
+
+              <strong>
+                ${esc(invoice.charterSchoolName||'')}
+              </strong>
+
+              ${charterAddress.map(
+                line=>`<span>${esc(line)}</span>`
+              ).join('')}
+
+            </div>
+
+
+            <div class="vf-invoice-details-grid">
+
+              <div>
+                <small>Student</small>
+                <strong>
+                  ${esc(invoice.studentName||'')}
+                </strong>
+              </div>
+
+              <div>
+                <small>Certificate / PO</small>
+                <strong>
+                  ${esc(invoice.certificateNumber||'')}
+                </strong>
+              </div>
+
+              <div>
+                <small>Service</small>
+                <strong>
+                  ${esc(invoice.serviceName||'Educational services')}
+                </strong>
+              </div>
+
+              <div>
+                <small>Service start</small>
+                <strong>
+                  ${esc(
+                    formatVendorDate(
+                      invoice.serviceStartDate
+                    ) || ''
+                  )}
+                </strong>
+              </div>
+
+            </div>
+
+
+            <div class="vf-invoice-line">
+
+              <span>
+                ${esc(invoice.serviceName||'Educational services')}
+                — ${esc(invoice.studentName||'')}
+              </span>
+
+              <strong>
+                ${money(invoice.amount)}
+              </strong>
+
+            </div>
+
+
+            <div class="vf-invoice-total">
+
+              <span>Total</span>
+
+              <strong>
+                ${money(invoice.amount)}
+              </strong>
+
+            </div>
+
+
+            <div class="vf-invoice-vf-footer">
+              <img
+                src="vendorflow-logo.png"
+                alt="VendorFlow">
+
+              <span>
+                This invoice was prepared with VendorFlow.
+              </span>
+            </div>
+
+          </div>
+
+
+          <div class="vf-invoice-actions">
+
+            ${
+              status==='Ready to Send'
+                ? `
+                  <button
+                    type="button"
+                    class="primary"
+                    data-invoice-send="${invoice.id}">
+                    Mark sent
+                  </button>
+                `
+                : ''
+            }
+
+            ${
+              status==='Sent'
+                ? `
+                  <button
+                    type="button"
+                    class="primary"
+                    data-invoice-paid="${invoice.id}">
+                    Mark paid
+                  </button>
+                `
+                : ''
+            }
+
+            ${
+              invoice.charterBillingEmail
+                ? `
+                  <span class="vf-invoice-email">
+                    Billing email:
+                    ${esc(invoice.charterBillingEmail)}
+                  </span>
+                `
+                : `
+                  <span class="vf-invoice-email vf-invoice-warning">
+                    No charter billing email saved
+                  </span>
+                `
+            }
+
+          </div>
+
+        </article>
+      `;
+    }).join('');
+
+
+  $$('[data-invoice-send]')
+    .forEach(button=>{
+
+      button.onclick=async()=>{
+
+        const invoice=
+          invoices.find(
+            item=>
+              item.id===
+              button.dataset.invoiceSend
+          );
+
+        if(!invoice){
+          return;
+        }
+
+
+        const ok=
+          confirm(
+            `Mark ${invoice.invoiceNumber} as sent?\n\n` +
+            `This records that the invoice was sent to ${invoice.charterSchoolName}.`
+          );
+
+        if(!ok){
+          return;
+        }
+
+
+        await setDoc(
+          doc(
+            db,
+            'vendors',
+            user.uid,
+            'invoices',
+            invoice.id
+          ),
+          {
+            status:'Sent',
+            sentAt:serverTimestamp(),
+            updatedAt:serverTimestamp()
+          },
+          {
+            merge:true
+          }
+        );
+
+
+        await log(
+          'Invoice marked sent',
+          `${invoice.invoiceNumber} — ${invoice.charterSchoolName} — ${money(invoice.amount)}.`,
+          'Manual'
+        );
+
+
+        await refreshAll();
+
+        toast(
+          'Invoice marked sent.'
+        );
+      };
+    });
+
+
+  $$('[data-invoice-paid]')
+    .forEach(button=>{
+
+      button.onclick=async()=>{
+
+        const invoice=
+          invoices.find(
+            item=>
+              item.id===
+              button.dataset.invoicePaid
+          );
+
+        if(!invoice){
+          return;
+        }
+
+
+        const ok=
+          confirm(
+            `Mark ${invoice.invoiceNumber} as paid?\n\n` +
+            `Only do this after payment has actually been received.`
+          );
+
+        if(!ok){
+          return;
+        }
+
+
+        await setDoc(
+          doc(
+            db,
+            'vendors',
+            user.uid,
+            'invoices',
+            invoice.id
+          ),
+          {
+            status:'Paid',
+            paidAt:serverTimestamp(),
+            updatedAt:serverTimestamp()
+          },
+          {
+            merge:true
+          }
+        );
+
+
+        await log(
+          'Invoice marked paid',
+          `${invoice.invoiceNumber} — ${invoice.charterSchoolName} — ${money(invoice.amount)}.`,
+          'Manual'
+        );
+
+
+        await refreshAll();
+
+        toast(
+          'Invoice marked paid.'
+        );
+      };
+    });
+}
+
+
 function renderCertificateCharterOptions(){
 
   const list=
@@ -2206,7 +3030,10 @@ function renderDashboard(){
     );
 
   const readyInvoices=
-    invoiceReadyCertificates();
+    invoices.filter(
+      invoice=>
+        invoiceStatus(invoice)==='Ready to Send'
+    );
 
 
   $('#statClasses').textContent=
@@ -2357,7 +3184,7 @@ function renderDashboard(){
           cert=>
             cert.charterSchoolId ||
             normalizedCharterName(
-              cert.school
+              cert.charterSchoolName
             )
         )
       ).size;
@@ -2366,19 +3193,21 @@ function renderDashboard(){
     title.textContent=
       `${readyInvoices.length} invoice${
         readyInvoices.length===1?' is':'s are'
-      } ready to prepare.`;
+      } ready to send.`;
 
 
     text.textContent=
-      `The billing date has arrived for ${
+      `VendorFlow prepared ${
         readyInvoices.length
-      } certificate${
+      } invoice${
         readyInvoices.length===1?'':'s'
       } across ${
         charterCount
       } charter school${
         charterCount===1?'':'s'
-      }. Review the certificates before invoicing.`;
+      }. Review the finished invoice${
+        readyInvoices.length===1?'':'s'
+      } and send when ready.`;
 
 
     show(
@@ -2387,13 +3216,13 @@ function renderDashboard(){
 
 
     reviewButton.textContent=
-      'Review certificates';
+      'View invoices';
 
 
     reviewButton.onclick=()=>{
 
       switchView(
-        'certificates'
+        'invoices'
       );
     };
 
@@ -8615,6 +9444,7 @@ function switchView(v){
     students:'Students & Services',
     payments:'Payments',
     certificates:'Certificates',
+    invoices:'Invoices',
     compliance:'Compliance',
     review:'Needs Review',
     history:'History',

@@ -43,6 +43,7 @@
       <button data-view="students">Students & Services</button>
       <button data-view="payments">Payments</button>
       <button data-view="certificates">Certificates</button>
+      <button data-view="invoices">Invoices</button>
       <button data-view="compliance">Compliance</button>
       <button data-view="review">Needs Review <span id="reviewBadge">0</span></button>
       <button data-view="history">History</button>
@@ -927,6 +928,46 @@
 
         <div id="certificateList"></div>
 
+      </div>
+
+    </section>
+
+
+    <section id="invoicesView" class="view">
+
+      <div class="vf-invoice-page-head">
+        <div>
+          <div class="eyebrow">CHARTER BILLING</div>
+          <h2>Invoices</h2>
+          <p>
+            VendorFlow automatically prepares invoices when their
+            scheduled billing date arrives. Review the finished invoice,
+            then send it to the charter school.
+          </p>
+        </div>
+      </div>
+
+      <div class="vf-invoice-summary-grid">
+
+        <div class="vf-invoice-summary-card">
+          <small>READY TO SEND</small>
+          <strong id="invoiceReadyCount">0</strong>
+        </div>
+
+        <div class="vf-invoice-summary-card">
+          <small>SENT</small>
+          <strong id="invoiceSentCount">0</strong>
+        </div>
+
+        <div class="vf-invoice-summary-card">
+          <small>PAID</small>
+          <strong id="invoicePaidCount">0</strong>
+        </div>
+
+      </div>
+
+      <div id="invoiceList" class="vf-invoice-list">
+        <div class="empty">No invoices yet.</div>
       </div>
 
     </section>
