@@ -2924,3 +2924,129 @@ aside nav{
     font-size:10px;
   }
 }
+
+
+/* ==========================================================
+   VENDORFLOW HEADER — TRUE CENTERED BRAND
+   ========================================================== */
+
+/*
+ * Three independent header zones:
+ *
+ * page title = left
+ * VendorFlow = true center of main workspace
+ * account    = right
+ *
+ * Absolute centering prevents the account width from pushing
+ * the VendorFlow logo away from the visual center.
+ */
+
+.vf-app-header{
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  min-height:88px;
+  gap:20px;
+}
+
+.vf-header-title{
+  position:relative;
+  z-index:2;
+  flex:0 1 260px;
+  min-width:0;
+}
+
+.vf-header-brand{
+  position:absolute;
+  z-index:1;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  pointer-events:none;
+}
+
+.vf-header-brand-logo{
+  display:block;
+  width:360px;
+  max-width:34vw;
+  height:auto;
+}
+
+.vf-header-account{
+  position:relative;
+  z-index:3;
+  flex:0 0 auto;
+  margin-left:auto;
+}
+
+
+/*
+ * Keep the account compact enough that it cannot collide
+ * with the centered logo on normal desktop screens.
+ */
+
+.vf-header-account .vf-account-click{
+  max-width:245px;
+}
+
+.vf-account-header-copy strong{
+  max-width:145px;
+}
+
+.vf-account-header-copy small{
+  max-width:165px;
+}
+
+
+/* Medium screens: shrink the centered brand before overlap. */
+
+@media(max-width:1200px){
+
+  .vf-header-brand-logo{
+    width:300px;
+    max-width:29vw;
+  }
+
+  .vf-header-account .vf-account-click{
+    max-width:205px;
+  }
+
+  .vf-account-header-copy small{
+    display:none;
+  }
+}
+
+
+/*
+ * Once the screen becomes narrow enough that three zones
+ * cannot coexist comfortably, the centered header logo
+ * disappears. The permanent sidebar brand still identifies
+ * VendorFlow.
+ */
+
+@media(max-width:950px){
+
+  .vf-header-brand{
+    display:none;
+  }
+
+  .vf-header-title{
+    flex:1 1 auto;
+  }
+}
+
+
+@media(max-width:650px){
+
+  .vf-app-header{
+    min-height:70px;
+  }
+
+  .vf-header-account .vf-account-click{
+    max-width:none;
+  }
+}
