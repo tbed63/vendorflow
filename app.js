@@ -2181,6 +2181,118 @@ function invoiceReadyCertificates(){
 
 
 
+
+function smartTitleCase(value){
+
+  const text=
+    String(value||'').trim();
+
+  if(!text){
+    return '';
+  }
+
+  return text
+    .toLowerCase()
+    .replace(
+      /\b([a-z])/g,
+      match=>match.toUpperCase()
+    );
+}
+
+
+function formatState(value){
+
+  return String(value||'')
+    .trim()
+    .toUpperCase();
+}
+
+
+function formattedInvoiceCityLine(
+  city,
+  state,
+  zip
+){
+
+  const cityText=
+    smartTitleCase(city);
+
+  const stateZip=
+    [
+      formatState(state),
+      String(zip||'').trim()
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+  return [
+    cityText,
+    stateZip
+  ]
+    .filter(Boolean)
+    .join(', ');
+}
+
+
+function invoiceCreatedDate(invoice){
+
+  if(
+    invoice?.createdAt?.toDate
+  ){
+    return invoice.createdAt.toDate();
+  }
+
+  if(invoice?.invoiceDate){
+
+    return parseVendorDate(
+      invoice.invoiceDate
+    );
+  }
+
+  return null;
+}
+
+
+function formatInvoiceDate(invoice){
+
+  const date=
+    invoiceCreatedDate(invoice);
+
+  if(!date){
+    return '';
+  }
+
+  return date.toLocaleDateString(
+    undefined,
+    {
+      month:'short',
+      day:'numeric',
+      year:'numeric'
+    }
+  );
+}
+
+
+function invoiceServicePeriod(invoice){
+
+  const start=
+    formatVendorDate(
+      invoice.serviceStartDate
+    );
+
+  const end=
+    formatVendorDate(
+      invoice.serviceEndDate
+    );
+
+  if(start && end){
+    return `${start} – ${end}`;
+  }
+
+  return start || end || '';
+}
+
+
 function invoiceStatus(invoice){
 
   return String(
@@ -2287,26 +2399,46 @@ function invoiceService(cert,student){
 
 function invoiceNumberForCertificate(cert){
 
-  const date=
-    new Date();
-
   const year=
-    date.getFullYear();
+    new Date().getFullYear();
 
-  const tail=
-    String(
-      cert.number ||
-      cert.id ||
-      ''
-    )
-      .replace(
-        /[^A-Za-z0-9]/g,
-        ''
+  const existingNumbers=
+    invoices
+      .map(
+        invoice=>
+          String(invoice.invoiceNumber||'')
       )
-      .slice(-8)
-      .toUpperCase();
+      .map(number=>{
 
-  return `VF-${year}-${tail||'INVOICE'}`;
+        const match=
+          number.match(
+            /^VF-(\d{4})-(\d+)$/
+          );
+
+        if(
+          !match ||
+          Number(match[1])!==year
+        ){
+          return null;
+        }
+
+        return Number(match[2]);
+      })
+      .filter(
+        number=>
+          Number.isFinite(number)
+      );
+
+
+  const next=
+    (
+      existingNumbers.length
+        ? Math.max(...existingNumbers)
+        : 0
+    )+1;
+
+
+  return `VF-${year}-${String(next).padStart(4,'0')}`;
 }
 
 
@@ -2407,6 +2539,7 @@ async function createDueInvoices(){
         service?.id||'',
 
       serviceName:
+        cert.serviceDescription ||
         service?.name ||
         service?.serviceName ||
         service?.type ||
@@ -2418,7 +2551,14 @@ async function createDueInvoices(){
         '',
 
       serviceEndDate:
-        service?.endDate||'',
+        cert.serviceEndDate ||
+        service?.endDate ||
+        '',
+
+      invoiceDate:
+        dateToLocalISO(
+          new Date()
+        ),
 
       charterSchoolId:
         charter.id,
@@ -2535,17 +2675,11 @@ async function createDueInvoices(){
 function invoiceAddressLines(invoice){
 
   const cityLine=
-    [
+    formattedInvoiceCityLine(
       invoice.charterCity,
-      [
-        invoice.charterState,
-        invoice.charterZip
-      ]
-        .filter(Boolean)
-        .join(' ')
-    ]
-      .filter(Boolean)
-      .join(', ');
+      invoice.charterState,
+      invoice.charterZip
+    );
 
 
   return [
@@ -2559,17 +2693,11 @@ function invoiceAddressLines(invoice){
 function vendorInvoiceAddressLines(invoice){
 
   const cityLine=
-    [
+    formattedInvoiceCityLine(
       invoice.vendorCity,
-      [
-        invoice.vendorState,
-        invoice.vendorZip
-      ]
-        .filter(Boolean)
-        .join(' ')
-    ]
-      .filter(Boolean)
-      .join(', ');
+      invoice.vendorState,
+      invoice.vendorZip
+    );
 
 
   return [
@@ -2765,12 +2893,19 @@ function renderInvoices(){
               </div>
 
               <div>
-                <small>Service start</small>
+                <small>Invoice date</small>
                 <strong>
                   ${esc(
-                    formatVendorDate(
-                      invoice.serviceStartDate
-                    ) || ''
+                    formatInvoiceDate(invoice) || ''
+                  )}
+                </strong>
+              </div>
+
+              <div>
+                <small>Service period</small>
+                <strong>
+                  ${esc(
+                    invoiceServicePeriod(invoice)
                   )}
                 </strong>
               </div>
@@ -2824,8 +2959,15 @@ function renderInvoices(){
                   <button
                     type="button"
                     class="primary"
+                    data-invoice-email="${invoice.id}">
+                    Send Invoice
+                  </button>
+
+                  <button
+                    type="button"
+                    class="vf-secondary-button"
                     data-invoice-send="${invoice.id}">
-                    Mark sent
+                    Mark sent outside VendorFlow
                   </button>
                 `
                 : ''
@@ -2864,6 +3006,30 @@ function renderInvoices(){
         </article>
       `;
     }).join('');
+
+
+
+  $$('[data-invoice-email]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        const invoice=
+          invoices.find(
+            item=>
+              item.id===
+              button.dataset.invoiceEmail
+          );
+
+        if(!invoice){
+          return;
+        }
+
+        toast(
+          'Email draft workflow is the next step.'
+        );
+      };
+    });
 
 
   $$('[data-invoice-send]')

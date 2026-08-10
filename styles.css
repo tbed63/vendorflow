@@ -2656,3 +2656,10 @@ main{
 
 }
 
+
+
+.vf-invoice-actions .vf-secondary-button{
+  background:#FFFFFF;
+  border:1px solid #B9C4CB;
+  color:#526773;
+}
