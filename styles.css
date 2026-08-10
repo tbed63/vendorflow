@@ -2927,582 +2927,106 @@ aside nav{
 
 
 /* ==========================================================
-   VENDORFLOW HEADER — TRUE CENTERED BRAND
+   VENDORFLOW APPLICATION HEADER — FINAL
+   One authoritative rule set. Do not stack overrides below.
    ========================================================== */
 
 /*
- * Three independent header zones:
+ * TARGET:
  *
- * page title = left
- * VendorFlow = true center of main workspace
- * account    = right
+ *   Dashboard title                 VendorFlow logo            Account
+ *   lower-left                      true center                lower-right
  *
- * Absolute centering prevents the account width from pushing
- * the VendorFlow logo away from the visual center.
+ *   ---------------------------------------------------------------
+ *   BLUE CONTENT / HERO BEGINS HERE
+ *
+ * The header is deliberately tall enough for the large logo.
  */
 
 .vf-app-header{
   position:relative;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  min-height:88px;
-  gap:20px;
+  display:block;
+
+  width:100%;
+  height:142px;
+  min-height:142px;
+
+  margin:0 0 8px;
+  padding:0;
 }
 
+
+/* ----------------------------------------------------------
+   LEFT — CURRENT PAGE
+   ---------------------------------------------------------- */
+
 .vf-header-title{
-  position:relative;
-  z-index:2;
-  flex:0 1 260px;
+  position:absolute;
+  left:0;
+  bottom:12px;
+
+  margin:0;
+  padding:0;
+
+  width:auto;
   min-width:0;
 }
+
+.vf-header-title .eyebrow{
+  margin:0 0 6px;
+
+  color:#1A346F;
+  font-size:11px;
+  font-weight:800;
+  line-height:1;
+  letter-spacing:.15em;
+}
+
+.vf-header-title h1{
+  margin:0;
+  padding:0;
+
+  color:#26383F;
+  font-size:34px;
+  line-height:1;
+  letter-spacing:-.035em;
+}
+
+
+/* ----------------------------------------------------------
+   CENTER — VENDORFLOW
+   ---------------------------------------------------------- */
 
 .vf-header-brand{
   position:absolute;
-  z-index:1;
+
   left:50%;
-  top:50%;
-  transform:translate(-50%,-50%);
+  bottom:10px;
+
+  transform:translateX(-50%);
+
   display:flex;
-  align-items:center;
+  align-items:flex-end;
   justify-content:center;
-  pointer-events:none;
-}
 
-.vf-header-brand-logo{
-  display:block;
-  width:360px;
-  max-width:34vw;
-  height:auto;
-}
-
-.vf-header-account{
-  position:relative;
-  z-index:3;
-  flex:0 0 auto;
-  margin-left:auto;
-}
-
-
-/*
- * Keep the account compact enough that it cannot collide
- * with the centered logo on normal desktop screens.
- */
-
-.vf-header-account .vf-account-click{
-  max-width:245px;
-}
-
-.vf-account-header-copy strong{
-  max-width:145px;
-}
-
-.vf-account-header-copy small{
-  max-width:165px;
-}
-
-
-/* Medium screens: shrink the centered brand before overlap. */
-
-@media(max-width:1200px){
-
-  .vf-header-brand-logo{
-    width:300px;
-    max-width:29vw;
-  }
-
-  .vf-header-account .vf-account-click{
-    max-width:205px;
-  }
-
-  .vf-account-header-copy small{
-    display:none;
-  }
-}
-
-
-/*
- * Once the screen becomes narrow enough that three zones
- * cannot coexist comfortably, the centered header logo
- * disappears. The permanent sidebar brand still identifies
- * VendorFlow.
- */
-
-@media(max-width:950px){
-
-  .vf-header-brand{
-    display:none;
-  }
-
-  .vf-header-title{
-    flex:1 1 auto;
-  }
-}
-
-
-@media(max-width:650px){
-
-  .vf-app-header{
-    min-height:70px;
-  }
-
-  .vf-header-account .vf-account-click{
-    max-width:none;
-  }
-}
-
-
-/* Legacy dynamically injected header logo is retired. */
-.vf-app-header > .vf-header-logo{
-  display:none !important;
-}
-
-/* ==========================================================
-   FINAL VENDORFLOW DESKTOP HEADER
-   title left | brand centered | account right
-   ========================================================== */
-
-/*
- * Equal outside columns make the center column mathematically
- * centered over the main content area, regardless of the width
- * of the page title or account control.
- */
-.vf-app-header{
-  position:relative;
-  display:grid !important;
-  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
-  align-items:center;
-  column-gap:20px;
-
-  min-height:76px;
-  margin-bottom:7px;
-  padding:0;
-}
-
-
-/* Page title sits toward the bottom of the header so it
-   visually belongs to the content directly beneath it. */
-.vf-header-title{
-  position:static !important;
-  justify-self:start;
-  align-self:end;
-  min-width:0;
-  padding-bottom:9px;
-}
-
-.vf-header-title .eyebrow{
-  margin-bottom:2px;
-}
-
-.vf-header-title h1{
   margin:0;
-  line-height:1;
-}
-
-
-/* True center — no absolute positioning or translation. */
-.vf-header-brand{
-  position:static !important;
-  left:auto !important;
-  top:auto !important;
-  transform:none !important;
-
-  grid-column:2;
-  justify-self:center;
-  align-self:center;
-
-  display:flex;
-  align-items:center;
-  justify-content:center;
+  padding:0;
 
   pointer-events:none;
 }
 
 .vf-header-brand-logo{
   display:block;
-  width:320px;
-  max-width:30vw;
-  max-height:70px;
+
+  width:450px;
+  max-width:40vw;
+  max-height:108px;
+
   height:auto;
   object-fit:contain;
-}
 
-
-/* Account stays pinned to the far right. */
-.vf-header-account{
-  position:static !important;
-  grid-column:3;
-  justify-self:end;
-  align-self:center;
-
-  margin:0 !important;
-  flex:none;
-}
-
-.vf-header-account .vf-account-click{
-  max-width:245px;
-}
-
-
-/* Give the hero a tight, intentional relationship with header. */
-#dashboardView > .hero{
-  margin-top:0;
-}
-
-
-/* ----------------------------------------------------------
-   MEDIUM DESKTOP
-   ---------------------------------------------------------- */
-
-@media(max-width:1200px){
-
-  .vf-app-header{
-    column-gap:14px;
-  }
-
-  .vf-header-brand-logo{
-    width:270px;
-    max-width:27vw;
-    max-height:62px;
-  }
-
-  .vf-header-account .vf-account-click{
-    max-width:210px;
-  }
-
-  .vf-account-header-copy small{
-    display:none;
-  }
-}
-
-
-/* ----------------------------------------------------------
-   TABLET / NARROW SCREENS
-   The sidebar already carries VendorFlow branding, so hiding
-   the center logo is preferable to crowding the controls.
-   ---------------------------------------------------------- */
-
-@media(max-width:950px){
-
-  .vf-app-header{
-    grid-template-columns:1fr auto;
-    min-height:68px;
-  }
-
-  .vf-header-brand{
-    display:none !important;
-  }
-
-  .vf-header-title{
-    grid-column:1;
-  }
-
-  .vf-header-account{
-    grid-column:2;
-  }
-}
-
-
-/* ----------------------------------------------------------
-   PHONE
-   ---------------------------------------------------------- */
-
-@media(max-width:650px){
-
-  .vf-app-header{
-    min-height:62px;
-    margin-bottom:6px;
-  }
-
-  .vf-header-title{
-    padding-bottom:7px;
-  }
-
-  .vf-header-account .vf-account-click{
-    max-width:none;
-  }
-
-  .vf-account-header-copy{
-    display:none;
-  }
-
-  .vf-account-chevron{
-    display:none;
-  }
-}
-
-
-/* ==========================================================
-   FINAL VENDORFLOW DESKTOP HEADER
-   title left | brand centered | account right
-   ========================================================== */
-
-/*
- * Equal outside columns make the center column mathematically
- * centered over the main content area, regardless of the width
- * of the page title or account control.
- */
-.vf-app-header{
-  position:relative;
-  display:grid !important;
-  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
-  align-items:center;
-  column-gap:20px;
-
-  min-height:76px;
-  margin-bottom:7px;
-  padding:0;
-}
-
-
-/* Page title sits toward the bottom of the header so it
-   visually belongs to the content directly beneath it. */
-.vf-header-title{
-  position:static !important;
-  justify-self:start;
-  align-self:end;
-  min-width:0;
-  padding-bottom:9px;
-}
-
-.vf-header-title .eyebrow{
-  margin-bottom:2px;
-}
-
-.vf-header-title h1{
   margin:0;
-  line-height:1;
-}
-
-
-/* True center — no absolute positioning or translation. */
-.vf-header-brand{
-  position:static !important;
-  left:auto !important;
-  top:auto !important;
-  transform:none !important;
-
-  grid-column:2;
-  justify-self:center;
-  align-self:center;
-
-  display:flex;
-  align-items:center;
-  justify-content:center;
-
-  pointer-events:none;
-}
-
-.vf-header-brand-logo{
-  display:block;
-  width:320px;
-  max-width:30vw;
-  max-height:70px;
-  height:auto;
-  object-fit:contain;
-}
-
-
-/* Account stays pinned to the far right. */
-.vf-header-account{
-  position:static !important;
-  grid-column:3;
-  justify-self:end;
-  align-self:center;
-
-  margin:0 !important;
-  flex:none;
-}
-
-.vf-header-account .vf-account-click{
-  max-width:245px;
-}
-
-
-/* Give the hero a tight, intentional relationship with header. */
-#dashboardView > .hero{
-  margin-top:0;
-}
-
-
-/* ----------------------------------------------------------
-   MEDIUM DESKTOP
-   ---------------------------------------------------------- */
-
-@media(max-width:1200px){
-
-  .vf-app-header{
-    column-gap:14px;
-  }
-
-  .vf-header-brand-logo{
-    width:270px;
-    max-width:27vw;
-    max-height:62px;
-  }
-
-  .vf-header-account .vf-account-click{
-    max-width:210px;
-  }
-
-  .vf-account-header-copy small{
-    display:none;
-  }
-}
-
-
-/* ----------------------------------------------------------
-   TABLET / NARROW SCREENS
-   The sidebar already carries VendorFlow branding, so hiding
-   the center logo is preferable to crowding the controls.
-   ---------------------------------------------------------- */
-
-@media(max-width:950px){
-
-  .vf-app-header{
-    grid-template-columns:1fr auto;
-    min-height:68px;
-  }
-
-  .vf-header-brand{
-    display:none !important;
-  }
-
-  .vf-header-title{
-    grid-column:1;
-  }
-
-  .vf-header-account{
-    grid-column:2;
-  }
-}
-
-
-/* ----------------------------------------------------------
-   PHONE
-   ---------------------------------------------------------- */
-
-@media(max-width:650px){
-
-  .vf-app-header{
-    min-height:62px;
-    margin-bottom:6px;
-  }
-
-  .vf-header-title{
-    padding-bottom:7px;
-  }
-
-  .vf-header-account .vf-account-click{
-    max-width:none;
-  }
-
-  .vf-account-header-copy{
-    display:none;
-  }
-
-  .vf-account-chevron{
-    display:none;
-  }
-}
-
-
-
-/* ==========================================================
-   LOCKED APPLICATION HEADER — AUGUST 10, 2026
-   FINAL OVERRIDE
-   ========================================================== */
-
-/*
- * Stop previous header experiments from affecting placement.
- *
- * The header itself spans exactly the same main-content width
- * as the blue hero below it.
- */
-.vf-app-header{
-  position:relative !important;
-  display:block !important;
-  width:100% !important;
-  min-height:70px !important;
-  height:70px !important;
-  margin:0 !important;
-  padding:0 !important;
-}
-
-
-/* ----------------------------------------------------------
-   LEFT — PAGE NAME
-   Hug the blue content instead of floating high above it.
-   ---------------------------------------------------------- */
-
-.vf-header-title{
-  position:absolute !important;
-  left:0 !important;
-  bottom:5px !important;
-  top:auto !important;
-
-  width:auto !important;
-  min-width:0 !important;
-
-  margin:0 !important;
-  padding:0 !important;
-
-  transform:none !important;
-}
-
-.vf-header-title .eyebrow{
-  margin:0 0 3px !important;
-  line-height:1 !important;
-}
-
-.vf-header-title h1{
-  margin:0 !important;
-  padding:0 !important;
-  line-height:1 !important;
-}
-
-
-/* ----------------------------------------------------------
-   CENTER — VENDORFLOW BRAND
-   Centered on the SAME WIDTH AS THE BLUE HERO.
-   ---------------------------------------------------------- */
-
-.vf-header-brand{
-  position:absolute !important;
-
-  left:50% !important;
-  right:auto !important;
-
-  top:50% !important;
-  bottom:auto !important;
-
-  width:auto !important;
-  height:auto !important;
-
-  margin:0 !important;
-  padding:0 !important;
-
-  display:block !important;
-
-  transform:
-    translate(-50%,-50%) !important;
-
-  pointer-events:none !important;
-}
-
-.vf-header-brand-logo{
-  display:block !important;
-
-  width:285px !important;
-  max-width:none !important;
-  max-height:62px !important;
-
-  height:auto !important;
-
-  margin:0 !important;
-  padding:0 !important;
-
-  object-fit:contain !important;
+  padding:0;
 }
 
 
@@ -3511,640 +3035,236 @@ aside nav{
    ---------------------------------------------------------- */
 
 .vf-header-account{
-  position:absolute !important;
+  position:absolute;
 
-  right:0 !important;
-  left:auto !important;
+  right:0;
+  bottom:12px;
 
-  top:50% !important;
-  bottom:auto !important;
+  display:flex;
+  align-items:center;
+  gap:9px;
 
-  margin:0 !important;
-  padding:0 !important;
+  margin:0;
+  padding:0;
 
-  transform:
-    translateY(-50%) !important;
+  background:transparent;
+  box-shadow:none;
 
-  display:flex !important;
-  align-items:center !important;
-
-  z-index:5 !important;
+  z-index:5;
 }
 
 .vf-header-account .vf-account-click{
-  max-width:220px !important;
+  display:flex;
+  align-items:center;
+  gap:11px;
+
+  min-width:245px;
+  min-height:64px;
+
+  padding:10px 14px;
+
+  border:1px solid #D8E0E5;
+  border-radius:12px;
+
+  background:#FFFFFF;
+  color:#26383F;
+
+  text-align:left;
+  cursor:pointer;
+}
+
+.vf-header-account .vf-account-click:hover{
+  background:#F7F9FA;
+  border-color:#C6D0D7;
 }
 
 
-/* ----------------------------------------------------------
-   BLUE HERO
-   Starts immediately below the header.
-   ---------------------------------------------------------- */
+/* Initial circle */
 
-#dashboardView{
-  margin-top:0 !important;
-  padding-top:0 !important;
-}
-
-#dashboardView > .hero{
-  margin-top:0 !important;
-}
-
-
-/* ----------------------------------------------------------
-   RESPONSIVE
-   ---------------------------------------------------------- */
-
-@media(max-width:1150px){
-
-  .vf-header-brand-logo{
-    width:235px !important;
-    max-height:54px !important;
-  }
-
-  .vf-header-account .vf-account-click{
-    max-width:185px !important;
-  }
-
-  .vf-account-header-copy small{
-    display:none !important;
-  }
-}
-
-
-@media(max-width:900px){
-
-  .vf-header-brand{
-    display:none !important;
-  }
-
-  .vf-app-header{
-    height:64px !important;
-    min-height:64px !important;
-  }
-}
-
-
-@media(max-width:650px){
-
-  .vf-header-title{
-    bottom:4px !important;
-  }
-
-  .vf-account-header-copy{
-    display:none !important;
-  }
-}
-
-
-/* ==========================================================
-   VENDORFLOW FINAL HEADER — SPACIOUS VERSION
-   ========================================================== */
-
-/*
- * Deliberately override all earlier header experiments.
- * The header gets real breathing room while all three elements
- * sit near its bottom edge, directly above the page content.
- */
-.vf-app-header{
-  position:relative !important;
-  display:block !important;
-
-  width:100% !important;
-  height:140px !important;
-  min-height:140px !important;
-
-  margin:0 0 8px 0 !important;
-  padding:0 !important;
-}
-
-
-/* ----------------------------------------------------------
-   PAGE TITLE — LOWER LEFT
-   ---------------------------------------------------------- */
-
-.vf-header-title{
-  position:absolute !important;
-
-  left:0 !important;
-  right:auto !important;
-  top:auto !important;
-  bottom:10px !important;
-
-  width:auto !important;
-
-  margin:0 !important;
-  padding:0 !important;
-
-  transform:none !important;
-}
-
-.vf-header-title .eyebrow{
-  margin:0 0 6px !important;
-
-  font-size:11px !important;
-  line-height:1 !important;
-  letter-spacing:.16em !important;
-}
-
-.vf-header-title h1{
-  margin:0 !important;
-  padding:0 !important;
-
-  font-size:34px !important;
-  line-height:1 !important;
-}
-
-
-/* ----------------------------------------------------------
-   CENTER LOGO
-   1.5x the approved visual target.
-   ---------------------------------------------------------- */
-
-.vf-header-brand{
-  position:absolute !important;
-
-  left:50% !important;
-  right:auto !important;
-
-  top:auto !important;
-  bottom:10px !important;
-
-  width:auto !important;
-  height:auto !important;
-
-  margin:0 !important;
-  padding:0 !important;
-
-  display:flex !important;
-  align-items:flex-end !important;
-  justify-content:center !important;
-
-  transform:translateX(-50%) !important;
-
-  pointer-events:none !important;
-}
-
-.vf-header-brand-logo{
-  display:block !important;
-
-  width:430px !important;
-  max-width:38vw !important;
-  max-height:105px !important;
-
-  height:auto !important;
-
-  margin:0 !important;
-  padding:0 !important;
-
-  object-fit:contain !important;
-}
-
-
-/* ----------------------------------------------------------
-   ACCOUNT — LOWER RIGHT
-   ---------------------------------------------------------- */
-
-.vf-header-account{
-  position:absolute !important;
-
-  right:0 !important;
-  left:auto !important;
-
-  top:auto !important;
-  bottom:10px !important;
-
-  margin:0 !important;
-  padding:0 !important;
-
-  transform:none !important;
-
-  display:flex !important;
-  align-items:center !important;
-
-  z-index:10 !important;
-}
-
-
-/*
- * Make the actual account control large enough for readable
- * typography rather than squeezing the text into a tiny pill.
- */
-.vf-header-account .vf-account-click{
-  min-width:250px !important;
-  max-width:300px !important;
-  min-height:64px !important;
-
-  padding:10px 14px !important;
-
-  display:flex !important;
-  align-items:center !important;
-  gap:11px !important;
-}
-
-
-/* Business/vendor name */
-.vf-account-header-copy strong{
-  display:block !important;
-
-  font-size:16px !important;
-  line-height:1.15 !important;
-  font-weight:700 !important;
-
-  white-space:nowrap !important;
-}
-
-
-/* Email/account secondary line */
-.vf-account-header-copy small{
-  display:block !important;
-
-  margin-top:4px !important;
-
-  font-size:12px !important;
-  line-height:1.15 !important;
-
-  white-space:nowrap !important;
-}
-
-
-/* Account initial circle */
 .vf-header-account .vf-account-avatar{
-  width:38px !important;
-  height:38px !important;
-  min-width:38px !important;
+  display:flex;
+  align-items:center;
+  justify-content:center;
 
-  font-size:15px !important;
+  width:40px;
+  height:40px;
+  min-width:40px;
+
+  border-radius:50%;
+
+  background:#173A77;
+  color:#FFFFFF;
+
+  font-size:16px;
+  font-weight:900;
 }
 
 
-/* Log out should also be readable. */
-.vf-header-account .vf-header-logout,
-.vf-header-account .vf-account-logout,
-.vf-header-account + .vf-header-logout{
-  font-size:14px !important;
+/* Business name */
+
+.vf-header-account .vf-account-header-copy{
+  display:grid;
+  gap:4px;
+  min-width:0;
+}
+
+.vf-header-account .vf-account-header-copy strong{
+  display:block;
+
+  max-width:175px;
+
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+
+  color:#26383F;
+
+  font-size:16px;
+  font-weight:800;
+  line-height:1.1;
+}
+
+
+/* Email */
+
+.vf-header-account .vf-account-header-copy small{
+  display:block;
+
+  max-width:180px;
+
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+
+  color:#66757D;
+
+  font-size:12px;
+  font-weight:600;
+  line-height:1.15;
+}
+
+
+/* Chevron */
+
+.vf-header-account .vf-account-chevron{
+  color:#66757D;
+  font-size:16px;
+}
+
+
+/* Logout */
+
+.vf-header-account .vf-header-logout{
+  padding:9px 10px;
+
+  border:0;
+  border-radius:8px;
+
+  background:transparent;
+  color:#526773;
+
+  font-size:14px;
+  font-weight:700;
+}
+
+.vf-header-account .vf-header-logout:hover{
+  background:#FFF1F0;
+  color:#B42318;
 }
 
 
 /* ----------------------------------------------------------
-   HERO
-   Keep it directly beneath the enlarged header.
+   DASHBOARD CONTENT BEGINS DIRECTLY BELOW HEADER
    ---------------------------------------------------------- */
 
 #dashboardView{
-  margin-top:0 !important;
-  padding-top:0 !important;
+  margin-top:0;
+  padding-top:0;
 }
 
 #dashboardView > .hero{
-  margin-top:0 !important;
+  margin-top:0;
 }
 
 
 /* ----------------------------------------------------------
-   MEDIUM SCREENS
+   MEDIUM DESKTOP
    ---------------------------------------------------------- */
 
 @media(max-width:1200px){
 
   .vf-header-brand-logo{
-    width:360px !important;
-    max-width:34vw !important;
-    max-height:90px !important;
+    width:370px;
+    max-width:34vw;
+    max-height:94px;
   }
 
   .vf-header-account .vf-account-click{
-    min-width:215px !important;
-    max-width:240px !important;
+    min-width:215px;
   }
 
-  .vf-account-header-copy strong{
-    font-size:14px !important;
+  .vf-header-account .vf-account-header-copy strong{
+    max-width:140px;
+    font-size:14px;
   }
 
-  .vf-account-header-copy small{
-    display:block !important;
-    font-size:11px !important;
+  .vf-header-account .vf-account-header-copy small{
+    max-width:145px;
+    font-size:11px;
   }
 }
 
 
 /* ----------------------------------------------------------
-   NARROW SCREENS
+   TABLET
    ---------------------------------------------------------- */
 
 @media(max-width:950px){
 
   .vf-app-header{
-    height:105px !important;
-    min-height:105px !important;
+    height:100px;
+    min-height:100px;
   }
 
   .vf-header-brand{
-    display:none !important;
+    display:none;
   }
 
   .vf-header-title,
   .vf-header-account{
-    bottom:8px !important;
+    bottom:9px;
   }
 }
 
+
+/* ----------------------------------------------------------
+   PHONE
+   ---------------------------------------------------------- */
 
 @media(max-width:650px){
 
   .vf-app-header{
-    height:90px !important;
-    min-height:90px !important;
+    height:88px;
+    min-height:88px;
   }
 
   .vf-header-title h1{
-    font-size:27px !important;
+    font-size:27px;
   }
 
   .vf-header-account .vf-account-click{
-    min-width:auto !important;
-    width:auto !important;
+    min-width:auto;
+    padding:8px;
   }
 
-  .vf-account-header-copy{
-    display:none !important;
-  }
-}
-
-
-/* ==========================================================
-   VENDORFLOW FINAL HEADER — SPACIOUS VERSION
-   ========================================================== */
-
-/*
- * Deliberately override all earlier header experiments.
- * The header gets real breathing room while all three elements
- * sit near its bottom edge, directly above the page content.
- */
-.vf-app-header{
-  position:relative !important;
-  display:block !important;
-
-  width:100% !important;
-  height:140px !important;
-  min-height:140px !important;
-
-  margin:0 0 8px 0 !important;
-  padding:0 !important;
-}
-
-
-/* ----------------------------------------------------------
-   PAGE TITLE — LOWER LEFT
-   ---------------------------------------------------------- */
-
-.vf-header-title{
-  position:absolute !important;
-
-  left:0 !important;
-  right:auto !important;
-  top:auto !important;
-  bottom:10px !important;
-
-  width:auto !important;
-
-  margin:0 !important;
-  padding:0 !important;
-
-  transform:none !important;
-}
-
-.vf-header-title .eyebrow{
-  margin:0 0 6px !important;
-
-  font-size:11px !important;
-  line-height:1 !important;
-  letter-spacing:.16em !important;
-}
-
-.vf-header-title h1{
-  margin:0 !important;
-  padding:0 !important;
-
-  font-size:34px !important;
-  line-height:1 !important;
-}
-
-
-/* ----------------------------------------------------------
-   CENTER LOGO
-   1.5x the approved visual target.
-   ---------------------------------------------------------- */
-
-.vf-header-brand{
-  position:absolute !important;
-
-  left:50% !important;
-  right:auto !important;
-
-  top:auto !important;
-  bottom:10px !important;
-
-  width:auto !important;
-  height:auto !important;
-
-  margin:0 !important;
-  padding:0 !important;
-
-  display:flex !important;
-  align-items:flex-end !important;
-  justify-content:center !important;
-
-  transform:translateX(-50%) !important;
-
-  pointer-events:none !important;
-}
-
-.vf-header-brand-logo{
-  display:block !important;
-
-  width:430px !important;
-  max-width:38vw !important;
-  max-height:105px !important;
-
-  height:auto !important;
-
-  margin:0 !important;
-  padding:0 !important;
-
-  object-fit:contain !important;
-}
-
-
-/* ----------------------------------------------------------
-   ACCOUNT — LOWER RIGHT
-   ---------------------------------------------------------- */
-
-.vf-header-account{
-  position:absolute !important;
-
-  right:0 !important;
-  left:auto !important;
-
-  top:auto !important;
-  bottom:10px !important;
-
-  margin:0 !important;
-  padding:0 !important;
-
-  transform:none !important;
-
-  display:flex !important;
-  align-items:center !important;
-
-  z-index:10 !important;
-}
-
-
-/*
- * Make the actual account control large enough for readable
- * typography rather than squeezing the text into a tiny pill.
- */
-.vf-header-account .vf-account-click{
-  min-width:250px !important;
-  max-width:300px !important;
-  min-height:64px !important;
-
-  padding:10px 14px !important;
-
-  display:flex !important;
-  align-items:center !important;
-  gap:11px !important;
-}
-
-
-/* Business/vendor name */
-.vf-account-header-copy strong{
-  display:block !important;
-
-  font-size:16px !important;
-  line-height:1.15 !important;
-  font-weight:700 !important;
-
-  white-space:nowrap !important;
-}
-
-
-/* Email/account secondary line */
-.vf-account-header-copy small{
-  display:block !important;
-
-  margin-top:4px !important;
-
-  font-size:12px !important;
-  line-height:1.15 !important;
-
-  white-space:nowrap !important;
-}
-
-
-/* Account initial circle */
-.vf-header-account .vf-account-avatar{
-  width:38px !important;
-  height:38px !important;
-  min-width:38px !important;
-
-  font-size:15px !important;
-}
-
-
-/* Log out should also be readable. */
-.vf-header-account .vf-header-logout,
-.vf-header-account .vf-account-logout,
-.vf-header-account + .vf-header-logout{
-  font-size:14px !important;
-}
-
-
-/* ----------------------------------------------------------
-   HERO
-   Keep it directly beneath the enlarged header.
-   ---------------------------------------------------------- */
-
-#dashboardView{
-  margin-top:0 !important;
-  padding-top:0 !important;
-}
-
-#dashboardView > .hero{
-  margin-top:0 !important;
-}
-
-
-/* ----------------------------------------------------------
-   MEDIUM SCREENS
-   ---------------------------------------------------------- */
-
-@media(max-width:1200px){
-
-  .vf-header-brand-logo{
-    width:360px !important;
-    max-width:34vw !important;
-    max-height:90px !important;
+  .vf-header-account .vf-account-header-copy,
+  .vf-header-account .vf-account-chevron{
+    display:none;
   }
 
-  .vf-header-account .vf-account-click{
-    min-width:215px !important;
-    max-width:240px !important;
-  }
-
-  .vf-account-header-copy strong{
-    font-size:14px !important;
-  }
-
-  .vf-account-header-copy small{
-    display:block !important;
-    font-size:11px !important;
-  }
-}
-
-
-/* ----------------------------------------------------------
-   NARROW SCREENS
-   ---------------------------------------------------------- */
-
-@media(max-width:950px){
-
-  .vf-app-header{
-    height:105px !important;
-    min-height:105px !important;
-  }
-
-  .vf-header-brand{
-    display:none !important;
-  }
-
-  .vf-header-title,
-  .vf-header-account{
-    bottom:8px !important;
-  }
-}
-
-
-@media(max-width:650px){
-
-  .vf-app-header{
-    height:90px !important;
-    min-height:90px !important;
-  }
-
-  .vf-header-title h1{
-    font-size:27px !important;
-  }
-
-  .vf-header-account .vf-account-click{
-    min-width:auto !important;
-    width:auto !important;
-  }
-
-  .vf-account-header-copy{
-    display:none !important;
+  .vf-header-account .vf-header-logout{
+    font-size:11px;
+    padding:7px;
   }
 }
 
