@@ -474,6 +474,7 @@ function renderAll(){
   renderClassSelect();
   renderDashboard();
   renderRoster();
+  renderArchivedClasses();
   renderStudentsServices();
   renderRecords();
   renderReviews();
@@ -481,8 +482,8 @@ function renderAll(){
 }
 
 function renderDashboard(){
-  $('#statClasses').textContent=classes.length;
-  $('#statStudents').textContent=classes.reduce((a,c)=>a+(c.activeStudentCount||0),0);
+  $('#statClasses').textContent=classes.filter(c=>!c.archived).length;
+  $('#statStudents').textContent=classes.filter(c=>!c.archived).reduce((a,c)=>a+(c.activeStudentCount||0),0);
   $('#statReview').textContent=reviews.length;
   $('#statHistory').textContent=history.length;
   $('#reviewBadge').textContent=reviews.length;
@@ -494,13 +495,77 @@ function renderClassSelect(){
 
   sel.innerHTML='<option value="">Choose a class</option>'+
     classes
+      .filter(c=>!c.archived)
       .sort((a,b)=>(a.name||'').localeCompare(b.name||''))
       .map(c=>`<option value="${c.id}">${esc(c.name)}${c.term?' — '+esc(c.term):''}</option>`)
       .join('');
 
-  if(classes.some(c=>c.id===v))sel.value=v;
+  if(classes.some(c=>c.id===v&&!c.archived))sel.value=v;
   updateRosterUploadTarget();
 }
+
+
+function classIsArchived(classId){
+
+  if(!classId){
+    return false;
+  }
+
+  const c=
+    classes.find(
+      item=>item.id===classId
+    );
+
+  return Boolean(
+    c?.archived
+  );
+}
+
+
+function serviceCountsAsActive(service){
+
+  if(!service){
+    return false;
+  }
+
+  if(
+    String(service.status||'')
+      .toLowerCase()==='dropped'
+  ){
+    return false;
+  }
+
+  if(
+    service.classId &&
+    classIsArchived(service.classId)
+  ){
+    return false;
+  }
+
+  return true;
+}
+
+
+function studentVisibleInServices(student){
+
+  const list=
+    services.filter(
+      service=>
+        service.studentId===student.id
+    );
+
+  /*
+   * Standalone/manual students with no service yet remain visible.
+   */
+  if(!list.length){
+    return true;
+  }
+
+  return list.some(
+    serviceCountsAsActive
+  );
+}
+
 
 const currentClass=()=>classes.find(c=>c.id===$('#classSelect').value);
 
@@ -812,6 +877,317 @@ $('#saveRoster').onclick=async()=>{
   toast('Roster saved.');
 };
 
+
+function renderArchivedClasses(){
+
+  const list=
+    $('#archivedClassesList');
+
+  if(!list){
+    return;
+  }
+
+
+  const archived=
+    classes
+      .filter(c=>c.archived)
+      .sort(
+        (a,b)=>
+          (a.name||'')
+            .localeCompare(b.name||'')
+      );
+
+
+  if(!archived.length){
+
+    list.innerHTML=
+      '<div class="empty">No archived classes.</div>';
+
+    return;
+  }
+
+
+  list.innerHTML=
+    archived.map(c=>`
+
+      <div class="vf-archived-class">
+
+        <div>
+
+          <strong>
+            ${esc(c.name||'Unnamed class')}
+          </strong>
+
+          <div class="meta">
+            ${esc(c.term||'')}
+            ${c.location
+              ? ' · '+esc(c.location)
+              : ''}
+            · ${Number(c.rosterCount||0)} roster records
+          </div>
+
+        </div>
+
+
+        <div class="vf-archived-actions">
+
+          <button
+            data-view-archived="${c.id}">
+            View roster
+          </button>
+
+          <button
+            class="primary"
+            data-unarchive-class="${c.id}">
+            Unarchive
+          </button>
+
+        </div>
+
+      </div>
+
+    `).join('');
+
+
+  $$('[data-view-archived]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        viewArchivedRoster(
+          button.dataset.viewArchived
+        );
+      };
+    });
+
+
+  $$('[data-unarchive-class]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        unarchiveClass(
+          button.dataset.unarchiveClass
+        );
+      };
+    });
+}
+
+
+async function viewArchivedRoster(classId){
+
+  const c=
+    classes.find(
+      item=>item.id===classId
+    );
+
+  if(!c){
+    return;
+  }
+
+
+  const snap=
+    await getDocs(
+      collection(
+        db,
+        'vendors',
+        user.uid,
+        'classes',
+        c.id,
+        'students'
+      )
+    );
+
+
+  const members=
+    snap.docs.map(
+      d=>({
+        id:d.id,
+        ...d.data()
+      })
+    );
+
+
+  const viewer=
+    $('#archivedRosterViewer');
+
+
+  viewer.innerHTML=`
+
+    <div class="row between">
+
+      <div>
+        <div class="eyebrow">
+          Archived roster
+        </div>
+
+        <h2>
+          ${esc(c.name)}
+        </h2>
+
+        <p>
+          ${esc(c.term||'')}
+          ${c.location
+            ? ' · '+esc(c.location)
+            : ''}
+        </p>
+      </div>
+
+      <button
+        data-close-archived-roster>
+        Close
+      </button>
+
+    </div>
+
+
+    ${members.length
+      ? `
+        <div class="tablewrap">
+
+          <table>
+
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Parent</th>
+                <th>Email</th>
+                <th>Status</th>
+                <th>Grade</th>
+              </tr>
+            </thead>
+
+            <tbody>
+
+              ${members.map(s=>`
+                <tr>
+                  <td>${esc(s.studentName||'')}</td>
+                  <td>${esc(s.parentName||'')}</td>
+                  <td>${esc(s.parentEmail||'')}</td>
+                  <td>${esc(s.status||'')}</td>
+                  <td>${esc(s.grade||'')}</td>
+                </tr>
+              `).join('')}
+
+            </tbody>
+
+          </table>
+
+        </div>
+      `
+      : '<div class="empty">No roster records.</div>'
+    }
+
+  `;
+
+
+  show(viewer);
+
+
+  const close=
+    viewer.querySelector(
+      '[data-close-archived-roster]'
+    );
+
+  if(close){
+    close.onclick=()=>hide(viewer);
+  }
+}
+
+
+async function unarchiveClass(classId){
+
+  const c=
+    classes.find(
+      item=>item.id===classId
+    );
+
+  if(!c){
+    return;
+  }
+
+
+  const ok=
+    confirm(
+      `Unarchive ${c.name}?\n\n` +
+      `The class will return to your active Class Rosters and its ` +
+      `students/services will become active in VendorFlow again.`
+    );
+
+
+  if(!ok){
+    return;
+  }
+
+
+  await updateDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'classes',
+      c.id
+    ),
+    {
+      archived:false,
+      unarchivedAt:serverTimestamp(),
+      updatedAt:serverTimestamp()
+    }
+  );
+
+
+  await log(
+    'Class unarchived',
+    `${c.name} returned to active Class Rosters.`,
+    'Manual'
+  );
+
+
+  await refreshAll();
+
+  renderArchivedClasses();
+
+  toast(
+    `${c.name} unarchived.`
+  );
+}
+
+
+if($('#toggleArchivedClasses')){
+
+  $('#toggleArchivedClasses').onclick=()=>{
+
+    const panel=
+      $('#archivedClassesPanel');
+
+    panel.classList.toggle(
+      'hidden'
+    );
+
+
+    if(
+      !panel.classList.contains(
+        'hidden'
+      )
+    ){
+
+      renderArchivedClasses();
+
+      $('#toggleArchivedClasses')
+        .textContent=
+          'Hide archived classes';
+
+    }else{
+
+      $('#toggleArchivedClasses')
+        .textContent=
+          'Show archived classes';
+    }
+  };
+}
+
+
+
 function renderRoster(){
   let c=currentClass();
 
@@ -819,12 +1195,12 @@ function renderRoster(){
     show($('#rosterEmpty'));
     hide($('#rosterWrap'));
     hide($('#addStudent'));
-    hide($('#deleteClass'));
+    hide($('#archiveClass'));
     return;
   }
 
   show($('#addStudent'));
-  show($('#deleteClass'));
+  show($('#archiveClass'));
 
   if(!roster.length){
     $('#rosterEmpty').textContent='No saved roster yet.';
@@ -1104,36 +1480,71 @@ $('#saveStudent').onclick=async()=>{
   toast('Student added.');
 };
 
-$('#deleteClass').onclick=async()=>{
-  let c=currentClass();
 
-  if(!c||!confirm(`Delete ${c.name}?`))return;
+$('#archiveClass').onclick=async()=>{
 
-  let s=await getDocs(
-    collection(db,'vendors',user.uid,'classes',c.id,'students')
+  const c=
+    currentClass();
+
+  if(!c){
+    return;
+  }
+
+
+  const ok=
+    confirm(
+      `Archive ${c.name}?\n\n` +
+      `This will remove the class from your active Class Rosters. ` +
+      `Students whose only active service is this class will no longer ` +
+      `appear in Students & Services.\n\n` +
+      `Payments, certificates, financial history and the full roster ` +
+      `will NOT be deleted. You can unarchive the class later.`
+    );
+
+
+  if(!ok){
+    return;
+  }
+
+
+  await updateDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'classes',
+      c.id
+    ),
+    {
+      archived:true,
+      archivedAt:serverTimestamp(),
+      updatedAt:serverTimestamp()
+    }
   );
 
-  let b=writeBatch(db);
-
-  s.forEach(d=>b.delete(d.ref));
-
-  b.delete(
-    doc(db,'vendors',user.uid,'classes',c.id)
-  );
-
-  await b.commit();
 
   await log(
-    'Class deleted',
-    c.name,
+    'Class archived',
+    `${c.name} was archived. Roster and financial history preserved.`,
     'Manual'
   );
 
+
   $('#classSelect').value='';
+
   roster=[];
 
   await refreshAll();
+
+  renderArchivedClasses();
+
+  toast(
+    `${c.name} archived.`
+  );
 };
+
+
+
 
 
 
@@ -1287,7 +1698,7 @@ function studentAccountTotals(student){
 
   const serviceList=
     studentServices(student.id)
-      .filter(s=>s.status!=='Dropped');
+      .filter(serviceCountsAsActive);
 
   const totalDue=
     serviceList.reduce(
@@ -1398,7 +1809,7 @@ function renderStudentsServices(){
 
   if(count){
     count.textContent=
-      `${students.length} student${students.length===1?'':'s'}`;
+      `${students.filter(studentVisibleInServices).length} student${students.filter(studentVisibleInServices).length===1?'':'s'}`;
   }
 
 
@@ -1420,7 +1831,8 @@ function renderStudentsServices(){
 
 
   list.innerHTML=
-    [...students]
+    students
+      .filter(studentVisibleInServices)
       .sort(
         (a,b)=>
           (a.studentName||'')
@@ -4324,7 +4736,7 @@ function switchView(v){
 
   let names={
     dashboard:'Dashboard',
-    classes:'Classes & Rosters',
+    classes:'Class Rosters',
     students:'Students & Services',
     payments:'Payments',
     certificates:'Certificates',

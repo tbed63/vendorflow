@@ -1497,3 +1497,54 @@ main{
     width:100%;
   }
 }
+
+
+/* ==========================================================
+   ARCHIVED CLASS ROSTERS
+   ========================================================== */
+
+.vf-archive-card{
+  margin-top:18px;
+}
+
+.vf-archived-class{
+  display:flex;
+  justify-content:space-between;
+  gap:18px;
+  align-items:center;
+  padding:14px 0;
+  border-bottom:1px solid var(--line);
+}
+
+.vf-archived-class:last-child{
+  border-bottom:0;
+}
+
+.vf-archived-class strong{
+  display:block;
+  margin-bottom:4px;
+}
+
+.vf-archived-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.vf-archived-roster-viewer{
+  margin-top:18px;
+  padding-top:18px;
+  border-top:1px solid var(--line);
+}
+
+@media(max-width:700px){
+
+  .vf-archived-class{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .vf-archived-actions{
+    width:100%;
+  }
+}
