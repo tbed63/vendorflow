@@ -49,18 +49,48 @@
       <button data-view="history">History</button>
       <button data-view="profile">Business Profile</button>
     </nav>
-    <div class="account" id="accountSummary" title="Open account">
-  <div class="vf-account-click">
-    <strong id="bizNameSide">VendorFlow</strong>
-    <span id="userEmail"></span>
-    <small>Account & settings</small>
-  </div>
-  <button id="logout">Log out</button>
-</div>
   </aside>
 
   <main>
-    <header><div><div class="eyebrow">VendorFlow Beta</div><h1 id="title">Dashboard</h1></div></header>
+    <header class="vf-app-header">
+
+      <div class="vf-header-title">
+        <div class="eyebrow">VendorFlow Beta</div>
+        <h1 id="title">Dashboard</h1>
+      </div>
+
+      <div
+        class="account vf-header-account"
+        id="accountSummary"
+        title="Open account">
+
+        <button
+          type="button"
+          class="vf-account-click"
+          id="openAccount">
+
+          <span class="vf-account-avatar">
+            <span id="accountInitial">V</span>
+          </span>
+
+          <span class="vf-account-header-copy">
+            <strong id="bizNameSide">VendorFlow</strong>
+            <small id="userEmail"></small>
+          </span>
+
+          <span class="vf-account-chevron">⌄</span>
+
+        </button>
+
+        <button
+          id="logout"
+          class="vf-header-logout">
+          Log out
+        </button>
+
+      </div>
+
+    </header>
 
     <section id="dashboardView" class="view active">
       <div class="hero vf-attention-hero">
@@ -947,76 +977,8 @@
         </div>
       </div>
 
-      <div class="vf-invoice-summary-grid">
-
-        <div class="vf-invoice-summary-card">
-          <small>READY TO SEND</small>
-          <strong id="invoiceReadyCount">0</strong>
-        </div>
-
-        <div class="vf-invoice-summary-card">
-          <small>SENT</small>
-          <strong id="invoiceSentCount">0</strong>
-        </div>
-
-        <div class="vf-invoice-summary-card">
-          <small>PAID</small>
-          <strong id="invoicePaidCount">0</strong>
-        </div>
-
-      </div>
-
-      <div id="invoiceList" class="vf-invoice-list">
-        <div class="empty">No invoices yet.</div>
-      </div>
-
-    </section>
-
-<section id="complianceView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Vendor approval & compliance</div><h2>Requirements & renewals</h2><p>Track applications, TB tests, Live Scan, training, insurance, W-9s and more.</p></div><button id="addCompliance" class="primary">Add task</button></div><div id="complianceForm" class="formgrid hidden"><input id="compSchool" class="input" placeholder="School / organization"><input id="compTask" class="input" placeholder="Requirement"><input id="compDue" class="input" type="date"><select id="compStatus" class="input"><option>Not started</option><option>In progress</option><option>Submitted</option><option>Approved</option><option>Complete</option><option>Needs renewal</option></select><button id="saveCompliance" class="primary">Save task</button></div><div id="complianceList"></div></div></section>
-
-    <section id="reviewView" class="view"><div class="card"><div class="eyebrow">Safety net</div><h2>Needs Review</h2><p>VendorFlow should never quietly guess.</p><div id="reviewList"></div></div></section>
-    <section id="historyView" class="view"><div class="card"><div class="eyebrow">Permanent audit trail</div><h2>History</h2><p>See what happened, when, and whether it was manual, imported, or automated.</p><div id="historyList"></div></div></section>
-
-
-    
-    <section id="accountView" class="view">
-
-      <div class="card narrow">
-
-        <div class="eyebrow">
-          VendorFlow account
-        </div>
-
-        <h2>
-          Account & Settings
-        </h2>
-
-        <p>
-          Review and update the information VendorFlow uses
-          for your business.
-        </p>
-
-
-        <div class="vf-account-readonly-grid">
-
-          <div class="vf-account-field">
-            <small>Subscription</small>
-            <strong id="accountSubscription">
-              VendorFlow Beta
-            </strong>
-          </div>
-
-          <div class="vf-account-field">
-            <small>Login email</small>
-            <strong id="accountEmail"></strong>
-          </div>
-
-        </div>
-
-
-
-        <div
-          id="invoiceNumberingSettings"
+      <div
+        id="invoiceNumberingSettings"
           class="vf-invoice-numbering-card">
 
           <div class="eyebrow">
@@ -1111,6 +1073,74 @@
           </button>
 
         </div>
+
+
+      <div class="vf-invoice-summary-grid">
+
+        <div class="vf-invoice-summary-card">
+          <small>READY TO SEND</small>
+          <strong id="invoiceReadyCount">0</strong>
+        </div>
+
+        <div class="vf-invoice-summary-card">
+          <small>SENT</small>
+          <strong id="invoiceSentCount">0</strong>
+        </div>
+
+        <div class="vf-invoice-summary-card">
+          <small>PAID</small>
+          <strong id="invoicePaidCount">0</strong>
+        </div>
+
+      </div>
+
+      <div id="invoiceList" class="vf-invoice-list">
+        <div class="empty">No invoices yet.</div>
+      </div>
+
+    </section>
+
+<section id="complianceView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Vendor approval & compliance</div><h2>Requirements & renewals</h2><p>Track applications, TB tests, Live Scan, training, insurance, W-9s and more.</p></div><button id="addCompliance" class="primary">Add task</button></div><div id="complianceForm" class="formgrid hidden"><input id="compSchool" class="input" placeholder="School / organization"><input id="compTask" class="input" placeholder="Requirement"><input id="compDue" class="input" type="date"><select id="compStatus" class="input"><option>Not started</option><option>In progress</option><option>Submitted</option><option>Approved</option><option>Complete</option><option>Needs renewal</option></select><button id="saveCompliance" class="primary">Save task</button></div><div id="complianceList"></div></div></section>
+
+    <section id="reviewView" class="view"><div class="card"><div class="eyebrow">Safety net</div><h2>Needs Review</h2><p>VendorFlow should never quietly guess.</p><div id="reviewList"></div></div></section>
+    <section id="historyView" class="view"><div class="card"><div class="eyebrow">Permanent audit trail</div><h2>History</h2><p>See what happened, when, and whether it was manual, imported, or automated.</p><div id="historyList"></div></div></section>
+
+
+    
+    <section id="accountView" class="view">
+
+      <div class="card narrow">
+
+        <div class="eyebrow">
+          VendorFlow account
+        </div>
+
+        <h2>
+          Account & Settings
+        </h2>
+
+        <p>
+          Review and update the information VendorFlow uses
+          for your business.
+        </p>
+
+
+        <div class="vf-account-readonly-grid">
+
+          <div class="vf-account-field">
+            <small>Subscription</small>
+            <strong id="accountSubscription">
+              VendorFlow Beta
+            </strong>
+          </div>
+
+          <div class="vf-account-field">
+            <small>Login email</small>
+            <strong id="accountEmail"></strong>
+          </div>
+
+        </div>
+
 
 
         <div class="vf-account-edit-grid">

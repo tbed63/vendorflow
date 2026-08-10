@@ -660,8 +660,6 @@ function vendorAddressParts(){
 
 function renderAccountPage(){
 
-  renderInvoiceNumberingSettings();
-
   const subscription=
     profile.subscriptionLevel ||
     profile.subscription ||
@@ -689,6 +687,25 @@ function renderAccountPage(){
     emailEl.textContent=
       user?.email ||
       'Not available';
+  }
+
+
+  const initialEl=
+    $('#accountInitial');
+
+  if(initialEl){
+
+    const source=
+      profile.businessName ||
+      profile.ownerName ||
+      user?.email ||
+      'V';
+
+    initialEl.textContent=
+      String(source)
+        .trim()
+        .charAt(0)
+        .toUpperCase() || 'V';
   }
 
 
@@ -3098,6 +3115,8 @@ function vendorInvoiceAddressLines(invoice){
 
 function renderInvoices(){
 
+  renderInvoiceNumberingSettings();
+
   const list=
     $('#invoiceList');
 
@@ -3687,7 +3706,7 @@ function renderDashboard(){
     reviewButton.onclick=()=>{
 
       switchView(
-        'account'
+        'invoices'
       );
 
       renderInvoiceNumberingSettings();

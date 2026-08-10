@@ -2764,3 +2764,163 @@ main{
     margin-left:0;
   }
 }
+
+
+/* ==========================================================
+   GLOBAL HEADER ACCOUNT
+   ========================================================== */
+
+.vf-app-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:24px;
+}
+
+.vf-header-title{
+  min-width:0;
+}
+
+.vf-header-account{
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex:0 0 auto;
+  margin:0;
+  padding:0;
+  border:0;
+  background:transparent;
+}
+
+.vf-header-account .vf-account-click{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-width:0;
+  padding:7px 10px;
+  border:1px solid #D8E0E5;
+  border-radius:11px;
+  background:#FFFFFF;
+  color:#26383F;
+  cursor:pointer;
+  text-align:left;
+}
+
+.vf-header-account .vf-account-click:hover{
+  background:#F6F8FA;
+  border-color:#C4CFD6;
+}
+
+.vf-account-avatar{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:32px;
+  height:32px;
+  flex:0 0 32px;
+  border-radius:50%;
+  background:#173A77;
+  color:#FFFFFF;
+  font-size:13px;
+  font-weight:900;
+}
+
+.vf-account-header-copy{
+  display:grid;
+  gap:1px;
+  min-width:0;
+}
+
+.vf-account-header-copy strong{
+  max-width:170px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:12px;
+}
+
+.vf-account-header-copy small{
+  max-width:190px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#66757D;
+  font-size:9px;
+}
+
+.vf-account-chevron{
+  color:#66757D;
+  font-size:14px;
+}
+
+.vf-header-logout{
+  padding:8px 10px;
+  border:0;
+  background:transparent;
+  color:#66757D;
+  font-size:11px;
+  font-weight:700;
+}
+
+.vf-header-logout:hover{
+  color:#B42318;
+  background:#FFF1F0;
+}
+
+
+/* Sidebar no longer needs to reserve room for account controls */
+
+aside nav{
+  padding-bottom:18px;
+}
+
+
+/* ==========================================================
+   INVOICE NUMBERING PLACEMENT
+   ========================================================== */
+
+#invoicesView .vf-invoice-numbering-card{
+  margin-top:0;
+  margin-bottom:22px;
+}
+
+
+/* ==========================================================
+   RESPONSIVE HEADER
+   ========================================================== */
+
+@media(max-width:850px){
+
+  .vf-app-header{
+    align-items:flex-start;
+  }
+
+  .vf-account-header-copy small{
+    display:none;
+  }
+
+  .vf-header-logout{
+    padding-left:7px;
+    padding-right:7px;
+  }
+}
+
+@media(max-width:650px){
+
+  .vf-header-account .vf-account-click{
+    padding:6px;
+  }
+
+  .vf-account-header-copy{
+    display:none;
+  }
+
+  .vf-account-chevron{
+    display:none;
+  }
+
+  .vf-header-logout{
+    font-size:10px;
+  }
+}
