@@ -3231,3 +3231,178 @@ aside nav{
   }
 }
 
+
+/* ==========================================================
+   FINAL VENDORFLOW DESKTOP HEADER
+   title left | brand centered | account right
+   ========================================================== */
+
+/*
+ * Equal outside columns make the center column mathematically
+ * centered over the main content area, regardless of the width
+ * of the page title or account control.
+ */
+.vf-app-header{
+  position:relative;
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  align-items:center;
+  column-gap:20px;
+
+  min-height:76px;
+  margin-bottom:7px;
+  padding:0;
+}
+
+
+/* Page title sits toward the bottom of the header so it
+   visually belongs to the content directly beneath it. */
+.vf-header-title{
+  position:static !important;
+  justify-self:start;
+  align-self:end;
+  min-width:0;
+  padding-bottom:9px;
+}
+
+.vf-header-title .eyebrow{
+  margin-bottom:2px;
+}
+
+.vf-header-title h1{
+  margin:0;
+  line-height:1;
+}
+
+
+/* True center — no absolute positioning or translation. */
+.vf-header-brand{
+  position:static !important;
+  left:auto !important;
+  top:auto !important;
+  transform:none !important;
+
+  grid-column:2;
+  justify-self:center;
+  align-self:center;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  pointer-events:none;
+}
+
+.vf-header-brand-logo{
+  display:block;
+  width:320px;
+  max-width:30vw;
+  max-height:70px;
+  height:auto;
+  object-fit:contain;
+}
+
+
+/* Account stays pinned to the far right. */
+.vf-header-account{
+  position:static !important;
+  grid-column:3;
+  justify-self:end;
+  align-self:center;
+
+  margin:0 !important;
+  flex:none;
+}
+
+.vf-header-account .vf-account-click{
+  max-width:245px;
+}
+
+
+/* Give the hero a tight, intentional relationship with header. */
+#dashboardView > .hero{
+  margin-top:0;
+}
+
+
+/* ----------------------------------------------------------
+   MEDIUM DESKTOP
+   ---------------------------------------------------------- */
+
+@media(max-width:1200px){
+
+  .vf-app-header{
+    column-gap:14px;
+  }
+
+  .vf-header-brand-logo{
+    width:270px;
+    max-width:27vw;
+    max-height:62px;
+  }
+
+  .vf-header-account .vf-account-click{
+    max-width:210px;
+  }
+
+  .vf-account-header-copy small{
+    display:none;
+  }
+}
+
+
+/* ----------------------------------------------------------
+   TABLET / NARROW SCREENS
+   The sidebar already carries VendorFlow branding, so hiding
+   the center logo is preferable to crowding the controls.
+   ---------------------------------------------------------- */
+
+@media(max-width:950px){
+
+  .vf-app-header{
+    grid-template-columns:1fr auto;
+    min-height:68px;
+  }
+
+  .vf-header-brand{
+    display:none !important;
+  }
+
+  .vf-header-title{
+    grid-column:1;
+  }
+
+  .vf-header-account{
+    grid-column:2;
+  }
+}
+
+
+/* ----------------------------------------------------------
+   PHONE
+   ---------------------------------------------------------- */
+
+@media(max-width:650px){
+
+  .vf-app-header{
+    min-height:62px;
+    margin-bottom:6px;
+  }
+
+  .vf-header-title{
+    padding-bottom:7px;
+  }
+
+  .vf-header-account .vf-account-click{
+    max-width:none;
+  }
+
+  .vf-account-header-copy{
+    display:none;
+  }
+
+  .vf-account-chevron{
+    display:none;
+  }
+}
+
