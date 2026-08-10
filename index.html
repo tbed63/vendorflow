@@ -327,7 +327,10 @@
 
     </section>
 
-<section id="paymentsView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Manual control</div><h2>Payments</h2><p>Forwarded payment emails will automate this later.</p></div><button id="addPayment" class="primary">Add payment</button></div><div id="paymentForm" class="formgrid hidden"><input id="payDate" class="input" type="date"><input id="payPayer" class="input" placeholder="Payer / parent"><div class="vf-student-search-wrap">
+<section id="paymentsView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Manual control</div><h2>Payments</h2><p>Forwarded payment emails will automate this later.</p></div><div class="row">
+<button id="addRefund" class="vf-refund-button">Refund</button>
+<button id="addPayment" class="primary">Add payment</button>
+</div></div><div id="paymentForm" class="formgrid hidden"><input id="payDate" class="input" type="date"><input id="payPayer" class="input" placeholder="Payer / parent"><div class="vf-student-search-wrap">
   <input
     id="payStudent"
     class="input"
@@ -336,7 +339,100 @@
   <div
     id="payStudentMatches"
     class="vf-student-matches hidden"></div>
-</div><input id="payClass" class="input" placeholder="Class"><input id="payAmount" class="input" type="number" step=".01" placeholder="Amount"><select id="payMethod" class="input"><option>Venmo</option><option>Zelle</option><option>Cash</option><option>Check</option><option>Charter payment</option><option>Other</option></select><button id="savePayment" class="primary">Save payment</button></div><div id="paymentList"></div></div></section>
+</div><input id="payClass" class="input" placeholder="Class"><input id="payAmount" class="input" type="number" step=".01" placeholder="Amount"><select id="payMethod" class="input"><option>Venmo</option><option>Zelle</option><option>Cash</option><option>Check</option><option>Charter payment</option><option>Other</option></select><button id="savePayment" class="primary">Save payment</button></div>
+<div
+  id="refundForm"
+  class="vf-refund-form hidden">
+
+  <div class="vf-refund-heading">
+    <div class="eyebrow">Money returned to family</div>
+    <h3>Record a refund</h3>
+    <p>
+      Refunds reduce the parent payment credit without changing
+      or deleting the original payment.
+    </p>
+  </div>
+
+  <div class="formgrid">
+
+    <select
+      id="refundStudent"
+      class="input">
+      <option value="">Choose student</option>
+    </select>
+
+    <input
+      id="refundDate"
+      class="input"
+      type="date">
+
+    <input
+      id="refundAmount"
+      class="input"
+      type="number"
+      min="0"
+      step=".01"
+      placeholder="Refund amount">
+
+    <select
+      id="refundMethod"
+      class="input">
+      <option>Venmo</option>
+      <option>Zelle</option>
+      <option>Cash</option>
+      <option>Check</option>
+      <option>Other</option>
+    </select>
+
+    <select
+      id="refundReason"
+      class="input">
+      <option>Overpayment</option>
+      <option>Class withdrawal</option>
+      <option>Duplicate payment</option>
+      <option>Vendor adjustment</option>
+      <option>Other</option>
+    </select>
+
+    <input
+      id="refundNote"
+      class="input"
+      placeholder="Optional note">
+
+  </div>
+
+  <div
+    id="refundAvailable"
+    class="vf-refund-available">
+    Choose a student to see refundable parent payments.
+  </div>
+
+  <label class="vf-refund-override">
+    <input
+      id="refundOverride"
+      type="checkbox">
+    Allow refund above recorded refundable parent payments
+  </label>
+
+  <div class="row">
+
+    <button
+      id="saveRefund"
+      class="primary">
+      Save refund
+    </button>
+
+    <button
+      id="cancelRefund"
+      type="button">
+      Cancel
+    </button>
+
+  </div>
+
+</div>
+
+<div id="paymentList"></div></div></section>
 
     
     <section id="certificatesView" class="view">

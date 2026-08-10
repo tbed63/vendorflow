@@ -556,6 +556,7 @@ function renderAll(){
   renderRoster();
   renderArchivedClasses();
   renderStudentsServices();
+  renderRefundStudentSelect();
   renderRecords();
   renderReviews();
   renderHistory();
@@ -2366,6 +2367,139 @@ function refreshStudentServiceSelectors(){
 
 
 
+
+function refundableParentAmount(student){
+
+  if(!student){
+    return 0;
+  }
+
+  /*
+   * Parent-paid transactions only.
+   * Negative amounts are prior refunds, so they naturally
+   * reduce the remaining refundable total.
+   */
+  return Math.max(
+    0,
+    studentPayments(student)
+      .filter(
+        payment=>
+          String(payment.method||'')
+            .toLowerCase()!=='charter payment'
+      )
+      .reduce(
+        (sum,payment)=>
+          sum+Number(payment.amount||0),
+        0
+      )
+  );
+}
+
+
+function renderRefundStudentSelect(){
+
+  const select=
+    $('#refundStudent');
+
+  if(!select){
+    return;
+  }
+
+  const current=
+    select.value;
+
+  select.innerHTML=
+    '<option value="">Choose student</option>'+
+    students
+      .filter(studentVisibleInServices)
+      .sort(
+        (a,b)=>
+          (a.studentName||'')
+            .localeCompare(
+              b.studentName||''
+            )
+      )
+      .map(
+        student=>
+          `<option value="${student.id}">
+            ${esc(student.studentName||'Unnamed student')}
+            ${student.parentName
+              ? ' — '+esc(student.parentName)
+              : ''}
+          </option>`
+      )
+      .join('');
+
+  if(
+    students.some(
+      student=>student.id===current
+    )
+  ){
+    select.value=current;
+  }
+
+  updateRefundAvailable();
+}
+
+
+function updateRefundAvailable(){
+
+  const box=
+    $('#refundAvailable');
+
+  const select=
+    $('#refundStudent');
+
+  if(!box || !select){
+    return;
+  }
+
+  const student=
+    students.find(
+      item=>item.id===select.value
+    );
+
+  if(!student){
+
+    box.className=
+      'vf-refund-available';
+
+    box.textContent=
+      'Choose a student to see refundable parent payments.';
+
+    return;
+  }
+
+  const available=
+    refundableParentAmount(
+      student
+    );
+
+  box.className=
+    available>0
+      ? 'vf-refund-available vf-refund-positive'
+      : 'vf-refund-available vf-refund-zero';
+
+  box.innerHTML=
+    `<strong>${money(available)}</strong>
+     currently available from recorded parent payments.`;
+}
+
+
+function resetRefundForm(){
+
+  $('#refundStudent').value='';
+  $('#refundDate').value='';
+  $('#refundAmount').value='';
+  $('#refundMethod').value='Venmo';
+  $('#refundReason').value='Overpayment';
+  $('#refundNote').value='';
+  $('#refundOverride').checked=false;
+
+  updateRefundAvailable();
+}
+
+
 function studentPayments(student){
 
   const targetId=student?.id||'';
@@ -4111,7 +4245,215 @@ if($('#payStudent')){
 }
 
 
-$('#addPayment').onclick=()=>toggle('#paymentForm');
+
+$('#addRefund').onclick=()=>{
+
+  hide(
+    $('#paymentForm')
+  );
+
+  resetRefundForm();
+
+  $('#refundDate').value=
+    new Date()
+      .toISOString()
+      .slice(0,10);
+
+  show(
+    $('#refundForm')
+  );
+};
+
+
+$('#cancelRefund').onclick=()=>{
+
+  resetRefundForm();
+
+  hide(
+    $('#refundForm')
+  );
+};
+
+
+$('#refundStudent').onchange=()=>{
+
+  updateRefundAvailable();
+};
+
+
+$('#saveRefund').onclick=async()=>{
+
+  const student=
+    students.find(
+      item=>
+        item.id===
+        $('#refundStudent').value
+    );
+
+
+  if(!student){
+
+    return toast(
+      'Choose the student receiving the refund.'
+    );
+  }
+
+
+  const amount=
+    Number(
+      $('#refundAmount').value
+    )||0;
+
+
+  if(amount<=0){
+
+    return toast(
+      'Enter the refund amount.'
+    );
+  }
+
+
+  const available=
+    refundableParentAmount(
+      student
+    );
+
+
+  const override=
+    $('#refundOverride').checked;
+
+
+  if(
+    amount>available+.009 &&
+    !override
+  ){
+
+    return toast(
+      `Refund exceeds the ${money(available)} currently refundable.`
+    );
+  }
+
+
+  if(
+    amount>available+.009 &&
+    override
+  ){
+
+    const ok=
+      confirm(
+        `Refund ${money(amount)} even though VendorFlow shows ` +
+        `${money(available)} in refundable parent payments?\n\n` +
+        `This override will be recorded in History.`
+      );
+
+    if(!ok){
+      return;
+    }
+  }
+
+
+  const method=
+    $('#refundMethod').value;
+
+
+  /*
+   * Refunds are stored in Payments as NEGATIVE amounts.
+   * This preserves the original payment while automatically
+   * reducing parent-payment credit in account calculations.
+   */
+  const refund={
+
+    date:
+      $('#refundDate').value ||
+      new Date()
+        .toISOString()
+        .slice(0,10),
+
+    payer:
+      student.parentName||'',
+
+    studentId:
+      student.id,
+
+    student:
+      student.studentName||'',
+
+    class:
+      '',
+
+    amount:
+      -Math.abs(amount),
+
+    method,
+
+    transactionType:
+      'Refund',
+
+    refundReason:
+      $('#refundReason').value,
+
+    refundNote:
+      $('#refundNote').value.trim(),
+
+    refundOverride:
+      override,
+
+    source:
+      'Manual refund',
+
+    matchedBy:
+      'Student account',
+
+    createdAt:
+      serverTimestamp(),
+
+    updatedAt:
+      serverTimestamp()
+  };
+
+
+  await addDoc(
+    sub('payments'),
+    refund
+  );
+
+
+  await log(
+    'Refund recorded',
+    `${money(amount)} refunded to ` +
+    `${student.studentName} via ${method}. ` +
+    `Reason: ${refund.refundReason}` +
+    `${override?' — manual limit override used.':''}`,
+    'Manual'
+  );
+
+
+  resetRefundForm();
+
+  hide(
+    $('#refundForm')
+  );
+
+
+  await refreshAll();
+
+
+  toast(
+    `Refund of ${money(amount)} recorded.`
+  );
+};
+
+
+$('#addPayment').onclick=()=>{
+
+  hide(
+    $('#refundForm')
+  );
+
+  toggle(
+    '#paymentForm'
+  );
+};
 
 $('#savePayment').onclick=async()=>{
 
@@ -5256,7 +5598,9 @@ function renderRecords(){
     ? payments.map(d=>
         `<div class="record">
           <strong>$${Number(d.amount).toFixed(2)} — ${esc(d.payer||d.student)}</strong>
-          <div class="meta">${esc(d.date)} · ${esc(d.method)} · ${esc(d.student)}${d.parentName?' · Parent: '+esc(d.parentName):''}${d.className?' · '+esc(d.className):''}</div>
+          <div class="meta">${esc(d.date)} · ${d.transactionType==='Refund'
+          ? '<strong class="vf-refund-label">REFUND</strong> · '
+          : ''}${esc(d.method)} · ${esc(d.student)}${d.parentName?' · Parent: '+esc(d.parentName):''}${d.className?' · '+esc(d.className):''}</div>
         </div>`
       ).join('')
     : '<div class="empty">No payments yet.</div>';

@@ -1593,3 +1593,73 @@ main{
 .vf-roster-actions{
   justify-content:flex-start;
 }
+
+
+/* ==========================================================
+   MANUAL REFUNDS
+   ========================================================== */
+
+.vf-refund-button{
+  border:1px solid #B42318;
+  background:#FFFFFF;
+  color:#B42318;
+  font-weight:900;
+}
+
+.vf-refund-form{
+  margin-top:18px;
+  padding:18px;
+  border:1px solid #FDA29B;
+  border-radius:14px;
+  background:#FFFBFA;
+}
+
+.vf-refund-heading{
+  margin-bottom:14px;
+}
+
+.vf-refund-heading h3{
+  margin:3px 0 5px;
+}
+
+.vf-refund-heading p{
+  margin:0;
+  color:#66757D;
+  font-size:12px;
+}
+
+.vf-refund-available{
+  margin:12px 0;
+  padding:11px 13px;
+  border-radius:10px;
+  background:#F4F6F7;
+  color:#526A76;
+  font-size:12px;
+}
+
+.vf-refund-positive{
+  border:1px solid #ABEFC6;
+  background:#ECFDF3;
+  color:#067647;
+}
+
+.vf-refund-zero{
+  border:1px solid #FED7AA;
+  background:#FFF7ED;
+  color:#9A3412;
+}
+
+.vf-refund-override{
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+  margin:10px 0 15px;
+  font-size:12px;
+  color:#66757D;
+}
+
+.vf-refund-label{
+  color:#B42318;
+  font-size:10px;
+  letter-spacing:.06em;
+}
