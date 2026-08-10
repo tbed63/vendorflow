@@ -1548,3 +1548,13 @@ main{
     width:100%;
   }
 }
+
+
+/* Student editing */
+.vf-roster-actions [data-edit-student]{
+  font-weight:800;
+}
+
+#studentForm{
+  position:relative;
+}

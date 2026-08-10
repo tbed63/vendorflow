@@ -36,6 +36,7 @@ const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),$
 let user=null,profile={},classes=[],roster=[],students=[],services=[],payments=[],certs=[],compliance=[],reviews=[],history=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
 let selectedPaymentStudentId=null;
 let pendingCertificatePdf=null;
+let editingRosterStudentId=null;
 const questions=[['businessName','What is the name of your business?','This will appear on invoices.'],['ownerName','What name should VendorFlow use for you?','Your name as vendor or owner.'],['address','What is your business mailing address?','Street address.'],['cityStateZip','What city, state, and ZIP go with that address?','Example: Encinitas, CA 92024'],['phone','What business phone number should VendorFlow use?','You can change this later.'],['locations','Where do you teach or conduct business?','Learning centers, campuses, tutoring locations, etc.'],['schools','Which charter schools or organizations do you work with?','List as many as you know now.']];
 const aliases={registrationId:['id','registration id'],status:['status','registration status'],classTitle:['title','class title','class'],studentFirst:['registrant first name','student first name','child first name'],studentLast:['registrant last name','student last name','child last name'],parentFirst:['primary first name','parent first name','guardian first name'],parentLast:['primary last name','parent last name','guardian last name'],parentEmail:['email address','parent email','guardian email'],parentPhone:['phone','parent phone','guardian phone'],grade:['grade level','grade']};
 const vendorDoc=()=>doc(db,'vendors',user.uid),sub=n=>collection(db,'vendors',user.uid,n),toast=m=>{let t=$('#toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)};
@@ -451,6 +452,9 @@ async function getList(name,ordered=true){
 
 async function refreshAll(){
   classes=await getList('classes',false);
+
+  await repairRosterCoreLinksOnce();
+
   students=await getList('students',false);
   services=await getList('services',false);
   payments=await getList('payments');
@@ -469,6 +473,82 @@ async function refreshAll(){
 
   renderAll();
 }
+
+
+async function repairRosterCoreLinksOnce(){
+
+  const vendorSnap=
+    await getDoc(
+      vendorDoc()
+    );
+
+  const vendorData=
+    vendorSnap.exists()
+      ? vendorSnap.data()
+      : {};
+
+  if(
+    vendorData.rosterCoreBackfillV1
+  ){
+    return false;
+  }
+
+
+  for(const c of classes){
+
+    const snap=
+      await getDocs(
+        collection(
+          db,
+          'vendors',
+          user.uid,
+          'classes',
+          c.id,
+          'students'
+        )
+      );
+
+    const rows=
+      snap.docs.map(
+        d=>({
+          id:d.id,
+          ...d.data()
+        })
+      );
+
+    if(rows.length){
+
+      await syncRosterToCoreRecords(
+        c,
+        rows
+      );
+    }
+  }
+
+
+  await setDoc(
+    vendorDoc(),
+    {
+      rosterCoreBackfillV1:true,
+      rosterCoreBackfillAt:
+        serverTimestamp()
+    },
+    {
+      merge:true
+    }
+  );
+
+
+  await log(
+    'Roster accounts synchronized',
+    'Existing class roster students were linked to Students & Services.',
+    'VendorFlow'
+  );
+
+
+  return true;
+}
+
 
 function renderAll(){
   renderClassSelect();
@@ -1223,10 +1303,17 @@ function renderRoster(){
         <td>${esc(s.studentName)}</td>
         <td>${esc(s.parentName)}</td>
         <td>${esc(s.parentEmail)}</td>
+        <td>${esc(s.parentPhone||'')}</td>
         <td>${esc(s.status)}</td>
         <td>${esc(s.grade)}</td>
         <td>
           <div class="vf-roster-actions">
+
+            <button
+              data-edit-student="${s.id}">
+              Edit student
+            </button>
+
             <button data-status="${s.id}">
               Change status
             </button>
@@ -1245,6 +1332,10 @@ function renderRoster(){
         </td>
       </tr>`
     ).join('');
+
+  $$('[data-edit-student]').forEach(
+    b=>b.onclick=()=>editRosterStudent(b.dataset.editStudent)
+  );
 
   $$('[data-status]').forEach(
     b=>b.onclick=()=>changeStatus(b.dataset.status)
@@ -1415,9 +1506,10 @@ async function changeStatus(id){
 }
 
 
-$('#cancelStudent').onclick=()=>{
 
-  hide($('#studentForm'));
+function resetRosterStudentForm(){
+
+  editingRosterStudentId=null;
 
   $('#sf').value='';
   $('#sl').value='';
@@ -1426,73 +1518,352 @@ $('#cancelStudent').onclick=()=>{
   $('#pp').value='';
   $('#sg').value='';
   $('#ss').value='Active';
+
+  $('#saveStudent').textContent=
+    'Save student';
+}
+
+
+function editRosterStudent(id){
+
+  const s=
+    roster.find(
+      student=>student.id===id
+    );
+
+  if(!s){
+    return;
+  }
+
+  editingRosterStudentId=id;
+
+  $('#sf').value=
+    s.studentFirst||'';
+
+  $('#sl').value=
+    s.studentLast||'';
+
+  $('#pn').value=
+    s.parentName||'';
+
+  $('#pe').value=
+    s.parentEmail||'';
+
+  $('#pp').value=
+    s.parentPhone||'';
+
+  $('#sg').value=
+    s.grade||'';
+
+  $('#ss').value=
+    s.status||'Active';
+
+  $('#saveStudent').textContent=
+    'Save changes';
+
+  show(
+    $('#studentForm')
+  );
+
+  $('#sf').focus();
+}
+
+
+$('#cancelStudent').onclick=()=>{
+
+  resetRosterStudentForm();
+
+  hide(
+    $('#studentForm')
+  );
 };
 
 
-$('#addStudent').onclick=()=>
-  $('#studentForm').classList.toggle('hidden');
+$('#addStudent').onclick=()=>{
+
+  resetRosterStudentForm();
+
+  show(
+    $('#studentForm')
+  );
+};
 
 $('#saveStudent').onclick=async()=>{
-  let c=currentClass(),
-      sf=$('#sf').value.trim(),
-      sl=$('#sl').value.trim();
 
-  if(!c||!sf||!sl)
-    return toast('Enter student first and last name.');
+  const c=
+    currentClass();
 
-  let s={
+  const sf=
+    $('#sf').value.trim();
+
+  const sl=
+    $('#sl').value.trim();
+
+
+  if(
+    !c ||
+    !sf ||
+    !sl
+  ){
+    return toast(
+      'Enter student first and last name.'
+    );
+  }
+
+
+  const data={
+
     studentFirst:sf,
+
     studentLast:sl,
-    studentName:`${sf} ${sl}`,
-    parentName:$('#pn').value.trim(),
-    parentEmail:$('#pe').value.trim(),
-    parentPhone:$('#pp').value.trim(),
-    grade:$('#sg').value.trim(),
-    status:$('#ss').value,
+
+    studentName:
+      `${sf} ${sl}`,
+
+    parentName:
+      $('#pn').value.trim(),
+
+    parentEmail:
+      $('#pe').value.trim(),
+
+    parentPhone:
+      $('#pp').value.trim(),
+
+    grade:
+      $('#sg').value.trim(),
+
+    status:
+      $('#ss').value,
+
     source:'Manual',
-    createdAt:serverTimestamp()
+
+    updatedAt:
+      serverTimestamp()
   };
 
-  await addDoc(
-    collection(db,'vendors',user.uid,'classes',c.id,'students'),
-    s
-  );
+
+  if(editingRosterStudentId){
+
+    const existing=
+      roster.find(
+        student=>
+          student.id===
+          editingRosterStudentId
+      );
+
+
+    if(!existing){
+      return toast(
+        'Student record was not found.'
+      );
+    }
+
+
+    await setDoc(
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'classes',
+        c.id,
+        'students',
+        existing.id
+      ),
+      data,
+      {
+        merge:true
+      }
+    );
+
+
+    const coreId=
+      existing.coreStudentId;
+
+
+    if(coreId){
+
+      await setDoc(
+        doc(
+          db,
+          'vendors',
+          user.uid,
+          'students',
+          coreId
+        ),
+        {
+          studentFirst:
+            data.studentFirst,
+
+          studentLast:
+            data.studentLast,
+
+          studentName:
+            data.studentName,
+
+          parentName:
+            data.parentName,
+
+          parentEmail:
+            data.parentEmail,
+
+          parentPhone:
+            data.parentPhone,
+
+          grade:
+            data.grade,
+
+          active:
+            active(data),
+
+          updatedAt:
+            serverTimestamp()
+        },
+        {
+          merge:true
+        }
+      );
+
+
+      const linkedServices=
+        services.filter(
+          service=>
+            service.studentId===coreId
+        );
+
+
+      for(
+        const service of
+        linkedServices
+      ){
+
+        await setDoc(
+          doc(
+            db,
+            'vendors',
+            user.uid,
+            'services',
+            service.id
+          ),
+          {
+            studentName:
+              data.studentName,
+
+            updatedAt:
+              serverTimestamp()
+          },
+          {
+            merge:true
+          }
+        );
+      }
+
+    }else{
+
+      await syncRosterToCoreRecords(
+        c,
+        [{
+          id:existing.id,
+          ...existing,
+          ...data
+        }]
+      );
+    }
+
+
+    await log(
+      'Student updated',
+      `${existing.studentName} updated in ${c.name}.`,
+      'Manual'
+    );
+
+
+  }else{
+
+    const ref=
+      await addDoc(
+        collection(
+          db,
+          'vendors',
+          user.uid,
+          'classes',
+          c.id,
+          'students'
+        ),
+        {
+          ...data,
+          createdAt:
+            serverTimestamp()
+        }
+      );
+
+
+    await syncRosterToCoreRecords(
+      c,
+      [{
+        id:ref.id,
+        ...data
+      }]
+    );
+
+
+    await log(
+      'Student added',
+      `${data.studentName} added to ${c.name}.`,
+      'Manual'
+    );
+  }
+
 
   await loadRoster();
 
+
   await updateDoc(
-    doc(db,'vendors',user.uid,'classes',c.id),
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'classes',
+      c.id
+    ),
     {
-      activeStudentCount:roster.filter(active).length,
-      rosterCount:roster.length
+      activeStudentCount:
+        roster.filter(active).length,
+
+      rosterCount:
+        roster.length,
+
+      updatedAt:
+        serverTimestamp()
     }
   );
 
-  /*
-   * Keep manual roster additions in sync with the
-   * same Students & Services system used by CSV imports.
-   */
-  await syncRosterToCoreRecords(
-    c,
-    [s]
-  );
-
-  await log(
-    'Student added',
-    `${s.studentName} added to ${c.name}.`,
-    'Manual'
-  );
 
   await refreshAll();
 
-  $('#classSelect').value=c.id;
+  $('#classSelect').value=
+    c.id;
 
   await loadRoster();
+
   renderRoster();
 
-  hide($('#studentForm'));
-  toast('Student added.');
+  const wasEditing=
+    Boolean(editingRosterStudentId);
+
+  resetRosterStudentForm();
+
+  hide(
+    $('#studentForm')
+  );
+
+
+  toast(
+    wasEditing
+      ? 'Student updated.'
+      : 'Student saved.'
+  );
 };
+
 
 
 $('#archiveClass').onclick=async()=>{
@@ -1961,6 +2332,14 @@ function renderStudentsServices(){
 
                   ${student.parentEmail
                     ? `<span>${esc(student.parentEmail)}</span>`
+                    : ''}
+
+                  ${student.parentPhone
+                    ? `<span>${esc(student.parentPhone)}</span>`
+                    : ''}
+
+                  ${student.grade
+                    ? `<span>Grade ${esc(student.grade)}</span>`
                     : ''}
 
                   ${student.source
@@ -2473,7 +2852,11 @@ async function syncRosterToCoreRecords(
         parentPhone:
           row.parentPhone||'',
 
-        source:'CSV import',
+        grade:
+          row.grade||'',
+
+        source:
+          row.source||'Roster import',
 
         active:
           active(row),
@@ -2523,13 +2906,64 @@ async function syncRosterToCoreRecords(
             coreStudent.parentEmail ||
             '',
 
+          studentFirst:
+            row.studentFirst ||
+            coreStudent.studentFirst ||
+            '',
+
+          studentLast:
+            row.studentLast ||
+            coreStudent.studentLast ||
+            '',
+
+          studentName:
+            row.studentName ||
+            coreStudent.studentName ||
+            '',
+
           parentPhone:
             row.parentPhone ||
             coreStudent.parentPhone ||
             '',
 
+          grade:
+            row.grade ||
+            coreStudent.grade ||
+            '',
+
           active:
             active(row),
+
+          updatedAt:
+            serverTimestamp()
+        },
+        {
+          merge:true
+        }
+      );
+    }
+
+
+
+    /*
+     * Keep a stable link between the class roster row
+     * and the main student account.
+     */
+    if(row.id){
+
+      await setDoc(
+        doc(
+          db,
+          'vendors',
+          user.uid,
+          'classes',
+          classRecord.id,
+          'students',
+          row.id
+        ),
+        {
+          coreStudentId:
+            coreStudent.id,
 
           updatedAt:
             serverTimestamp()
