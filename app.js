@@ -499,6 +499,7 @@ function renderClassSelect(){
       .join('');
 
   if(classes.some(c=>c.id===v))sel.value=v;
+  updateRosterUploadTarget();
 }
 
 const currentClass=()=>classes.find(c=>c.id===$('#classSelect').value);
@@ -550,6 +551,95 @@ $('#classSelect').onchange=async()=>{
   await loadRoster();
   renderRoster();
 };
+
+
+function updateRosterUploadTarget(){
+
+  const select=$('#classSelect');
+  const csv=$('#csv');
+
+  if(!select || !csv){
+    return;
+  }
+
+  const selected=
+    classes.find(c=>c.id===select.value) || null;
+
+  let box=$('#rosterUploadTarget');
+
+  if(!box){
+
+    box=document.createElement('div');
+    box.id='rosterUploadTarget';
+    box.className='vf-roster-target';
+
+    const drop=
+      csv.closest('.drop') || csv.parentElement;
+
+    if(drop?.parentElement){
+      drop.parentElement.insertBefore(box,drop);
+    }
+  }
+
+  const drop=csv.closest('.drop');
+
+  if(!selected){
+
+    box.className=
+      'vf-roster-target vf-roster-target-empty';
+
+    box.innerHTML=`
+      <div class="vf-roster-target-label">
+        ROSTER DESTINATION
+      </div>
+      <strong>Choose a class before uploading</strong>
+      <span>
+        VendorFlow will not accept a roster until the target class is selected.
+      </span>
+    `;
+
+    csv.disabled=true;
+
+    if(drop){
+      drop.classList.add('vf-drop-disabled');
+    }
+
+    return;
+  }
+
+  const details=[
+    selected.term,
+    selected.location
+  ].filter(Boolean).join(' · ');
+
+  box.className=
+    'vf-roster-target vf-roster-target-ready';
+
+  box.innerHTML=`
+    <div class="vf-roster-target-label">
+      UPLOADING ROSTER TO
+    </div>
+    <strong>${esc(selected.name||'Selected class')}</strong>
+    ${details ? `<span>${esc(details)}</span>` : ''}
+    <div class="vf-roster-target-confirm">
+      Any roster selected below will be imported into this class.
+    </div>
+  `;
+
+  csv.disabled=false;
+
+  if(drop){
+    drop.classList.remove('vf-drop-disabled');
+  }
+}
+
+if($('#classSelect')){
+  $('#classSelect').addEventListener(
+    'change',
+    updateRosterUploadTarget
+  );
+}
+
 
 function norm(v){
   return String(v||'').trim().toLowerCase();

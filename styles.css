@@ -1404,3 +1404,59 @@ main{
     grid-template-columns:1fr;
   }
 }
+
+
+/* ==========================================================
+   ROSTER TARGET CLASS
+   ========================================================== */
+
+.vf-roster-target{
+  margin:12px 0;
+  padding:15px 17px;
+  border-radius:13px;
+  display:grid;
+  gap:4px;
+}
+
+.vf-roster-target-label{
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.12em;
+}
+
+.vf-roster-target strong{
+  font-size:19px;
+  line-height:1.25;
+}
+
+.vf-roster-target span{
+  font-size:12px;
+}
+
+.vf-roster-target-ready{
+  background:#EEF4FF;
+  border:2px solid #1A346F;
+  color:#1A346F;
+}
+
+.vf-roster-target-ready span{
+  color:#526A76;
+}
+
+.vf-roster-target-confirm{
+  margin-top:4px;
+  color:#435A63;
+  font-size:11px;
+}
+
+.vf-roster-target-empty{
+  background:#FFF7ED;
+  border:2px solid #FDB022;
+  color:#9A3412;
+}
+
+.vf-drop-disabled{
+  opacity:.45;
+  cursor:not-allowed !important;
+  pointer-events:none;
+}
