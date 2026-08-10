@@ -2160,3 +2160,59 @@ main{
     grid-column:auto;
   }
 }
+
+
+/* ==========================================================
+   CERTIFICATE INVOICE SCHEDULING
+   ========================================================== */
+
+.vf-cert-charter-field{
+  display:grid;
+  gap:4px;
+}
+
+.vf-cert-charter-field small{
+  padding-left:2px;
+  color:#66757D;
+  font-size:10px;
+  font-weight:700;
+}
+
+.vf-invoice-schedule{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px 10px;
+  align-items:center;
+  margin-top:9px;
+  padding:8px 10px;
+  border:1px solid #D9E1E5;
+  border-radius:8px;
+  background:#F7F9FA;
+  font-size:11px;
+}
+
+.vf-invoice-schedule strong{
+  color:#33434B;
+}
+
+.vf-invoice-schedule span{
+  color:#66757D;
+}
+
+.vf-invoice-ready{
+  border-color:#A8D5B5;
+  background:#EEF8F1;
+}
+
+.vf-invoice-ready strong{
+  color:#236A3B;
+}
+
+.vf-invoice-unlinked{
+  border-color:#E7CF96;
+  background:#FFF8E8;
+}
+
+.vf-invoice-unlinked strong{
+  color:#775A13;
+}

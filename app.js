@@ -571,6 +571,7 @@ function renderAll(){
   renderDashboard();
   renderAccountPage();
   renderCharterSchools();
+  renderCertificateCharterOptions();
   renderRoster();
   renderArchivedClasses();
   renderStudentsServices();
@@ -1096,12 +1097,343 @@ function renderArchivedCharterSchools(){
 }
 
 
+
+function normalizedCharterName(value){
+
+  return String(value||'')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g,' ');
+}
+
+
+function findSavedCharterByName(name){
+
+  const normalized=
+    normalizedCharterName(name);
+
+  if(!normalized){
+    return null;
+  }
+
+  return charterSchools.find(
+    charter=>
+      !charter.archived &&
+      normalizedCharterName(
+        charter.name
+      )===normalized
+  ) || null;
+}
+
+
+function parseVendorDate(value){
+
+  const text=
+    String(value||'').trim();
+
+  if(!text){
+    return null;
+  }
+
+
+  /*
+   * ISO date: 2026-09-14
+   */
+  let match=
+    text.match(
+      /^(\d{4})-(\d{1,2})-(\d{1,2})$/
+    );
+
+  if(match){
+
+    const year=Number(match[1]);
+    const month=Number(match[2]);
+    const day=Number(match[3]);
+
+    const date=
+      new Date(
+        year,
+        month-1,
+        day,
+        12,
+        0,
+        0,
+        0
+      );
+
+    if(
+      date.getFullYear()===year &&
+      date.getMonth()===month-1 &&
+      date.getDate()===day
+    ){
+      return date;
+    }
+
+    return null;
+  }
+
+
+  /*
+   * US date: 9/14/2026
+   */
+  match=
+    text.match(
+      /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
+    );
+
+  if(match){
+
+    const month=Number(match[1]);
+    const day=Number(match[2]);
+    const year=Number(match[3]);
+
+    const date=
+      new Date(
+        year,
+        month-1,
+        day,
+        12,
+        0,
+        0,
+        0
+      );
+
+    if(
+      date.getFullYear()===year &&
+      date.getMonth()===month-1 &&
+      date.getDate()===day
+    ){
+      return date;
+    }
+
+    return null;
+  }
+
+
+  /*
+   * Certificate extraction may return a readable date such as
+   * "September 14, 2026". Use browser parsing only as a final
+   * fallback, then normalize it to local noon.
+   */
+  const fallback=
+    new Date(text);
+
+  if(
+    Number.isNaN(
+      fallback.getTime()
+    )
+  ){
+    return null;
+  }
+
+  return new Date(
+    fallback.getFullYear(),
+    fallback.getMonth(),
+    fallback.getDate(),
+    12,
+    0,
+    0,
+    0
+  );
+}
+
+
+function dateToLocalISO(date){
+
+  if(
+    !date ||
+    Number.isNaN(date.getTime())
+  ){
+    return '';
+  }
+
+  const year=
+    date.getFullYear();
+
+  const month=
+    String(
+      date.getMonth()+1
+    ).padStart(2,'0');
+
+  const day=
+    String(
+      date.getDate()
+    ).padStart(2,'0');
+
+  return `${year}-${month}-${day}`;
+}
+
+
+function formatVendorDate(value){
+
+  const date=
+    value instanceof Date
+      ? value
+      : parseVendorDate(value);
+
+  if(!date){
+    return '';
+  }
+
+  return date.toLocaleDateString(
+    undefined,
+    {
+      month:'short',
+      day:'numeric',
+      year:'numeric'
+    }
+  );
+}
+
+
+function certificateInvoiceSchedule(
+  serviceStartDate,
+  charter
+){
+
+  const start=
+    parseVendorDate(
+      serviceStartDate
+    );
+
+  if(!start){
+    return {
+      readyDate:'',
+      days:null,
+      valid:false
+    };
+  }
+
+
+  const rawDays=
+    Number(
+      charter?.invoiceDaysAfterStart
+    );
+
+  const days=
+    Number.isFinite(rawDays)
+      ? Math.max(
+          0,
+          Math.min(
+            365,
+            Math.round(rawDays)
+          )
+        )
+      : 14;
+
+
+  const ready=
+    new Date(
+      start.getFullYear(),
+      start.getMonth(),
+      start.getDate(),
+      12,
+      0,
+      0,
+      0
+    );
+
+  ready.setDate(
+    ready.getDate()+days
+  );
+
+
+  return {
+    readyDate:
+      dateToLocalISO(ready),
+
+    days,
+
+    valid:true
+  };
+}
+
+
+function certificateIsInvoiceReady(cert){
+
+  if(
+    cert.status!=='Received - Not Billed'
+  ){
+    return false;
+  }
+
+  if(!cert.invoiceReadyDate){
+    return false;
+  }
+
+  const ready=
+    parseVendorDate(
+      cert.invoiceReadyDate
+    );
+
+  if(!ready){
+    return false;
+  }
+
+  const today=
+    new Date();
+
+  const todayOnly=
+    new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+      12,
+      0,
+      0,
+      0
+    );
+
+  return ready<=todayOnly;
+}
+
+
+function invoiceReadyCertificates(){
+
+  return certs.filter(
+    certificateIsInvoiceReady
+  );
+}
+
+
+function renderCertificateCharterOptions(){
+
+  const list=
+    $('#certCharterSchoolOptions');
+
+  if(!list){
+    return;
+  }
+
+  list.innerHTML=
+    charterSchools
+      .filter(
+        charter=>!charter.archived
+      )
+      .sort(
+        (a,b)=>
+          String(a.name||'')
+            .localeCompare(
+              String(b.name||'')
+            )
+      )
+      .map(
+        charter=>
+          `<option value="${esc(charter.name||'')}"></option>`
+      )
+      .join('');
+}
+
+
 function renderDashboard(){
 
   const activeClasses=
     classes.filter(
       c=>!c.archived
     );
+
+  const readyInvoices=
+    invoiceReadyCertificates();
 
 
   $('#statClasses').textContent=
@@ -1226,11 +1558,64 @@ function renderDashboard(){
   );
 
 
-  count.textContent=
+  const attentionTotal=
+    readyInvoices.length +
     reviews.length;
 
+  count.textContent=
+    attentionTotal;
 
-  if(reviews.length){
+
+  if(readyInvoices.length){
+
+    const charterCount=
+      new Set(
+        readyInvoices.map(
+          cert=>
+            cert.charterSchoolId ||
+            normalizedCharterName(
+              cert.school
+            )
+        )
+      ).size;
+
+
+    title.textContent=
+      `${readyInvoices.length} invoice${
+        readyInvoices.length===1?' is':'s are'
+      } ready to prepare.`;
+
+
+    text.textContent=
+      `The billing date has arrived for ${
+        readyInvoices.length
+      } certificate${
+        readyInvoices.length===1?'':'s'
+      } across ${
+        charterCount
+      } charter school${
+        charterCount===1?'':'s'
+      }. Review the certificates before invoicing.`;
+
+
+    show(
+      reviewButton
+    );
+
+
+    reviewButton.textContent=
+      'Review certificates';
+
+
+    reviewButton.onclick=()=>{
+
+      switchView(
+        'certificates'
+      );
+    };
+
+
+  }else if(reviews.length){
 
     title.textContent=
       `${reviews.length} item${reviews.length===1?'':'s'} need your attention.`;
@@ -1243,6 +1628,10 @@ function renderDashboard(){
     show(
       reviewButton
     );
+
+
+    reviewButton.textContent=
+      'Review items';
 
 
     reviewButton.onclick=()=>{
@@ -6617,6 +7006,21 @@ $('#saveCertificate').onclick=async()=>{
     }
 
 
+    const savedCharter=
+      findSavedCharterByName(
+        school
+      );
+
+    const serviceStartDate=
+      $('#certServiceStart')?.value.trim() || '';
+
+    const invoiceSchedule=
+      certificateInvoiceSchedule(
+        serviceStartDate,
+        savedCharter
+      );
+
+
     const data={
 
       studentId:
@@ -6633,6 +7037,30 @@ $('#saveCertificate').onclick=async()=>{
         studentMatch?.parentEmail || '',
 
       school,
+
+      charterSchoolId:
+        savedCharter?.id || '',
+
+      charterSchoolName:
+        savedCharter?.name || school,
+
+      charterMatched:
+        Boolean(savedCharter),
+
+      charterBillingEmail:
+        savedCharter?.billingEmail || '',
+
+      charterAddress:
+        savedCharter?.address || '',
+
+      charterCity:
+        savedCharter?.city || '',
+
+      charterState:
+        savedCharter?.state || '',
+
+      charterZip:
+        savedCharter?.zip || '',
 
       amount,
 
@@ -6662,8 +7090,24 @@ $('#saveCertificate').onclick=async()=>{
       issueDate:
         $('#certIssueDate')?.value.trim() || '',
 
-      serviceStartDate:
-        $('#certServiceStart')?.value.trim() || '',
+      serviceStartDate,
+
+      invoiceDaysAfterStart:
+        invoiceSchedule.days,
+
+      invoiceReadyDate:
+        invoiceSchedule.readyDate,
+
+      invoiceScheduleValid:
+        Boolean(
+          savedCharter &&
+          invoiceSchedule.valid
+        ),
+
+      invoiceScheduleSource:
+        savedCharter
+          ? 'Charter school settings'
+          : '',
 
       serviceEndDate:
         $('#certServiceEnd')?.value.trim() || '',
@@ -6672,7 +7116,9 @@ $('#saveCertificate').onclick=async()=>{
         $('#certServiceDescription')?.value.trim() || '',
 
       billingEmail:
-        $('#certBillingEmail')?.value.trim() || '',
+        $('#certBillingEmail')?.value.trim() ||
+        savedCharter?.billingEmail ||
+        '',
 
       invoiceInstructions:
         $('#certInvoiceInstructions')?.value.trim() || '',
@@ -6884,6 +7330,44 @@ function renderRecords(){
         `<div class="record">
           <strong>${esc(d.student)} — $${Number(d.amount).toFixed(2)}</strong>
           <div class="meta">${esc(d.school)} · ${esc(d.number)} · ${esc(d.status)}</div>
+
+          ${
+            d.invoiceReadyDate
+              ? `<div class="vf-invoice-schedule ${
+                    certificateIsInvoiceReady(d)
+                      ? 'vf-invoice-ready'
+                      : ''
+                  }">
+                   <strong>
+                     ${
+                       certificateIsInvoiceReady(d)
+                         ? 'Invoice ready'
+                         : 'Invoice scheduled'
+                     }
+                   </strong>
+                   <span>
+                     ${esc(formatVendorDate(d.invoiceReadyDate))}
+                     ${
+                       Number.isFinite(Number(d.invoiceDaysAfterStart))
+                         ? ` · ${Number(d.invoiceDaysAfterStart)} day${
+                             Number(d.invoiceDaysAfterStart)===1?'':'s'
+                           } after service starts`
+                         : ''
+                     }
+                   </span>
+                 </div>`
+              : (
+                  d.serviceStartDate &&
+                  !d.charterSchoolId
+                    ? `<div class="vf-invoice-schedule vf-invoice-unlinked">
+                         <strong>Invoice schedule not set</strong>
+                         <span>
+                           Save or match this charter school to use automatic invoice timing.
+                         </span>
+                       </div>`
+                    : ''
+                )
+          }
 
           ${d.pdfObjectKey
             ? `<div class="vf-cert-actions">
