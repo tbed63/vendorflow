@@ -3301,3 +3301,42 @@ aside nav{
   }
 }
 
+
+/* ==========================================================
+   HEADER PAGE TITLE — PREVENT MULTI-WORD TITLE COLLISIONS
+   ========================================================== */
+
+.vf-header-title{
+  width:250px !important;
+  min-width:250px !important;
+  max-width:250px !important;
+}
+
+.vf-header-title h1{
+  display:block !important;
+
+  width:100% !important;
+  max-width:none !important;
+
+  margin:0 !important;
+
+  font-size:30px !important;
+  line-height:1.05 !important;
+
+  white-space:nowrap !important;
+  word-break:normal !important;
+  overflow-wrap:normal !important;
+}
+
+.vf-header-title .eyebrow{
+  display:block !important;
+
+  width:100% !important;
+
+  margin:0 0 7px 0 !important;
+
+  white-space:nowrap !important;
+  word-break:normal !important;
+  overflow-wrap:normal !important;
+}
+
