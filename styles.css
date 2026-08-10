@@ -2948,11 +2948,12 @@ aside nav{
   display:block;
 
   width:100%;
-  height:142px;
-  min-height:142px;
+  height:160px;
+  min-height:160px;
 
   margin:0 0 8px;
   padding:0;
+  overflow:visible;
 }
 
 
@@ -2963,7 +2964,7 @@ aside nav{
 .vf-header-title{
   position:absolute;
   left:0;
-  bottom:12px;
+  bottom:8px;
 
   margin:0;
   padding:0;
@@ -3001,12 +3002,12 @@ aside nav{
   position:absolute;
 
   left:50%;
-  bottom:10px;
+  top:50%;
 
-  transform:translateX(-50%);
+  transform:translate(-50%,-50%);
 
   display:flex;
-  align-items:flex-end;
+  align-items:center;
   justify-content:center;
 
   margin:0;
@@ -3018,9 +3019,9 @@ aside nav{
 .vf-header-brand-logo{
   display:block;
 
-  width:450px;
-  max-width:40vw;
-  max-height:108px;
+  width:675px;
+  max-width:48vw;
+  max-height:130px;
 
   height:auto;
   object-fit:contain;
@@ -3038,7 +3039,7 @@ aside nav{
   position:absolute;
 
   right:0;
-  bottom:12px;
+  bottom:8px;
 
   display:flex;
   align-items:center;
