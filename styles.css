@@ -3340,3 +3340,50 @@ aside nav{
   overflow-wrap:normal !important;
 }
 
+
+/* ==========================================================
+   HEADER LEFT — EYEBROW ONLY
+   Keep logo and account geometry untouched.
+   ========================================================== */
+
+.vf-header-title{
+  position:absolute !important;
+
+  left:0 !important;
+  right:auto !important;
+
+  top:auto !important;
+  bottom:10px !important;
+
+  width:auto !important;
+  min-width:0 !important;
+  max-width:none !important;
+
+  margin:0 !important;
+  padding:0 !important;
+
+  transform:none !important;
+}
+
+.vf-header-title h1{
+  display:none !important;
+}
+
+.vf-header-title .eyebrow{
+  display:block !important;
+
+  width:auto !important;
+
+  margin:0 !important;
+  padding:0 !important;
+
+  color:#1A346F !important;
+
+  font-size:11px !important;
+  font-weight:800 !important;
+  line-height:1 !important;
+  letter-spacing:.15em !important;
+
+  white-space:nowrap !important;
+}
+
