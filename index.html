@@ -1014,6 +1014,105 @@
         </div>
 
 
+
+        <div
+          id="invoiceNumberingSettings"
+          class="vf-invoice-numbering-card">
+
+          <div class="eyebrow">
+            Invoice numbering
+          </div>
+
+          <h3>
+            How should VendorFlow number your invoices?
+          </h3>
+
+          <p>
+            This applies only to future invoices. VendorFlow never
+            silently renumbers an invoice that has already been created.
+          </p>
+
+
+          <label class="vf-numbering-choice">
+
+            <input
+              type="radio"
+              name="invoiceNumberMode"
+              id="invoiceNumberAuto"
+              value="auto">
+
+            <div>
+              <strong>
+                Let VendorFlow number invoices automatically
+              </strong>
+
+              <span>
+                Example: VF-2026-0001, VF-2026-0002, VF-2026-0003
+              </span>
+            </div>
+
+          </label>
+
+
+          <label class="vf-numbering-choice">
+
+            <input
+              type="radio"
+              name="invoiceNumberMode"
+              id="invoiceNumberCustom"
+              value="custom">
+
+            <div>
+              <strong>
+                Continue my existing invoice sequence
+              </strong>
+
+              <span>
+                Use the numbering system you already use.
+              </span>
+            </div>
+
+          </label>
+
+
+          <div
+            id="invoiceNumberCustomFields"
+            class="vf-numbering-custom hidden">
+
+            <label>
+              <span>
+                Next invoice number VendorFlow should use
+              </span>
+
+              <input
+                id="invoiceNumberNext"
+                class="input"
+                autocomplete="off"
+                placeholder="Example: 26-57">
+            </label>
+
+            <div
+              id="invoiceNumberPreview"
+              class="vf-numbering-preview">
+            </div>
+
+            <small>
+              Enter the NEXT invoice number, not the last number
+              you already used.
+            </small>
+
+          </div>
+
+
+          <button
+            id="saveInvoiceNumbering"
+            class="primary">
+            Save invoice numbering
+          </button>
+
+        </div>
+
+
         <div class="vf-account-edit-grid">
 
           <label>

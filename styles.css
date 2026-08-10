@@ -2663,3 +2663,104 @@ main{
   border:1px solid #B9C4CB;
   color:#526773;
 }
+
+
+/* ==========================================================
+   INVOICE NUMBERING SETTINGS
+   ========================================================== */
+
+.vf-invoice-numbering-card{
+  margin:18px 0 24px;
+  padding:18px;
+  border:1px solid #D8E0E5;
+  border-radius:14px;
+  background:#F8FAFB;
+}
+
+.vf-invoice-numbering-card h3{
+  margin:4px 0 6px;
+}
+
+.vf-invoice-numbering-card > p{
+  max-width:690px;
+  margin:0 0 15px;
+  color:#66757D;
+  font-size:12px;
+  line-height:1.5;
+}
+
+.vf-numbering-choice{
+  display:flex;
+  align-items:flex-start;
+  gap:11px;
+  margin:9px 0;
+  padding:13px 14px;
+  border:1px solid #D8E0E5;
+  border-radius:11px;
+  background:#FFFFFF;
+  cursor:pointer;
+}
+
+.vf-numbering-choice input{
+  margin-top:3px;
+}
+
+.vf-numbering-choice > div{
+  display:grid;
+  gap:3px;
+}
+
+.vf-numbering-choice strong{
+  color:#26383F;
+}
+
+.vf-numbering-choice span{
+  color:#66757D;
+  font-size:11px;
+}
+
+.vf-numbering-custom{
+  max-width:500px;
+  margin:12px 0 16px 27px;
+  padding:13px;
+  border-left:3px solid #1A346F;
+  background:#FFFFFF;
+}
+
+.vf-numbering-custom label{
+  display:grid;
+  gap:5px;
+}
+
+.vf-numbering-custom label > span{
+  color:#526A76;
+  font-size:11px;
+  font-weight:800;
+}
+
+.vf-numbering-custom small{
+  display:block;
+  margin-top:6px;
+  color:#66757D;
+}
+
+.vf-numbering-preview{
+  margin-top:8px;
+  padding:9px 10px;
+  border-radius:8px;
+  background:#EEF4FF;
+  color:#1A346F;
+  font-size:11px;
+}
+
+.vf-numbering-preview span{
+  margin-left:6px;
+  color:#66757D;
+}
+
+@media(max-width:700px){
+
+  .vf-numbering-custom{
+    margin-left:0;
+  }
+}

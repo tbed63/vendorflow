@@ -20,6 +20,7 @@ import {
   getDocs,
   deleteDoc,
   writeBatch,
+  runTransaction,
   serverTimestamp,
   query,
   orderBy
@@ -658,6 +659,8 @@ function vendorAddressParts(){
 
 
 function renderAccountPage(){
+
+  renderInvoiceNumberingSettings();
 
   const subscription=
     profile.subscriptionLevel ||
@@ -2293,6 +2296,378 @@ function invoiceServicePeriod(invoice){
 }
 
 
+
+function incrementInvoiceSequenceNumber(
+  value
+){
+
+  const text=
+    String(value||'').trim();
+
+  /*
+   * Preserve everything around the FINAL run of digits.
+   *
+   * 26-57      -> 26-58
+   * 2026-0057  -> 2026-0058
+   * INV-099-A  -> INV-100-A
+   */
+  const match=
+    text.match(
+      /^(.*?)(\d+)(\D*)$/
+    );
+
+
+  if(!match){
+    return '';
+  }
+
+
+  const prefix=
+    match[1];
+
+  const digits=
+    match[2];
+
+  const suffix=
+    match[3];
+
+
+  const nextNumber=
+    String(
+      Number(digits)+1
+    )
+      .padStart(
+        digits.length,
+        '0'
+      );
+
+
+  return (
+    prefix +
+    nextNumber +
+    suffix
+  );
+}
+
+
+function invoiceNumberSequenceValid(
+  value
+){
+
+  const text=
+    String(value||'').trim();
+
+  return Boolean(
+    text &&
+    incrementInvoiceSequenceNumber(
+      text
+    )
+  );
+}
+
+
+function updateInvoiceNumberingUI(){
+
+  const auto=
+    $('#invoiceNumberAuto');
+
+  const custom=
+    $('#invoiceNumberCustom');
+
+  const fields=
+    $('#invoiceNumberCustomFields');
+
+  const input=
+    $('#invoiceNumberNext');
+
+  const preview=
+    $('#invoiceNumberPreview');
+
+
+  if(
+    !auto ||
+    !custom ||
+    !fields ||
+    !input ||
+    !preview
+  ){
+    return;
+  }
+
+
+  if(custom.checked){
+
+    show(fields);
+
+
+    const current=
+      input.value.trim();
+
+    const next=
+      incrementInvoiceSequenceNumber(
+        current
+      );
+
+
+    if(current && next){
+
+      preview.innerHTML=
+        `<strong>Next invoice:</strong>
+         ${esc(current)}
+         <span>then ${esc(next)}</span>`;
+
+    }else if(current){
+
+      preview.innerHTML=
+        `<strong>Check this format.</strong>
+         VendorFlow needs an invoice number containing
+         a number it can increment.`;
+
+    }else{
+
+      preview.innerHTML=
+        `Example:
+         <strong>26-57</strong>
+         becomes 26-58, 26-59, and so on.`;
+    }
+
+
+  }else{
+
+    hide(fields);
+
+    preview.innerHTML='';
+  }
+}
+
+
+function renderInvoiceNumberingSettings(){
+
+  const auto=
+    $('#invoiceNumberAuto');
+
+  const custom=
+    $('#invoiceNumberCustom');
+
+  const input=
+    $('#invoiceNumberNext');
+
+
+  if(
+    !auto ||
+    !custom ||
+    !input
+  ){
+    return;
+  }
+
+
+  const mode=
+    String(
+      profile.invoiceNumberMode||''
+    );
+
+
+  auto.checked=
+    mode==='auto';
+
+  custom.checked=
+    mode==='custom';
+
+
+  input.value=
+    profile.invoiceNumberNext||'';
+
+
+  updateInvoiceNumberingUI();
+}
+
+
+function nextAutomaticInvoiceSequence(){
+
+  const year=
+    new Date().getFullYear();
+
+
+  const used=
+    invoices
+      .map(
+        invoice=>
+          String(
+            invoice.invoiceNumber||''
+          )
+      )
+      .map(number=>{
+
+        const match=
+          number.match(
+            new RegExp(
+              `^VF-${year}-(\\d+)$`
+            )
+          );
+
+        return match
+          ? Number(match[1])
+          : null;
+      })
+      .filter(
+        value=>
+          Number.isFinite(value)
+      );
+
+
+  return used.length
+    ? Math.max(...used)+1
+    : 1;
+}
+
+
+async function reserveNextInvoiceNumber(){
+
+  const ref=
+    vendorDoc();
+
+
+  return await runTransaction(
+    db,
+    async transaction=>{
+
+      const snap=
+        await transaction.get(
+          ref
+        );
+
+      const data=
+        snap.exists()
+          ? snap.data()
+          : {};
+
+
+      const mode=
+        String(
+          data.invoiceNumberMode||''
+        );
+
+
+      if(mode==='custom'){
+
+        const current=
+          String(
+            data.invoiceNumberNext||''
+          ).trim();
+
+
+        const next=
+          incrementInvoiceSequenceNumber(
+            current
+          );
+
+
+        if(!current || !next){
+
+          throw new Error(
+            'Invoice numbering needs setup.'
+          );
+        }
+
+
+        transaction.set(
+          ref,
+          {
+            invoiceNumberNext:
+              next,
+
+            invoiceNumberLastUsed:
+              current,
+
+            invoiceNumberUpdatedAt:
+              serverTimestamp()
+          },
+          {
+            merge:true
+          }
+        );
+
+
+        /*
+         * Keep in-memory profile aligned so additional
+         * invoices created during this same refresh know
+         * the newly reserved next number.
+         */
+        profile.invoiceNumberNext=
+          next;
+
+        profile.invoiceNumberLastUsed=
+          current;
+
+
+        return current;
+      }
+
+
+      if(mode==='auto'){
+
+        const year=
+          new Date().getFullYear();
+
+
+        let sequence=
+          Number(
+            data.invoiceAutoNextNumber
+          );
+
+
+        if(
+          !Number.isFinite(sequence) ||
+          sequence<1
+        ){
+
+          sequence=
+            nextAutomaticInvoiceSequence();
+        }
+
+
+        const number=
+          `VF-${year}-${String(sequence).padStart(4,'0')}`;
+
+
+        transaction.set(
+          ref,
+          {
+            invoiceAutoNextNumber:
+              sequence+1,
+
+            invoiceNumberLastUsed:
+              number,
+
+            invoiceNumberUpdatedAt:
+              serverTimestamp()
+          },
+          {
+            merge:true
+          }
+        );
+
+
+        profile.invoiceAutoNextNumber=
+          sequence+1;
+
+        profile.invoiceNumberLastUsed=
+          number;
+
+
+        return number;
+      }
+
+
+      throw new Error(
+        'Choose your invoice numbering before VendorFlow prepares an invoice.'
+      );
+    }
+  );
+}
+
+
 function invoiceStatus(invoice){
 
   return String(
@@ -2447,6 +2822,19 @@ async function createDueInvoices(){
   const due=
     invoiceReadyCertificates();
 
+
+  /*
+   * Invoice numbering is a one-time vendor choice.
+   * Never invent a numbering system for a vendor who
+   * may already have invoices outside VendorFlow.
+   */
+  if(
+    due.length &&
+    !profile.invoiceNumberMode
+  ){
+    return 0;
+  }
+
   if(!due.length){
     return 0;
   }
@@ -2507,7 +2895,7 @@ async function createDueInvoices(){
 
     const invoice={
       invoiceNumber:
-        invoiceNumberForCertificate(cert),
+        await reserveNextInvoiceNumber(),
 
       status:
         'Ready to Send',
@@ -3202,6 +3590,12 @@ function renderDashboard(){
     );
 
 
+  const invoicesWaitingForNumbering=
+    !profile.invoiceNumberMode
+      ? invoiceReadyCertificates()
+      : [];
+
+
   $('#statClasses').textContent=
     activeClasses.length;
 
@@ -3245,6 +3639,77 @@ function renderDashboard(){
     $('#dashboardTutorialButton');
 
 
+
+  /*
+   * --------------------------------------------------------
+   * INVOICE NUMBERING SETUP
+   *
+   * A certificate has reached its billing date, but the
+   * vendor has not yet told VendorFlow how invoices should
+   * be numbered.
+   * --------------------------------------------------------
+   */
+
+  if(invoicesWaitingForNumbering.length){
+
+    hide(
+      setupButton
+    );
+
+    hide(
+      tutorialButton
+    );
+
+
+    count.textContent=
+      invoicesWaitingForNumbering.length;
+
+
+    title.textContent=
+      'Set your invoice numbering.';
+
+
+    text.textContent=
+      `${invoicesWaitingForNumbering.length} certificate${
+        invoicesWaitingForNumbering.length===1?' has':'s have'
+      } reached the billing date. Tell VendorFlow whether to continue your existing invoice sequence or create numbers automatically.`;
+
+
+    show(
+      reviewButton
+    );
+
+
+    reviewButton.textContent=
+      'Set invoice numbering';
+
+
+    reviewButton.onclick=()=>{
+
+      switchView(
+        'account'
+      );
+
+      renderInvoiceNumberingSettings();
+
+      $('#invoiceNumberingSettings')
+        ?.scrollIntoView({
+          behavior:'smooth',
+          block:'start'
+        });
+    };
+
+
+    renderHistoryInto(
+      $('#recentHistory'),
+      history.slice(0,6)
+    );
+
+
+    return;
+  }
+
+
   /*
    * --------------------------------------------------------
    * BRAND-NEW VENDOR
@@ -3263,6 +3728,7 @@ function renderDashboard(){
   if(
     !activeClasses.length &&
     !readyInvoices.length &&
+    !invoicesWaitingForNumbering.length &&
     !reviews.length
   ){
 
@@ -10076,6 +10542,167 @@ $('#saveCharterSchool').onclick=async()=>{
     }
   }
 };
+
+
+
+
+/* ==========================================================
+   INVOICE NUMBERING SETTINGS
+   ========================================================== */
+
+if($('#invoiceNumberAuto')){
+
+  $('#invoiceNumberAuto')
+    .addEventListener(
+      'change',
+      updateInvoiceNumberingUI
+    );
+}
+
+
+if($('#invoiceNumberCustom')){
+
+  $('#invoiceNumberCustom')
+    .addEventListener(
+      'change',
+      updateInvoiceNumberingUI
+    );
+}
+
+
+if($('#invoiceNumberNext')){
+
+  $('#invoiceNumberNext')
+    .addEventListener(
+      'input',
+      updateInvoiceNumberingUI
+    );
+}
+
+
+if($('#saveInvoiceNumbering')){
+
+  $('#saveInvoiceNumbering').onclick=
+    async()=>{
+
+
+      const mode=
+        $('#invoiceNumberCustom').checked
+          ? 'custom'
+          : (
+              $('#invoiceNumberAuto').checked
+                ? 'auto'
+                : ''
+            );
+
+
+      if(!mode){
+
+        return toast(
+          'Choose an invoice numbering option.'
+        );
+      }
+
+
+      let next='';
+
+
+      if(mode==='custom'){
+
+        next=
+          $('#invoiceNumberNext')
+            .value
+            .trim();
+
+
+        if(
+          !invoiceNumberSequenceValid(
+            next
+          )
+        ){
+
+          return toast(
+            'Enter the next invoice number VendorFlow should use.'
+          );
+        }
+
+
+        const alreadyUsed=
+          invoices.some(
+            invoice=>
+              String(
+                invoice.invoiceNumber||''
+              )===next
+          );
+
+
+        if(alreadyUsed){
+
+          return toast(
+            'That invoice number is already used in VendorFlow.'
+          );
+        }
+      }
+
+
+      const data={
+
+        invoiceNumberMode:
+          mode,
+
+        invoiceNumberNext:
+          mode==='custom'
+            ? next
+            : '',
+
+        invoiceNumberConfiguredAt:
+          serverTimestamp(),
+
+        updatedAt:
+          serverTimestamp()
+      };
+
+
+      await setDoc(
+        vendorDoc(),
+        data,
+        {
+          merge:true
+        }
+      );
+
+
+      profile={
+        ...profile,
+        ...data
+      };
+
+
+      await log(
+        'Invoice numbering updated',
+        mode==='custom'
+          ? `VendorFlow will continue with invoice ${next}.`
+          : 'VendorFlow will number future invoices automatically.',
+        'Manual'
+      );
+
+
+      toast(
+        'Invoice numbering saved.'
+      );
+
+
+      /*
+       * Refresh immediately. If certificates have already
+       * reached their billing date, VendorFlow will now
+       * prepare those invoices automatically.
+       */
+      await refreshAll();
+
+
+      renderInvoiceNumberingSettings();
+    };
+}
 
 
 
