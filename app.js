@@ -1463,6 +1463,15 @@ $('#saveStudent').onclick=async()=>{
     }
   );
 
+  /*
+   * Keep manual roster additions in sync with the
+   * same Students & Services system used by CSV imports.
+   */
+  await syncRosterToCoreRecords(
+    c,
+    [s]
+  );
+
   await log(
     'Student added',
     `${s.studentName} added to ${c.name}.`,
