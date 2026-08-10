@@ -3050,3 +3050,9 @@ aside nav{
     max-width:none;
   }
 }
+
+
+/* Legacy dynamically injected header logo is retired. */
+.vf-app-header > .vf-header-logo{
+  display:none !important;
+}

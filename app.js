@@ -222,15 +222,19 @@ function installVendorFlowBranding(){
 
 // Main app header
   const header=document.querySelector('main header');
-  if(header && !header.querySelector('.vf-header-logo')){
+
+  if(header){
     header.classList.add('vf-app-header');
 
-    const img=document.createElement('img');
-    img.src='vendorflow-logo.png';
-    img.alt='VendorFlow';
-    img.className='vf-header-logo';
-
-    header.appendChild(img);
+    /*
+     * The centered header logo now lives in index.html.
+     * Remove any legacy dynamically injected logo.
+     */
+    header
+      .querySelectorAll('.vf-header-logo')
+      .forEach(
+        logo=>logo.remove()
+      );
   }
 
   // Password visibility eye
