@@ -845,7 +845,22 @@ function renderRoster(){
         <td>${esc(s.status)}</td>
         <td>${esc(s.grade)}</td>
         <td>
-          <button data-status="${s.id}">Change status</button>
+          <div class="vf-roster-actions">
+            <button data-status="${s.id}">
+              Change status
+            </button>
+
+            ${active(s)
+              ? `<button
+                   class="danger"
+                   data-drop="${s.id}">
+                   Remove from class
+                 </button>`
+              : `<span class="vf-roster-inactive">
+                   ${esc(s.status || 'Inactive')}
+                 </span>`
+            }
+          </div>
         </td>
       </tr>`
     ).join('');
@@ -853,7 +868,130 @@ function renderRoster(){
   $$('[data-status]').forEach(
     b=>b.onclick=()=>changeStatus(b.dataset.status)
   );
+
+  $$('[data-drop]').forEach(
+    b=>b.onclick=()=>dropStudentFromClass(b.dataset.drop)
+  );
 }
+
+
+async function dropStudentFromClass(id){
+
+  const s=
+    roster.find(x=>x.id===id);
+
+  const c=
+    currentClass();
+
+  if(!s || !c){
+    return;
+  }
+
+  const ok=
+    confirm(
+      `Remove ${s.studentName} from ${c.name}?\n\n` +
+      `VendorFlow will mark this enrollment Dropped. ` +
+      `The student's payment, certificate and account history will NOT be deleted.`
+    );
+
+  if(!ok){
+    return;
+  }
+
+  await updateDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'classes',
+      c.id,
+      'students',
+      id
+    ),
+    {
+      status:'Dropped',
+      droppedAt:serverTimestamp(),
+      updatedAt:serverTimestamp()
+    }
+  );
+
+  await loadRoster();
+
+  const count=
+    roster.filter(active).length;
+
+  await updateDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'classes',
+      c.id
+    ),
+    {
+      activeStudentCount:count,
+      rosterCount:roster.length
+    }
+  );
+
+  /*
+   * Preserve the core student and all financial records.
+   * If a linked class service exists, mark only that
+   * service/enrollment inactive rather than deleting it.
+   */
+  const core=
+    students.find(
+      x=>
+        normalizedName(x.studentName)===
+        normalizedName(s.studentName)
+    );
+
+  if(core){
+
+    const linked=
+      services.filter(
+        service=>
+          service.studentId===core.id &&
+          service.classId===c.id &&
+          norm(service.status)!=='dropped'
+      );
+
+    for(const service of linked){
+
+      await updateDoc(
+        doc(
+          db,
+          'vendors',
+          user.uid,
+          'services',
+          service.id
+        ),
+        {
+          status:'Dropped',
+          droppedAt:serverTimestamp(),
+          updatedAt:serverTimestamp()
+        }
+      );
+    }
+  }
+
+  await log(
+    'Student dropped from class',
+    `${s.studentName} removed from ${c.name}. Financial history preserved.`,
+    'Manual'
+  );
+
+  await refreshAll();
+
+  $('#classSelect').value=c.id;
+
+  await loadRoster();
+  renderRoster();
+  updateRosterUploadTarget();
+
+  toast(`${s.studentName} marked Dropped.`);
+}
+
 
 async function changeStatus(id){
   let s=roster.find(x=>x.id===id);
@@ -895,6 +1033,21 @@ async function changeStatus(id){
   renderRoster();
 }
 
+
+$('#cancelStudent').onclick=()=>{
+
+  hide($('#studentForm'));
+
+  $('#sf').value='';
+  $('#sl').value='';
+  $('#pn').value='';
+  $('#pe').value='';
+  $('#pp').value='';
+  $('#sg').value='';
+  $('#ss').value='Active';
+};
+
+
 $('#addStudent').onclick=()=>
   $('#studentForm').classList.toggle('hidden');
 
@@ -912,6 +1065,8 @@ $('#saveStudent').onclick=async()=>{
     studentName:`${sf} ${sl}`,
     parentName:$('#pn').value.trim(),
     parentEmail:$('#pe').value.trim(),
+    parentPhone:$('#pp').value.trim(),
+    grade:$('#sg').value.trim(),
     status:$('#ss').value,
     source:'Manual',
     createdAt:serverTimestamp()

@@ -1460,3 +1460,40 @@ main{
   cursor:not-allowed !important;
   pointer-events:none;
 }
+
+
+/* ==========================================================
+   MANUAL ROSTER MANAGEMENT
+   ========================================================== */
+
+.vf-roster-actions{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+.vf-roster-actions button{
+  white-space:nowrap;
+}
+
+.vf-roster-inactive{
+  display:inline-block;
+  padding:5px 9px;
+  border-radius:999px;
+  background:#F1F3F5;
+  color:#66757D;
+  font-size:11px;
+  font-weight:800;
+}
+
+@media(max-width:700px){
+  .vf-roster-actions{
+    align-items:stretch;
+    flex-direction:column;
+  }
+
+  .vf-roster-actions button{
+    width:100%;
+  }
+}
