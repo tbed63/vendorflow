@@ -37,6 +37,9 @@
     <nav>
       <button data-view="dashboard" class="active">Dashboard</button>
       <button data-view="classes">Class Rosters</button>
+<button data-view="charters">
+  Charter Schools
+</button>
       <button data-view="students">Students & Services</button>
       <button data-view="payments">Payments</button>
       <button data-view="certificates">Certificates</button>
@@ -408,6 +411,227 @@
       </div>
 
     </section>
+
+
+<section id="chartersView" class="view">
+
+  <div class="row between">
+
+    <div>
+      <div class="eyebrow">
+        Your charter network
+      </div>
+
+      <h2>
+        Charter Schools
+      </h2>
+
+      <p>
+        Save the schools you work with so VendorFlow can
+        prepare certificates, invoices, and emails correctly.
+      </p>
+    </div>
+
+    <div class="row">
+
+      <button
+        id="showArchivedCharters">
+        Archived
+      </button>
+
+      <button
+        id="addCharterSchool"
+        class="primary">
+        Add charter school
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <div
+    id="charterForm"
+    class="card vf-charter-form hidden">
+
+    <div class="row between">
+
+      <div>
+        <div class="eyebrow">
+          Charter school
+        </div>
+
+        <h3 id="charterFormTitle">
+          Add charter school
+        </h3>
+      </div>
+
+      <button
+        id="cancelCharterEdit"
+        type="button">
+        Cancel
+      </button>
+
+    </div>
+
+
+    <div class="formgrid vf-charter-grid">
+
+      <label class="vf-charter-wide">
+        <span>Charter school name</span>
+        <input
+          id="charterName"
+          class="input"
+          placeholder="Charter school name">
+      </label>
+
+      <label>
+        <span>Billing / invoice email</span>
+        <input
+          id="charterBillingEmail"
+          class="input"
+          type="email"
+          placeholder="billing@charterschool.org">
+      </label>
+
+      <label>
+        <span>Phone</span>
+        <input
+          id="charterPhone"
+          class="input"
+          placeholder="Phone">
+      </label>
+
+      <label>
+        <span>Contact name</span>
+        <input
+          id="charterContactName"
+          class="input"
+          placeholder="Accounts payable contact">
+      </label>
+
+      <label>
+        <span>Contact email</span>
+        <input
+          id="charterContactEmail"
+          class="input"
+          type="email"
+          placeholder="Contact email">
+      </label>
+
+      <label class="vf-charter-wide">
+        <span>Street address</span>
+        <input
+          id="charterAddress"
+          class="input"
+          placeholder="Street address">
+      </label>
+
+      <label>
+        <span>City</span>
+        <input
+          id="charterCity"
+          class="input"
+          placeholder="City">
+      </label>
+
+      <label>
+        <span>State</span>
+        <input
+          id="charterState"
+          class="input"
+          placeholder="State">
+      </label>
+
+      <label>
+        <span>ZIP</span>
+        <input
+          id="charterZip"
+          class="input"
+          placeholder="ZIP">
+      </label>
+
+      <label>
+        <span>Invoice timing</span>
+
+        <div class="vf-days-input">
+          <input
+            id="charterInvoiceDays"
+            class="input"
+            type="number"
+            min="0"
+            max="365"
+            step="1"
+            value="14">
+
+          <span>
+            days after certificate start date
+          </span>
+        </div>
+      </label>
+
+      <label class="vf-charter-wide">
+        <span>Invoice notes / special instructions</span>
+        <textarea
+          id="charterNotes"
+          class="input"
+          rows="3"
+          placeholder="PO requirements, invoice instructions, preferred wording, etc."></textarea>
+      </label>
+
+    </div>
+
+
+    <div class="vf-charter-form-note">
+      VendorFlow will use this address on invoices and the
+      billing email when preparing charter invoice emails.
+    </div>
+
+
+    <button
+      id="saveCharterSchool"
+      class="primary">
+      Save charter school
+    </button>
+
+  </div>
+
+
+  <div
+    id="charterSchoolList"
+    class="vf-charter-list">
+  </div>
+
+
+  <div
+    id="archivedCharterPanel"
+    class="card hidden">
+
+    <div class="row between">
+
+      <div>
+        <div class="eyebrow">
+          Archived
+        </div>
+
+        <h3>
+          Archived charter schools
+        </h3>
+      </div>
+
+      <button
+        id="closeArchivedCharters">
+        Close
+      </button>
+
+    </div>
+
+    <div id="archivedCharterList"></div>
+
+  </div>
+
+</section>
+
 
 <section id="paymentsView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Manual control</div><h2>Payments</h2><p>Forwarded payment emails will automate this later.</p></div><div class="row">
 <button id="addRefund" class="vf-refund-button">Refund</button>

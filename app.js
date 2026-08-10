@@ -33,7 +33,8 @@ const VENDORFLOW_API =
   "https://vendorflow-api.tbed63.workers.dev";
 
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),$=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],show=e=>e.classList.remove("hidden"),hide=e=>e.classList.add("hidden"),esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
-let user=null,profile={},classes=[],roster=[],students=[],services=[],payments=[],certs=[],compliance=[],reviews=[],history=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
+let user=null,profile={},classes=[],roster=[],students=[],services=[],charterSchools=[],payments=[],certs=[],compliance=[],reviews=[],history=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
+let editingCharterSchoolId='';
 let selectedPaymentStudentId=null;
 let pendingCertificatePdf=null;
 let editingRosterStudentId=null;
@@ -155,6 +156,13 @@ function installVendorFlowBranding(){
       <circle cx="17" cy="9" r="2.5"/>
       <path d="M2.5 20c.5-4 2.6-6 5.5-6s5 2 5.5 6"/>
       <path d="M14 15c3.5-.5 6 1.1 6.8 5"/>
+    </svg>`,
+
+    charters:`<svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 21V5h16v16"/>
+      <path d="M8 9h2M14 9h2M8 13h2M14 13h2"/>
+      <path d="M10 21v-4h4v4"/>
+      <path d="M7 5V3h10v2"/>
     </svg>`,
 
     students:`<svg viewBox="0 0 24 24" aria-hidden="true">
@@ -464,6 +472,7 @@ async function refreshAll(){
 
   students=await getList('students',false);
   services=await getList('services',false);
+  charterSchools=await getList('charterSchools',false);
   payments=await getList('payments');
   certs=await getList('certificates');
   compliance=await getList('compliance');
@@ -561,6 +570,7 @@ function renderAll(){
   renderClassSelect();
   renderDashboard();
   renderAccountPage();
+  renderCharterSchools();
   renderRoster();
   renderArchivedClasses();
   renderStudentsServices();
@@ -707,6 +717,384 @@ function renderAccountPage(){
     }
   }
 }
+
+
+function charterDisplayAddress(charter){
+
+  return [
+    charter.address,
+    charter.city,
+    [
+      charter.state,
+      charter.zip
+    ].filter(Boolean).join(' ')
+  ]
+    .filter(Boolean)
+    .join(', ');
+}
+
+
+function resetCharterForm(){
+
+  editingCharterSchoolId='';
+
+  $('#charterFormTitle').textContent=
+    'Add charter school';
+
+  $('#charterName').value='';
+  $('#charterBillingEmail').value='';
+  $('#charterPhone').value='';
+  $('#charterContactName').value='';
+  $('#charterContactEmail').value='';
+  $('#charterAddress').value='';
+  $('#charterCity').value='';
+  $('#charterState').value='';
+  $('#charterZip').value='';
+  $('#charterInvoiceDays').value='14';
+  $('#charterNotes').value='';
+
+  $('#saveCharterSchool').textContent=
+    'Save charter school';
+}
+
+
+function openCharterEditor(id=''){
+
+  resetCharterForm();
+
+  if(id){
+
+    const charter=
+      charterSchools.find(
+        c=>c.id===id
+      );
+
+    if(!charter)return;
+
+    editingCharterSchoolId=id;
+
+    $('#charterFormTitle').textContent=
+      'Edit charter school';
+
+    $('#charterName').value=
+      charter.name||'';
+
+    $('#charterBillingEmail').value=
+      charter.billingEmail||'';
+
+    $('#charterPhone').value=
+      charter.phone||'';
+
+    $('#charterContactName').value=
+      charter.contactName||'';
+
+    $('#charterContactEmail').value=
+      charter.contactEmail||'';
+
+    $('#charterAddress').value=
+      charter.address||'';
+
+    $('#charterCity').value=
+      charter.city||'';
+
+    $('#charterState').value=
+      charter.state||'';
+
+    $('#charterZip').value=
+      charter.zip||'';
+
+    $('#charterInvoiceDays').value=
+      Number.isFinite(
+        Number(charter.invoiceDaysAfterStart)
+      )
+        ? Number(charter.invoiceDaysAfterStart)
+        : 14;
+
+    $('#charterNotes').value=
+      charter.notes||'';
+
+    $('#saveCharterSchool').textContent=
+      'Save changes';
+  }
+
+  show($('#charterForm'));
+  $('#charterName').focus();
+}
+
+
+function renderCharterSchools(){
+
+  const list=
+    $('#charterSchoolList');
+
+  if(!list)return;
+
+  const active=
+    charterSchools
+      .filter(c=>!c.archived)
+      .sort(
+        (a,b)=>
+          (a.name||'')
+            .localeCompare(b.name||'')
+      );
+
+  if(!active.length){
+
+    list.innerHTML=`
+      <div class="card vf-empty-charters">
+        <strong>No charter schools saved yet.</strong>
+        <p>
+          Add the first charter school you work with.
+          VendorFlow will reuse its billing and address
+          information when preparing invoices.
+        </p>
+      </div>
+    `;
+
+  }else{
+
+    list.innerHTML=
+      active.map(charter=>{
+
+        const days=
+          Number.isFinite(
+            Number(charter.invoiceDaysAfterStart)
+          )
+            ? Number(charter.invoiceDaysAfterStart)
+            : 14;
+
+        return `
+          <div class="card vf-charter-card">
+
+            <div class="vf-charter-card-main">
+
+              <div>
+                <div class="eyebrow">Charter school</div>
+                <h3>${esc(charter.name||'Unnamed charter')}</h3>
+              </div>
+
+              <button
+                data-edit-charter="${charter.id}">
+                Edit
+              </button>
+
+            </div>
+
+            <div class="vf-charter-details">
+
+              <div>
+                <small>Billing email</small>
+                <strong>
+                  ${esc(charter.billingEmail||'Not entered')}
+                </strong>
+              </div>
+
+              <div>
+                <small>Invoice address</small>
+                <strong>
+                  ${esc(charterDisplayAddress(charter)||'Not entered')}
+                </strong>
+              </div>
+
+              <div>
+                <small>Invoice timing</small>
+                <strong>
+                  ${days} day${days===1?'':'s'} after certificate start
+                </strong>
+              </div>
+
+              <div>
+                <small>Contact</small>
+                <strong>
+                  ${esc(
+                    charter.contactName ||
+                    charter.contactEmail ||
+                    charter.phone ||
+                    'Not entered'
+                  )}
+                </strong>
+              </div>
+
+            </div>
+
+            <div class="vf-charter-card-actions">
+              <button
+                data-archive-charter="${charter.id}">
+                Archive
+              </button>
+            </div>
+
+          </div>
+        `;
+      }).join('');
+  }
+
+  $$('[data-edit-charter]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        openCharterEditor(
+          button.dataset.editCharter
+        );
+      };
+    });
+
+
+  $$('[data-archive-charter]')
+    .forEach(button=>{
+
+      button.onclick=async()=>{
+
+        const charter=
+          charterSchools.find(
+            c=>c.id===button.dataset.archiveCharter
+          );
+
+        if(!charter)return;
+
+        const ok=
+          confirm(
+            `Archive ${charter.name}?\n\n` +
+            `Certificates and invoice history will remain. ` +
+            `You can restore the charter later.`
+          );
+
+        if(!ok)return;
+
+        await setDoc(
+          doc(
+            db,
+            'vendors',
+            user.uid,
+            'charterSchools',
+            charter.id
+          ),
+          {
+            archived:true,
+            archivedAt:serverTimestamp(),
+            updatedAt:serverTimestamp()
+          },
+          {
+            merge:true
+          }
+        );
+
+        await log(
+          'Charter school archived',
+          charter.name,
+          'Manual'
+        );
+
+        await refreshAll();
+
+        toast(
+          'Charter school archived.'
+        );
+      };
+    });
+
+
+  renderArchivedCharterSchools();
+}
+
+
+function renderArchivedCharterSchools(){
+
+  const list=
+    $('#archivedCharterList');
+
+  if(!list)return;
+
+  const archived=
+    charterSchools
+      .filter(c=>c.archived)
+      .sort(
+        (a,b)=>
+          (a.name||'')
+            .localeCompare(b.name||'')
+      );
+
+  if(!archived.length){
+
+    list.innerHTML=
+      '<div class="empty">No archived charter schools.</div>';
+
+    return;
+  }
+
+  list.innerHTML=
+    archived.map(charter=>`
+      <div class="vf-archived-charter">
+
+        <div>
+          <strong>
+            ${esc(charter.name||'Unnamed charter')}
+          </strong>
+
+          <span>
+            ${esc(
+              charterDisplayAddress(charter) ||
+              charter.billingEmail ||
+              ''
+            )}
+          </span>
+        </div>
+
+        <button
+          data-restore-charter="${charter.id}">
+          Restore
+        </button>
+
+      </div>
+    `).join('');
+
+
+  $$('[data-restore-charter]')
+    .forEach(button=>{
+
+      button.onclick=async()=>{
+
+        const charter=
+          charterSchools.find(
+            c=>c.id===button.dataset.restoreCharter
+          );
+
+        if(!charter)return;
+
+        await setDoc(
+          doc(
+            db,
+            'vendors',
+            user.uid,
+            'charterSchools',
+            charter.id
+          ),
+          {
+            archived:false,
+            restoredAt:serverTimestamp(),
+            updatedAt:serverTimestamp()
+          },
+          {
+            merge:true
+          }
+        );
+
+        await log(
+          'Charter school restored',
+          charter.name,
+          'Manual'
+        );
+
+        await refreshAll();
+
+        toast(
+          'Charter school restored.'
+        );
+      };
+    });
+}
+
 
 function renderDashboard(){
 
@@ -6787,6 +7175,7 @@ function switchView(v){
   let names={
     dashboard:'Dashboard',
     classes:'Class Rosters',
+    charters:'Charter Schools',
     students:'Students & Services',
     payments:'Payments',
     certificates:'Certificates',
@@ -7011,6 +7400,211 @@ if($('#saveAccountInfo')){
     );
   };
 }
+
+
+
+/* ==========================================================
+   CHARTER SCHOOL CONTROLS
+   ========================================================== */
+
+$('#addCharterSchool').onclick=()=>{
+
+  openCharterEditor();
+};
+
+
+$('#cancelCharterEdit').onclick=()=>{
+
+  resetCharterForm();
+
+  hide(
+    $('#charterForm')
+  );
+};
+
+
+$('#showArchivedCharters').onclick=()=>{
+
+  renderArchivedCharterSchools();
+
+  show(
+    $('#archivedCharterPanel')
+  );
+};
+
+
+$('#closeArchivedCharters').onclick=()=>{
+
+  hide(
+    $('#archivedCharterPanel')
+  );
+};
+
+
+$('#saveCharterSchool').onclick=async()=>{
+
+  const name=
+    $('#charterName')
+      .value
+      .trim();
+
+  if(!name){
+
+    return toast(
+      'Enter the charter school name.'
+    );
+  }
+
+
+  const invoiceDays=
+    Math.max(
+      0,
+      Math.min(
+        365,
+        Math.round(
+          Number(
+            $('#charterInvoiceDays').value
+          )||0
+        )
+      )
+    );
+
+
+  const data={
+
+    name,
+
+    billingEmail:
+      $('#charterBillingEmail')
+        .value
+        .trim(),
+
+    phone:
+      $('#charterPhone')
+        .value
+        .trim(),
+
+    contactName:
+      $('#charterContactName')
+        .value
+        .trim(),
+
+    contactEmail:
+      $('#charterContactEmail')
+        .value
+        .trim(),
+
+    address:
+      $('#charterAddress')
+        .value
+        .trim(),
+
+    city:
+      $('#charterCity')
+        .value
+        .trim(),
+
+    state:
+      $('#charterState')
+        .value
+        .trim(),
+
+    zip:
+      $('#charterZip')
+        .value
+        .trim(),
+
+    invoiceDaysAfterStart:
+      invoiceDays,
+
+    notes:
+      $('#charterNotes')
+        .value
+        .trim(),
+
+    archived:false,
+
+    updatedAt:
+      serverTimestamp()
+  };
+
+
+  if(editingCharterSchoolId){
+
+    await setDoc(
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'charterSchools',
+        editingCharterSchoolId
+      ),
+      data,
+      {
+        merge:true
+      }
+    );
+
+    await log(
+      'Charter school updated',
+      name,
+      'Manual'
+    );
+
+    toast(
+      'Charter school updated.'
+    );
+
+
+  }else{
+
+    const duplicate=
+      charterSchools.find(
+        charter=>
+          !charter.archived &&
+          String(charter.name||'')
+            .trim()
+            .toLowerCase()===
+          name.toLowerCase()
+      );
+
+    if(duplicate){
+
+      return toast(
+        'That charter school is already in your list.'
+      );
+    }
+
+    await addDoc(
+      sub('charterSchools'),
+      {
+        ...data,
+        createdAt:
+          serverTimestamp()
+      }
+    );
+
+    await log(
+      'Charter school added',
+      name,
+      'Manual'
+    );
+
+    toast(
+      'Charter school added.'
+    );
+  }
+
+
+  resetCharterForm();
+
+  hide(
+    $('#charterForm')
+  );
+
+  await refreshAll();
+};
+
 
 
 installVendorFlowBranding();setAuthMode('login');
