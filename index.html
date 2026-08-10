@@ -45,7 +45,14 @@
       <button data-view="history">History</button>
       <button data-view="profile">Business Profile</button>
     </nav>
-    <div class="account"><strong id="bizNameSide">VendorFlow</strong><span id="userEmail"></span><button id="logout">Log out</button></div>
+    <div class="account" id="accountSummary" title="Open account">
+  <div class="vf-account-click">
+    <strong id="bizNameSide">VendorFlow</strong>
+    <span id="userEmail"></span>
+    <small>Account & settings</small>
+  </div>
+  <button id="logout">Log out</button>
+</div>
   </aside>
 
   <main>
@@ -666,6 +673,110 @@
 
     <section id="reviewView" class="view"><div class="card"><div class="eyebrow">Safety net</div><h2>Needs Review</h2><p>VendorFlow should never quietly guess.</p><div id="reviewList"></div></div></section>
     <section id="historyView" class="view"><div class="card"><div class="eyebrow">Permanent audit trail</div><h2>History</h2><p>See what happened, when, and whether it was manual, imported, or automated.</p><div id="historyList"></div></div></section>
+
+
+    <section id="accountView" class="view">
+
+      <div class="card narrow">
+
+        <div class="eyebrow">
+          VendorFlow account
+        </div>
+
+        <h2>
+          Account & Settings
+        </h2>
+
+        <p>
+          Your login, subscription, and business information in one place.
+        </p>
+
+
+        <div class="vf-account-grid">
+
+          <div class="vf-account-field">
+            <small>Subscription</small>
+            <strong id="accountSubscription">
+              VendorFlow Beta
+            </strong>
+          </div>
+
+          <div class="vf-account-field">
+            <small>Login email</small>
+            <strong id="accountEmail"></strong>
+          </div>
+
+          <div class="vf-account-field">
+            <small>Vendor / owner</small>
+            <strong id="accountOwner"></strong>
+          </div>
+
+          <div class="vf-account-field">
+            <small>Business</small>
+            <strong id="accountBusiness"></strong>
+          </div>
+
+          <div class="vf-account-field vf-account-wide">
+            <small>Business address</small>
+            <strong id="accountAddress"></strong>
+          </div>
+
+          <div class="vf-account-field">
+            <small>Business phone</small>
+            <strong id="accountPhone"></strong>
+          </div>
+
+          <div class="vf-account-field">
+            <small>Account status</small>
+            <strong id="accountStatus">Active</strong>
+          </div>
+
+        </div>
+
+
+        <hr>
+
+
+        <div class="vf-account-actions">
+
+          <div>
+            <strong>Password</strong>
+            <p>
+              VendorFlow will email a secure password-reset link
+              to your login email.
+            </p>
+          </div>
+
+          <button
+            id="accountResetPassword"
+            class="primary">
+            Reset password
+          </button>
+
+        </div>
+
+
+        <div class="vf-account-actions">
+
+          <div>
+            <strong>Business information</strong>
+            <p>
+              Update your address, phone, business name,
+              learning centers, and other vendor details.
+            </p>
+          </div>
+
+          <button
+            id="accountEditBusiness">
+            Edit Business Profile
+          </button>
+
+        </div>
+
+      </div>
+
+    </section>
+
 
     <section id="profileView" class="view"><div class="card narrow"><div class="eyebrow">Business profile</div><h2>Information VendorFlow uses</h2><input id="pBusiness" class="input" placeholder="Business name"><input id="pOwner" class="input" placeholder="Owner / vendor name"><input id="pAddress" class="input" placeholder="Business address"><input id="pCity" class="input" placeholder="City"><input id="pState" class="input" placeholder="State"><input id="pZip" class="input" placeholder="ZIP"><input id="pPhone" class="input" placeholder="Business phone"><textarea id="pLocations" class="input" rows="3" placeholder="Places of business / learning centers"></textarea><textarea id="pSchools" class="input" rows="4" placeholder="Charter schools you work with"></textarea><button id="saveProfile" class="primary">Save business profile</button></div></section>
   </main>

@@ -1866,3 +1866,112 @@ main{
   margin-bottom:18px;
 }
 
+
+
+/* ==========================================================
+   ACCOUNT & SETTINGS
+   ========================================================== */
+
+.account{
+  cursor:pointer;
+}
+
+.vf-account-click{
+  display:grid;
+  gap:2px;
+  min-width:0;
+}
+
+.vf-account-click strong,
+.vf-account-click span,
+.vf-account-click small{
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.vf-account-click small{
+  margin-top:3px;
+  color:rgba(255,255,255,.68);
+  font-size:10px;
+  font-weight:700;
+}
+
+.account:hover{
+  background:rgba(255,255,255,.12);
+}
+
+.account #logout{
+  cursor:pointer;
+}
+
+
+.vf-account-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin:18px 0;
+}
+
+.vf-account-field{
+  padding:14px;
+  border:1px solid #D8E0E5;
+  border-radius:11px;
+  background:#F8FAFB;
+}
+
+.vf-account-field small{
+  display:block;
+  margin-bottom:5px;
+  color:#66757D;
+  font-size:10px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+
+.vf-account-field strong{
+  display:block;
+  color:#26383F;
+  line-height:1.4;
+}
+
+.vf-account-wide{
+  grid-column:1 / -1;
+}
+
+.vf-account-actions{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  padding:15px 0;
+}
+
+.vf-account-actions + .vf-account-actions{
+  border-top:1px solid #E3E8EB;
+}
+
+.vf-account-actions p{
+  max-width:520px;
+  margin:4px 0 0;
+  color:#66757D;
+  font-size:12px;
+  line-height:1.5;
+}
+
+
+@media(max-width:700px){
+
+  .vf-account-grid{
+    grid-template-columns:1fr;
+  }
+
+  .vf-account-wide{
+    grid-column:auto;
+  }
+
+  .vf-account-actions{
+    align-items:stretch;
+    flex-direction:column;
+  }
+}

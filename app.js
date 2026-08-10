@@ -423,7 +423,14 @@ $('#nextBtn').onclick=async()=>{
   await log('Business setup completed',`${profile.businessName} workspace created.`,'Onboarding');
 
   hide($('#onboarding'));
+
   await enterApp();
+
+  /*
+   * A vendor finishing setup should always arrive at
+   * the Dashboard, where VendorFlow gives next-step guidance.
+   */
+  switchView('dashboard');
 };
 
 async function enterApp(){
@@ -553,6 +560,7 @@ async function repairRosterCoreLinksOnce(){
 function renderAll(){
   renderClassSelect();
   renderDashboard();
+  renderAccountPage();
   renderRoster();
   renderArchivedClasses();
   renderStudentsServices();
@@ -561,6 +569,82 @@ function renderAll(){
   renderReviews();
   renderHistory();
 }
+
+
+function renderAccountPage(){
+
+  const subscription=
+    profile.subscriptionLevel ||
+    profile.subscription ||
+    'VendorFlow Beta';
+
+  const addressParts=[
+    profile.address,
+    profile.city,
+    profile.state,
+    profile.zip
+  ]
+    .filter(Boolean);
+
+
+  const combinedAddress=
+    addressParts.length
+      ? addressParts.join(', ')
+      : (
+          profile.cityStateZip
+            ? [
+                profile.address,
+                profile.cityStateZip
+              ]
+                .filter(Boolean)
+                .join(', ')
+            : 'Not entered'
+        );
+
+
+  const values={
+
+    accountSubscription:
+      subscription,
+
+    accountEmail:
+      user?.email || 'Not available',
+
+    accountOwner:
+      profile.ownerName ||
+      user?.displayName ||
+      'Not entered',
+
+    accountBusiness:
+      profile.businessName ||
+      'Not entered',
+
+    accountAddress:
+      combinedAddress,
+
+    accountPhone:
+      profile.phone ||
+      'Not entered',
+
+    accountStatus:
+      'Active'
+  };
+
+
+  for(
+    const [id,value]
+    of Object.entries(values)
+  ){
+
+    const element=
+      document.getElementById(id);
+
+    if(element){
+      element.textContent=value;
+    }
+  }
+}
+
 
 function renderDashboard(){
 
@@ -6609,6 +6693,7 @@ function switchView(v){
     compliance:'Compliance',
     review:'Needs Review',
     history:'History',
+    account:'Account',
     profile:'Business Profile'
   };
 
@@ -6629,5 +6714,93 @@ $$('nav button').forEach(
 $$('[data-go]').forEach(
   b=>b.onclick=()=>switchView(b.dataset.go)
 );
+
+
+/* ==========================================================
+   ACCOUNT PAGE
+   ========================================================== */
+
+if($('#accountSummary')){
+
+  $('#accountSummary').onclick=(event)=>{
+
+    /*
+     * Log out remains its own action.
+     */
+    if(
+      event.target.closest(
+        '#logout'
+      )
+    ){
+      return;
+    }
+
+    renderAccountPage();
+
+    switchView(
+      'account'
+    );
+  };
+}
+
+
+if($('#accountEditBusiness')){
+
+  $('#accountEditBusiness').onclick=()=>{
+
+    switchView(
+      'profile'
+    );
+  };
+}
+
+
+if($('#accountResetPassword')){
+
+  $('#accountResetPassword').onclick=async()=>{
+
+    const email=
+      user?.email || '';
+
+    if(!email){
+
+      return toast(
+        'No login email is available.'
+      );
+    }
+
+
+    const ok=
+      confirm(
+        `Send a password-reset email to ${email}?`
+      );
+
+    if(!ok){
+      return;
+    }
+
+
+    try{
+
+      await sendPasswordResetEmail(
+        auth,
+        email
+      );
+
+      alert(
+        `VendorFlow sent a password-reset email to ${email}.`
+      );
+
+    }catch(error){
+
+      alert(
+        'VendorFlow could not send the password-reset email. ' +
+        (error?.message || '')
+      );
+    }
+  };
+}
+
+
 
 installVendorFlowBranding();setAuthMode('login');
