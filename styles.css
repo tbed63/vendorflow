@@ -1803,3 +1803,33 @@ main{
     justify-content:space-between;
   }
 }
+
+
+/* ==========================================================
+   DASHBOARD SETUP GUIDANCE
+   ========================================================== */
+
+.vf-attention-actions{
+  display:flex;
+  gap:9px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+.vf-hero-secondary{
+  border:1px solid rgba(255,255,255,.55);
+  background:transparent;
+  color:#FFFFFF;
+  font-weight:800;
+}
+
+.vf-hero-secondary:hover{
+  background:rgba(255,255,255,.08);
+}
+
+@media(max-width:700px){
+
+  .vf-attention-actions{
+    width:100%;
+  }
+}

@@ -564,25 +564,31 @@ function renderAll(){
 
 function renderDashboard(){
 
+  const activeClasses=
+    classes.filter(
+      c=>!c.archived
+    );
+
+
   $('#statClasses').textContent=
-    classes
-      .filter(c=>!c.archived)
-      .length;
+    activeClasses.length;
+
 
   $('#statStudents').textContent=
-    classes
-      .filter(c=>!c.archived)
-      .reduce(
-        (a,c)=>
-          a+(c.activeStudentCount||0),
-        0
-      );
+    activeClasses.reduce(
+      (a,c)=>
+        a+(c.activeStudentCount||0),
+      0
+    );
+
 
   $('#statReview').textContent=
     reviews.length;
 
+
   $('#statHistory').textContent=
     history.length;
+
 
   $('#reviewBadge').textContent=
     reviews.length;
@@ -597,14 +603,97 @@ function renderDashboard(){
   const text=
     $('#dashboardAttentionText');
 
-  const button=
+  const reviewButton=
     $('#dashboardAttentionButton');
 
+  const setupButton=
+    $('#dashboardSetupButton');
 
-  if(count){
-    count.textContent=
-      reviews.length;
+  const tutorialButton=
+    $('#dashboardTutorialButton');
+
+
+  /*
+   * --------------------------------------------------------
+   * BRAND-NEW VENDOR
+   *
+   * Before there is anything operational to review,
+   * use this space to guide the vendor to the next best step.
+   * --------------------------------------------------------
+   */
+
+  if(!activeClasses.length){
+
+    count.textContent='1';
+
+
+    title.textContent=
+      'Welcome to VendorFlow.';
+
+
+    text.textContent=
+      'Start by setting up your first class. Go to Class Rosters to create the class and add or upload the roster.';
+
+
+    hide(
+      reviewButton
+    );
+
+
+    show(
+      setupButton
+    );
+
+
+    show(
+      tutorialButton
+    );
+
+
+    setupButton.onclick=()=>{
+
+      switchView(
+        'classes'
+      );
+    };
+
+
+    tutorialButton.onclick=()=>{
+
+      toast(
+        'VendorFlow tutorial coming soon.'
+      );
+    };
+
+
+    renderHistoryInto(
+      $('#recentHistory'),
+      history.slice(0,6)
+    );
+
+
+    return;
   }
+
+
+  /*
+   * --------------------------------------------------------
+   * NORMAL OPERATION
+   * --------------------------------------------------------
+   */
+
+  hide(
+    setupButton
+  );
+
+
+  hide(
+    tutorialButton
+  );
+
+
+  count.textContent=
+    reviews.length;
 
 
   if(reviews.length){
@@ -612,24 +701,37 @@ function renderDashboard(){
     title.textContent=
       `${reviews.length} item${reviews.length===1?'':'s'} need your attention.`;
 
+
     text.textContent=
       'VendorFlow has held these items for you instead of making a questionable decision.';
 
-    show(button);
 
-    button.onclick=()=>{
-      switchView('review');
+    show(
+      reviewButton
+    );
+
+
+    reviewButton.onclick=()=>{
+
+      switchView(
+        'review'
+      );
     };
+
 
   }else{
 
     title.textContent=
       `You're all caught up.`;
 
+
     text.textContent=
       'VendorFlow has nothing urgent flagged right now.';
 
-    hide(button);
+
+    hide(
+      reviewButton
+    );
   }
 
 
