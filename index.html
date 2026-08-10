@@ -675,6 +675,7 @@
     <section id="historyView" class="view"><div class="card"><div class="eyebrow">Permanent audit trail</div><h2>History</h2><p>See what happened, when, and whether it was manual, imported, or automated.</p><div id="historyList"></div></div></section>
 
 
+    
     <section id="accountView" class="view">
 
       <div class="card narrow">
@@ -688,11 +689,12 @@
         </h2>
 
         <p>
-          Your login, subscription, and business information in one place.
+          Review and update the information VendorFlow uses
+          for your business.
         </p>
 
 
-        <div class="vf-account-grid">
+        <div class="vf-account-readonly-grid">
 
           <div class="vf-account-field">
             <small>Subscription</small>
@@ -706,32 +708,75 @@
             <strong id="accountEmail"></strong>
           </div>
 
-          <div class="vf-account-field">
-            <small>Vendor / owner</small>
-            <strong id="accountOwner"></strong>
-          </div>
+        </div>
 
-          <div class="vf-account-field">
-            <small>Business</small>
-            <strong id="accountBusiness"></strong>
-          </div>
 
-          <div class="vf-account-field vf-account-wide">
-            <small>Business address</small>
-            <strong id="accountAddress"></strong>
-          </div>
+        <div class="vf-account-edit-grid">
 
-          <div class="vf-account-field">
-            <small>Business phone</small>
-            <strong id="accountPhone"></strong>
-          </div>
+          <label>
+            <span>Vendor / owner</span>
+            <input
+              id="accountOwnerInput"
+              class="input"
+              placeholder="Vendor / owner name">
+          </label>
 
-          <div class="vf-account-field">
-            <small>Account status</small>
-            <strong id="accountStatus">Active</strong>
-          </div>
+          <label>
+            <span>Business name</span>
+            <input
+              id="accountBusinessInput"
+              class="input"
+              placeholder="Business name">
+          </label>
+
+          <label class="vf-account-wide">
+            <span>Street address</span>
+            <input
+              id="accountStreetInput"
+              class="input"
+              placeholder="Street address">
+          </label>
+
+          <label>
+            <span>City</span>
+            <input
+              id="accountCityInput"
+              class="input"
+              placeholder="City">
+          </label>
+
+          <label>
+            <span>State</span>
+            <input
+              id="accountStateInput"
+              class="input"
+              placeholder="State">
+          </label>
+
+          <label>
+            <span>ZIP</span>
+            <input
+              id="accountZipInput"
+              class="input"
+              placeholder="ZIP">
+          </label>
+
+          <label>
+            <span>Business phone</span>
+            <input
+              id="accountPhoneInput"
+              class="input"
+              placeholder="Business phone">
+          </label>
 
         </div>
+
+
+        <button
+          id="saveAccountInfo"
+          class="primary">
+          Save account information
+        </button>
 
 
         <hr>
@@ -759,16 +804,15 @@
         <div class="vf-account-actions">
 
           <div>
-            <strong>Business information</strong>
+            <strong>More business information</strong>
             <p>
-              Update your address, phone, business name,
-              learning centers, and other vendor details.
+              Manage learning centers and other business details.
             </p>
           </div>
 
           <button
             id="accountEditBusiness">
-            Edit Business Profile
+            Open Business Profile
           </button>
 
         </div>
@@ -778,7 +822,7 @@
     </section>
 
 
-    <section id="profileView" class="view"><div class="card narrow"><div class="eyebrow">Business profile</div><h2>Information VendorFlow uses</h2><input id="pBusiness" class="input" placeholder="Business name"><input id="pOwner" class="input" placeholder="Owner / vendor name"><input id="pAddress" class="input" placeholder="Business address"><input id="pCity" class="input" placeholder="City"><input id="pState" class="input" placeholder="State"><input id="pZip" class="input" placeholder="ZIP"><input id="pPhone" class="input" placeholder="Business phone"><textarea id="pLocations" class="input" rows="3" placeholder="Places of business / learning centers"></textarea><textarea id="pSchools" class="input" rows="4" placeholder="Charter schools you work with"></textarea><button id="saveProfile" class="primary">Save business profile</button></div></section>
+<section id="profileView" class="view"><div class="card narrow"><div class="eyebrow">Business profile</div><h2>Information VendorFlow uses</h2><input id="pBusiness" class="input" placeholder="Business name"><input id="pOwner" class="input" placeholder="Owner / vendor name"><input id="pAddress" class="input" placeholder="Business address"><input id="pCity" class="input" placeholder="City"><input id="pState" class="input" placeholder="State"><input id="pZip" class="input" placeholder="ZIP"><input id="pPhone" class="input" placeholder="Business phone"><textarea id="pLocations" class="input" rows="3" placeholder="Places of business / learning centers"></textarea><textarea id="pSchools" class="input" rows="4" placeholder="Charter schools you work with"></textarea><button id="saveProfile" class="primary">Save business profile</button></div></section>
   </main>
 </div>
 <div id="toast"></div>

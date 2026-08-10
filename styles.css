@@ -1975,3 +1975,49 @@ main{
     flex-direction:column;
   }
 }
+
+
+/* ==========================================================
+   EDITABLE ACCOUNT INFORMATION
+   ========================================================== */
+
+.vf-account-readonly-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin:18px 0;
+}
+
+.vf-account-edit-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin:18px 0;
+}
+
+.vf-account-edit-grid label{
+  display:grid;
+  gap:5px;
+}
+
+.vf-account-edit-grid label > span{
+  color:#66757D;
+  font-size:11px;
+  font-weight:800;
+}
+
+.vf-account-edit-grid .vf-account-wide{
+  grid-column:1 / -1;
+}
+
+@media(max-width:700px){
+
+  .vf-account-readonly-grid,
+  .vf-account-edit-grid{
+    grid-template-columns:1fr;
+  }
+
+  .vf-account-edit-grid .vf-account-wide{
+    grid-column:auto;
+  }
+}

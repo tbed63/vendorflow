@@ -571,6 +571,70 @@ function renderAll(){
 }
 
 
+
+function vendorAddressParts(){
+
+  let city=
+    String(profile.city||'').trim();
+
+  let state=
+    String(profile.state||'').trim();
+
+  let zip=
+    String(profile.zip||'').trim();
+
+
+  /*
+   * Older onboarding stored these together as:
+   * "Encinitas, CA 92024"
+   */
+  const legacy=
+    String(profile.cityStateZip||'').trim();
+
+
+  if(
+    legacy &&
+    (!city || !state || !zip)
+  ){
+
+    const match=
+      legacy.match(
+        /^(.+?),\s*([A-Za-z]{2})\s+(.+)$/
+      );
+
+
+    if(match){
+
+      if(!city){
+        city=match[1].trim();
+      }
+
+      if(!state){
+        state=match[2].trim();
+      }
+
+      if(!zip){
+        zip=match[3].trim();
+      }
+
+    }else if(!city){
+
+      city=legacy;
+    }
+  }
+
+
+  return {
+    street:
+      String(profile.address||'').trim(),
+
+    city,
+    state,
+    zip
+  };
+}
+
+
 function renderAccountPage(){
 
   const subscription=
@@ -578,73 +642,71 @@ function renderAccountPage(){
     profile.subscription ||
     'VendorFlow Beta';
 
-  const addressParts=[
-    profile.address,
-    profile.city,
-    profile.state,
-    profile.zip
-  ]
-    .filter(Boolean);
+
+  const address=
+    vendorAddressParts();
 
 
-  const combinedAddress=
-    addressParts.length
-      ? addressParts.join(', ')
-      : (
-          profile.cityStateZip
-            ? [
-                profile.address,
-                profile.cityStateZip
-              ]
-                .filter(Boolean)
-                .join(', ')
-            : 'Not entered'
-        );
+  const subscriptionEl=
+    $('#accountSubscription');
+
+  const emailEl=
+    $('#accountEmail');
 
 
-  const values={
+  if(subscriptionEl){
+    subscriptionEl.textContent=
+      subscription;
+  }
 
-    accountSubscription:
-      subscription,
 
-    accountEmail:
-      user?.email || 'Not available',
+  if(emailEl){
+    emailEl.textContent=
+      user?.email ||
+      'Not available';
+  }
 
-    accountOwner:
+
+  const fields={
+
+    accountOwnerInput:
       profile.ownerName ||
       user?.displayName ||
-      'Not entered',
+      '',
 
-    accountBusiness:
-      profile.businessName ||
-      'Not entered',
+    accountBusinessInput:
+      profile.businessName || '',
 
-    accountAddress:
-      combinedAddress,
+    accountStreetInput:
+      address.street,
 
-    accountPhone:
-      profile.phone ||
-      'Not entered',
+    accountCityInput:
+      address.city,
 
-    accountStatus:
-      'Active'
+    accountStateInput:
+      address.state,
+
+    accountZipInput:
+      address.zip,
+
+    accountPhoneInput:
+      profile.phone || ''
   };
 
 
   for(
     const [id,value]
-    of Object.entries(values)
+    of Object.entries(fields)
   ){
 
-    const element=
+    const el=
       document.getElementById(id);
 
-    if(element){
-      element.textContent=value;
+    if(el){
+      el.value=value;
     }
   }
 }
-
 
 function renderDashboard(){
 
@@ -6630,13 +6692,38 @@ function renderHistory(){
 }
 
 function fillProfile(){
-  $('#pBusiness').value=profile.businessName||'';
-  $('#pOwner').value=profile.ownerName||'';
-  $('#pAddress').value=profile.address||'';
-  $('#pPhone').value=profile.phone||'';
-  $('#pLocations').value=profile.locations||'';
-  $('#pSchools').value=profile.schools||'';
+
+  const address=
+    vendorAddressParts();
+
+  $('#pBusiness').value=
+    profile.businessName||'';
+
+  $('#pOwner').value=
+    profile.ownerName||'';
+
+  $('#pAddress').value=
+    address.street;
+
+  $('#pCity').value=
+    address.city;
+
+  $('#pState').value=
+    address.state;
+
+  $('#pZip').value=
+    address.zip;
+
+  $('#pPhone').value=
+    profile.phone||'';
+
+  $('#pLocations').value=
+    profile.locations||'';
+
+  $('#pSchools').value=
+    profile.schools||'';
 }
+
 
 $('#saveProfile').onclick=async()=>{
   let d={
@@ -6646,6 +6733,19 @@ $('#saveProfile').onclick=async()=>{
     city:$('#pCity').value.trim(),
     state:$('#pState').value.trim(),
     zip:$('#pZip').value.trim(),
+
+    cityStateZip:[
+      $('#pCity').value.trim(),
+      [
+        $('#pState').value.trim(),
+        $('#pZip').value.trim()
+      ]
+        .filter(Boolean)
+        .join(' ')
+    ]
+      .filter(Boolean)
+      .join(', '),
+
     phone:$('#pPhone').value.trim(),
     locations:$('#pLocations').value.trim(),
     schools:$('#pSchools').value.trim(),
@@ -6801,6 +6901,116 @@ if($('#accountResetPassword')){
   };
 }
 
+
+
+
+if($('#saveAccountInfo')){
+
+  $('#saveAccountInfo').onclick=async()=>{
+
+    const businessName=
+      $('#accountBusinessInput')
+        .value
+        .trim();
+
+    const ownerName=
+      $('#accountOwnerInput')
+        .value
+        .trim();
+
+    const address=
+      $('#accountStreetInput')
+        .value
+        .trim();
+
+    const city=
+      $('#accountCityInput')
+        .value
+        .trim();
+
+    const state=
+      $('#accountStateInput')
+        .value
+        .trim();
+
+    const zip=
+      $('#accountZipInput')
+        .value
+        .trim();
+
+    const phone=
+      $('#accountPhoneInput')
+        .value
+        .trim();
+
+
+    const cityStateZip=
+      [
+        city,
+        [
+          state,
+          zip
+        ]
+          .filter(Boolean)
+          .join(' ')
+      ]
+        .filter(Boolean)
+        .join(', ');
+
+
+    const data={
+
+      businessName,
+      ownerName,
+      address,
+      city,
+      state,
+      zip,
+      cityStateZip,
+      phone,
+
+      updatedAt:
+        serverTimestamp()
+    };
+
+
+    await setDoc(
+      vendorDoc(),
+      data,
+      {
+        merge:true
+      }
+    );
+
+
+    profile={
+      ...profile,
+      ...data
+    };
+
+
+    $('#bizNameSide').textContent=
+      businessName ||
+      'VendorFlow';
+
+
+    fillProfile();
+
+    renderAccountPage();
+
+
+    await log(
+      'Account information updated',
+      'Vendor and business contact information was updated.',
+      'Manual'
+    );
+
+
+    toast(
+      'Account information saved.'
+    );
+  };
+}
 
 
 installVendorFlowBranding();setAuthMode('login');
