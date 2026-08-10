@@ -1833,3 +1833,36 @@ main{
     width:100%;
   }
 }
+
+/* ==========================================================
+   SIDEBAR VIEWPORT / LOGOUT ACCESS
+   Keep the full sidebar usable on shorter screens.
+   ========================================================== */
+
+.sidebar{
+  height:100vh;
+  height:100dvh;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+  box-sizing:border-box;
+}
+
+.sidebar::-webkit-scrollbar{
+  width:6px;
+}
+
+.sidebar::-webkit-scrollbar-thumb{
+  background:rgba(255,255,255,.22);
+  border-radius:999px;
+}
+
+/*
+ * Give the final account area enough breathing room that its
+ * controls can always be scrolled completely into view.
+ */
+.sidebar > :last-child{
+  margin-bottom:18px;
+}
+
