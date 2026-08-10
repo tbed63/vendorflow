@@ -608,9 +608,43 @@ function serviceCountsAsActive(service){
     return false;
   }
 
+  /*
+   * Dropped is retained for older imported records.
+   * Removed services keep only the obligation already earned,
+   * so their adjusted totalPrice still counts financially.
+   */
   if(
     String(service.status||'')
       .toLowerCase()==='dropped'
+  ){
+    return false;
+  }
+
+  if(
+    service.classId &&
+    classIsArchived(service.classId)
+  ){
+    return false;
+  }
+
+  return true;
+}
+
+
+function serviceKeepsStudentVisible(service){
+
+  if(!service){
+    return false;
+  }
+
+  const status=
+    String(service.status||'')
+      .trim()
+      .toLowerCase();
+
+  if(
+    status==='removed' ||
+    status==='dropped'
   ){
     return false;
   }
@@ -642,7 +676,7 @@ function studentVisibleInServices(student){
   }
 
   return list.some(
-    serviceCountsAsActive
+    serviceKeepsStudentVisible
   );
 }
 
@@ -847,7 +881,8 @@ function active(s){
     'cancelled',
     'canceled',
     'withdrawn',
-    'inactive'
+    'inactive',
+    'removed'
   ].includes(norm(s.status));
 }
 
@@ -1310,24 +1345,11 @@ function renderRoster(){
           <div class="vf-roster-actions">
 
             <button
+              class="primary"
               data-edit-student="${s.id}">
               Edit student
             </button>
 
-            <button data-status="${s.id}">
-              Change status
-            </button>
-
-            ${active(s)
-              ? `<button
-                   class="danger"
-                   data-drop="${s.id}">
-                   Remove from class
-                 </button>`
-              : `<span class="vf-roster-inactive">
-                   ${esc(s.status || 'Inactive')}
-                 </span>`
-            }
           </div>
         </td>
       </tr>`
@@ -1337,13 +1359,6 @@ function renderRoster(){
     b=>b.onclick=()=>editRosterStudent(b.dataset.editStudent)
   );
 
-  $$('[data-status]').forEach(
-    b=>b.onclick=()=>changeStatus(b.dataset.status)
-  );
-
-  $$('[data-drop]').forEach(
-    b=>b.onclick=()=>dropStudentFromClass(b.dataset.drop)
-  );
 }
 
 
@@ -1507,6 +1522,71 @@ async function changeStatus(id){
 
 
 
+
+function updateStudentStatusHelp(){
+
+  const box=
+    $('#studentStatusHelp');
+
+  if(!box){
+    return;
+  }
+
+  const status=
+    $('#ss').value;
+
+
+  if(status==='Inactive'){
+
+    box.className=
+      'vf-student-status-help vf-status-warning';
+
+    box.innerHTML=`
+      <strong>Inactive:</strong>
+      The student is no longer participating, but the existing
+      class payment obligation remains.
+    `;
+
+    return;
+  }
+
+
+  if(status==='Removed'){
+
+    box.className=
+      'vf-student-status-help vf-status-danger';
+
+    box.innerHTML=`
+      <strong>Removed:</strong>
+      The student leaves the active class roster and VendorFlow
+      removes the remaining unpaid class obligation.
+      Prior payments, certificates and history are preserved.
+    `;
+
+    return;
+  }
+
+
+  box.className=
+    'vf-student-status-help vf-status-normal';
+
+  box.innerHTML=`
+    <strong>Active:</strong>
+    The student is participating and the normal class
+    payment obligation remains.
+  `;
+}
+
+
+if($('#ss')){
+
+  $('#ss').addEventListener(
+    'change',
+    updateStudentStatusHelp
+  );
+}
+
+
 function resetRosterStudentForm(){
 
   editingRosterStudentId=null;
@@ -1518,6 +1598,8 @@ function resetRosterStudentForm(){
   $('#pp').value='';
   $('#sg').value='';
   $('#ss').value='Active';
+
+  updateStudentStatusHelp();
 
   $('#saveStudent').textContent=
     'Save student';
@@ -1555,8 +1637,22 @@ function editRosterStudent(id){
   $('#sg').value=
     s.grade||'';
 
+  const oldStatus=
+    String(s.status||'Active')
+      .trim()
+      .toLowerCase();
+
   $('#ss').value=
-    s.status||'Active';
+    oldStatus==='active'
+      ? 'Active'
+      : (
+          oldStatus==='removed' ||
+          oldStatus==='dropped'
+            ? 'Removed'
+            : 'Inactive'
+        );
+
+  updateStudentStatusHelp();
 
   $('#saveStudent').textContent=
     'Save changes';
@@ -1588,6 +1684,195 @@ $('#addStudent').onclick=()=>{
   );
 };
 
+
+async function applyRosterFinancialStatus(
+  classRecord,
+  rosterRecord,
+  newStatus
+){
+
+  const coreId=
+    rosterRecord?.coreStudentId ||
+    students.find(
+      student=>
+        normalizedName(student.studentName)===
+        normalizedName(rosterRecord.studentName)
+    )?.id ||
+    '';
+
+  if(!coreId){
+    return;
+  }
+
+
+  const coreStudent=
+    students.find(
+      student=>student.id===coreId
+    );
+
+  const linked=
+    services.filter(
+      service=>
+        service.studentId===coreId &&
+        service.classId===classRecord.id
+    );
+
+
+  if(!linked.length){
+    return;
+  }
+
+
+  /*
+   * Active / Inactive:
+   * participation changes but obligation remains intact.
+   */
+  if(
+    newStatus==='Active' ||
+    newStatus==='Inactive'
+  ){
+
+    for(const service of linked){
+
+      let update={
+        status:newStatus,
+        updatedAt:serverTimestamp()
+      };
+
+
+      /*
+       * If a Removed student is restored, restore the
+       * original class price as well.
+       */
+      if(
+        String(service.status||'')
+          .toLowerCase()==='removed' &&
+        Number(service.originalTotalPrice)>0
+      ){
+
+        update.totalPrice=
+          Number(service.originalTotalPrice);
+
+        update.waivedAmount=0;
+
+        update.financialDisposition=
+          'Normal obligation restored';
+      }
+
+
+      await setDoc(
+        doc(
+          db,
+          'vendors',
+          user.uid,
+          'services',
+          service.id
+        ),
+        update,
+        {
+          merge:true
+        }
+      );
+    }
+
+    return;
+  }
+
+
+  if(newStatus!=='Removed'){
+    return;
+  }
+
+
+  /*
+   * REMOVED:
+   *
+   * Waive only the REMAINING UNPAID portion.
+   * This avoids creating an artificial refund for money
+   * the family already paid or funded with a certificate.
+   */
+  const account=
+    coreStudent
+      ? studentAccountTotals(coreStudent)
+      : null;
+
+  let remainingUnpaid=
+    Math.max(
+      0,
+      Number(
+        account?.parentBalance||0
+      )
+    );
+
+
+  for(const service of linked){
+
+    const currentPrice=
+      Number(service.totalPrice||0);
+
+    const originalPrice=
+      Number(
+        service.originalTotalPrice ||
+        currentPrice
+      );
+
+    const waiver=
+      Math.min(
+        currentPrice,
+        remainingUnpaid
+      );
+
+    const adjustedPrice=
+      Math.max(
+        0,
+        currentPrice-waiver
+      );
+
+
+    remainingUnpaid=
+      Math.max(
+        0,
+        remainingUnpaid-waiver
+      );
+
+
+    await setDoc(
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'services',
+        service.id
+      ),
+      {
+        status:'Removed',
+
+        originalTotalPrice:
+          originalPrice,
+
+        totalPrice:
+          adjustedPrice,
+
+        waivedAmount:
+          Number(service.waivedAmount||0)+waiver,
+
+        financialDisposition:
+          'Remaining unpaid obligation removed',
+
+        removedAt:
+          serverTimestamp(),
+
+        updatedAt:
+          serverTimestamp()
+      },
+      {
+        merge:true
+      }
+    );
+  }
+}
+
+
 $('#saveStudent').onclick=async()=>{
 
   const c=
@@ -1608,6 +1893,46 @@ $('#saveStudent').onclick=async()=>{
     return toast(
       'Enter student first and last name.'
     );
+  }
+
+
+  const requestedStatus=
+    $('#ss').value;
+
+
+  if(
+    editingRosterStudentId &&
+    requestedStatus==='Inactive'
+  ){
+
+    const ok=
+      confirm(
+        'Mark this student Inactive?\n\n' +
+        'The student will no longer be participating, but their ' +
+        'existing class payment obligation will remain.'
+      );
+
+    if(!ok){
+      return;
+    }
+  }
+
+
+  if(
+    editingRosterStudentId &&
+    requestedStatus==='Removed'
+  ){
+
+    const ok=
+      confirm(
+        'Remove this student from the class?\n\n' +
+        'VendorFlow will remove the remaining unpaid class obligation. ' +
+        'Prior payments, certificates and history will be preserved.'
+      );
+
+    if(!ok){
+      return;
+    }
   }
 
 
@@ -1768,6 +2093,16 @@ $('#saveStudent').onclick=async()=>{
         }]
       );
     }
+
+
+    await applyRosterFinancialStatus(
+      c,
+      {
+        ...existing,
+        ...data
+      },
+      data.status
+    );
 
 
     await log(

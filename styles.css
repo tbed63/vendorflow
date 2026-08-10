@@ -1558,3 +1558,38 @@ main{
 #studentForm{
   position:relative;
 }
+
+
+/* ==========================================================
+   STUDENT STATUS MEANING
+   ========================================================== */
+
+.vf-student-status-help{
+  grid-column:1 / -1;
+  padding:11px 13px;
+  border-radius:10px;
+  font-size:12px;
+  line-height:1.5;
+}
+
+.vf-status-normal{
+  background:#EEF4FF;
+  border:1px solid #B2CCFF;
+  color:#1A346F;
+}
+
+.vf-status-warning{
+  background:#FFF7ED;
+  border:1px solid #FED7AA;
+  color:#9A3412;
+}
+
+.vf-status-danger{
+  background:#FFF1F0;
+  border:1px solid #FDA29B;
+  color:#B42318;
+}
+
+.vf-roster-actions{
+  justify-content:flex-start;
+}
