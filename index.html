@@ -804,18 +804,27 @@
               placeholder="Student">
 
             <div class="vf-cert-charter-field">
+
               <input
                 id="certSchool"
                 class="input"
-                list="certCharterSchoolOptions"
                 autocomplete="off"
-                placeholder="Charter school">
+                placeholder="Start typing charter school">
 
-              <datalist id="certCharterSchoolOptions"></datalist>
+              <input
+                id="certCharterSchoolId"
+                type="hidden">
 
-              <small>
-                Choose a saved charter school when possible.
-              </small>
+              <div
+                id="certCharterMatches"
+                class="vf-cert-charter-matches hidden">
+              </div>
+
+              <div
+                id="certCharterLinked"
+                class="vf-cert-charter-linked hidden">
+              </div>
+
             </div>
 
             <input

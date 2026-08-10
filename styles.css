@@ -2216,3 +2216,100 @@ main{
 .vf-invoice-unlinked strong{
   color:#775A13;
 }
+
+
+/* ==========================================================
+   CERTIFICATE CHARTER PICKER
+   ========================================================== */
+
+.vf-cert-charter-field{
+  position:relative;
+}
+
+.vf-cert-charter-matches{
+  position:absolute;
+  z-index:50;
+  left:0;
+  right:0;
+  top:100%;
+  margin-top:4px;
+  border:1px solid #D6DEE3;
+  border-radius:11px;
+  overflow:hidden;
+  background:#FFFFFF;
+  box-shadow:0 12px 30px rgba(20,40,55,.14);
+}
+
+.vf-cert-charter-match,
+.vf-cert-charter-add{
+  width:100%;
+  display:grid;
+  gap:3px;
+  padding:11px 13px;
+  border:0;
+  border-bottom:1px solid #E8ECEF;
+  border-radius:0;
+  background:#FFFFFF;
+  text-align:left;
+  cursor:pointer;
+}
+
+.vf-cert-charter-match:last-child,
+.vf-cert-charter-add:last-child{
+  border-bottom:0;
+}
+
+.vf-cert-charter-match:hover{
+  background:#F3F6FA;
+}
+
+.vf-cert-charter-match strong,
+.vf-cert-charter-add strong{
+  color:#22363F;
+  font-size:12px;
+}
+
+.vf-cert-charter-match span,
+.vf-cert-charter-add span{
+  color:#66757D;
+  font-size:10px;
+}
+
+.vf-cert-charter-add{
+  background:#F5F8FF;
+}
+
+.vf-cert-charter-add strong{
+  color:#1A346F;
+}
+
+.vf-cert-charter-linked{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-top:6px;
+  padding:9px 11px;
+  border:1px solid #A8D5B5;
+  border-radius:9px;
+  background:#EEF8F1;
+}
+
+.vf-cert-charter-linked > div{
+  display:grid;
+  gap:2px;
+}
+
+.vf-cert-charter-linked strong{
+  color:#236A3B;
+  font-size:11px;
+}
+
+.vf-cert-charter-linked span{
+  color:#52725D;
+  font-size:10px;
+}
+
+.vf-cert-charter-linked button{
+  flex-shrink:0;
+}

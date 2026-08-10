@@ -1098,6 +1098,449 @@ function renderArchivedCharterSchools(){
 
 
 
+
+function selectedCertificateCharter(){
+
+  const id=
+    $('#certCharterSchoolId')?.value || '';
+
+  if(!id){
+    return null;
+  }
+
+  return charterSchools.find(
+    charter=>
+      charter.id===id &&
+      !charter.archived
+  ) || null;
+}
+
+
+function clearCertificateCharterLink(
+  keepText=true
+){
+
+  const hidden=
+    $('#certCharterSchoolId');
+
+  const linked=
+    $('#certCharterLinked');
+
+  const matches=
+    $('#certCharterMatches');
+
+  if(hidden){
+    hidden.value='';
+  }
+
+  if(linked){
+    linked.innerHTML='';
+    hide(linked);
+  }
+
+  if(matches){
+    matches.innerHTML='';
+    hide(matches);
+  }
+
+  if(!keepText && $('#certSchool')){
+    $('#certSchool').value='';
+  }
+}
+
+
+function linkCertificateCharter(
+  charter
+){
+
+  if(!charter){
+    return;
+  }
+
+  $('#certCharterSchoolId').value=
+    charter.id;
+
+  $('#certSchool').value=
+    charter.name||'';
+
+  /*
+   * Saved charter billing information becomes the default.
+   * A certificate-specific billing email can still be edited.
+   */
+  if(
+    charter.billingEmail &&
+    !$('#certBillingEmail').value.trim()
+  ){
+    $('#certBillingEmail').value=
+      charter.billingEmail;
+  }
+
+
+  const linked=
+    $('#certCharterLinked');
+
+  linked.innerHTML=`
+    <div>
+      <strong>
+        Linked to ${esc(charter.name||'Charter school')}
+      </strong>
+
+      <span>
+        ${
+          charter.billingEmail
+            ? esc(charter.billingEmail)
+            : 'No billing email saved'
+        }
+        ·
+        ${
+          Number.isFinite(
+            Number(charter.invoiceDaysAfterStart)
+          )
+            ? Number(charter.invoiceDaysAfterStart)
+            : 14
+        } day invoice timing
+      </span>
+    </div>
+
+    <button
+      type="button"
+      id="changeCertificateCharter">
+      Change
+    </button>
+  `;
+
+  show(linked);
+
+  hide(
+    $('#certCharterMatches')
+  );
+
+
+  $('#changeCertificateCharter').onclick=()=>{
+
+    clearCertificateCharterLink(
+      true
+    );
+
+    $('#certSchool').focus();
+
+    renderCertificateCharterMatches();
+  };
+}
+
+
+function certificateCharterMatches(){
+
+  const query=
+    normalizedCharterName(
+      $('#certSchool')?.value || ''
+    );
+
+  if(!query){
+    return [];
+  }
+
+  return charterSchools
+    .filter(
+      charter=>
+        !charter.archived &&
+        normalizedCharterName(
+          charter.name
+        ).includes(query)
+    )
+    .sort(
+      (a,b)=>
+        String(a.name||'')
+          .localeCompare(
+            String(b.name||'')
+          )
+    )
+    .slice(0,8);
+}
+
+
+function renderCertificateCharterMatches(){
+
+  const input=
+    $('#certSchool');
+
+  const box=
+    $('#certCharterMatches');
+
+  if(!input || !box){
+    return;
+  }
+
+
+  if(selectedCertificateCharter()){
+
+    hide(box);
+    return;
+  }
+
+
+  const typed=
+    input.value.trim();
+
+  if(!typed){
+
+    box.innerHTML='';
+    hide(box);
+    return;
+  }
+
+
+  const matches=
+    certificateCharterMatches();
+
+
+  const matchHTML=
+    matches.map(
+      charter=>`
+        <button
+          type="button"
+          class="vf-cert-charter-match"
+          data-cert-charter-id="${charter.id}">
+
+          <strong>
+            ${esc(charter.name||'Unnamed charter')}
+          </strong>
+
+          <span>
+            ${esc(
+              charterDisplayAddress(charter) ||
+              charter.billingEmail ||
+              'Saved charter'
+            )}
+          </span>
+
+        </button>
+      `
+    ).join('');
+
+
+  box.innerHTML=`
+    ${matchHTML}
+
+    <button
+      type="button"
+      class="vf-cert-charter-add"
+      id="addCertificateCharter">
+
+      <strong>
+        + Add new charter school
+      </strong>
+
+      <span>
+        ${typed
+          ? `Create “${esc(typed)}” in your charter bank`
+          : 'Add a charter school'
+        }
+      </span>
+
+    </button>
+  `;
+
+
+  $$('[data-cert-charter-id]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        const charter=
+          charterSchools.find(
+            item=>
+              item.id===
+              button.dataset.certCharterId
+          );
+
+        if(charter){
+          linkCertificateCharter(
+            charter
+          );
+        }
+      };
+    });
+
+
+  $('#addCertificateCharter').onclick=()=>{
+
+    const name=
+      $('#certSchool').value.trim();
+
+    /*
+     * Preserve the certificate form while the vendor adds
+     * a charter record in the Charter Schools section.
+     */
+    sessionStorage.setItem(
+      'vendorflowPendingCertificateCharter',
+      JSON.stringify({
+        name,
+        student:
+          $('#certStudent')?.value || '',
+        amount:
+          $('#certAmount')?.value || '',
+        number:
+          $('#certNumber')?.value || '',
+        issueDate:
+          $('#certIssueDate')?.value || '',
+        serviceStart:
+          $('#certServiceStart')?.value || '',
+        serviceEnd:
+          $('#certServiceEnd')?.value || '',
+        billingEmail:
+          $('#certBillingEmail')?.value || '',
+        serviceDescription:
+          $('#certServiceDescription')?.value || '',
+        invoiceInstructions:
+          $('#certInvoiceInstructions')?.value || '',
+        notes:
+          $('#certNotes')?.value || ''
+      })
+    );
+
+
+    switchView(
+      'charters'
+    );
+
+
+    openCharterEditor();
+
+
+    $('#charterName').value=
+      name;
+  };
+
+
+  show(box);
+}
+
+
+function restorePendingCertificateAfterCharterSave(
+  charter
+){
+
+  const raw=
+    sessionStorage.getItem(
+      'vendorflowPendingCertificateCharter'
+    );
+
+  if(!raw){
+    return;
+  }
+
+
+  let pending=null;
+
+  try{
+    pending=JSON.parse(raw);
+  }catch{
+    pending=null;
+  }
+
+
+  sessionStorage.removeItem(
+    'vendorflowPendingCertificateCharter'
+  );
+
+
+  if(!pending){
+    return;
+  }
+
+
+  switchView(
+    'certificates'
+  );
+
+
+  show(
+    $('#certificateForm')
+  );
+
+
+  $('#certStudent').value=
+    pending.student||'';
+
+  $('#certAmount').value=
+    pending.amount||'';
+
+  $('#certNumber').value=
+    pending.number||'';
+
+  $('#certIssueDate').value=
+    pending.issueDate||'';
+
+  $('#certServiceStart').value=
+    pending.serviceStart||'';
+
+  $('#certServiceEnd').value=
+    pending.serviceEnd||'';
+
+  $('#certBillingEmail').value=
+    pending.billingEmail||'';
+
+  $('#certServiceDescription').value=
+    pending.serviceDescription||'';
+
+  $('#certInvoiceInstructions').value=
+    pending.invoiceInstructions||'';
+
+  $('#certNotes').value=
+    pending.notes||'';
+
+
+  linkCertificateCharter(
+    charter
+  );
+
+
+  toast(
+    'Charter school added and linked to this certificate.'
+  );
+}
+
+
+if($('#certSchool')){
+
+  $('#certSchool').addEventListener(
+    'input',
+    ()=>{
+
+      /*
+       * Editing the text after a selection breaks the link
+       * until the vendor explicitly selects a charter again.
+       */
+      const linked=
+        selectedCertificateCharter();
+
+      if(
+        linked &&
+        normalizedCharterName(
+          $('#certSchool').value
+        )!==
+        normalizedCharterName(
+          linked.name
+        )
+      ){
+        clearCertificateCharterLink(
+          true
+        );
+      }
+
+      renderCertificateCharterMatches();
+    }
+  );
+
+
+  $('#certSchool').addEventListener(
+    'focus',
+    renderCertificateCharterMatches
+  );
+}
+
+
 function normalizedCharterName(value){
 
   return String(value||'')
@@ -6923,6 +7366,10 @@ $('#cancelCertificate').onclick=()=>{
 
   pendingCertificatePdf=null;
 
+  clearCertificateCharterLink(
+    false
+  );
+
   if($('#certExtractionReview')){
     hide($('#certExtractionReview'));
     $('#certExtractionReview').innerHTML='';
@@ -7017,9 +7464,45 @@ $('#saveCertificate').onclick=async()=>{
 
 
     const savedCharter=
-      findSavedCharterByName(
-        school
-      );
+      selectedCertificateCharter();
+
+    if(!savedCharter){
+
+      const likelyMatches=
+        charterSchools.filter(
+          charter=>
+            !charter.archived &&
+            (
+              normalizedCharterName(
+                charter.name
+              ).includes(
+                normalizedCharterName(school)
+              ) ||
+              normalizedCharterName(school)
+                .includes(
+                  normalizedCharterName(
+                    charter.name
+                  )
+                )
+            )
+        );
+
+
+      if(likelyMatches.length){
+
+        button.disabled=false;
+
+        button.textContent=
+          'Save certificate';
+
+        renderCertificateCharterMatches();
+
+        return toast(
+          'Choose the matching charter school from the suggestions before saving.'
+        );
+      }
+    }
+
 
     const serviceStartDate=
       $('#certServiceStart')?.value.trim() || '';
@@ -7249,6 +7732,10 @@ $('#saveCertificate').onclick=async()=>{
     }
 
     pendingCertificatePdf=null;
+
+    clearCertificateCharterLink(
+      false
+    );
 
     if($('#certExtractionReview')){
       hide($('#certExtractionReview'));
@@ -8069,14 +8556,20 @@ $('#saveCharterSchool').onclick=async()=>{
       );
     }
 
-    await addDoc(
-      sub('charterSchools'),
-      {
-        ...data,
-        createdAt:
-          serverTimestamp()
-      }
-    );
+    const newCharterRef=
+      await addDoc(
+        sub('charterSchools'),
+        {
+          ...data,
+          createdAt:
+            serverTimestamp()
+        }
+      );
+
+    const newlyAddedCharter={
+      id:newCharterRef.id,
+      ...data
+    };
 
     await log(
       'Charter school added',
@@ -8090,6 +8583,20 @@ $('#saveCharterSchool').onclick=async()=>{
   }
 
 
+  const pendingCertificateFlow=
+    sessionStorage.getItem(
+      'vendorflowPendingCertificateCharter'
+    );
+
+  const savedCharterId=
+    editingCharterSchoolId ||
+    (
+      typeof newlyAddedCharter!=='undefined'
+        ? newlyAddedCharter.id
+        : ''
+    );
+
+
   resetCharterForm();
 
   hide(
@@ -8097,6 +8604,26 @@ $('#saveCharterSchool').onclick=async()=>{
   );
 
   await refreshAll();
+
+
+  if(
+    pendingCertificateFlow &&
+    savedCharterId
+  ){
+
+    const savedCharter=
+      charterSchools.find(
+        charter=>
+          charter.id===savedCharterId
+      );
+
+    if(savedCharter){
+
+      restorePendingCertificateAfterCharterSave(
+        savedCharter
+      );
+    }
+  }
 };
 
 
