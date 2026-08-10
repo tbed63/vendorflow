@@ -344,6 +344,11 @@
               No PDF selected.
             </div>
 
+            <div
+              id="certExtractionReview"
+              class="vf-extraction-review hidden">
+            </div>
+
           </div>
 
 
@@ -372,6 +377,27 @@
               class="input"
               placeholder="Certificate / PO #">
 
+            <input
+              id="certIssueDate"
+              class="input"
+              placeholder="Issue date">
+
+            <input
+              id="certServiceStart"
+              class="input"
+              placeholder="Service start date">
+
+            <input
+              id="certServiceEnd"
+              class="input"
+              placeholder="Service end date">
+
+            <input
+              id="certBillingEmail"
+              class="input"
+              type="email"
+              placeholder="Invoice / billing email">
+
             <select id="certStatus" class="input">
               <option>Received - Not Billed</option>
               <option>Billed - Not Paid</option>
@@ -380,6 +406,24 @@
             </select>
 
           </div>
+
+          <textarea
+            id="certServiceDescription"
+            class="input"
+            rows="2"
+            placeholder="Service description"></textarea>
+
+          <textarea
+            id="certInvoiceInstructions"
+            class="input"
+            rows="3"
+            placeholder="Invoice instructions from certificate"></textarea>
+
+          <textarea
+            id="certNotes"
+            class="input"
+            rows="2"
+            placeholder="Certificate notes"></textarea>
 
 
           <div class="row">

@@ -35,6 +35,7 @@ const VENDORFLOW_API =
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),$=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],show=e=>e.classList.remove("hidden"),hide=e=>e.classList.add("hidden"),esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 let user=null,profile={},classes=[],roster=[],students=[],services=[],payments=[],certs=[],compliance=[],reviews=[],history=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
 let selectedPaymentStudentId=null;
+let pendingCertificatePdf=null;
 const questions=[['businessName','What is the name of your business?','This will appear on invoices.'],['ownerName','What name should VendorFlow use for you?','Your name as vendor or owner.'],['address','What is your business mailing address?','Street address.'],['cityStateZip','What city, state, and ZIP go with that address?','Example: Encinitas, CA 92024'],['phone','What business phone number should VendorFlow use?','You can change this later.'],['locations','Where do you teach or conduct business?','Learning centers, campuses, tutoring locations, etc.'],['schools','Which charter schools or organizations do you work with?','List as many as you know now.']];
 const aliases={registrationId:['id','registration id'],status:['status','registration status'],classTitle:['title','class title','class'],studentFirst:['registrant first name','student first name','child first name'],studentLast:['registrant last name','student last name','child last name'],parentFirst:['primary first name','parent first name','guardian first name'],parentLast:['primary last name','parent last name','guardian last name'],parentEmail:['email address','parent email','guardian email'],parentPhone:['phone','parent phone','guardian phone'],grade:['grade level','grade']};
 const vendorDoc=()=>doc(db,'vendors',user.uid),sub=n=>collection(db,'vendors',user.uid,n),toast=m=>{let t=$('#toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)};
@@ -2525,6 +2526,187 @@ async function uploadCertificatePdf(file){
 }
 
 
+
+async function extractCertificatePdf(objectKey){
+
+  if(!user || !objectKey){
+    throw new Error(
+      'Certificate PDF is not available.'
+    );
+  }
+
+  const token=
+    await user.getIdToken();
+
+  const response=
+    await fetch(
+      `${VENDORFLOW_API}/certificate/extract`,
+      {
+        method:'POST',
+
+        headers:{
+          Authorization:`Bearer ${token}`,
+          'Content-Type':'application/json'
+        },
+
+        body:JSON.stringify({
+          objectKey
+        })
+      }
+    );
+
+  let data={};
+
+  try{
+    data=await response.json();
+  }catch{}
+
+  if(!response.ok){
+    throw new Error(
+      data.detail ||
+      data.error ||
+      'VendorFlow could not read this certificate.'
+    );
+  }
+
+  return data;
+}
+
+
+function setCertificateField(selector,value){
+
+  const el=$(selector);
+
+  if(!el){
+    return;
+  }
+
+  if(
+    value===undefined ||
+    value===null ||
+    value===''
+  ){
+    return;
+  }
+
+  el.value=String(value);
+}
+
+
+function fillCertificateFromExtraction(result){
+
+  const x=
+    result?.extraction || {};
+
+  setCertificateField(
+    '#certStudent',
+    x.studentName
+  );
+
+  setCertificateField(
+    '#certSchool',
+    x.charterSchool
+  );
+
+  if(Number(x.amount)>0){
+    setCertificateField(
+      '#certAmount',
+      Number(x.amount)
+    );
+  }
+
+  const reference=
+    x.certificateNumber ||
+    x.purchaseOrderNumber ||
+    '';
+
+  setCertificateField(
+    '#certNumber',
+    reference
+  );
+
+  setCertificateField(
+    '#certIssueDate',
+    x.issueDate
+  );
+
+  setCertificateField(
+    '#certServiceStart',
+    x.serviceStartDate
+  );
+
+  setCertificateField(
+    '#certServiceEnd',
+    x.serviceEndDate
+  );
+
+  setCertificateField(
+    '#certBillingEmail',
+    x.billingEmail
+  );
+
+  setCertificateField(
+    '#certServiceDescription',
+    x.serviceDescription
+  );
+
+  setCertificateField(
+    '#certInvoiceInstructions',
+    x.invoiceInstructions
+  );
+
+  setCertificateField(
+    '#certNotes',
+    x.notes
+  );
+
+
+  const review=
+    $('#certExtractionReview');
+
+  if(!review){
+    return;
+  }
+
+  const confidence=
+    Math.max(
+      0,
+      Math.min(
+        1,
+        Number(x.confidence||0)
+      )
+    );
+
+  const percent=
+    Math.round(confidence*100);
+
+
+  if(x.needsReview){
+
+    review.className=
+      'vf-extraction-review vf-extraction-warning';
+
+    review.innerHTML=
+      `<strong>Please review this certificate.</strong>
+       VendorFlow read it with about ${percent}% overall confidence.
+       Check the student, charter, amount and certificate number
+       before saving.`;
+
+  }else{
+
+    review.className=
+      'vf-extraction-review vf-extraction-good';
+
+    review.innerHTML=
+      `<strong>Certificate read successfully.</strong>
+       VendorFlow filled in the information it found.
+       Give the fields a quick check, then save.`;
+  }
+
+  show(review);
+}
+
+
 async function openCertificatePdf(objectKey){
 
   if(!user || !objectKey){
@@ -2618,21 +2800,35 @@ if($('#certPdf')){
 
   $('#certPdf').addEventListener(
     'change',
-    ()=>{
+    async()=>{
 
-      const file =
+      const file=
         $('#certPdf').files?.[0];
 
-      const status =
+      const status=
         $('#certPdfStatus');
+
+      const review=
+        $('#certExtractionReview');
+
+
+      pendingCertificatePdf=null;
+
+
+      if(review){
+        hide(review);
+        review.innerHTML='';
+      }
+
 
       if(!file){
 
-        status.textContent =
+        status.textContent=
           'No PDF selected.';
 
         return;
       }
+
 
       if(
         file.type!=='application/pdf' &&
@@ -2641,18 +2837,100 @@ if($('#certPdf')){
 
         $('#certPdf').value='';
 
-        status.textContent =
+        status.textContent=
           'Please choose a PDF file.';
 
         return;
       }
 
-      const mb =
-        (file.size / 1024 / 1024)
+
+      const mb=
+        (file.size/1024/1024)
           .toFixed(2);
 
-      status.textContent =
-        `${file.name} — ${mb} MB`;
+
+      try{
+
+        status.textContent=
+          `${file.name} — ${mb} MB — uploading securely…`;
+
+
+        const uploaded=
+          await uploadCertificatePdf(
+            file
+          );
+
+
+        /*
+         * Store this immediately so even if AI extraction fails,
+         * Save Certificate can still keep the successfully uploaded PDF.
+         */
+        pendingCertificatePdf={
+          ...uploaded
+        };
+
+
+        status.textContent=
+          'PDF stored securely. Reading certificate…';
+
+
+        const extraction=
+          await extractCertificatePdf(
+            uploaded.objectKey
+          );
+
+
+        pendingCertificatePdf={
+          ...uploaded,
+          extraction:
+            extraction.extraction || {},
+          sourceTextLength:
+            extraction.sourceTextLength || 0
+        };
+
+
+        fillCertificateFromExtraction(
+          extraction
+        );
+
+
+        status.textContent=
+          `${file.name} — ready to review.`;
+
+
+      }catch(error){
+
+        console.error(error);
+
+
+        status.textContent=
+          pendingCertificatePdf?.objectKey
+            ? 'PDF stored, but automatic reading needs review.'
+            : 'PDF upload failed.';
+
+
+        if(review){
+
+          review.className=
+            'vf-extraction-review vf-extraction-warning';
+
+          review.innerHTML=
+            pendingCertificatePdf?.objectKey
+              ? `<strong>The PDF is safely stored.</strong>
+                 VendorFlow could not confidently read it.
+                 Enter or correct the fields manually, then save.`
+              : `<strong>The PDF could not be uploaded.</strong>
+                 Please try again.`;
+
+          show(review);
+        }
+
+
+        toast(
+          error.message ||
+          'Certificate could not be read.'
+        );
+      }
     }
   );
 }
@@ -2678,6 +2956,13 @@ $('#cancelCertificate').onclick=()=>{
   if($('#certPdfStatus')){
     $('#certPdfStatus').textContent=
       'No PDF selected.';
+  }
+
+  pendingCertificatePdf=null;
+
+  if($('#certExtractionReview')){
+    hide($('#certExtractionReview'));
+    $('#certExtractionReview').innerHTML='';
   }
 };
 
@@ -2738,19 +3023,24 @@ $('#saveCertificate').onclick=async()=>{
 
   try{
 
-    let pdf=null;
+    let pdf=
+      pendingCertificatePdf;
 
-    if(pdfFile){
 
-      $('#certPdfStatus').textContent =
+    if(
+      pdfFile &&
+      !pdf?.objectKey
+    ){
+
+      $('#certPdfStatus').textContent=
         'Uploading securely…';
 
-      pdf =
+      pdf=
         await uploadCertificatePdf(
           pdfFile
         );
 
-      $('#certPdfStatus').textContent =
+      $('#certPdfStatus').textContent=
         'PDF uploaded securely.';
     }
 
@@ -2797,6 +3087,40 @@ $('#saveCertificate').onclick=async()=>{
       pdfStored:
         Boolean(pdf?.objectKey),
 
+      issueDate:
+        $('#certIssueDate')?.value.trim() || '',
+
+      serviceStartDate:
+        $('#certServiceStart')?.value.trim() || '',
+
+      serviceEndDate:
+        $('#certServiceEnd')?.value.trim() || '',
+
+      serviceDescription:
+        $('#certServiceDescription')?.value.trim() || '',
+
+      billingEmail:
+        $('#certBillingEmail')?.value.trim() || '',
+
+      invoiceInstructions:
+        $('#certInvoiceInstructions')?.value.trim() || '',
+
+      notes:
+        $('#certNotes')?.value.trim() || '',
+
+      extraction:
+        pdf?.extraction || null,
+
+      extractionConfidence:
+        Number(
+          pdf?.extraction?.confidence || 0
+        ),
+
+      extractionNeedsReview:
+        Boolean(
+          pdf?.extraction?.needsReview
+        ),
+
       createdAt:
         serverTimestamp(),
 
@@ -2824,7 +3148,14 @@ $('#saveCertificate').onclick=async()=>{
       '#certStudent',
       '#certSchool',
       '#certAmount',
-      '#certNumber'
+      '#certNumber',
+      '#certIssueDate',
+      '#certServiceStart',
+      '#certServiceEnd',
+      '#certBillingEmail',
+      '#certServiceDescription',
+      '#certInvoiceInstructions',
+      '#certNotes'
     ].forEach(id=>{
 
       const el=$(id);
@@ -2843,6 +3174,13 @@ $('#saveCertificate').onclick=async()=>{
     if($('#certPdfStatus')){
       $('#certPdfStatus').textContent=
         'No PDF selected.';
+    }
+
+    pendingCertificatePdf=null;
+
+    if($('#certExtractionReview')){
+      hide($('#certExtractionReview'));
+      $('#certExtractionReview').innerHTML='';
     }
 
 
