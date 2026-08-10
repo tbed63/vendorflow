@@ -2655,9 +2655,578 @@ function balanceStatus(balance){
 }
 
 
+
+function studentSearchHaystack(student){
+
+  return [
+    student.studentName,
+    student.studentFirst,
+    student.studentLast,
+    student.parentName,
+    student.parentEmail,
+    student.parentPhone,
+    student.grade
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+}
+
+
+function renderGlobalStudentSearch(){
+
+  const input=
+    $('#globalStudentSearch');
+
+  const results=
+    $('#globalStudentSearchResults');
+
+  if(!input || !results){
+    return;
+  }
+
+  const query=
+    String(input.value||'')
+      .trim()
+      .toLowerCase();
+
+  if(!query){
+
+    results.innerHTML='';
+    hide(results);
+    return;
+  }
+
+
+  const matches=
+    students
+      .filter(
+        student=>
+          studentSearchHaystack(student)
+            .includes(query)
+      )
+      .sort(
+        (a,b)=>
+          (a.studentName||'')
+            .localeCompare(
+              b.studentName||''
+            )
+      )
+      .slice(0,20);
+
+
+  if(!matches.length){
+
+    results.innerHTML=`
+      <div class="vf-search-empty">
+        No matching students found.
+      </div>
+    `;
+
+    show(results);
+    return;
+  }
+
+
+  results.innerHTML=
+    matches.map(student=>{
+
+      const linkedServices=
+        studentServices(student.id)
+          .filter(serviceKeepsStudentVisible);
+
+      const classNames=
+        linkedServices
+          .map(
+            service=>
+              service.name ||
+              service.serviceType ||
+              ''
+          )
+          .filter(Boolean)
+          .join(' · ');
+
+      return `
+        <button
+          type="button"
+          class="vf-global-student-result"
+          data-global-student="${student.id}">
+
+          <div class="vf-global-student-main">
+
+            <strong>
+              ${esc(student.studentName||'Unnamed student')}
+            </strong>
+
+            <span>
+              ${esc(student.parentName||'')}
+              ${student.parentEmail
+                ? ' · '+esc(student.parentEmail)
+                : ''}
+              ${student.parentPhone
+                ? ' · '+esc(student.parentPhone)
+                : ''}
+            </span>
+
+            ${classNames
+              ? `<small>${esc(classNames)}</small>`
+              : ''}
+
+          </div>
+
+          <span class="vf-global-edit-label">
+            Edit
+          </span>
+
+        </button>
+      `;
+    }).join('');
+
+
+  $$('[data-global-student]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        openGlobalStudentEdit(
+          button.dataset.globalStudent
+        );
+      };
+    });
+
+
+  show(results);
+}
+
+
+async function openGlobalStudentEdit(studentId){
+
+  const student=
+    students.find(
+      item=>item.id===studentId
+    );
+
+  if(!student){
+    return;
+  }
+
+
+  /*
+   * Prefer a current active roster record so edits continue
+   * through the existing roster-edit workflow.
+   */
+  const linkedServices=
+    studentServices(student.id)
+      .filter(
+        service=>
+          service.classId &&
+          serviceKeepsStudentVisible(service)
+      );
+
+
+  if(linkedServices.length){
+
+    const service=
+      linkedServices[0];
+
+    const c=
+      classes.find(
+        item=>item.id===service.classId
+      );
+
+
+    if(c){
+
+      $('#classSelect').value=
+        c.id;
+
+      await loadRoster();
+
+      const rosterMatch=
+        roster.find(
+          row=>
+            row.coreStudentId===student.id ||
+            normalizedName(row.studentName)===
+            normalizedName(student.studentName)
+        );
+
+
+      if(rosterMatch){
+
+        switchView('classes');
+
+        editRosterStudent(
+          rosterMatch.id
+        );
+
+        hide(
+          $('#globalStudentSearchResults')
+        );
+
+        return;
+      }
+    }
+  }
+
+
+  /*
+   * If the student has no current roster class,
+   * edit the core record directly.
+   */
+  openCoreStudentEdit(
+    student.id
+  );
+}
+
+
+function openCoreStudentEdit(studentId){
+
+  const student=
+    students.find(
+      item=>item.id===studentId
+    );
+
+  if(!student){
+    return;
+  }
+
+
+  let form=
+    $('#globalCoreStudentEditForm');
+
+
+  if(!form){
+
+    form=
+      document.createElement('div');
+
+    form.id=
+      'globalCoreStudentEditForm';
+
+    form.className=
+      'card vf-global-core-edit';
+
+    form.innerHTML=`
+
+      <div class="row between">
+
+        <div>
+          <div class="eyebrow">
+            Edit student
+          </div>
+
+          <h2>
+            Student & parent details
+          </h2>
+        </div>
+
+        <button
+          type="button"
+          id="closeGlobalCoreEdit">
+          Close
+        </button>
+
+      </div>
+
+
+      <div class="formgrid vf-form-2">
+
+        <input
+          id="gStudentFirst"
+          class="input"
+          placeholder="Student first name">
+
+        <input
+          id="gStudentLast"
+          class="input"
+          placeholder="Student last name">
+
+        <input
+          id="gParentName"
+          class="input"
+          placeholder="Parent / guardian">
+
+        <input
+          id="gParentEmail"
+          class="input"
+          type="email"
+          placeholder="Parent email">
+
+        <input
+          id="gParentPhone"
+          class="input"
+          placeholder="Parent phone">
+
+        <input
+          id="gStudentGrade"
+          class="input"
+          placeholder="Grade">
+
+      </div>
+
+
+      <div class="row">
+
+        <button
+          id="saveGlobalCoreEdit"
+          class="primary">
+          Save changes
+        </button>
+
+      </div>
+    `;
+
+
+    const studentsView=
+      $('#studentsView');
+
+    studentsView.insertBefore(
+      form,
+      $('#studentsServicesList')
+    );
+  }
+
+
+  form.dataset.studentId=
+    student.id;
+
+
+  $('#gStudentFirst').value=
+    student.studentFirst||'';
+
+  $('#gStudentLast').value=
+    student.studentLast||'';
+
+  $('#gParentName').value=
+    student.parentName||'';
+
+  $('#gParentEmail').value=
+    student.parentEmail||'';
+
+  $('#gParentPhone').value=
+    student.parentPhone||'';
+
+  $('#gStudentGrade').value=
+    student.grade||'';
+
+
+  $('#closeGlobalCoreEdit').onclick=()=>{
+
+    form.remove();
+  };
+
+
+  $('#saveGlobalCoreEdit').onclick=async()=>{
+
+    const current=
+      students.find(
+        item=>
+          item.id===
+          form.dataset.studentId
+      );
+
+    if(!current){
+      return;
+    }
+
+
+    const first=
+      $('#gStudentFirst').value.trim();
+
+    const last=
+      $('#gStudentLast').value.trim();
+
+
+    if(!first || !last){
+
+      return toast(
+        'Enter student first and last name.'
+      );
+    }
+
+
+    const updated={
+
+      studentFirst:first,
+
+      studentLast:last,
+
+      studentName:
+        `${first} ${last}`,
+
+      parentName:
+        $('#gParentName').value.trim(),
+
+      parentEmail:
+        $('#gParentEmail').value.trim(),
+
+      parentPhone:
+        $('#gParentPhone').value.trim(),
+
+      grade:
+        $('#gStudentGrade').value.trim(),
+
+      updatedAt:
+        serverTimestamp()
+    };
+
+
+    await setDoc(
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'students',
+        current.id
+      ),
+      updated,
+      {
+        merge:true
+      }
+    );
+
+
+    /*
+     * Propagate contact/name edits to linked roster records.
+     */
+    for(const c of classes){
+
+      const snap=
+        await getDocs(
+          collection(
+            db,
+            'vendors',
+            user.uid,
+            'classes',
+            c.id,
+            'students'
+          )
+        );
+
+
+      for(const rosterDoc of snap.docs){
+
+        const row=
+          rosterDoc.data();
+
+        if(
+          row.coreStudentId===current.id ||
+          normalizedName(row.studentName)===
+          normalizedName(current.studentName)
+        ){
+
+          await setDoc(
+            rosterDoc.ref,
+            {
+              studentFirst:
+                updated.studentFirst,
+
+              studentLast:
+                updated.studentLast,
+
+              studentName:
+                updated.studentName,
+
+              parentName:
+                updated.parentName,
+
+              parentEmail:
+                updated.parentEmail,
+
+              parentPhone:
+                updated.parentPhone,
+
+              grade:
+                updated.grade,
+
+              coreStudentId:
+                current.id,
+
+              updatedAt:
+                serverTimestamp()
+            },
+            {
+              merge:true
+            }
+          );
+        }
+      }
+    }
+
+
+    /*
+     * Keep linked services displaying the corrected student name.
+     */
+    const linked=
+      services.filter(
+        service=>
+          service.studentId===current.id
+      );
+
+
+    for(const service of linked){
+
+      await setDoc(
+        doc(
+          db,
+          'vendors',
+          user.uid,
+          'services',
+          service.id
+        ),
+        {
+          studentName:
+            updated.studentName,
+
+          updatedAt:
+            serverTimestamp()
+        },
+        {
+          merge:true
+        }
+      );
+    }
+
+
+    await log(
+      'Student updated',
+      `${current.studentName} contact information was updated.`,
+      'Manual'
+    );
+
+
+    form.remove();
+
+    await refreshAll();
+
+    $('#globalStudentSearch').value=
+      updated.studentName;
+
+    renderGlobalStudentSearch();
+
+    toast(
+      'Student updated.'
+    );
+  };
+}
+
+
+if($('#globalStudentSearch')){
+
+  $('#globalStudentSearch')
+    .addEventListener(
+      'input',
+      renderGlobalStudentSearch
+    );
+}
+
+
+
 function renderStudentsServices(){
 
   refreshStudentServiceSelectors();
+
+  renderGlobalStudentSearch();
 
   const count=$('#coreStudentCount');
 

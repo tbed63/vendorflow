@@ -1663,3 +1663,89 @@ main{
   font-size:10px;
   letter-spacing:.06em;
 }
+
+
+/* ==========================================================
+   GLOBAL STUDENT SEARCH
+   ========================================================== */
+
+.vf-global-student-search{
+  position:relative;
+  margin:18px 0;
+  padding:16px;
+  border:1px solid #D8E0E5;
+  border-radius:14px;
+  background:#F8FAFB;
+}
+
+.vf-global-student-search h3{
+  margin:3px 0 4px;
+}
+
+.vf-global-student-search p{
+  margin:0 0 12px;
+  color:#66757D;
+  font-size:12px;
+}
+
+.vf-global-student-results{
+  margin-top:8px;
+  border:1px solid #D8E0E5;
+  border-radius:12px;
+  overflow:hidden;
+  background:#FFFFFF;
+}
+
+.vf-global-student-result{
+  width:100%;
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:center;
+  padding:12px 14px;
+  border:0;
+  border-bottom:1px solid #E8ECEF;
+  border-radius:0;
+  background:#FFFFFF;
+  text-align:left;
+  cursor:pointer;
+}
+
+.vf-global-student-result:last-child{
+  border-bottom:0;
+}
+
+.vf-global-student-result:hover{
+  background:#F3F6FA;
+}
+
+.vf-global-student-main{
+  display:grid;
+  gap:3px;
+}
+
+.vf-global-student-main strong{
+  color:#24343B;
+}
+
+.vf-global-student-main span,
+.vf-global-student-main small{
+  color:#66757D;
+  font-size:11px;
+}
+
+.vf-global-edit-label{
+  color:#1A346F;
+  font-size:11px;
+  font-weight:900;
+}
+
+.vf-search-empty{
+  padding:12px 14px;
+  color:#66757D;
+  font-size:12px;
+}
+
+.vf-global-core-edit{
+  margin-bottom:18px;
+}
