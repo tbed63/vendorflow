@@ -607,6 +607,11 @@ $('#saveClass').onclick=async()=>{
   await loadRoster();
   renderRoster();
 
+  $('#className').value='';
+  $('#classTerm').value='';
+  $('#classTuition').value='';
+  $('#classLocation').value='';
+
   toast('Class saved.');
 };
 
