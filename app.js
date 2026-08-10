@@ -1099,6 +1099,336 @@ function renderArchivedCharterSchools(){
 
 
 
+
+function selectedCertificateStudent(){
+
+  const id=
+    $('#certStudentId')?.value || '';
+
+  if(!id){
+    return null;
+  }
+
+  return students.find(
+    student=>student.id===id
+  ) || null;
+}
+
+
+function clearCertificateStudentLink(
+  keepText=true
+){
+
+  if($('#certStudentId')){
+    $('#certStudentId').value='';
+  }
+
+  if($('#certStudentLinked')){
+    $('#certStudentLinked').innerHTML='';
+    hide($('#certStudentLinked'));
+  }
+
+  if($('#certStudentMatches')){
+    $('#certStudentMatches').innerHTML='';
+    hide($('#certStudentMatches'));
+  }
+
+  if(!keepText && $('#certStudent')){
+    $('#certStudent').value='';
+  }
+}
+
+
+function linkCertificateStudent(
+  student
+){
+
+  if(!student){
+    return;
+  }
+
+  $('#certStudentId').value=
+    student.id;
+
+  $('#certStudent').value=
+    student.studentName||'';
+
+
+  const linked=
+    $('#certStudentLinked');
+
+  linked.innerHTML=`
+    <div>
+      <strong>
+        Linked to ${esc(student.studentName||'Student')}
+      </strong>
+
+      <span>
+        ${
+          student.parentName
+            ? esc(student.parentName)
+            : 'Parent not entered'
+        }
+        ${
+          student.parentEmail
+            ? ' · '+esc(student.parentEmail)
+            : ''
+        }
+        ${
+          student.parentPhone
+            ? ' · '+esc(student.parentPhone)
+            : ''
+        }
+      </span>
+    </div>
+
+    <button
+      type="button"
+      id="changeCertificateStudent">
+      Change
+    </button>
+  `;
+
+  show(linked);
+
+  hide(
+    $('#certStudentMatches')
+  );
+
+
+  $('#changeCertificateStudent').onclick=()=>{
+
+    clearCertificateStudentLink(
+      true
+    );
+
+    $('#certStudent').focus();
+
+    renderCertificateStudentMatches();
+  };
+}
+
+
+function certificateStudentMatches(){
+
+  const query=
+    String(
+      $('#certStudent')?.value || ''
+    )
+      .trim()
+      .toLowerCase();
+
+  if(!query){
+    return [];
+  }
+
+  return students
+    .filter(
+      student=>
+        studentSearchHaystack(
+          student
+        ).includes(query)
+    )
+    .sort(
+      (a,b)=>
+        String(a.studentName||'')
+          .localeCompare(
+            String(b.studentName||'')
+          )
+    )
+    .slice(0,8);
+}
+
+
+function renderCertificateStudentMatches(){
+
+  const input=
+    $('#certStudent');
+
+  const box=
+    $('#certStudentMatches');
+
+  if(!input || !box){
+    return;
+  }
+
+
+  if(selectedCertificateStudent()){
+
+    hide(box);
+    return;
+  }
+
+
+  const typed=
+    input.value.trim();
+
+  if(!typed){
+
+    box.innerHTML='';
+    hide(box);
+    return;
+  }
+
+
+  const matches=
+    certificateStudentMatches();
+
+
+  if(!matches.length){
+
+    box.innerHTML=`
+      <div class="vf-cert-student-no-match">
+        <strong>No student found.</strong>
+        <span>
+          Add the student in Class Rosters or Students & Services
+          before assigning a certificate.
+        </span>
+      </div>
+    `;
+
+    show(box);
+    return;
+  }
+
+
+  box.innerHTML=
+    matches.map(
+      student=>`
+        <button
+          type="button"
+          class="vf-cert-student-match"
+          data-cert-student-id="${student.id}">
+
+          <strong>
+            ${esc(student.studentName||'Unnamed student')}
+          </strong>
+
+          <span>
+            ${esc(student.parentName||'')}
+            ${
+              student.parentEmail
+                ? ' · '+esc(student.parentEmail)
+                : ''
+            }
+            ${
+              student.parentPhone
+                ? ' · '+esc(student.parentPhone)
+                : ''
+            }
+          </span>
+
+        </button>
+      `
+    ).join('');
+
+
+  $$('[data-cert-student-id]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        const student=
+          students.find(
+            item=>
+              item.id===
+              button.dataset.certStudentId
+          );
+
+        if(student){
+
+          linkCertificateStudent(
+            student
+          );
+        }
+      };
+    });
+
+
+  show(box);
+}
+
+
+function tryExactCertificateStudentLink(){
+
+  if(selectedCertificateStudent()){
+    return;
+  }
+
+  const typed=
+    normalizedName(
+      $('#certStudent')?.value || ''
+    );
+
+  if(!typed){
+    return;
+  }
+
+  const exact=
+    students.find(
+      student=>
+        normalizedName(
+          student.studentName
+        )===typed
+    );
+
+  if(exact){
+
+    linkCertificateStudent(
+      exact
+    );
+  }
+}
+
+
+if($('#certStudent')){
+
+  $('#certStudent').addEventListener(
+    'input',
+    ()=>{
+
+      const linked=
+        selectedCertificateStudent();
+
+      if(
+        linked &&
+        normalizedName(
+          $('#certStudent').value
+        )!==
+        normalizedName(
+          linked.studentName
+        )
+      ){
+
+        clearCertificateStudentLink(
+          true
+        );
+      }
+
+      renderCertificateStudentMatches();
+    }
+  );
+
+
+  $('#certStudent').addEventListener(
+    'focus',
+    renderCertificateStudentMatches
+  );
+
+
+  $('#certStudent').addEventListener(
+    'blur',
+    ()=>{
+
+      setTimeout(
+        tryExactCertificateStudentLink,
+        150
+      );
+    }
+  );
+}
+
+
 function selectedCertificateCharter(){
 
   const id=
@@ -4144,8 +4474,14 @@ function studentAccountTotals(student){
     studentCertificates(student.studentName)
       .filter(
         c=>
-          String(c.status||'')
-            .toLowerCase()!=='cancelled'
+          !c.deleted &&
+          ![
+            'cancelled',
+            'deleted'
+          ].includes(
+            String(c.status||'')
+              .toLowerCase()
+          )
       )
       .reduce(
         (sum,c)=>
@@ -7108,6 +7444,8 @@ function fillCertificateFromExtraction(result){
   }
 
   show(review);
+
+  tryExactCertificateStudentLink();
 }
 
 
@@ -7370,6 +7708,10 @@ $('#cancelCertificate').onclick=()=>{
     false
   );
 
+  clearCertificateStudentLink(
+    false
+  );
+
   if($('#certExtractionReview')){
     hide($('#certExtractionReview'));
     $('#certExtractionReview').innerHTML='';
@@ -7424,11 +7766,17 @@ $('#saveCertificate').onclick=async()=>{
 
 
   const studentMatch =
-    students.find(
-      s=>
-        normalizedName(s.studentName) ===
-        normalizedName(studentTyped)
+    selectedCertificateStudent();
+
+
+  if(!studentMatch){
+
+    renderCertificateStudentMatches();
+
+    return toast(
+      'Choose the student from VendorFlow before saving the certificate.'
     );
+  }
 
 
   button.disabled=true;
@@ -7737,6 +8085,10 @@ $('#saveCertificate').onclick=async()=>{
       false
     );
 
+    clearCertificateStudentLink(
+      false
+    );
+
     if($('#certExtractionReview')){
       hide($('#certExtractionReview'));
       $('#certExtractionReview').innerHTML='';
@@ -7808,6 +8160,84 @@ $('#saveCompliance').onclick=async()=>{
   await refreshAll();
 };
 
+
+async function safeDeleteCertificate(
+  certificateId
+){
+
+  const certificate=
+    certs.find(
+      cert=>cert.id===certificateId
+    );
+
+  if(!certificate){
+    return;
+  }
+
+
+  const ok=
+    confirm(
+      `Delete this certificate?\n\n` +
+      `${certificate.student||'Student'} — ${money(certificate.amount)}\n` +
+      `${certificate.school||'Charter school'}\n\n` +
+      `This will remove the certificate from active records, ` +
+      `remove its credit from the student's account, and cancel ` +
+      `any invoice scheduling tied to it.\n\n` +
+      `The certificate record and stored PDF will remain preserved ` +
+      `in VendorFlow's audit history.`
+    );
+
+
+  if(!ok){
+    return;
+  }
+
+
+  await setDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'certificates',
+      certificate.id
+    ),
+    {
+      deleted:true,
+
+      status:'Deleted',
+
+      deletedAt:
+        serverTimestamp(),
+
+      updatedAt:
+        serverTimestamp()
+    },
+    {
+      merge:true
+    }
+  );
+
+
+  await log(
+    'Certificate deleted',
+    `${certificate.student||'Student'} — ` +
+    `${certificate.school||'Charter'} — ` +
+    `${certificate.number||'No certificate number'} — ` +
+    `${money(certificate.amount)}. ` +
+    `Record and PDF preserved.`,
+    'Manual'
+  );
+
+
+  await refreshAll();
+
+
+  toast(
+    'Certificate deleted.'
+  );
+}
+
+
 function renderRecords(){
   $('#paymentList').innerHTML=
     payments.length
@@ -7821,9 +8251,14 @@ function renderRecords(){
       ).join('')
     : '<div class="empty">No payments yet.</div>';
 
+  const visibleCertificates=
+    certs.filter(
+      cert=>!cert.deleted
+    );
+
   $('#certificateList').innerHTML=
-    certs.length
-    ? certs.map(d=>
+    visibleCertificates.length
+    ? visibleCertificates.map(d=>
         `<div class="record">
           <strong>${esc(d.student)} — $${Number(d.amount).toFixed(2)}</strong>
           <div class="meta">${esc(d.school)} · ${esc(d.number)} · ${esc(d.status)}</div>
@@ -7866,22 +8301,42 @@ function renderRecords(){
                 )
           }
 
-          ${d.pdfObjectKey
-            ? `<div class="vf-cert-actions">
-                 <button
+          <div class="vf-cert-actions">
+
+            ${d.pdfObjectKey
+              ? `<button
                    type="button"
                    class="vf-small-button"
                    data-cert-pdf="${esc(d.pdfObjectKey)}">
                    View PDF
-                 </button>
-               </div>`
-            : ''}
+                 </button>`
+              : ''}
+
+            <button
+              type="button"
+              class="vf-cert-delete-button"
+              data-delete-cert="${d.id}">
+              Delete certificate
+            </button>
+
+          </div>
 
         </div>`
       ).join('')
     : '<div class="empty">No certificates yet.</div>';
 
   wireCertificatePdfButtons();
+
+  $$('[data-delete-cert]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        safeDeleteCertificate(
+          button.dataset.deleteCert
+        );
+      };
+    });
 
   $('#complianceList').innerHTML=
     compliance.length

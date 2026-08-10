@@ -2313,3 +2313,108 @@ main{
 .vf-cert-charter-linked button{
   flex-shrink:0;
 }
+
+
+/* ==========================================================
+   CERTIFICATE STUDENT PICKER
+   ========================================================== */
+
+.vf-cert-student-field{
+  position:relative;
+}
+
+.vf-cert-student-matches{
+  position:absolute;
+  z-index:50;
+  left:0;
+  right:0;
+  top:100%;
+  margin-top:4px;
+  border:1px solid #D6DEE3;
+  border-radius:11px;
+  overflow:hidden;
+  background:#FFFFFF;
+  box-shadow:0 12px 30px rgba(20,40,55,.14);
+}
+
+.vf-cert-student-match{
+  width:100%;
+  display:grid;
+  gap:3px;
+  padding:11px 13px;
+  border:0;
+  border-bottom:1px solid #E8ECEF;
+  border-radius:0;
+  background:#FFFFFF;
+  text-align:left;
+  cursor:pointer;
+}
+
+.vf-cert-student-match:last-child{
+  border-bottom:0;
+}
+
+.vf-cert-student-match:hover{
+  background:#F3F6FA;
+}
+
+.vf-cert-student-match strong{
+  color:#22363F;
+  font-size:12px;
+}
+
+.vf-cert-student-match span{
+  color:#66757D;
+  font-size:10px;
+}
+
+.vf-cert-student-no-match{
+  display:grid;
+  gap:3px;
+  padding:11px 13px;
+  background:#FFF8E8;
+}
+
+.vf-cert-student-no-match strong{
+  color:#775A13;
+  font-size:11px;
+}
+
+.vf-cert-student-no-match span{
+  color:#7A6B47;
+  font-size:10px;
+}
+
+.vf-cert-student-linked{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-top:6px;
+  padding:9px 11px;
+  border:1px solid #A8D5B5;
+  border-radius:9px;
+  background:#EEF8F1;
+}
+
+.vf-cert-student-linked > div{
+  display:grid;
+  gap:2px;
+}
+
+.vf-cert-student-linked strong{
+  color:#236A3B;
+  font-size:11px;
+}
+
+.vf-cert-student-linked span{
+  color:#52725D;
+  font-size:10px;
+}
+
+.vf-cert-delete-button{
+  border:1px solid #FDA29B;
+  background:#FFFFFF;
+  color:#B42318;
+  font-weight:800;
+}

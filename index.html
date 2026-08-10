@@ -798,10 +798,29 @@
 
           <div class="formgrid">
 
-            <input
-              id="certStudent"
-              class="input"
-              placeholder="Student">
+            <div class="vf-cert-student-field">
+
+              <input
+                id="certStudent"
+                class="input"
+                autocomplete="off"
+                placeholder="Start typing student or parent">
+
+              <input
+                id="certStudentId"
+                type="hidden">
+
+              <div
+                id="certStudentMatches"
+                class="vf-cert-student-matches hidden">
+              </div>
+
+              <div
+                id="certStudentLinked"
+                class="vf-cert-student-linked hidden">
+              </div>
+
+            </div>
 
             <div class="vf-cert-charter-field">
 
