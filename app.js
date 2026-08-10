@@ -2981,10 +2981,115 @@ function setCertificateField(selector,value){
 }
 
 
+
+function validateExtractedCertificate(result){
+
+  const x = result?.extraction || {};
+  const problems = [];
+  const warnings = [];
+
+  const student = students.find(
+    s =>
+      normalizedName(s.studentName) ===
+      normalizedName(x.studentName)
+  ) || null;
+
+  if(!x.studentName){
+    problems.push('Student name was not found.');
+  }
+
+  if(!x.charterSchool){
+    problems.push('Charter school was not found.');
+  }
+
+  if(!(Number(x.amount) > 0)){
+    problems.push('A valid certificate amount was not found.');
+  }
+
+  if(
+    !x.certificateNumber &&
+    !x.purchaseOrderNumber
+  ){
+    problems.push('Certificate / PO number was not found.');
+  }
+
+  if(x.studentName && !student){
+    warnings.push(
+      `Could not confidently match ${x.studentName} to an existing student.`
+    );
+  }
+
+  if(
+    student &&
+    Number(x.amount) > 0
+  ){
+
+    const account = studentAccountTotals(student);
+    const amount = Number(x.amount);
+    const totalDue = Number(account.totalDue || 0);
+
+    if(
+      totalDue > 0 &&
+      amount > Math.max(totalDue * 2, totalDue + 500)
+    ){
+      problems.push(
+        `Certificate amount ${money(amount)} is far above this student's known service charges of ${money(totalDue)}.`
+      );
+    }
+
+    if(totalDue > 0){
+
+      const ratio = amount / totalDue;
+
+      if(
+        Math.abs(ratio - 10) < 0.01 ||
+        Math.abs(ratio - 100) < 0.01
+      ){
+        problems.push(
+          `Possible extra-zero error: ${money(amount)} was extracted, but this student's services total ${money(totalDue)}.`
+        );
+      }
+    }
+  }
+
+  const start = Date.parse(x.serviceStartDate || '');
+  const end = Date.parse(x.serviceEndDate || '');
+
+  if(
+    Number.isFinite(start) &&
+    Number.isFinite(end) &&
+    start > end
+  ){
+    problems.push(
+      'Service end date is earlier than the service start date.'
+    );
+  }
+
+  return {
+    student,
+    problems: [...new Set(problems)],
+    warnings: [...new Set(warnings)],
+    safe: problems.length === 0
+  };
+}
+
+
 function fillCertificateFromExtraction(result){
 
   const x=
     result?.extraction || {};
+
+  const validation=
+    validateExtractedCertificate(result);
+
+  if(!validation.safe){
+    x.needsReview=true;
+    x.confidence=
+      Math.min(
+        Number(x.confidence||0),
+        0.49
+      );
+  }
 
   setCertificateField(
     '#certStudent',
@@ -3074,11 +3179,25 @@ function fillCertificateFromExtraction(result){
     review.className=
       'vf-extraction-review vf-extraction-warning';
 
+    const problemHtml=
+      validation.problems.length
+        ? `<ul>${validation.problems.map(
+            p=>`<li>${esc(p)}</li>`
+          ).join('')}</ul>`
+        : '';
+
+    const warningHtml=
+      validation.warnings.length
+        ? `<ul>${validation.warnings.map(
+            w=>`<li>${esc(w)}</li>`
+          ).join('')}</ul>`
+        : '';
+
     review.innerHTML=
-      `<strong>Please review this certificate.</strong>
-       VendorFlow read it with about ${percent}% overall confidence.
-       Check the student, charter, amount and certificate number
-       before saving.`;
+      `<strong>VendorFlow stopped this certificate for review.</strong>
+       Nothing suspicious will be credited automatically.
+       ${problemHtml}
+       ${warningHtml}`;
 
   }else{
 
@@ -3272,6 +3391,8 @@ if($('#certPdf')){
           ...uploaded,
           extraction:
             extraction.extraction || {},
+          clientValidation:
+            validateExtractedCertificate(extraction),
           sourceTextLength:
             extraction.sourceTextLength || 0
         };
@@ -3373,8 +3494,16 @@ $('#saveCertificate').onclick=async()=>{
   const number =
     $('#certNumber').value.trim();
 
-  const status =
+  let status =
     $('#certStatus').value;
+
+  if(
+    pendingCertificatePdf?.clientValidation &&
+    !pendingCertificatePdf.clientValidation.safe
+  ){
+    status='Needs Review';
+    $('#certStatus').value='Needs Review';
+  }
 
   const pdfFile =
     $('#certPdf')?.files?.[0] || null;
