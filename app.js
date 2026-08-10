@@ -1488,7 +1488,17 @@ function renderDashboard(){
    * --------------------------------------------------------
    */
 
-  if(!activeClasses.length){
+  /*
+   * Setup guidance is only appropriate when there is
+   * truly nothing operational that needs attention.
+   *
+   * Financial/review work always outranks onboarding.
+   */
+  if(
+    !activeClasses.length &&
+    !readyInvoices.length &&
+    !reviews.length
+  ){
 
     count.textContent='1';
 
