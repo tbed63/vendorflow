@@ -3406,3 +3406,193 @@ aside nav{
   }
 }
 
+
+
+/* ==========================================================
+   LOCKED APPLICATION HEADER — AUGUST 10, 2026
+   FINAL OVERRIDE
+   ========================================================== */
+
+/*
+ * Stop previous header experiments from affecting placement.
+ *
+ * The header itself spans exactly the same main-content width
+ * as the blue hero below it.
+ */
+.vf-app-header{
+  position:relative !important;
+  display:block !important;
+  width:100% !important;
+  min-height:70px !important;
+  height:70px !important;
+  margin:0 !important;
+  padding:0 !important;
+}
+
+
+/* ----------------------------------------------------------
+   LEFT — PAGE NAME
+   Hug the blue content instead of floating high above it.
+   ---------------------------------------------------------- */
+
+.vf-header-title{
+  position:absolute !important;
+  left:0 !important;
+  bottom:5px !important;
+  top:auto !important;
+
+  width:auto !important;
+  min-width:0 !important;
+
+  margin:0 !important;
+  padding:0 !important;
+
+  transform:none !important;
+}
+
+.vf-header-title .eyebrow{
+  margin:0 0 3px !important;
+  line-height:1 !important;
+}
+
+.vf-header-title h1{
+  margin:0 !important;
+  padding:0 !important;
+  line-height:1 !important;
+}
+
+
+/* ----------------------------------------------------------
+   CENTER — VENDORFLOW BRAND
+   Centered on the SAME WIDTH AS THE BLUE HERO.
+   ---------------------------------------------------------- */
+
+.vf-header-brand{
+  position:absolute !important;
+
+  left:50% !important;
+  right:auto !important;
+
+  top:50% !important;
+  bottom:auto !important;
+
+  width:auto !important;
+  height:auto !important;
+
+  margin:0 !important;
+  padding:0 !important;
+
+  display:block !important;
+
+  transform:
+    translate(-50%,-50%) !important;
+
+  pointer-events:none !important;
+}
+
+.vf-header-brand-logo{
+  display:block !important;
+
+  width:285px !important;
+  max-width:none !important;
+  max-height:62px !important;
+
+  height:auto !important;
+
+  margin:0 !important;
+  padding:0 !important;
+
+  object-fit:contain !important;
+}
+
+
+/* ----------------------------------------------------------
+   RIGHT — ACCOUNT
+   ---------------------------------------------------------- */
+
+.vf-header-account{
+  position:absolute !important;
+
+  right:0 !important;
+  left:auto !important;
+
+  top:50% !important;
+  bottom:auto !important;
+
+  margin:0 !important;
+  padding:0 !important;
+
+  transform:
+    translateY(-50%) !important;
+
+  display:flex !important;
+  align-items:center !important;
+
+  z-index:5 !important;
+}
+
+.vf-header-account .vf-account-click{
+  max-width:220px !important;
+}
+
+
+/* ----------------------------------------------------------
+   BLUE HERO
+   Starts immediately below the header.
+   ---------------------------------------------------------- */
+
+#dashboardView{
+  margin-top:0 !important;
+  padding-top:0 !important;
+}
+
+#dashboardView > .hero{
+  margin-top:0 !important;
+}
+
+
+/* ----------------------------------------------------------
+   RESPONSIVE
+   ---------------------------------------------------------- */
+
+@media(max-width:1150px){
+
+  .vf-header-brand-logo{
+    width:235px !important;
+    max-height:54px !important;
+  }
+
+  .vf-header-account .vf-account-click{
+    max-width:185px !important;
+  }
+
+  .vf-account-header-copy small{
+    display:none !important;
+  }
+}
+
+
+@media(max-width:900px){
+
+  .vf-header-brand{
+    display:none !important;
+  }
+
+  .vf-app-header{
+    height:64px !important;
+    min-height:64px !important;
+  }
+}
+
+
+@media(max-width:650px){
+
+  .vf-header-title{
+    bottom:4px !important;
+  }
+
+  .vf-account-header-copy{
+    display:none !important;
+  }
+}
+
