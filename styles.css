@@ -2928,32 +2928,29 @@ aside nav{
 
 /* ==========================================================
    VENDORFLOW APPLICATION HEADER — FINAL
-   One authoritative rule set. Do not stack overrides below.
+   AUTHORITATIVE HEADER RULES
    ========================================================== */
 
 /*
- * TARGET:
- *
- *   Dashboard title                 VendorFlow logo            Account
- *   lower-left                      true center                lower-right
- *
- *   ---------------------------------------------------------------
- *   BLUE CONTENT / HERO BEGINS HERE
- *
- * The header is deliberately tall enough for the large logo.
+ * These rules deliberately use !important because older
+ * VendorFlow header styles remain earlier in the stylesheet.
+ * This one section is the source of truth.
  */
 
 .vf-app-header{
-  position:relative;
-  display:block;
+  position:relative !important;
+  display:block !important;
 
-  width:100%;
-  height:160px;
-  min-height:160px;
+  width:100% !important;
 
-  margin:0 0 8px;
-  padding:0;
-  overflow:visible;
+  height:185px !important;
+  min-height:185px !important;
+  max-height:none !important;
+
+  margin:0 0 8px 0 !important;
+  padding:0 !important;
+
+  overflow:visible !important;
 }
 
 
@@ -2962,72 +2959,102 @@ aside nav{
    ---------------------------------------------------------- */
 
 .vf-header-title{
-  position:absolute;
-  left:0;
-  bottom:8px;
+  position:absolute !important;
 
-  margin:0;
-  padding:0;
+  left:0 !important;
+  right:auto !important;
 
-  width:auto;
-  min-width:0;
+  top:auto !important;
+  bottom:10px !important;
+
+  width:auto !important;
+  min-width:0 !important;
+
+  margin:0 !important;
+  padding:0 !important;
+
+  transform:none !important;
 }
 
 .vf-header-title .eyebrow{
-  margin:0 0 6px;
+  margin:0 0 6px 0 !important;
 
-  color:#1A346F;
-  font-size:11px;
-  font-weight:800;
-  line-height:1;
-  letter-spacing:.15em;
+  color:#1A346F !important;
+
+  font-size:11px !important;
+  font-weight:800 !important;
+  line-height:1 !important;
+  letter-spacing:.15em !important;
 }
 
 .vf-header-title h1{
-  margin:0;
-  padding:0;
+  margin:0 !important;
+  padding:0 !important;
 
-  color:#26383F;
-  font-size:34px;
-  line-height:1;
-  letter-spacing:-.035em;
+  color:#26383F !important;
+
+  font-size:34px !important;
+  line-height:1 !important;
+  letter-spacing:-.035em !important;
 }
 
 
 /* ----------------------------------------------------------
-   CENTER — VENDORFLOW
+   CENTER — VENDORFLOW BRAND
+
+   Important:
+   top:42% intentionally places the large logo slightly above
+   mathematical center so its visual weight stays entirely
+   inside the white header and never touches the blue hero.
    ---------------------------------------------------------- */
 
 .vf-header-brand{
-  position:absolute;
+  position:absolute !important;
 
-  left:50%;
-  top:50%;
+  left:50% !important;
+  right:auto !important;
 
-  transform:translate(-50%,-50%);
+  top:42% !important;
+  bottom:auto !important;
 
-  display:flex;
-  align-items:center;
-  justify-content:center;
+  width:auto !important;
+  height:auto !important;
 
-  margin:0;
-  padding:0;
+  margin:0 !important;
+  padding:0 !important;
 
-  pointer-events:none;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+
+  transform:translate(-50%,-50%) !important;
+
+  pointer-events:none !important;
+
+  z-index:1 !important;
 }
 
 .vf-header-brand-logo{
-  display:block;
+  display:block !important;
 
-  width:675px;
-  max-width:48vw;
-  max-height:130px;
+  width:675px !important;
+  max-width:48vw !important;
+  max-height:125px !important;
 
-  height:auto;
-  object-fit:contain;
+  height:auto !important;
 
-  margin:0;
-  padding:0;
+  margin:0 !important;
+  padding:0 !important;
+
+  object-fit:contain !important;
+
+  transform:none !important;
+}
+
+
+/* Retire any legacy dynamically-injected logo */
+.vf-app-header > .vf-header-logo{
+  display:none !important;
 }
 
 
@@ -3036,155 +3063,150 @@ aside nav{
    ---------------------------------------------------------- */
 
 .vf-header-account{
-  position:absolute;
+  position:absolute !important;
 
-  right:0;
-  bottom:8px;
+  right:0 !important;
+  left:auto !important;
 
-  display:flex;
-  align-items:center;
-  gap:9px;
+  top:auto !important;
+  bottom:10px !important;
 
-  margin:0;
-  padding:0;
+  width:auto !important;
 
-  background:transparent;
-  box-shadow:none;
+  margin:0 !important;
+  padding:0 !important;
 
-  z-index:5;
+  display:flex !important;
+  align-items:center !important;
+  gap:10px !important;
+
+  transform:none !important;
+
+  background:transparent !important;
+  box-shadow:none !important;
+
+  z-index:5 !important;
 }
+
 
 .vf-header-account .vf-account-click{
-  display:flex;
-  align-items:center;
-  gap:11px;
+  display:flex !important;
+  align-items:center !important;
+  gap:11px !important;
 
-  min-width:245px;
-  min-height:64px;
+  min-width:255px !important;
+  max-width:310px !important;
+  min-height:64px !important;
 
-  padding:10px 14px;
+  margin:0 !important;
+  padding:10px 14px !important;
 
-  border:1px solid #D8E0E5;
-  border-radius:12px;
+  border:1px solid #D8E0E5 !important;
+  border-radius:12px !important;
 
-  background:#FFFFFF;
-  color:#26383F;
+  background:#FFFFFF !important;
+  color:#26383F !important;
 
-  text-align:left;
-  cursor:pointer;
+  text-align:left !important;
 }
 
-.vf-header-account .vf-account-click:hover{
-  background:#F7F9FA;
-  border-color:#C6D0D7;
-}
-
-
-/* Initial circle */
 
 .vf-header-account .vf-account-avatar{
-  display:flex;
-  align-items:center;
-  justify-content:center;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
 
-  width:40px;
-  height:40px;
-  min-width:40px;
+  width:40px !important;
+  height:40px !important;
+  min-width:40px !important;
 
-  border-radius:50%;
+  border-radius:50% !important;
 
-  background:#173A77;
-  color:#FFFFFF;
+  background:#173A77 !important;
+  color:#FFFFFF !important;
 
-  font-size:16px;
-  font-weight:900;
+  font-size:16px !important;
+  font-weight:900 !important;
 }
 
-
-/* Business name */
 
 .vf-header-account .vf-account-header-copy{
-  display:grid;
-  gap:4px;
-  min-width:0;
+  display:grid !important;
+  gap:4px !important;
+
+  min-width:0 !important;
 }
+
 
 .vf-header-account .vf-account-header-copy strong{
-  display:block;
+  display:block !important;
 
-  max-width:175px;
+  max-width:180px !important;
 
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  white-space:nowrap !important;
 
-  color:#26383F;
+  color:#26383F !important;
 
-  font-size:16px;
-  font-weight:800;
-  line-height:1.1;
+  font-size:16px !important;
+  font-weight:800 !important;
+  line-height:1.1 !important;
 }
 
-
-/* Email */
 
 .vf-header-account .vf-account-header-copy small{
-  display:block;
+  display:block !important;
 
-  max-width:180px;
+  max-width:185px !important;
 
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  white-space:nowrap !important;
 
-  color:#66757D;
+  color:#66757D !important;
 
-  font-size:12px;
-  font-weight:600;
-  line-height:1.15;
+  font-size:12px !important;
+  font-weight:600 !important;
+  line-height:1.15 !important;
 }
 
-
-/* Chevron */
 
 .vf-header-account .vf-account-chevron{
-  color:#66757D;
-  font-size:16px;
+  display:inline !important;
+
+  color:#66757D !important;
+  font-size:16px !important;
 }
 
-
-/* Logout */
 
 .vf-header-account .vf-header-logout{
-  padding:9px 10px;
+  display:block !important;
 
-  border:0;
-  border-radius:8px;
+  padding:9px 10px !important;
 
-  background:transparent;
-  color:#526773;
+  border:0 !important;
+  border-radius:8px !important;
 
-  font-size:14px;
-  font-weight:700;
-}
+  background:transparent !important;
+  color:#526773 !important;
 
-.vf-header-account .vf-header-logout:hover{
-  background:#FFF1F0;
-  color:#B42318;
+  font-size:14px !important;
+  font-weight:700 !important;
 }
 
 
 /* ----------------------------------------------------------
-   DASHBOARD CONTENT BEGINS DIRECTLY BELOW HEADER
+   CONTENT BELOW HEADER
    ---------------------------------------------------------- */
 
 #dashboardView{
-  margin-top:0;
-  padding-top:0;
+  margin-top:0 !important;
+  padding-top:0 !important;
 }
 
 #dashboardView > .hero{
-  margin-top:0;
+  margin-top:0 !important;
 }
 
 
@@ -3194,24 +3216,32 @@ aside nav{
 
 @media(max-width:1200px){
 
+  .vf-app-header{
+    height:165px !important;
+    min-height:165px !important;
+  }
+
   .vf-header-brand-logo{
-    width:370px;
-    max-width:34vw;
-    max-height:94px;
+    width:525px !important;
+    max-width:42vw !important;
+    max-height:110px !important;
   }
 
   .vf-header-account .vf-account-click{
-    min-width:215px;
+    min-width:220px !important;
+    max-width:250px !important;
   }
 
   .vf-header-account .vf-account-header-copy strong{
-    max-width:140px;
-    font-size:14px;
+    max-width:145px !important;
+    font-size:14px !important;
   }
 
   .vf-header-account .vf-account-header-copy small{
-    max-width:145px;
-    font-size:11px;
+    display:block !important;
+
+    max-width:150px !important;
+    font-size:11px !important;
   }
 }
 
@@ -3223,17 +3253,17 @@ aside nav{
 @media(max-width:950px){
 
   .vf-app-header{
-    height:100px;
-    min-height:100px;
+    height:105px !important;
+    min-height:105px !important;
   }
 
   .vf-header-brand{
-    display:none;
+    display:none !important;
   }
 
   .vf-header-title,
   .vf-header-account{
-    bottom:9px;
+    bottom:8px !important;
   }
 }
 
@@ -3245,27 +3275,29 @@ aside nav{
 @media(max-width:650px){
 
   .vf-app-header{
-    height:88px;
-    min-height:88px;
+    height:90px !important;
+    min-height:90px !important;
   }
 
   .vf-header-title h1{
-    font-size:27px;
+    font-size:27px !important;
   }
 
   .vf-header-account .vf-account-click{
-    min-width:auto;
-    padding:8px;
+    min-width:auto !important;
+    max-width:none !important;
+
+    padding:8px !important;
   }
 
   .vf-header-account .vf-account-header-copy,
   .vf-header-account .vf-account-chevron{
-    display:none;
+    display:none !important;
   }
 
   .vf-header-account .vf-header-logout{
-    font-size:11px;
-    padding:7px;
+    font-size:11px !important;
+    padding:7px !important;
   }
 }
 
