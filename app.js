@@ -563,12 +563,80 @@ function renderAll(){
 }
 
 function renderDashboard(){
-  $('#statClasses').textContent=classes.filter(c=>!c.archived).length;
-  $('#statStudents').textContent=classes.filter(c=>!c.archived).reduce((a,c)=>a+(c.activeStudentCount||0),0);
-  $('#statReview').textContent=reviews.length;
-  $('#statHistory').textContent=history.length;
-  $('#reviewBadge').textContent=reviews.length;
-  renderHistoryInto($('#recentHistory'),history.slice(0,6));
+
+  $('#statClasses').textContent=
+    classes
+      .filter(c=>!c.archived)
+      .length;
+
+  $('#statStudents').textContent=
+    classes
+      .filter(c=>!c.archived)
+      .reduce(
+        (a,c)=>
+          a+(c.activeStudentCount||0),
+        0
+      );
+
+  $('#statReview').textContent=
+    reviews.length;
+
+  $('#statHistory').textContent=
+    history.length;
+
+  $('#reviewBadge').textContent=
+    reviews.length;
+
+
+  const count=
+    $('#dashboardAttentionCount');
+
+  const title=
+    $('#dashboardAttentionTitle');
+
+  const text=
+    $('#dashboardAttentionText');
+
+  const button=
+    $('#dashboardAttentionButton');
+
+
+  if(count){
+    count.textContent=
+      reviews.length;
+  }
+
+
+  if(reviews.length){
+
+    title.textContent=
+      `${reviews.length} item${reviews.length===1?'':'s'} need your attention.`;
+
+    text.textContent=
+      'VendorFlow has held these items for you instead of making a questionable decision.';
+
+    show(button);
+
+    button.onclick=()=>{
+      switchView('review');
+    };
+
+  }else{
+
+    title.textContent=
+      `You're all caught up.`;
+
+    text.textContent=
+      'VendorFlow has nothing urgent flagged right now.';
+
+    hide(button);
+  }
+
+
+  renderHistoryInto(
+    $('#recentHistory'),
+    history.slice(0,6)
+  );
 }
 
 function renderClassSelect(){

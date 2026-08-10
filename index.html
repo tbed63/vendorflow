@@ -52,7 +52,42 @@
     <header><div><div class="eyebrow">VendorFlow Beta</div><h1 id="title">Dashboard</h1></div></header>
 
     <section id="dashboardView" class="view active">
-      <div class="hero"><div><div class="eyebrow gold">YOUR VENDOR COMMAND CENTER</div><h2>Know what needs your attention.</h2><p>Automation should save time without making changes mysterious.</p></div><button class="white" data-go="classes">Import a class roster</button></div>
+      <div class="hero vf-attention-hero">
+
+  <div class="vf-attention-copy">
+
+    <div class="eyebrow gold">
+      NEEDS ATTENTION
+    </div>
+
+    <h2 id="dashboardAttentionTitle">
+      You're all caught up.
+    </h2>
+
+    <p id="dashboardAttentionText">
+      VendorFlow will surface anything that needs your review here.
+    </p>
+
+  </div>
+
+  <div
+    id="dashboardAttentionPanel"
+    class="vf-attention-panel">
+
+    <div class="vf-attention-number">
+      <strong id="dashboardAttentionCount">0</strong>
+      <span>items</span>
+    </div>
+
+    <button
+      id="dashboardAttentionButton"
+      class="white hidden">
+      Review now
+    </button>
+
+  </div>
+
+</div>
       <div class="stats">
         <div class="stat"><span>Classes</span><strong id="statClasses">0</strong></div>
         <div class="stat"><span>Active students</span><strong id="statStudents">0</strong></div>
