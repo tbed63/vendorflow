@@ -1970,6 +1970,364 @@ async function syncRosterToCoreRecords(
 
 
 
+
+
+/* ==========================================================
+   DUPLICATE PROTECTION
+   ========================================================== */
+
+function normalizeDuplicateKey(value){
+
+  return String(value||'')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g,'');
+}
+
+
+function duplicateMoney(value){
+
+  return Math.round(
+    Number(value||0)*100
+  );
+}
+
+
+function paymentPartyKey(payment){
+
+  if(payment.studentId){
+    return `STUDENT:${payment.studentId}`;
+  }
+
+  const student=
+    normalizedName(
+      payment.student||''
+    );
+
+  if(student){
+    return `STUDENTNAME:${student}`;
+  }
+
+  const payer=
+    normalizedName(
+      payment.payer||
+      payment.parentName||
+      ''
+    );
+
+  return payer
+    ? `PAYER:${payer}`
+    : '';
+}
+
+
+function findDuplicatePayment(candidate){
+
+  const method=
+    String(candidate.method||'')
+      .trim()
+      .toLowerCase();
+
+  /*
+   * User-requested duplicate rules apply to
+   * Venmo, Zelle and Cash.
+   * Other methods can get their own rules later.
+   */
+  if(
+    ![
+      'venmo',
+      'zelle',
+      'cash'
+    ].includes(method)
+  ){
+    return null;
+  }
+
+  const date=
+    String(candidate.date||'')
+      .trim();
+
+  const amount=
+    duplicateMoney(
+      candidate.amount
+    );
+
+  const party=
+    paymentPartyKey(
+      candidate
+    );
+
+
+  return payments.find(existing=>{
+
+    const existingMethod=
+      String(existing.method||'')
+        .trim()
+        .toLowerCase();
+
+    if(existingMethod!==method){
+      return false;
+    }
+
+    if(
+      String(existing.date||'').trim()
+      !==date
+    ){
+      return false;
+    }
+
+    if(
+      duplicateMoney(existing.amount)
+      !==amount
+    ){
+      return false;
+    }
+
+    /*
+     * If both records have a student/payer identity,
+     * require the identity to match too.
+     */
+    const existingParty=
+      paymentPartyKey(existing);
+
+    if(
+      party &&
+      existingParty &&
+      party!==existingParty
+    ){
+      return false;
+    }
+
+    return true;
+  }) || null;
+}
+
+
+function findDuplicateCertificate(candidate){
+
+  const number=
+    normalizeDuplicateKey(
+      candidate.number
+    );
+
+  if(!number){
+    return null;
+  }
+
+  return certs.find(existing=>
+    normalizeDuplicateKey(
+      existing.number
+    )===number
+  ) || null;
+}
+
+
+function cleanReviewPayload(data){
+
+  const cleaned={};
+
+  for(
+    const [key,value]
+    of Object.entries(data||{})
+  ){
+
+    /*
+     * createdAt / updatedAt are recreated if
+     * the vendor chooses Keep Anyway.
+     */
+    if(
+      key==='createdAt' ||
+      key==='updatedAt'
+    ){
+      continue;
+    }
+
+    cleaned[key]=value;
+  }
+
+  return cleaned;
+}
+
+
+async function queueDuplicateReview(
+  itemType,
+  incoming,
+  existing
+){
+
+  const isCertificate=
+    itemType==='certificate';
+
+  const detail=
+    isCertificate
+      ? `Certificate ${incoming.number||'(no number)'} already exists for ${existing.student||'a student'}.`
+      : `${incoming.method} payment for ${money(incoming.amount)} on ${incoming.date} appears to already exist.`;
+
+
+  await addDoc(
+    sub('review'),
+    {
+
+      reviewType:
+        'duplicate',
+
+      itemType,
+
+      title:
+        isCertificate
+          ? 'Possible duplicate certificate'
+          : 'Possible duplicate payment',
+
+      detail,
+
+      defaultDecision:
+        'reject',
+
+      incoming:
+        cleanReviewPayload(
+          incoming
+        ),
+
+      existingId:
+        existing.id||'',
+
+      existingSummary:
+        isCertificate
+          ? `${existing.student||''} · ${existing.school||''} · ${existing.number||''} · ${money(existing.amount)}`
+          : `${existing.student||existing.payer||''} · ${existing.method||''} · ${existing.date||''} · ${money(existing.amount)}`,
+
+      source:
+        incoming.source ||
+        'VendorFlow',
+
+      createdAt:
+        serverTimestamp()
+    }
+  );
+
+
+  await log(
+    'Possible duplicate detected',
+    `${detail} The new item was not recorded and was sent to Needs Review.`,
+    'VendorFlow'
+  );
+}
+
+
+async function rejectDuplicateReview(
+  reviewId
+){
+
+  const review=
+    reviews.find(
+      r=>r.id===reviewId
+    );
+
+  if(!review){
+    return;
+  }
+
+
+  await deleteDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'review',
+      reviewId
+    )
+  );
+
+
+  await log(
+    'Duplicate rejected',
+    review.detail ||
+    'Suspected duplicate was rejected.',
+    'Manual'
+  );
+
+
+  await refreshAll();
+
+  toast(
+    'Duplicate rejected.'
+  );
+}
+
+
+async function keepDuplicateReview(
+  reviewId
+){
+
+  const review=
+    reviews.find(
+      r=>r.id===reviewId
+    );
+
+  if(
+    !review ||
+    review.reviewType!=='duplicate'
+  ){
+    return;
+  }
+
+
+  const collectionName=
+    review.itemType==='certificate'
+      ? 'certificates'
+      : 'payments';
+
+
+  const incoming={
+    ...(review.incoming||{}),
+
+    duplicateOverride:true,
+
+    duplicateReviewId:
+      review.id,
+
+    createdAt:
+      serverTimestamp(),
+
+    updatedAt:
+      serverTimestamp()
+  };
+
+
+  await addDoc(
+    sub(collectionName),
+    incoming
+  );
+
+
+  await deleteDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'review',
+      reviewId
+    )
+  );
+
+
+  await log(
+    'Duplicate kept as separate item',
+    review.detail ||
+    'Suspected duplicate was kept.',
+    'Manual'
+  );
+
+
+  await refreshAll();
+
+  toast(
+    'Item kept and recorded.'
+  );
+}
+
+
+
 function toggle(id){
   $(id).classList.toggle('hidden');
 }
@@ -2406,6 +2764,36 @@ $('#savePayment').onclick=async()=>{
     updatedAt:
       serverTimestamp()
   };
+
+  const duplicatePayment=
+    findDuplicatePayment(d);
+
+
+  if(duplicatePayment){
+
+    await queueDuplicateReview(
+      'payment',
+      d,
+      duplicatePayment
+    );
+
+    hide($('#paymentForm'));
+
+    selectedPaymentStudentId=null;
+
+    clearPaymentStudentSelection();
+
+    await refreshAll();
+
+    switchView('review');
+
+    toast(
+      'Possible duplicate — not recorded.'
+    );
+
+    return;
+  }
+
 
 
   await addDoc(
@@ -3128,6 +3516,50 @@ $('#saveCertificate').onclick=async()=>{
         serverTimestamp()
     };
 
+    const duplicateCertificate=
+      findDuplicateCertificate(
+        data
+      );
+
+
+    if(duplicateCertificate){
+
+      await queueDuplicateReview(
+        'certificate',
+        data,
+        duplicateCertificate
+      );
+
+      /*
+       * The PDF may already be stored in R2.
+       * Keep its reference inside the review item so the
+       * vendor can still choose "Keep anyway".
+       */
+      pendingCertificatePdf=null;
+
+      if($('#certPdf')){
+        $('#certPdf').value='';
+      }
+
+      if($('#certPdfStatus')){
+        $('#certPdfStatus').textContent=
+          'Possible duplicate — sent to review.';
+      }
+
+      hide($('#certificateForm'));
+
+      await refreshAll();
+
+      switchView('review');
+
+      toast(
+        'Duplicate certificate blocked.'
+      );
+
+      return;
+    }
+
+
 
     await addDoc(
       sub('certificates'),
@@ -3296,15 +3728,135 @@ function renderRecords(){
 }
 
 function renderReviews(){
-  $('#reviewList').innerHTML=
-    reviews.length
-    ? reviews.map(d=>
-        `<div class="record">
-          <strong>${esc(d.title)}</strong>
-          <div class="meta">${esc(d.detail)}</div>
-        </div>`
-      ).join('')
-    : '<div class="empty">Nothing needs review.</div>';
+
+  const list=
+    $('#reviewList');
+
+
+  if(!reviews.length){
+
+    list.innerHTML=
+      '<div class="empty">Nothing needs review.</div>';
+
+    return;
+  }
+
+
+  list.innerHTML=
+    reviews.map(review=>{
+
+      if(
+        review.reviewType!=='duplicate'
+      ){
+
+        return `
+          <div class="record">
+            <strong>
+              ${esc(review.title||'Needs review')}
+            </strong>
+
+            <div class="meta">
+              ${esc(review.detail||'')}
+            </div>
+          </div>
+        `;
+      }
+
+
+      const incoming=
+        review.incoming||{};
+
+
+      const incomingSummary=
+        review.itemType==='certificate'
+          ? `${incoming.student||''} · ${incoming.school||''} · ${incoming.number||''} · ${money(incoming.amount)}`
+          : `${incoming.student||incoming.payer||''} · ${incoming.method||''} · ${incoming.date||''} · ${money(incoming.amount)}`;
+
+
+      return `
+        <div class="record vf-duplicate-review">
+
+          <div class="vf-duplicate-label">
+            POSSIBLE DUPLICATE
+          </div>
+
+          <strong>
+            ${esc(review.title)}
+          </strong>
+
+          <div class="meta">
+            ${esc(review.detail||'')}
+          </div>
+
+
+          <div class="vf-duplicate-compare">
+
+            <div>
+              <small>Already recorded</small>
+              <strong>
+                ${esc(review.existingSummary||'Existing record')}
+              </strong>
+            </div>
+
+            <div>
+              <small>New item</small>
+              <strong>
+                ${esc(incomingSummary)}
+              </strong>
+            </div>
+
+          </div>
+
+
+          <div class="vf-review-actions">
+
+            <button
+              type="button"
+              class="primary"
+              data-reject-duplicate="${review.id}">
+              Reject duplicate
+            </button>
+
+            <button
+              type="button"
+              class="vf-secondary-button"
+              data-keep-duplicate="${review.id}">
+              Keep anyway
+            </button>
+
+          </div>
+
+          <div class="vf-default-note">
+            Default: reject duplicate
+          </div>
+
+        </div>
+      `;
+    }).join('');
+
+
+  $$('[data-reject-duplicate]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        rejectDuplicateReview(
+          button.dataset.rejectDuplicate
+        );
+      };
+    });
+
+
+  $$('[data-keep-duplicate]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        keepDuplicateReview(
+          button.dataset.keepDuplicate
+        );
+      };
+    });
 }
 
 function date(ts){
