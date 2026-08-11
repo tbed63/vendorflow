@@ -787,6 +787,11 @@ function resetCharterForm(){
   $('#charterState').value='';
   $('#charterZip').value='';
   $('#charterInvoiceDays').value='14';
+
+  if($('#charterPaymentTerms')){
+    $('#charterPaymentTerms').value='30';
+  }
+
   $('#charterNotes').value='';
 
   $('#saveCharterSchool').textContent=
@@ -845,6 +850,18 @@ function openCharterEditor(id=''){
       )
         ? Number(charter.invoiceDaysAfterStart)
         : 14;
+
+
+    if($('#charterPaymentTerms')){
+
+      $('#charterPaymentTerms').value=
+        String(
+          invoicePaymentTermsDays(
+            charter.paymentTermsDays
+          )
+        );
+    }
+
 
     $('#charterNotes').value=
       charter.notes||'';
@@ -2838,6 +2855,76 @@ function invoiceNumberForCertificate(cert){
 }
 
 
+
+function invoicePaymentTermsDays(
+  value
+){
+
+  const raw=
+    Number(value);
+
+  if(!Number.isFinite(raw)){
+    return 30;
+  }
+
+  return Math.max(
+    0,
+    Math.min(
+      365,
+      Math.round(raw)
+    )
+  );
+}
+
+
+function invoicePaymentTermsLabel(
+  value
+){
+
+  const days=
+    invoicePaymentTermsDays(
+      value
+    );
+
+  return days===0
+    ? 'Due upon receipt'
+    : `Net ${days}`;
+}
+
+
+function invoiceDueDateForTerms(
+  invoiceDate,
+  paymentTermsDays
+){
+
+  const date=
+    parseVendorDate(
+      invoiceDate
+    );
+
+  if(!date){
+    return '';
+  }
+
+  const result=
+    new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate() +
+        invoicePaymentTermsDays(
+          paymentTermsDays
+        ),
+      12,
+      0,
+      0
+    );
+
+  return dateToLocalISO(
+    result
+  );
+}
+
+
 async function createDueInvoices(){
 
   const due=
@@ -2967,6 +3054,24 @@ async function createDueInvoices(){
       invoiceDate:
         dateToLocalISO(
           new Date()
+        ),
+
+      paymentTermsDays:
+        invoicePaymentTermsDays(
+          charter.paymentTermsDays
+        ),
+
+      paymentTermsLabel:
+        invoicePaymentTermsLabel(
+          charter.paymentTermsDays
+        ),
+
+      dueDate:
+        invoiceDueDateForTerms(
+          dateToLocalISO(
+            new Date()
+          ),
+          charter.paymentTermsDays
         ),
 
       charterSchoolId:
@@ -3133,6 +3238,29 @@ async function openInvoicePdf(
       await user.getIdToken();
 
 
+    const charter=
+      charterSchools.find(
+        item=>
+          item.id===
+          invoice.charterSchoolId
+      ) || {};
+
+
+    const paymentTermsDays=
+      invoicePaymentTermsDays(
+        invoice.paymentTermsDays ??
+        charter.paymentTermsDays
+      );
+
+
+    const dueDate=
+      invoice.dueDate ||
+      invoiceDueDateForTerms(
+        invoice.invoiceDate,
+        paymentTermsDays
+      );
+
+
     const payload={
       invoiceNumber:
         invoice.invoiceNumber||'',
@@ -3141,7 +3269,16 @@ async function openInvoicePdf(
         invoice.invoiceDate||'',
 
       dueDate:
-        invoice.dueDate||'',
+        dueDate,
+
+      paymentTermsDays:
+        paymentTermsDays,
+
+      paymentTermsLabel:
+        invoice.paymentTermsLabel ||
+        invoicePaymentTermsLabel(
+          paymentTermsDays
+        ),
 
       amount:
         Number(invoice.amount||0),
@@ -3162,13 +3299,40 @@ async function openInvoicePdf(
         invoice.certificateNumber||'',
 
       charterSchoolName:
-        invoice.charterSchoolName||'',
+        invoice.charterSchoolName ||
+        charter.name ||
+        '',
+
+      charterAddress:
+        invoice.charterAddress ||
+        charter.address ||
+        '',
+
+      charterCity:
+        invoice.charterCity ||
+        charter.city ||
+        '',
+
+      charterState:
+        invoice.charterState ||
+        charter.state ||
+        '',
+
+      charterZip:
+        invoice.charterZip ||
+        charter.zip ||
+        '',
 
       charterBillingContact:
-        invoice.charterBillingContact||'',
+        invoice.charterBillingContact ||
+        charter.contactName ||
+        '',
 
       charterBillingEmail:
-        invoice.charterBillingEmail||'',
+        invoice.charterBillingEmail ||
+        charter.billingEmail ||
+        charter.contactEmail ||
+        '',
 
       vendorBusinessName:
         invoice.vendorBusinessName||'',
@@ -3184,6 +3348,16 @@ async function openInvoicePdf(
 
       vendorZip:
         invoice.vendorZip||'',
+
+      vendorPhone:
+        invoice.vendorPhone ||
+        profile.phone ||
+        '',
+
+      vendorEmail:
+        invoice.vendorEmail ||
+        user?.email ||
+        '',
 
       notes:
         invoice.notes||''
@@ -9686,6 +9860,11 @@ $('#saveCertificate').onclick=async()=>{
 
       invoiceDaysAfterStart:
         invoiceSchedule.days,
+
+    paymentTermsDays:
+      invoicePaymentTermsDays(
+        $('#charterPaymentTerms')?.value
+      ),
 
       invoiceReadyDate:
         invoiceSchedule.readyDate,
