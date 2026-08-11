@@ -4584,7 +4584,103 @@ function renderCertificateCharterOptions(){
 }
 
 
+
+function wireDashboardStatCards(){
+
+  const cards=[
+    {
+      value:'#statClasses',
+      view:'classes',
+      title:'Open Class Rosters'
+    },
+    {
+      value:'#statStudents',
+      view:'students',
+      title:'Open Students & Services'
+    },
+    {
+      value:'#statReview',
+      view:'review',
+      title:'Open Needs Review'
+    },
+    {
+      value:'#statHistory',
+      view:'history',
+      title:'Open VendorFlow Actions'
+    }
+  ];
+
+
+  cards.forEach(item=>{
+
+    const value=
+      $(item.value);
+
+    if(!value){
+      return;
+    }
+
+
+    const card=
+      value.closest('.stat');
+
+    if(!card){
+      return;
+    }
+
+
+    card.classList.add(
+      'vf-clickable-stat'
+    );
+
+    card.setAttribute(
+      'role',
+      'button'
+    );
+
+    card.setAttribute(
+      'tabindex',
+      '0'
+    );
+
+    card.setAttribute(
+      'title',
+      item.title
+    );
+
+
+    const activate=()=>{
+
+      switchView(
+        item.view
+      );
+    };
+
+
+    card.onclick=
+      activate;
+
+
+    card.onkeydown=
+      event=>{
+
+        if(
+          event.key==='Enter' ||
+          event.key===' '
+        ){
+
+          event.preventDefault();
+
+          activate();
+        }
+      };
+  });
+}
+
+
 function renderDashboard(){
+
+  wireDashboardStatCards();
 
   const activeClasses=
     classes.filter(
@@ -4609,11 +4705,9 @@ function renderDashboard(){
 
 
   $('#statStudents').textContent=
-    activeClasses.reduce(
-      (a,c)=>
-        a+(c.activeStudentCount||0),
-      0
-    );
+    students.filter(
+      studentVisibleInServices
+    ).length;
 
 
   $('#statReview').textContent=

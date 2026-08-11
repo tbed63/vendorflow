@@ -3493,3 +3493,38 @@ aside nav{
   }
 }
 
+
+
+/* ==========================================================
+   CLICKABLE DASHBOARD STAT CARDS
+   ========================================================== */
+
+.vf-clickable-stat{
+  cursor:pointer;
+  user-select:none;
+
+  transition:
+    transform .12s ease,
+    box-shadow .12s ease,
+    border-color .12s ease,
+    background .12s ease;
+}
+
+.vf-clickable-stat:hover{
+  transform:translateY(-2px);
+
+  border-color:#9BAAC0;
+
+  box-shadow:
+    0 8px 18px rgba(29,52,81,.10);
+
+  background:#FAFCFF;
+}
+
+.vf-clickable-stat:focus-visible{
+  outline:
+    3px solid rgba(26,52,111,.22);
+
+  outline-offset:3px;
+}
+
