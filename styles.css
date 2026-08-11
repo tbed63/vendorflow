@@ -3426,3 +3426,70 @@ aside nav{
 .vf-invoice-filter-card.active strong{
   color:#1A346F;
 }
+
+
+/* ==========================================================
+   UNIQUE VENDORFLOW INBOUND EMAIL
+   ========================================================== */
+
+.vf-inbound-email-card{
+  margin:22px 0;
+  padding:20px;
+
+  border:1px solid #D8E0E5;
+  border-radius:16px;
+
+  background:#F7F9FC;
+}
+
+.vf-inbound-email-card h3{
+  margin:6px 0 8px;
+}
+
+.vf-inbound-email-card p{
+  margin:0 0 15px;
+
+  color:#526773;
+  line-height:1.5;
+}
+
+.vf-inbound-email-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+
+  margin-bottom:9px;
+  padding:12px 14px;
+
+  border:1px solid #CAD5E2;
+  border-radius:11px;
+
+  background:#FFFFFF;
+}
+
+.vf-inbound-email-row strong{
+  min-width:0;
+
+  overflow-wrap:anywhere;
+
+  color:#173A77;
+  font-size:16px;
+}
+
+.vf-inbound-email-card > small{
+  color:#66757D;
+}
+
+@media(max-width:650px){
+
+  .vf-inbound-email-row{
+    align-items:stretch;
+    flex-direction:column;
+  }
+
+  .vf-inbound-email-row button{
+    width:100%;
+  }
+}
+

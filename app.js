@@ -36,6 +36,7 @@ const VENDORFLOW_API =
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),$=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],show=e=>e.classList.remove("hidden"),hide=e=>e.classList.add("hidden"),esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 let user=null,profile={},classes=[],roster=[],students=[],services=[],charterSchools=[],payments=[],certs=[],invoices=[],compliance=[],reviews=[],history=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
 let invoiceStatusFilter='all';
+let inboundEmailPromise=null;
 let editingCharterSchoolId='';
 let selectedPaymentStudentId=null;
 let pendingCertificatePdf=null;
@@ -663,7 +664,213 @@ function vendorAddressParts(){
 }
 
 
+
+function renderInboundVendorEmail(){
+
+  const el=
+    $('#accountInboundEmail');
+
+  if(!el){
+    return;
+  }
+
+
+  el.textContent=
+    profile.inboundEmail ||
+    'Creating your address...';
+
+
+  const copy=
+    $('#copyInboundEmail');
+
+
+  if(copy){
+
+    copy.disabled=
+      !profile.inboundEmail;
+
+
+    copy.onclick=
+      async()=>{
+
+        if(!profile.inboundEmail){
+          return;
+        }
+
+
+        try{
+
+          await navigator.clipboard.writeText(
+            profile.inboundEmail
+          );
+
+          const old=
+            copy.textContent;
+
+          copy.textContent=
+            'Copied';
+
+          setTimeout(
+            ()=>{
+              copy.textContent=
+                old;
+            },
+            1200
+          );
+
+
+        }catch{
+
+          prompt(
+            'Copy your VendorFlow email address:',
+            profile.inboundEmail
+          );
+        }
+      };
+  }
+}
+
+
+async function ensureInboundVendorEmail(){
+
+  if(!user){
+    return;
+  }
+
+
+  if(inboundEmailPromise){
+    return inboundEmailPromise;
+  }
+
+
+  inboundEmailPromise=
+    (async()=>{
+
+      const token=
+        await user.getIdToken();
+
+
+      const response=
+        await fetch(
+          `${VENDORFLOW_API}/inbound/address`,
+          {
+            method:'POST',
+
+            headers:{
+              Authorization:
+                `Bearer ${token}`,
+
+              'Content-Type':
+                'application/json'
+            },
+
+            body:
+              JSON.stringify({
+                businessName:
+                  profile.businessName ||
+                  profile.ownerName ||
+                  'vendor'
+              })
+          }
+        );
+
+
+      let data={};
+
+
+      try{
+
+        data=
+          await response.json();
+
+      }catch{}
+
+
+      if(
+        !response.ok ||
+        !data.email
+      ){
+
+        throw new Error(
+          data.detail ||
+          data.error ||
+          'VendorFlow email address could not be created.'
+        );
+      }
+
+
+      const email=
+        String(
+          data.email
+        ).trim();
+
+
+      if(
+        profile.inboundEmail !==
+        email
+      ){
+
+        profile.inboundEmail=
+          email;
+
+
+        await setDoc(
+          vendorDoc(),
+          {
+            inboundEmail:
+              email,
+
+            updatedAt:
+              serverTimestamp()
+          },
+          {
+            merge:true
+          }
+        );
+      }
+
+
+      renderInboundVendorEmail();
+
+
+      return email;
+    })();
+
+
+  try{
+
+    return await inboundEmailPromise;
+
+  }catch(error){
+
+    inboundEmailPromise=null;
+
+    throw error;
+  }
+}
+
+
 function renderAccountPage(){
+
+  renderInboundVendorEmail();
+
+  ensureInboundVendorEmail()
+    .catch(error=>{
+
+      console.error(
+        'VendorFlow inbound email:',
+        error
+      );
+
+      const el=
+        $('#accountInboundEmail');
+
+      if(el){
+        el.textContent=
+          'Could not create address';
+      }
+    });
+
 
   const subscription=
     profile.subscriptionLevel ||
