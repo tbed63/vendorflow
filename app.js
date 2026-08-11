@@ -3466,6 +3466,286 @@ async function openInvoicePdf(
 }
 
 
+
+async function sendInvoiceThroughVendorFlow(
+  invoice
+){
+
+  if(!user || !invoice){
+    return;
+  }
+
+
+  const charter=
+    charterSchools.find(
+      item=>
+        item.id===
+        invoice.charterSchoolId
+    ) || {};
+
+
+  const billingEmail=
+    String(
+      invoice.charterBillingEmail ||
+      charter.billingEmail ||
+      charter.contactEmail ||
+      ''
+    ).trim();
+
+
+  if(!billingEmail){
+
+    alert(
+      'No billing email is saved for ' +
+      (
+        invoice.charterSchoolName ||
+        charter.name ||
+        'this charter school'
+      ) +
+      '.'
+    );
+
+    return;
+  }
+
+
+  const ok=
+    confirm(
+      `Send invoice ${invoice.invoiceNumber}?\n\n` +
+      `To: ${billingEmail}\n` +
+      `Amount: ${money(invoice.amount)}\n\n` +
+      `VendorFlow will attach the invoice PDF and send it now.`
+    );
+
+
+  if(!ok){
+    return;
+  }
+
+
+  const paymentTermsDays=
+    invoicePaymentTermsDays(
+      invoice.paymentTermsDays ??
+      charter.paymentTermsDays
+    );
+
+
+  const payload={
+
+    invoiceId:
+      invoice.id,
+
+    invoiceNumber:
+      invoice.invoiceNumber||'',
+
+    invoiceDate:
+      invoice.invoiceDate||'',
+
+    amount:
+      Number(invoice.amount||0),
+
+    paymentTermsDays,
+
+    paymentTermsLabel:
+      invoice.paymentTermsLabel ||
+      invoicePaymentTermsLabel(
+        paymentTermsDays
+      ),
+
+    studentName:
+      invoice.studentName||'',
+
+    serviceName:
+      invoice.serviceName||'',
+
+    serviceStartDate:
+      invoice.serviceStartDate||'',
+
+    serviceEndDate:
+      invoice.serviceEndDate||'',
+
+    certificateNumber:
+      invoice.certificateNumber||'',
+
+    charterSchoolName:
+      invoice.charterSchoolName ||
+      charter.name ||
+      '',
+
+    charterAddress:
+      invoice.charterAddress ||
+      charter.address ||
+      '',
+
+    charterCity:
+      invoice.charterCity ||
+      charter.city ||
+      '',
+
+    charterState:
+      invoice.charterState ||
+      charter.state ||
+      '',
+
+    charterZip:
+      invoice.charterZip ||
+      charter.zip ||
+      '',
+
+    charterBillingContact:
+      invoice.charterBillingContact ||
+      charter.contactName ||
+      '',
+
+    charterBillingEmail:
+      billingEmail,
+
+    vendorBusinessName:
+      invoice.vendorBusinessName ||
+      profile.businessName ||
+      '',
+
+    vendorOwnerName:
+      invoice.vendorOwnerName ||
+      profile.ownerName ||
+      '',
+
+    vendorAddress:
+      invoice.vendorStreet ||
+      profile.address ||
+      '',
+
+    vendorCity:
+      invoice.vendorCity ||
+      profile.city ||
+      '',
+
+    vendorState:
+      invoice.vendorState ||
+      profile.state ||
+      '',
+
+    vendorZip:
+      invoice.vendorZip ||
+      profile.zip ||
+      '',
+
+    vendorPhone:
+      invoice.vendorPhone ||
+      profile.phone ||
+      '',
+
+    vendorEmail:
+      invoice.vendorEmail ||
+      user?.email ||
+      '',
+
+    notes:
+      invoice.notes||''
+  };
+
+
+  const token=
+    await user.getIdToken();
+
+
+  const response=
+    await fetch(
+      `${VENDORFLOW_API}/invoice/send`,
+      {
+        method:'POST',
+
+        headers:{
+          Authorization:
+            `Bearer ${token}`,
+
+          'Content-Type':
+            'application/json'
+        },
+
+        body:
+          JSON.stringify(
+            payload
+          )
+      }
+    );
+
+
+  let data={};
+
+
+  try{
+
+    data=
+      await response.json();
+
+  }catch{}
+
+
+  if(!response.ok){
+
+    throw new Error(
+      data.detail ||
+      data.error ||
+      'VendorFlow could not send this invoice.'
+    );
+  }
+
+
+  /*
+   * IMPORTANT:
+   * Only mark Sent AFTER the server confirms
+   * that the email service accepted the message.
+   */
+  await setDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'invoices',
+      invoice.id
+    ),
+    {
+      status:
+        'Sent',
+
+      sentAt:
+        serverTimestamp(),
+
+      sentTo:
+        billingEmail,
+
+      emailProvider:
+        'Resend',
+
+      emailProviderId:
+        data.emailId || '',
+
+      updatedAt:
+        serverTimestamp()
+    },
+    {
+      merge:true
+    }
+  );
+
+
+  await log(
+    'Invoice sent',
+    `${invoice.invoiceNumber} — ${invoice.charterSchoolName} — ${money(invoice.amount)} — sent to ${billingEmail}.`,
+    'VendorFlow'
+  );
+
+
+  await refreshAll();
+
+
+  alert(
+    `Invoice ${invoice.invoiceNumber} was sent successfully to ${billingEmail}.`
+  );
+}
+
+
 function renderInvoices(){
 
   renderInvoiceNumberingSettings();
@@ -3804,7 +4084,7 @@ function renderInvoices(){
   $$('[data-invoice-email]')
     .forEach(button=>{
 
-      button.onclick=()=>{
+      button.onclick=async()=>{
 
         const invoice=
           invoices.find(
@@ -3817,69 +4097,52 @@ function renderInvoices(){
           return;
         }
 
-        const billingEmail=
-          String(
-            invoice.charterBillingEmail||''
-          ).trim();
+
+        const originalText=
+          button.textContent;
 
 
-        if(!billingEmail){
+        try{
 
-          alert(
-            'No billing email is saved for ' +
-            (invoice.charterSchoolName||'this charter school') +
-            '.\n\nAdd the charter billing email first, then return to this invoice.'
+          button.disabled=
+            true;
+
+          button.textContent=
+            'Sending...';
+
+
+          await sendInvoiceThroughVendorFlow(
+            invoice
           );
 
-          return;
-        }
+
+        }catch(error){
+
+          console.error(
+            error
+          );
+
+          alert(
+            error.message ||
+            'VendorFlow could not send this invoice.'
+          );
 
 
-        const subject=
-          `Invoice ${invoice.invoiceNumber} — ${invoice.vendorBusinessName||'Educational Services'}`;
+        }finally{
 
-
-        const servicePeriod=
-          invoiceServicePeriod(invoice);
-
-
-        const bodyLines=[
-          'Hello,',
-          '',
-          `Please find invoice ${invoice.invoiceNumber} from ${invoice.vendorBusinessName||'our business'}.`,
-          '',
-          `Student: ${invoice.studentName||''}`,
-          `Certificate / PO: ${invoice.certificateNumber||''}`,
-          `Service: ${invoice.serviceName||'Educational services'}`,
-          servicePeriod
-            ? `Service period: ${servicePeriod}`
-            : '',
-          `Invoice amount: ${money(invoice.amount)}`,
-          '',
-          'Thank you,',
-          invoice.vendorOwnerName ||
-            invoice.vendorBusinessName ||
-            ''
-        ];
-
-
-        const body=
-          bodyLines
-            .filter(
-              line=>line!==null &&
-                    line!==undefined
+          if(
+            document.body.contains(
+              button
             )
-            .join('\n');
+          ){
 
+            button.disabled=
+              false;
 
-        const mailto=
-          `mailto:${encodeURIComponent(billingEmail)}` +
-          `?subject=${encodeURIComponent(subject)}` +
-          `&body=${encodeURIComponent(body)}`;
-
-
-        window.location.href=
-          mailto;
+            button.textContent=
+              originalText;
+          }
+        }
       };
     });
 
