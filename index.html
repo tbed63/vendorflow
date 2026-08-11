@@ -46,7 +46,7 @@
       <button data-view="invoices">Invoices</button>
       <button data-view="compliance">Compliance</button>
       <button data-view="review">Needs Review <span id="reviewBadge">0</span></button>
-      <button data-view="history">History</button>
+      <button data-view="history">Actions</button>
       <button data-view="profile">Business Profile</button>
     </nav>
   </aside>
@@ -158,7 +158,7 @@
         <div class="stat"><span>Needs review</span><strong id="statReview">0</strong></div>
         <div class="stat"><span>Actions</span><strong id="statHistory">0</strong></div>
       </div>
-      <div class="card"><div class="eyebrow">Recent history</div><h2>What VendorFlow has done</h2><div id="recentHistory"></div></div>
+      <div class="card"><div class="eyebrow">Recent actions</div><h2>VendorFlow Actions</h2><div id="recentHistory"></div></div>
     </section>
 
     <section id="classesView" class="view">
@@ -1110,7 +1110,7 @@
 <section id="complianceView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Vendor approval & compliance</div><h2>Requirements & renewals</h2><p>Track applications, TB tests, Live Scan, training, insurance, W-9s and more.</p></div><button id="addCompliance" class="primary">Add task</button></div><div id="complianceForm" class="formgrid hidden"><input id="compSchool" class="input" placeholder="School / organization"><input id="compTask" class="input" placeholder="Requirement"><input id="compDue" class="input" type="date"><select id="compStatus" class="input"><option>Not started</option><option>In progress</option><option>Submitted</option><option>Approved</option><option>Complete</option><option>Needs renewal</option></select><button id="saveCompliance" class="primary">Save task</button></div><div id="complianceList"></div></div></section>
 
     <section id="reviewView" class="view"><div class="card"><div class="eyebrow">Safety net</div><h2>Needs Review</h2><p>VendorFlow should never quietly guess.</p><div id="reviewList"></div></div></section>
-    <section id="historyView" class="view"><div class="card"><div class="eyebrow">Permanent audit trail</div><h2>History</h2><p>See what happened, when, and whether it was manual, imported, or automated.</p><div id="historyList"></div></div></section>
+    <section id="historyView" class="view"><div class="card"><div class="eyebrow">Permanent audit trail</div><h2>Actions</h2><p>See what happened, when, and whether it was manual, imported, or automated.</p><div id="historyList"></div></div></section>
 
 
     
