@@ -3436,9 +3436,69 @@ function renderInvoices(){
           return;
         }
 
-        toast(
-          'Email draft workflow is the next step.'
-        );
+        const billingEmail=
+          String(
+            invoice.charterBillingEmail||''
+          ).trim();
+
+
+        if(!billingEmail){
+
+          alert(
+            'No billing email is saved for ' +
+            (invoice.charterSchoolName||'this charter school') +
+            '.\n\nAdd the charter billing email first, then return to this invoice.'
+          );
+
+          return;
+        }
+
+
+        const subject=
+          `Invoice ${invoice.invoiceNumber} — ${invoice.vendorBusinessName||'Educational Services'}`;
+
+
+        const servicePeriod=
+          invoiceServicePeriod(invoice);
+
+
+        const bodyLines=[
+          'Hello,',
+          '',
+          `Please find invoice ${invoice.invoiceNumber} from ${invoice.vendorBusinessName||'our business'}.`,
+          '',
+          `Student: ${invoice.studentName||''}`,
+          `Certificate / PO: ${invoice.certificateNumber||''}`,
+          `Service: ${invoice.serviceName||'Educational services'}`,
+          servicePeriod
+            ? `Service period: ${servicePeriod}`
+            : '',
+          `Invoice amount: ${money(invoice.amount)}`,
+          '',
+          'Thank you,',
+          invoice.vendorOwnerName ||
+            invoice.vendorBusinessName ||
+            ''
+        ];
+
+
+        const body=
+          bodyLines
+            .filter(
+              line=>line!==null &&
+                    line!==undefined
+            )
+            .join('\n');
+
+
+        const mailto=
+          `mailto:${encodeURIComponent(billingEmail)}` +
+          `?subject=${encodeURIComponent(subject)}` +
+          `&body=${encodeURIComponent(body)}`;
+
+
+        window.location.href=
+          mailto;
       };
     });
 
