@@ -1101,17 +1101,32 @@
 
       <div class="vf-invoice-summary-grid">
 
-        <div class="vf-invoice-summary-card">
+        <div
+          class="vf-invoice-summary-card vf-invoice-filter-card"
+          data-invoice-filter="ready"
+          role="button"
+          tabindex="0"
+          title="Show Ready to Send invoices">
           <small>READY TO SEND</small>
           <strong id="invoiceReadyCount">0</strong>
         </div>
 
-        <div class="vf-invoice-summary-card">
+        <div
+          class="vf-invoice-summary-card vf-invoice-filter-card"
+          data-invoice-filter="sent"
+          role="button"
+          tabindex="0"
+          title="Show Sent invoices">
           <small>SENT</small>
           <strong id="invoiceSentCount">0</strong>
         </div>
 
-        <div class="vf-invoice-summary-card">
+        <div
+          class="vf-invoice-summary-card vf-invoice-filter-card"
+          data-invoice-filter="paid"
+          role="button"
+          tabindex="0"
+          title="Show Paid invoices">
           <small>PAID</small>
           <strong id="invoicePaidCount">0</strong>
         </div>

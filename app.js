@@ -35,6 +35,7 @@ const VENDORFLOW_API =
 
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),$=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],show=e=>e.classList.remove("hidden"),hide=e=>e.classList.add("hidden"),esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 let user=null,profile={},classes=[],roster=[],students=[],services=[],charterSchools=[],payments=[],certs=[],invoices=[],compliance=[],reviews=[],history=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
+let invoiceStatusFilter='all';
 let editingCharterSchoolId='';
 let selectedPaymentStudentId=null;
 let pendingCertificatePdf=null;
@@ -3819,8 +3820,47 @@ function renderInvoices(){
   ];
 
 
+  let visibleInvoices=
+    ordered;
+
+
+  if(invoiceStatusFilter==='ready'){
+    visibleInvoices=ready;
+  }
+
+  if(invoiceStatusFilter==='sent'){
+    visibleInvoices=sent;
+  }
+
+  if(invoiceStatusFilter==='paid'){
+    visibleInvoices=paid;
+  }
+
+
+  $$('[data-invoice-filter]')
+    .forEach(card=>{
+
+      const active=
+        card.dataset.invoiceFilter===
+        invoiceStatusFilter;
+
+      card.classList.toggle(
+        'active',
+        active
+      );
+
+      card.setAttribute(
+        'aria-pressed',
+        active
+          ? 'true'
+          : 'false'
+      );
+    });
+
+
   list.innerHTML=
-    ordered.map(invoice=>{
+    visibleInvoices.length
+      ? visibleInvoices.map(invoice=>{
 
       const charterAddress=
         invoiceAddressLines(invoice);
@@ -4052,9 +4092,43 @@ function renderInvoices(){
 
         </article>
       `;
-    }).join('');
+    }).join('')
+      : `<div class="empty">No invoices in this category.</div>`;
 
 
+  $$('[data-invoice-filter]')
+    .forEach(card=>{
+
+      const activate=()=>{
+
+        const selected=
+          card.dataset.invoiceFilter;
+
+        invoiceStatusFilter=
+          invoiceStatusFilter===selected
+            ? 'all'
+            : selected;
+
+        renderInvoices();
+      };
+
+
+      card.onclick=
+        activate;
+
+
+      card.onkeydown=
+        event=>{
+
+          if(
+            event.key==='Enter' ||
+            event.key===' '
+          ){
+            event.preventDefault();
+            activate();
+          }
+        };
+    });
 
 
   $$('[data-invoice-pdf]')
