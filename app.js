@@ -3117,6 +3117,181 @@ function vendorInvoiceAddressLines(invoice){
 }
 
 
+
+async function openInvoicePdf(
+  invoice
+){
+
+  if(!user || !invoice){
+    return;
+  }
+
+
+  try{
+
+    const token=
+      await user.getIdToken();
+
+
+    const payload={
+      invoiceNumber:
+        invoice.invoiceNumber||'',
+
+      invoiceDate:
+        invoice.invoiceDate||'',
+
+      dueDate:
+        invoice.dueDate||'',
+
+      amount:
+        Number(invoice.amount||0),
+
+      studentName:
+        invoice.studentName||'',
+
+      serviceName:
+        invoice.serviceName||'',
+
+      serviceStartDate:
+        invoice.serviceStartDate||'',
+
+      serviceEndDate:
+        invoice.serviceEndDate||'',
+
+      certificateNumber:
+        invoice.certificateNumber||'',
+
+      charterSchoolName:
+        invoice.charterSchoolName||'',
+
+      charterBillingContact:
+        invoice.charterBillingContact||'',
+
+      charterBillingEmail:
+        invoice.charterBillingEmail||'',
+
+      vendorBusinessName:
+        invoice.vendorBusinessName||'',
+
+      vendorAddress:
+        invoice.vendorStreet||'',
+
+      vendorCity:
+        invoice.vendorCity||'',
+
+      vendorState:
+        invoice.vendorState||'',
+
+      vendorZip:
+        invoice.vendorZip||'',
+
+      notes:
+        invoice.notes||''
+    };
+
+
+    const response=
+      await fetch(
+        `${VENDORFLOW_API}/invoice/pdf`,
+        {
+          method:'POST',
+
+          headers:{
+            Authorization:
+              `Bearer ${token}`,
+
+            'Content-Type':
+              'application/json'
+          },
+
+          body:
+            JSON.stringify(
+              payload
+            )
+        }
+      );
+
+
+    if(!response.ok){
+
+      let data={};
+
+      try{
+        data=
+          await response.json();
+      }catch{}
+
+      throw new Error(
+        data.detail ||
+        data.error ||
+        'Invoice PDF could not be generated.'
+      );
+    }
+
+
+    const blob=
+      await response.blob();
+
+
+    const url=
+      URL.createObjectURL(
+        blob
+      );
+
+
+    const opened=
+      window.open(
+        url,
+        '_blank',
+        'noopener'
+      );
+
+
+    if(!opened){
+
+      const link=
+        document.createElement(
+          'a'
+        );
+
+      link.href=
+        url;
+
+      link.target=
+        '_blank';
+
+      link.rel=
+        'noopener';
+
+      document.body.appendChild(
+        link
+      );
+
+      link.click();
+      link.remove();
+    }
+
+
+    setTimeout(
+      ()=>URL.revokeObjectURL(url),
+      60000
+    );
+
+
+  }catch(error){
+
+    console.error(
+      error
+    );
+
+    alert(
+      error.message ||
+      'VendorFlow could not open the invoice PDF.'
+    );
+  }
+}
+
+
 function renderInvoices(){
 
   renderInvoiceNumberingSettings();
@@ -3364,6 +3539,13 @@ function renderInvoices(){
 
           <div class="vf-invoice-actions">
 
+            <button
+              type="button"
+              class="vf-secondary-button"
+              data-invoice-pdf="${invoice.id}">
+              View PDF
+            </button>
+
             ${
               status==='Ready to Send'
                 ? `
@@ -3418,6 +3600,31 @@ function renderInvoices(){
       `;
     }).join('');
 
+
+
+
+  $$('[data-invoice-pdf]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        const invoice=
+          invoices.find(
+            item=>
+              item.id===
+              button.dataset.invoicePdf
+          );
+
+        if(!invoice){
+          return;
+        }
+
+
+        openInvoicePdf(
+          invoice
+        );
+      };
+    });
 
 
   $$('[data-invoice-email]')
