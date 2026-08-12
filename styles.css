@@ -4052,3 +4052,94 @@ aside nav{
   }
 }
 
+
+
+/* ==========================================================
+   FINAL INVOICE TOOLBAR ALIGNMENT
+   ========================================================== */
+
+.vf-invoice-search-row{
+  display:flex !important;
+  align-items:center !important;
+  flex-wrap:nowrap !important;
+
+  width:100% !important;
+  max-width:none !important;
+
+  gap:10px !important;
+}
+
+
+.vf-invoice-search-row > .input{
+  flex:0 0 430px !important;
+
+  width:430px !important;
+  max-width:430px !important;
+}
+
+
+#toggleInvoiceFilters{
+  flex:0 0 auto !important;
+}
+
+
+#clearInvoiceFilters{
+  display:inline-flex !important;
+  align-items:center !important;
+
+  flex:0 0 auto !important;
+
+  margin:0 !important;
+  padding:8px 6px !important;
+
+  color:#173A77 !important;
+
+  font-size:13px !important;
+  font-weight:700 !important;
+
+  white-space:nowrap !important;
+}
+
+
+#clearInvoiceFilters:disabled{
+  opacity:.42 !important;
+
+  cursor:default !important;
+
+  text-decoration:none !important;
+}
+
+
+.vf-invoice-numbering-button{
+  flex:0 0 auto !important;
+
+  margin-left:auto !important;
+
+  min-height:42px !important;
+
+  padding:10px 16px !important;
+
+  white-space:nowrap !important;
+}
+
+
+@media(max-width:900px){
+
+  .vf-invoice-search-row{
+    flex-wrap:wrap !important;
+  }
+
+
+  .vf-invoice-search-row > .input{
+    flex:1 1 360px !important;
+
+    width:auto !important;
+    max-width:none !important;
+  }
+
+
+  .vf-invoice-numbering-button{
+    margin-left:0 !important;
+  }
+}
+

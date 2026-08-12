@@ -4745,10 +4745,13 @@ function renderInvoices(){
 
   if(clear){
 
-    clear.classList.toggle(
-      'hidden',
-      !invoiceLedgerFiltersActive()
+    clear.classList.remove(
+      'hidden'
     );
+
+
+    clear.disabled=
+      !invoiceLedgerFiltersActive();
 
 
     clear.onclick=()=>{
