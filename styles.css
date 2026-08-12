@@ -3975,3 +3975,80 @@ aside nav{
   }
 }
 
+
+
+/* ==========================================================
+   INVOICE TOOLBAR POLISH
+   ========================================================== */
+
+.vf-invoice-ledger-toolbar{
+  justify-content:flex-start !important;
+}
+
+
+.vf-invoice-search-row{
+  justify-content:flex-start !important;
+  flex-wrap:wrap;
+
+  max-width:980px;
+}
+
+
+.vf-invoice-search-row > .input{
+  flex:0 1 470px !important;
+
+  width:470px !important;
+  max-width:100% !important;
+}
+
+
+.vf-invoice-numbering-button{
+  min-height:42px;
+
+  padding:10px 16px !important;
+
+  border:1px solid #AEBBC5 !important;
+  border-radius:9px !important;
+
+  background:#FFFFFF !important;
+  color:#173A77 !important;
+
+  font-size:13px !important;
+  font-weight:750 !important;
+
+  white-space:nowrap;
+}
+
+
+.vf-invoice-numbering-button:hover{
+  border-color:#173A77 !important;
+
+  background:#F4F7FB !important;
+}
+
+
+#clearInvoiceFilters{
+  padding:8px 4px;
+
+  white-space:nowrap;
+}
+
+
+@media(max-width:760px){
+
+  .vf-invoice-search-row{
+    max-width:none;
+  }
+
+
+  .vf-invoice-search-row > .input{
+    width:100% !important;
+    flex:1 1 100% !important;
+  }
+
+
+  .vf-invoice-numbering-button{
+    width:100%;
+  }
+}
+
