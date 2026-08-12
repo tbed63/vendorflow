@@ -11514,7 +11514,7 @@ function renderRecords(){
   $('#certificateList').innerHTML=
     visibleCertificates.length
     ? visibleCertificates.map(d=>
-        `<div class="record">
+        `<div class="record" data-certificate-id="${esc(d.id)}">
           <strong>${esc(d.student)} — $${Number(d.amount).toFixed(2)}</strong>
           <div class="meta">${esc(d.school)} · ${esc(d.number)} · ${esc(d.status)}</div>
 
@@ -11546,12 +11546,15 @@ function renderRecords(){
               : (
                   d.serviceStartDate &&
                   !d.charterSchoolId
-                    ? `<div class="vf-invoice-schedule vf-invoice-unlinked">
+                    ? `<button
+                         type="button"
+                         class="vf-invoice-schedule vf-invoice-unlinked vf-certificate-problem"
+                         data-fix-certificate="${esc(d.id)}">
                          <strong>Invoice schedule not set</strong>
                          <span>
                            Save or match this charter school to use automatic invoice timing.
                          </span>
-                       </div>`
+                       </button>`
                     : ''
                 )
           }
@@ -11581,6 +11584,45 @@ function renderRecords(){
     : '<div class="empty">No certificates yet.</div>';
 
   wireCertificatePdfButtons();
+
+  $$('[data-fix-certificate]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        const certificateId=
+          button.dataset.fixCertificate;
+
+        const record=
+          document.querySelector(
+            `[data-certificate-id="${CSS.escape(certificateId)}"]`
+          );
+
+        if(record){
+
+          record.scrollIntoView({
+            behavior:'smooth',
+            block:'center'
+          });
+
+          record.animate(
+            [
+              {opacity:1},
+              {opacity:.55},
+              {opacity:1}
+            ],
+            {
+              duration:650,
+              iterations:2
+            }
+          );
+        }
+
+        toast(
+          'This certificate needs a charter school match before VendorFlow can schedule its invoice.'
+        );
+      };
+    });
 
   $$('[data-delete-cert]')
     .forEach(button=>{
