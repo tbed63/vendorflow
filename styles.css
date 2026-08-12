@@ -3528,3 +3528,450 @@ aside nav{
   outline-offset:3px;
 }
 
+
+
+/* ==========================================================
+   PROFESSIONAL SEARCHABLE INVOICE LEDGER
+   ========================================================== */
+
+.vf-invoice-summary-grid{
+  display:none !important;
+}
+
+
+.vf-invoice-ledger-toolbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:24px;
+
+  margin:8px 0 18px;
+  padding-bottom:12px;
+
+  border-bottom:1px solid #DDE4E9;
+}
+
+
+.vf-invoice-ledger-nav{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+
+.vf-invoice-ledger-nav > span{
+  color:#C6CFD6;
+}
+
+
+.vf-invoice-ledger-tab{
+  margin:0;
+  padding:5px 1px;
+
+  border:0;
+  border-bottom:2px solid transparent;
+
+  background:transparent;
+  color:#67767E;
+
+  cursor:pointer;
+
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:.025em;
+}
+
+
+.vf-invoice-ledger-tab:hover{
+  color:#173A77;
+}
+
+
+.vf-invoice-ledger-tab.active{
+  border-bottom-color:#173A77;
+
+  color:#173A77;
+
+  font-weight:850;
+}
+
+
+.vf-text-link{
+  border:0;
+
+  background:transparent;
+  color:#173A77;
+
+  cursor:pointer;
+
+  font-size:13px;
+  font-weight:700;
+}
+
+
+.vf-text-link:hover{
+  text-decoration:underline;
+}
+
+
+.vf-invoice-search-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+
+  margin-bottom:14px;
+}
+
+
+.vf-invoice-search-row > .input{
+  flex:1;
+}
+
+
+.vf-invoice-advanced-filters{
+  display:grid;
+  grid-template-columns:
+    repeat(3,minmax(150px,1fr));
+
+  gap:12px;
+
+  margin-bottom:18px;
+  padding:16px;
+
+  border:1px solid #DCE3E8;
+  border-radius:12px;
+
+  background:#F8FAFC;
+}
+
+
+.vf-invoice-advanced-filters label{
+  display:grid;
+  gap:6px;
+
+  color:#607079;
+
+  font-size:12px;
+  font-weight:700;
+}
+
+
+.vf-invoice-ledger-header,
+.vf-invoice-ledger-row{
+  display:grid;
+
+  grid-template-columns:
+    1.2fr
+    1.7fr
+    1.35fr
+    1.55fr
+    1fr
+    .9fr
+    .85fr;
+
+  align-items:center;
+
+  gap:15px;
+}
+
+
+.vf-invoice-ledger-header{
+  padding:9px 14px;
+
+  border-bottom:1px solid #CFD8DF;
+
+  color:#78878F;
+
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.055em;
+  text-transform:uppercase;
+}
+
+
+.vf-invoice-ledger-row{
+  width:100%;
+
+  padding:14px;
+
+  border:0;
+  border-bottom:1px solid #E3E9ED;
+
+  background:#FFFFFF;
+  color:#293A42;
+
+  cursor:pointer;
+
+  font:inherit;
+  text-align:left;
+
+  transition:
+    background .1s ease,
+    box-shadow .1s ease;
+}
+
+
+.vf-invoice-ledger-row:hover{
+  background:#F6F9FD;
+
+  box-shadow:
+    inset 3px 0 0 #173A77;
+}
+
+
+.vf-invoice-ledger-row:focus-visible{
+  outline:3px solid rgba(23,58,119,.16);
+  outline-offset:-3px;
+}
+
+
+.vf-ledger-number{
+  color:#173A77;
+  font-weight:800;
+}
+
+
+.vf-invoice-ledger-header .right,
+.vf-invoice-ledger-row .right{
+  text-align:right;
+}
+
+
+.vf-ledger-status{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+
+  min-width:62px;
+
+  padding:5px 8px;
+
+  border-radius:999px;
+
+  font-size:10px;
+  font-weight:850;
+  letter-spacing:.045em;
+}
+
+
+.vf-ledger-status.ready{
+  background:#FFF3D6;
+  color:#785414;
+}
+
+
+.vf-ledger-status.sent{
+  background:#E7F0FB;
+  color:#28588E;
+}
+
+
+.vf-ledger-status.paid{
+  background:#E5F4EB;
+  color:#2D7048;
+}
+
+
+.vf-invoice-ledger-empty{
+  padding:42px 18px;
+
+  color:#73838B;
+
+  text-align:center;
+}
+
+
+.vf-modal-overlay{
+  position:fixed;
+  inset:0;
+
+  z-index:6000;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  padding:24px;
+
+  background:rgba(25,38,50,.48);
+}
+
+
+.vf-modal-overlay.hidden{
+  display:none !important;
+}
+
+
+.vf-modal-card{
+  position:relative;
+
+  width:min(760px,100%);
+  max-height:90vh;
+
+  overflow:auto;
+
+  padding:28px;
+
+  border-radius:16px;
+
+  background:#FFFFFF;
+
+  box-shadow:
+    0 24px 70px rgba(20,34,49,.24);
+}
+
+
+.vf-modal-close{
+  position:absolute;
+
+  top:12px;
+  right:14px;
+
+  width:34px;
+  height:34px;
+
+  border:0;
+  border-radius:50%;
+
+  background:#EEF2F5;
+  color:#52636B;
+
+  cursor:pointer;
+
+  font-size:22px;
+}
+
+
+.vf-invoice-detail-heading{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:20px;
+
+  margin-bottom:22px;
+}
+
+
+.vf-invoice-detail-grid{
+  display:grid;
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+
+  gap:18px;
+
+  padding:20px 0;
+
+  border-top:1px solid #E0E6EA;
+  border-bottom:1px solid #E0E6EA;
+}
+
+
+.vf-invoice-detail-grid > div{
+  display:grid;
+  gap:5px;
+}
+
+
+.vf-invoice-detail-grid small{
+  color:#78878F;
+
+  font-size:11px;
+  font-weight:750;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+
+
+.vf-invoice-detail-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+
+  margin-top:22px;
+}
+
+
+#invoiceNumberingModalBody #invoiceNumberingSettings{
+  margin:18px 0 0 !important;
+}
+
+
+@media(max-width:1050px){
+
+  .vf-invoice-ledger-header,
+  .vf-invoice-ledger-row{
+    grid-template-columns:
+      1.2fr
+      1.7fr
+      1.3fr
+      1fr
+      .85fr;
+  }
+
+
+  .vf-invoice-ledger-header > span:nth-child(4),
+  .vf-invoice-ledger-row > span:nth-child(4),
+  .vf-invoice-ledger-header > span:nth-child(5),
+  .vf-invoice-ledger-row > span:nth-child(5){
+    display:none;
+  }
+}
+
+
+@media(max-width:720px){
+
+  .vf-invoice-ledger-toolbar{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+
+  .vf-invoice-ledger-nav{
+    flex-wrap:wrap;
+  }
+
+
+  .vf-invoice-search-row{
+    align-items:stretch;
+    flex-direction:column;
+  }
+
+
+  .vf-invoice-advanced-filters{
+    grid-template-columns:1fr;
+  }
+
+
+  .vf-invoice-ledger-header{
+    display:none;
+  }
+
+
+  .vf-invoice-ledger-row{
+    display:grid;
+
+    grid-template-columns:
+      1fr auto;
+
+    gap:7px 14px;
+  }
+
+
+  .vf-invoice-ledger-row > span{
+    display:block !important;
+  }
+
+
+  .vf-invoice-ledger-row > span:nth-child(2),
+  .vf-invoice-ledger-row > span:nth-child(3),
+  .vf-invoice-ledger-row > span:nth-child(4),
+  .vf-invoice-ledger-row > span:nth-child(5){
+    grid-column:1;
+  }
+
+
+  .vf-invoice-detail-grid{
+    grid-template-columns:1fr;
+  }
+}
+

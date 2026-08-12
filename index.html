@@ -1099,41 +1099,196 @@
         </div>
 
 
-      <div class="vf-invoice-summary-grid">
+      
+<div class="vf-invoice-ledger-toolbar">
 
-        <div
-          class="vf-invoice-summary-card vf-invoice-filter-card"
-          data-invoice-filter="ready"
-          role="button"
-          tabindex="0"
-          title="Show Ready to Send invoices">
-          <small>READY TO SEND</small>
-          <strong id="invoiceReadyCount">0</strong>
-        </div>
+  <div class="vf-invoice-ledger-nav">
 
-        <div
-          class="vf-invoice-summary-card vf-invoice-filter-card"
-          data-invoice-filter="sent"
-          role="button"
-          tabindex="0"
-          title="Show Sent invoices">
-          <small>SENT</small>
-          <strong id="invoiceSentCount">0</strong>
-        </div>
+    <button
+      type="button"
+      class="vf-invoice-ledger-tab active"
+      data-invoice-filter="all">
+      ALL INVOICES <span id="invoiceAllCount">(0)</span>
+    </button>
 
-        <div
-          class="vf-invoice-summary-card vf-invoice-filter-card"
-          data-invoice-filter="paid"
-          role="button"
-          tabindex="0"
-          title="Show Paid invoices">
-          <small>PAID</small>
-          <strong id="invoicePaidCount">0</strong>
-        </div>
+    <span>|</span>
 
-      </div>
+    <button
+      type="button"
+      class="vf-invoice-ledger-tab"
+      data-invoice-filter="ready">
+      READY <span id="invoiceReadyCount">(0)</span>
+    </button>
 
-      <div id="invoiceList" class="vf-invoice-list">
+    <span>|</span>
+
+    <button
+      type="button"
+      class="vf-invoice-ledger-tab"
+      data-invoice-filter="sent">
+      SENT <span id="invoiceSentCount">(0)</span>
+    </button>
+
+    <span>|</span>
+
+    <button
+      type="button"
+      class="vf-invoice-ledger-tab"
+      data-invoice-filter="paid">
+      PAID <span id="invoicePaidCount">(0)</span>
+    </button>
+
+  </div>
+
+
+  <button
+    type="button"
+    id="openInvoiceNumberingSettings"
+    class="vf-text-link">
+    Invoice numbering settings
+  </button>
+
+</div>
+
+
+<div class="vf-invoice-search-row">
+
+  <input
+    id="invoiceSearch"
+    class="input"
+    type="search"
+    placeholder="Search invoice number, charter, student, service, amount or date">
+
+  <button
+    type="button"
+    id="toggleInvoiceFilters"
+    class="vf-secondary-button">
+    Filters
+  </button>
+
+  <button
+    type="button"
+    id="clearInvoiceFilters"
+    class="vf-text-link hidden">
+    Clear filters
+  </button>
+
+</div>
+
+
+<div
+  id="invoiceAdvancedFilters"
+  class="vf-invoice-advanced-filters hidden">
+
+  <label>
+    Charter
+    <select id="invoiceFilterCharter" class="input">
+      <option value="">All charters</option>
+    </select>
+  </label>
+
+  <label>
+    Student
+    <select id="invoiceFilterStudent" class="input">
+      <option value="">All students</option>
+    </select>
+  </label>
+
+  <label>
+    Service
+    <select id="invoiceFilterService" class="input">
+      <option value="">All services</option>
+    </select>
+  </label>
+
+  <label>
+    From date
+    <input
+      id="invoiceFilterDateFrom"
+      class="input"
+      type="date">
+  </label>
+
+  <label>
+    To date
+    <input
+      id="invoiceFilterDateTo"
+      class="input"
+      type="date">
+  </label>
+
+  <label>
+    Minimum amount
+    <input
+      id="invoiceFilterAmountMin"
+      class="input"
+      type="number"
+      min="0"
+      step="0.01">
+  </label>
+
+  <label>
+    Maximum amount
+    <input
+      id="invoiceFilterAmountMax"
+      class="input"
+      type="number"
+      min="0"
+      step="0.01">
+  </label>
+
+</div>
+
+
+<div
+  id="invoiceDetailModal"
+  class="vf-modal-overlay hidden">
+
+  <div class="vf-modal-card">
+
+    <button
+      type="button"
+      id="closeInvoiceDetail"
+      class="vf-modal-close">
+      ×
+    </button>
+
+    <div id="invoiceDetailContent"></div>
+
+  </div>
+
+</div>
+
+
+<div
+  id="invoiceNumberingModal"
+  class="vf-modal-overlay hidden">
+
+  <div class="vf-modal-card">
+
+    <button
+      type="button"
+      id="closeInvoiceNumbering"
+      class="vf-modal-close">
+      ×
+    </button>
+
+    <div class="eyebrow">
+      Invoice settings
+    </div>
+
+    <h2>
+      Invoice numbering
+    </h2>
+
+    <div id="invoiceNumberingModalBody"></div>
+
+  </div>
+
+</div>
+
+
+<div id="invoiceList" class="vf-invoice-list">
         <div class="empty">No invoices yet.</div>
       </div>
 
