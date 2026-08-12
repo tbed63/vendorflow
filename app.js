@@ -7604,7 +7604,7 @@ function renderGlobalStudentSearch(){
           </div>
 
           <span class="vf-global-edit-label">
-            Edit
+            View account
           </span>
 
         </button>
@@ -7617,7 +7617,7 @@ function renderGlobalStudentSearch(){
 
       button.onclick=()=>{
 
-        openGlobalStudentEdit(
+        openGlobalStudentAccount(
           button.dataset.globalStudent
         );
       };
@@ -7625,6 +7625,64 @@ function renderGlobalStudentSearch(){
 
 
   show(results);
+}
+
+
+function openGlobalStudentAccount(studentId){
+
+  const student=
+    students.find(
+      item=>item.id===studentId
+    );
+
+  if(!student){
+    return;
+  }
+
+
+  /*
+   * Global student search is primarily an account lookup.
+   * Take the vendor to the student's financial/service card
+   * instead of assuming they want to edit the student.
+   */
+  switchView(
+    'students'
+  );
+
+  hide(
+    $('#globalStudentSearchResults')
+  );
+
+
+  requestAnimationFrame(()=>{
+
+    const card=
+      document.querySelector(
+        `[data-student-account-id="${CSS.escape(studentId)}"]`
+      );
+
+    if(!card){
+      return;
+    }
+
+    card.scrollIntoView({
+      behavior:'smooth',
+      block:'center'
+    });
+
+    card.classList.add(
+      'vf-student-search-target'
+    );
+
+    setTimeout(
+      ()=>{
+        card.classList.remove(
+          'vf-student-search-target'
+        );
+      },
+      2200
+    );
+  });
 }
 
 
@@ -8181,7 +8239,9 @@ function renderStudentsServices(){
 
 
         return `
-          <div class="vf-student-account">
+          <div
+            class="vf-student-account"
+            data-student-account-id="${student.id}">
 
             <div class="vf-student-head">
 

@@ -4143,3 +4143,17 @@ aside nav{
   }
 }
 
+
+/* ==========================================================
+   GLOBAL STUDENT SEARCH — ACCOUNT DESTINATION
+   ========================================================== */
+
+.vf-student-account.vf-student-search-target {
+  outline: 3px solid rgba(24, 58, 111, .32);
+  outline-offset: 3px;
+  box-shadow: 0 8px 28px rgba(24, 58, 111, .16);
+  transition:
+    outline-color .35s ease,
+    box-shadow .35s ease;
+}
+
