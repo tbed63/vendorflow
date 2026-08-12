@@ -491,6 +491,116 @@ async function getList(name,ordered=true){
   return s.docs.map(d=>({id:d.id,...d.data()}));
 }
 
+
+function paymentReviewKey(
+  studentId,
+  method,
+  date,
+  amount
+){
+
+  return [
+    String(studentId||'').trim(),
+    String(method||'').trim().toLowerCase(),
+    String(date||'').trim(),
+    Math.round(
+      Number(amount||0)*100
+    )
+  ].join('|');
+}
+
+
+async function cleanupLegacyPaymentDuplicateReviews(){
+
+  /*
+   * Older inbound-payment code created a generic review record:
+   *
+   *   reviewType: payment
+   *
+   * The corrected system creates:
+   *
+   *   reviewType: duplicate
+   *   itemType: payment
+   *   incoming: {...}
+   *
+   * Remove an old record ONLY when an exact matching corrected
+   * duplicate review already exists. This prevents deleting a
+   * legitimate unrelated Needs Review item.
+   */
+
+  const properDuplicates=
+    reviews.filter(
+      review=>
+        review.reviewType==='duplicate' &&
+        review.itemType==='payment'
+    );
+
+
+  const legacy=
+    reviews.filter(
+      review=>
+        review.reviewType==='payment' &&
+        review.itemType==='payment'
+    );
+
+
+  if(
+    !properDuplicates.length ||
+    !legacy.length
+  ){
+    return 0;
+  }
+
+
+  const properKeys=
+    new Set(
+      properDuplicates.map(review=>{
+
+        const incoming=
+          review.incoming||{};
+
+        return paymentReviewKey(
+          incoming.studentId,
+          incoming.method,
+          incoming.date,
+          incoming.amount
+        );
+      })
+    );
+
+
+  const stale=
+    legacy.filter(
+      review=>
+        properKeys.has(
+          paymentReviewKey(
+            review.studentId,
+            review.method,
+            review.date,
+            review.amount
+          )
+        )
+    );
+
+
+  for(const review of stale){
+
+    await deleteDoc(
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'review',
+        review.id
+      )
+    );
+  }
+
+
+  return stale.length;
+}
+
+
 async function refreshAll(){
   classes=await getList('classes',false);
 
@@ -513,6 +623,14 @@ async function refreshAll(){
 
   compliance=await getList('compliance');
   reviews=await getList('review');
+
+  const removedLegacyReviews=
+    await cleanupLegacyPaymentDuplicateReviews();
+
+  if(removedLegacyReviews>0){
+    reviews=await getList('review');
+  }
+
   history=await getList('history');
 
   const repaired=
