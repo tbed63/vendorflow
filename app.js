@@ -7417,7 +7417,7 @@ function studentAccountTotals(student){
       );
 
 
-  const certificateTotal=
+  const activeCertificates=
     studentCertificates(student.studentName)
       .filter(
         c=>
@@ -7429,7 +7429,11 @@ function studentAccountTotals(student){
             String(c.status||'')
               .toLowerCase()
           )
-      )
+      );
+
+
+  const certificateTotal=
+    activeCertificates
       .reduce(
         (sum,c)=>
           sum+Number(c.amount||0),
@@ -7455,6 +7459,7 @@ function studentAccountTotals(student){
     parentPayments,
     charterPayments,
     certificateTotal,
+    activeCertificates,
     parentBalance,
     charterReceivable
   };
@@ -8322,19 +8327,57 @@ function renderStudentsServices(){
                 ${esc(balance.label)}
               </span>
 
+              ${
+                account.activeCertificates.length
+                  ? `
+                    <button
+                      type="button"
+                      class="vf-student-certificate-link"
+                      data-student-certificate="${student.id}">
+                      ${
+                        account.activeCertificates.length===1
+                          ? 'View certificate'
+                          : `View ${account.activeCertificates.length} certificates`
+                      }
+                    </button>
+                  `
+                  : ''
+              }
+
             </div>
 
 
             ${account.charterReceivable>0
               ? `
-                <div class="vf-charter-receivable">
+                ${
+                  account.activeCertificates.length===1 &&
+                  account.activeCertificates[0].pdfObjectKey
+                    ? `
+                      <button
+                        type="button"
+                        class="vf-charter-receivable vf-charter-receivable-link"
+                        data-student-certificate="${student.id}">
+                    `
+                    : `<div class="vf-charter-receivable">`
+                }
                   Charter receivable:
                   <strong>
                     ${money(account.charterReceivable)}
                   </strong>
                   — parent obligation has already been satisfied
                   by the certificate.
-                </div>
+                  ${
+                    account.activeCertificates.length===1 &&
+                    account.activeCertificates[0].pdfObjectKey
+                      ? `<span class="vf-receivable-view">View certificate</span>`
+                      : ''
+                  }
+                ${
+                  account.activeCertificates.length===1 &&
+                  account.activeCertificates[0].pdfObjectKey
+                    ? `</button>`
+                    : `</div>`
+                }
               `
               : ''}
 
@@ -8360,6 +8403,88 @@ function renderStudentsServices(){
         `;
       })
       .join('');
+
+
+  $$('[data-student-certificate]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        const student=
+          students.find(
+            item=>
+              item.id===
+              button.dataset.studentCertificate
+          );
+
+        if(!student){
+          return;
+        }
+
+        const linked=
+          studentCertificates(
+            student.studentName
+          )
+            .filter(
+              cert=>
+                !cert.deleted &&
+                ![
+                  'cancelled',
+                  'deleted'
+                ].includes(
+                  String(cert.status||'')
+                    .toLowerCase()
+                )
+            );
+
+        if(
+          linked.length===1 &&
+          linked[0].pdfObjectKey
+        ){
+          openCertificatePdf(
+            linked[0].pdfObjectKey
+          );
+          return;
+        }
+
+        switchView('certificates');
+
+        requestAnimationFrame(()=>{
+
+          const list=
+            $('#certificateList');
+
+          if(!list){
+            return;
+          }
+
+          const wanted=
+            normalizedName(
+              student.studentName
+            );
+
+          Array.from(
+            list.querySelectorAll('.record')
+          ).forEach(record=>{
+
+            const text=
+              normalizedName(
+                record.textContent||''
+              );
+
+            record.style.display=
+              text.includes(wanted)
+                ? ''
+                : 'none';
+          });
+
+          list.scrollIntoView({
+            behavior:'smooth',
+            block:'start'
+          });
+        });
+      };
+    });
 
 
   $$('[data-add-service-student]')

@@ -4157,3 +4157,60 @@ aside nav{
     box-shadow .35s ease;
 }
 
+
+/* ==========================================================
+   STUDENT ACCOUNT — CERTIFICATE ACCESS
+   ========================================================== */
+
+.vf-student-certificate-link{
+  margin-left:auto;
+  border:1px solid #b9c8dc;
+  background:#fff;
+  color:#173d7a;
+  border-radius:7px;
+  padding:7px 11px;
+  font:inherit;
+  font-size:12px;
+  font-weight:700;
+  white-space:nowrap;
+  cursor:pointer;
+}
+
+.vf-student-certificate-link:hover{
+  background:#f4f7fb;
+  border-color:#173d7a;
+}
+
+.vf-charter-receivable-link{
+  width:100%;
+  text-align:left;
+  font:inherit;
+  color:inherit;
+  cursor:pointer;
+  border-left:0;
+  border-right:0;
+  border-bottom:0;
+}
+
+.vf-charter-receivable-link:hover{
+  background:#e8f0f9;
+}
+
+.vf-receivable-view{
+  float:right;
+  color:#173d7a;
+  font-weight:700;
+  margin-left:18px;
+}
+
+@media (max-width:800px){
+  .vf-student-certificate-link{
+    margin-left:0;
+  }
+
+  .vf-receivable-view{
+    float:none;
+    display:block;
+    margin:4px 0 0;
+  }
+}
