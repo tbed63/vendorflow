@@ -4214,3 +4214,35 @@ aside nav{
     margin:4px 0 0;
   }
 }
+
+/* ==========================================================
+   CERTIFICATE ACTION / REVIEW WORKFLOW
+   ========================================================== */
+
+button.vf-certificate-problem{
+  width:100%;
+  appearance:none;
+  font:inherit;
+  text-align:left;
+  cursor:pointer;
+  box-shadow:none;
+}
+
+button.vf-certificate-problem:hover{
+  border-color:#c8a54d;
+  background:#fff3d4;
+}
+
+button.vf-certificate-problem:focus-visible{
+  outline:2px solid #1a346f;
+  outline-offset:2px;
+}
+
+.vf-certificate-review{
+  border-left:4px solid #d2a33d;
+}
+
+.vf-certificate-review .vf-review-actions{
+  margin-top:10px;
+}
+

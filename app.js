@@ -53,6 +53,7 @@ let editingCharterSchoolId='';
 let selectedPaymentStudentId=null;
 let pendingCertificatePdf=null;
 let editingRosterStudentId=null;
+let editingCertificateId='';
 const questions=[['businessName','What is the name of your business?','This will appear on invoices.'],['ownerName','What name should VendorFlow use for you?','Your name as vendor or owner.'],['address','What is your business mailing address?','Street address.'],['cityStateZip','What city, state, and ZIP go with that address?','Example: Encinitas, CA 92024'],['phone','What business phone number should VendorFlow use?','You can change this later.'],['locations','Where do you teach or conduct business?','Learning centers, campuses, tutoring locations, etc.'],['schools','Which charter schools or organizations do you work with?','List as many as you know now.']];
 const aliases={registrationId:['id','registration id'],status:['status','registration status'],classTitle:['title','class title','class'],studentFirst:['registrant first name','student first name','child first name'],studentLast:['registrant last name','student last name','child last name'],parentFirst:['primary first name','parent first name','guardian first name'],parentLast:['primary last name','parent last name','guardian last name'],parentEmail:['email address','parent email','guardian email'],parentPhone:['phone','parent phone','guardian phone'],grade:['grade level','grade']};
 const vendorDoc=()=>doc(db,'vendors',user.uid),sub=n=>collection(db,'vendors',user.uid,n),toast=m=>{let t=$('#toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)};
@@ -601,6 +602,102 @@ async function cleanupLegacyPaymentDuplicateReviews(){
 }
 
 
+
+function certificateAttentionIssue(cert){
+
+  if(
+    !cert ||
+    cert.deleted
+  ){
+    return null;
+  }
+
+
+  if(!cert.charterSchoolId){
+
+    return {
+      code:'missing-charter',
+      title:'Certificate needs a charter school',
+      detail:
+        `${cert.student||'Student'} — ${money(cert.amount)} — `+
+        `attach the correct charter school so VendorFlow can schedule the invoice.`
+    };
+  }
+
+
+  if(
+    cert.serviceStartDate &&
+    !cert.invoiceScheduleValid
+  ){
+
+    return {
+      code:'missing-invoice-schedule',
+      title:'Certificate invoice schedule needs attention',
+      detail:
+        `${cert.student||'Student'} — ${money(cert.amount)} — `+
+        `review the charter and service start date so VendorFlow can schedule the invoice.`
+    };
+  }
+
+
+  return null;
+}
+
+
+function certificateAttentionReviews(){
+
+  return certs
+    .map(cert=>{
+
+      const issue=
+        certificateAttentionIssue(
+          cert
+        );
+
+      if(!issue){
+        return null;
+      }
+
+
+      return {
+        id:
+          `certificate-attention-${cert.id}`,
+
+        reviewType:
+          'certificate-attention',
+
+        itemType:
+          'certificate',
+
+        certificateId:
+          cert.id,
+
+        title:
+          issue.title,
+
+        detail:
+          issue.detail,
+
+        issueCode:
+          issue.code,
+
+        student:
+          cert.student||'',
+
+        amount:
+          Number(cert.amount||0),
+
+        number:
+          cert.number||'',
+
+        source:
+          'VendorFlow'
+      };
+    })
+    .filter(Boolean);
+}
+
+
 async function refreshAll(){
   classes=await getList('classes',false);
 
@@ -630,6 +727,18 @@ async function refreshAll(){
   if(removedLegacyReviews>0){
     reviews=await getList('review');
   }
+
+
+  /*
+   * Certificate operational issues are derived directly
+   * from the certificate records. This makes them impossible
+   * to forget and lets them clear automatically when fixed.
+   */
+  reviews=[
+    ...reviews,
+    ...certificateAttentionReviews()
+  ];
+
 
   history=await getList('history');
 
@@ -10931,7 +11040,138 @@ if($('#certPdf')){
 
 
 
+
+function openCertificateForRepair(
+  certificateId
+){
+
+  const cert=
+    certs.find(
+      item=>item.id===certificateId
+    );
+
+
+  if(!cert){
+    return toast(
+      'Certificate could not be found.'
+    );
+  }
+
+
+  editingCertificateId=
+    certificateId;
+
+
+  switchView(
+    'certificates'
+  );
+
+
+  /*
+   * Populate the existing certificate form.
+   */
+  $('#certStudent').value=
+    cert.student||'';
+
+  $('#certStudentId').value=
+    cert.studentId||'';
+
+  $('#certSchool').value=
+    cert.charterSchoolName ||
+    cert.school ||
+    '';
+
+  $('#certCharterSchoolId').value=
+    cert.charterSchoolId||'';
+
+  $('#certAmount').value=
+    Number(cert.amount||0);
+
+  $('#certNumber').value=
+    cert.number||'';
+
+  $('#certIssueDate').value=
+    cert.issueDate||'';
+
+  $('#certServiceStart').value=
+    cert.serviceStartDate||'';
+
+  $('#certServiceEnd').value=
+    cert.serviceEndDate||'';
+
+  $('#certBillingEmail').value=
+    cert.billingEmail ||
+    cert.charterBillingEmail ||
+    '';
+
+  $('#certStatus').value=
+    cert.status ||
+    'Received - Not Billed';
+
+  $('#certServiceDescription').value=
+    cert.serviceDescription||'';
+
+  $('#certInvoiceInstructions').value=
+    cert.invoiceInstructions||'';
+
+  $('#certNotes').value=
+    cert.notes||'';
+
+
+  /*
+   * The stored PDF remains attached. We are repairing
+   * metadata, not requiring the vendor to upload it again.
+   */
+  pendingCertificatePdf=null;
+
+  if($('#certPdf')){
+    $('#certPdf').value='';
+  }
+
+  if($('#certPdfStatus')){
+    $('#certPdfStatus').textContent=
+      cert.pdfObjectKey
+        ? 'Existing certificate PDF is already stored securely.'
+        : 'No PDF attached.';
+  }
+
+
+  /*
+   * Refresh linked student/charter displays using the IDs
+   * already stored on this certificate.
+   */
+  renderCertificateStudentMatches();
+  renderCertificateCharterMatches();
+
+
+  show(
+    $('#certificateForm')
+  );
+
+
+  $('#saveCertificate').textContent=
+    'Save changes';
+
+
+  $('#certificateForm')
+    .scrollIntoView({
+      behavior:'smooth',
+      block:'start'
+    });
+
+
+  toast(
+    'Fix the highlighted certificate and save your changes.'
+  );
+}
+
+
 $('#addCertificate').onclick=()=>{
+
+  editingCertificateId='';
+
+  $('#saveCertificate').textContent=
+    'Save certificate';
 
   toggle('#certificateForm');
 
@@ -10940,6 +11180,11 @@ $('#addCertificate').onclick=()=>{
 
 
 $('#cancelCertificate').onclick=()=>{
+
+  editingCertificateId='';
+
+  $('#saveCertificate').textContent=
+    'Save certificate';
 
   hide($('#certificateForm'));
 
@@ -11039,8 +11284,40 @@ $('#saveCertificate').onclick=async()=>{
 
   try{
 
+    const editingCertificate=
+      editingCertificateId
+        ? certs.find(
+            item=>
+              item.id===editingCertificateId
+          )
+        : null;
+
+
     let pdf=
       pendingCertificatePdf;
+
+
+    if(
+      editingCertificate &&
+      !pdf
+    ){
+
+      pdf={
+        objectKey:
+          editingCertificate.pdfObjectKey||'',
+
+        originalName:
+          editingCertificate.pdfName||'',
+
+        size:
+          Number(
+            editingCertificate.pdfSize||0
+          ),
+
+        extraction:
+          editingCertificate.extraction||null
+      };
+    }
 
 
     if(
@@ -11248,7 +11525,18 @@ $('#saveCertificate').onclick=async()=>{
       );
 
 
-    if(duplicateCertificate){
+    const duplicateIsCurrentCertificate=
+      Boolean(
+        editingCertificateId &&
+        duplicateCertificate?.id===
+          editingCertificateId
+      );
+
+
+    if(
+      duplicateCertificate &&
+      !duplicateIsCurrentCertificate
+    ){
 
       await queueDuplicateReview(
         'certificate',
@@ -11287,19 +11575,61 @@ $('#saveCertificate').onclick=async()=>{
 
 
 
-    await addDoc(
-      sub('certificates'),
-      data
-    );
+    if(editingCertificateId){
+
+      /*
+       * Preserve the original creation time and replace only
+       * the editable/current certificate data.
+       */
+      const {
+        createdAt,
+        ...editableData
+      }=data;
 
 
-    await log(
-      'Certificate added',
-      `${school||'Charter'} certificate for ` +
-      `${data.student} — ${money(amount)}` +
-      `${pdf?' — PDF stored securely.':''}`,
-      'Manual'
-    );
+      await setDoc(
+        doc(
+          db,
+          'vendors',
+          user.uid,
+          'certificates',
+          editingCertificateId
+        ),
+        {
+          ...editableData,
+
+          updatedAt:
+            serverTimestamp()
+        },
+        {
+          merge:true
+        }
+      );
+
+
+      await log(
+        'Certificate updated',
+        `${data.student} — ${money(amount)} — certificate details repaired.`,
+        'Manual'
+      );
+
+
+    }else{
+
+      await addDoc(
+        sub('certificates'),
+        data
+      );
+
+
+      await log(
+        'Certificate added',
+        `${school||'Charter'} certificate for ` +
+        `${data.student} — ${money(amount)}` +
+        `${pdf?' — PDF stored securely.':''}`,
+        'Manual'
+      );
+    }
 
 
     [
@@ -11335,6 +11665,11 @@ $('#saveCertificate').onclick=async()=>{
     }
 
     pendingCertificatePdf=null;
+
+    editingCertificateId='';
+
+    $('#saveCertificate').textContent=
+      'Save certificate';
 
     clearCertificateCharterLink(
       false
@@ -11590,36 +11925,8 @@ function renderRecords(){
 
       button.onclick=()=>{
 
-        const certificateId=
-          button.dataset.fixCertificate;
-
-        const record=
-          document.querySelector(
-            `[data-certificate-id="${CSS.escape(certificateId)}"]`
-          );
-
-        if(record){
-
-          record.scrollIntoView({
-            behavior:'smooth',
-            block:'center'
-          });
-
-          record.animate(
-            [
-              {opacity:1},
-              {opacity:.55},
-              {opacity:1}
-            ],
-            {
-              duration:650,
-              iterations:2
-            }
-          );
-        }
-
-        toast(
-          'This certificate needs a charter school match before VendorFlow can schedule its invoice.'
+        openCertificateForRepair(
+          button.dataset.fixCertificate
         );
       };
     });
@@ -11668,8 +11975,19 @@ function renderReviews(){
         review.reviewType!=='duplicate'
       ){
 
+        const isCertificateAttention=
+          review.reviewType===
+            'certificate-attention' &&
+          review.certificateId;
+
+
         return `
-          <div class="record">
+          <div class="record ${
+            isCertificateAttention
+              ? 'vf-certificate-review'
+              : ''
+          }">
+
             <strong>
               ${esc(review.title||'Needs review')}
             </strong>
@@ -11677,6 +11995,22 @@ function renderReviews(){
             <div class="meta">
               ${esc(review.detail||'')}
             </div>
+
+            ${
+              isCertificateAttention
+                ? `
+                  <div class="vf-review-actions">
+                    <button
+                      type="button"
+                      class="primary"
+                      data-fix-review-certificate="${esc(review.certificateId)}">
+                      Fix certificate
+                    </button>
+                  </div>
+                `
+                : ''
+            }
+
           </div>
         `;
       }
@@ -11752,6 +12086,18 @@ function renderReviews(){
         </div>
       `;
     }).join('');
+
+
+  $$('[data-fix-review-certificate]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        openCertificateForRepair(
+          button.dataset.fixReviewCertificate
+        );
+      };
+    });
 
 
   $$('[data-reject-duplicate]')
