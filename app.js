@@ -5768,8 +5768,40 @@ $('#saveClass').onclick=async()=>{
     term:$('#classTerm').value.trim(),
     tuition:Number($('#classTuition').value)||null,
     location:$('#classLocation').value.trim(),
+
+    paymentSchedule:
+      $('#classPaymentSchedule').value,
+
+    paymentDueDate:
+      $('#classPaymentDueDate').value || '',
+
+    dueDay:
+      Number($('#classDueDay').value||4),
+
+    lateFee:
+      Number($('#classLateFee').value||0),
+
+    lateFeeGraceDays:
+      Number($('#classLateFeeGraceDays').value||0),
+
+    vendorAlertDays:
+      Number($('#classVendorAlertDays').value||0),
+
+    parentReminderEnabled:
+      Boolean($('#classParentReminderEnabled').checked),
+
+    parentReminderDays:
+      Number($('#classParentReminderDays').value||0),
+
+    reminderSubject:
+      $('#classReminderSubject').value.trim(),
+
+    reminderBody:
+      $('#classReminderBody').value.trim(),
+
     activeStudentCount:0,
-    createdAt:serverTimestamp()
+    createdAt:serverTimestamp(),
+    updatedAt:serverTimestamp()
   };
 
   let r=await addDoc(sub('classes'),data);
@@ -5785,6 +5817,27 @@ $('#saveClass').onclick=async()=>{
   $('#classTerm').value='';
   $('#classTuition').value='';
   $('#classLocation').value='';
+
+  $('#classPaymentSchedule').value='Full';
+  $('#classPaymentDueDate').value='';
+  $('#classDueDay').value='4';
+  $('#classLateFee').value='25';
+  $('#classLateFeeGraceDays').value='0';
+  $('#classVendorAlertDays').value='3';
+  $('#classParentReminderEnabled').checked=false;
+  $('#classParentReminderDays').value='3';
+  $('#classReminderSubject').value=
+    'Payment reminder for {{studentName}}';
+  $('#classReminderBody').value=
+`Hi {{parentName}},
+
+This is a reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}.
+
+Payment instructions:
+{{paymentInstructions}}
+
+Thank you,
+{{businessName}}`;
 
   toast('Class saved.');
 };
@@ -8907,6 +8960,26 @@ $('#serviceClass').onchange=()=>{
   ){
     $('#serviceTotal').value=
       Number(classRecord.tuition);
+  }
+
+
+  /*
+   * Class payment rules are defaults only.
+   * The vendor may still override them for this individual service.
+   */
+  if(classRecord.paymentSchedule){
+    $('#serviceSchedule').value=
+      classRecord.paymentSchedule;
+  }
+
+  if(Number(classRecord.dueDay||0)>0){
+    $('#serviceDueDay').value=
+      Number(classRecord.dueDay);
+  }
+
+  if(classRecord.lateFee !== undefined){
+    $('#serviceLateFee').value=
+      Number(classRecord.lateFee||0);
   }
 
 

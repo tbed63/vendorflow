@@ -169,6 +169,110 @@
           <input id="classTerm" class="input" placeholder="School year / term">
           <input id="classTuition" class="input" type="number" placeholder="Tuition">
           <input id="classLocation" class="input" placeholder="Learning center / location">
+
+          <div class="vf-info-strip" style="margin-top:16px;">
+            <strong>Payment defaults</strong><br>
+            These rules will automatically fill in when this class is assigned
+            to a student's service. You can still change an individual student's
+            arrangement later.
+          </div>
+
+          <select id="classPaymentSchedule" class="input">
+            <option value="Full">Pay in full</option>
+            <option value="Monthly">Monthly payments</option>
+            <option value="Custom">Custom arrangement</option>
+          </select>
+
+          <input
+            id="classPaymentDueDate"
+            class="input"
+            type="date"
+            aria-label="Payment due date">
+
+          <input
+            id="classDueDay"
+            class="input"
+            type="number"
+            min="1"
+            max="28"
+            value="4"
+            placeholder="Monthly payment due day">
+
+          <input
+            id="classLateFee"
+            class="input"
+            type="number"
+            min="0"
+            step=".01"
+            value="25"
+            placeholder="Late fee amount">
+
+          <input
+            id="classLateFeeGraceDays"
+            class="input"
+            type="number"
+            min="0"
+            max="60"
+            value="0"
+            placeholder="Days after due date before late fee applies">
+
+          <div class="vf-info-strip" style="margin-top:16px;">
+            <strong>Your reminders</strong><br>
+            VendorFlow can alert you before families still owing money reach
+            the payment deadline.
+          </div>
+
+          <input
+            id="classVendorAlertDays"
+            class="input"
+            type="number"
+            min="0"
+            max="60"
+            value="3"
+            placeholder="Alert me this many days before payment is due">
+
+          <div class="vf-info-strip" style="margin-top:16px;">
+            <strong>Parent reminders</strong><br>
+            Save the automatic reminder settings now. VendorFlow will not
+            send these until automatic parent reminders are enabled later.
+          </div>
+
+          <label class="vf-check-row">
+            <input
+              id="classParentReminderEnabled"
+              type="checkbox">
+            Automatically remind parents who still owe money
+          </label>
+
+          <input
+            id="classParentReminderDays"
+            class="input"
+            type="number"
+            min="0"
+            max="60"
+            value="3"
+            placeholder="Email parent this many days before payment is due">
+
+          <input
+            id="classReminderSubject"
+            class="input"
+            value="Payment reminder for {{studentName}}"
+            placeholder="Reminder email subject">
+
+          <textarea
+            id="classReminderBody"
+            class="input"
+            rows="7"
+            placeholder="Reminder email message">Hi {{parentName}},
+
+This is a reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}.
+
+Payment instructions:
+{{paymentInstructions}}
+
+Thank you,
+{{businessName}}</textarea>
+
           <button id="saveClass" class="primary full">Save class</button>
           <hr><select id="classSelect" class="input"><option value="">Choose a class</option></select>
         </div>
