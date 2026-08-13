@@ -4262,3 +4262,137 @@ button.vf-certificate-problem:focus-visible{
   box-shadow:0 0 0 3px rgba(212,155,32,.20);
 }
 
+
+
+/* ==========================================================
+   SIMPLE CLASS SETUP
+   ========================================================== */
+
+.vf-class-section{
+  margin-top:18px;
+}
+
+.vf-class-section h3{
+  margin:0 0 10px;
+  font-size:16px;
+}
+
+.vf-class-fields{
+  display:grid;
+  gap:10px;
+}
+
+.vf-class-fields-3{
+  grid-template-columns:
+    repeat(3,minmax(0,1fr));
+}
+
+.vf-class-fields-2{
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+}
+
+.vf-field-label{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  min-width:0;
+}
+
+.vf-field-label > span{
+  font-size:12px;
+  font-weight:700;
+  color:#465761;
+}
+
+.vf-field-label .input{
+  margin:0;
+}
+
+.vf-class-options{
+  margin:14px 0 16px;
+  border:1px solid #d7dfe5;
+  border-radius:10px;
+  background:#f8fafb;
+}
+
+.vf-class-options > summary,
+.vf-email-customize > summary{
+  cursor:pointer;
+  font-weight:700;
+  padding:12px 14px;
+}
+
+.vf-class-options-body{
+  padding:2px 14px 14px;
+}
+
+.vf-parent-reminder-setting{
+  margin-top:14px;
+  padding-top:12px;
+  border-top:1px solid #dce3e8;
+}
+
+.vf-parent-reminder-setting
+.vf-check-row{
+  margin:0;
+}
+
+#classParentReminderOptions{
+  margin-top:12px;
+}
+
+.vf-email-customize{
+  margin-top:10px;
+}
+
+.vf-email-customize > summary{
+  padding-left:0;
+  padding-right:0;
+}
+
+.vf-email-customize
+.vf-field-label{
+  margin-bottom:10px;
+}
+
+.vf-number-suffix,
+.vf-money-field{
+  display:flex;
+  align-items:center;
+  gap:7px;
+}
+
+.vf-number-suffix .input,
+.vf-money-field .input{
+  min-width:0;
+}
+
+.vf-number-suffix > span,
+.vf-money-field > span{
+  white-space:nowrap;
+  font-size:13px;
+  color:#5f6f78;
+}
+
+
+@media(max-width:760px){
+
+  .vf-class-fields-3,
+  .vf-class-fields-2{
+    grid-template-columns:
+      repeat(2,minmax(0,1fr));
+  }
+
+}
+
+
+@media(max-width:480px){
+
+  .vf-class-fields-3,
+  .vf-class-fields-2{
+    grid-template-columns:1fr;
+  }
+
+}
+

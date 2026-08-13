@@ -5758,6 +5758,78 @@ async function loadRoster(){
   roster=s.docs.map(d=>({id:d.id,...d.data()}));
 }
 
+
+function updateClassPaymentUI(){
+
+  const schedule=
+    $('#classPaymentSchedule')?.value ||
+    'Full';
+
+  const dueDate=
+    $('#classDueDateWrap');
+
+  const dueDay=
+    $('#classDueDayWrap');
+
+
+  if(schedule==='Monthly'){
+
+    hide(dueDate);
+    show(dueDay);
+
+  }else{
+
+    show(dueDate);
+    hide(dueDay);
+  }
+}
+
+
+function updateClassParentReminderUI(){
+
+  const enabled=
+    Boolean(
+      $('#classParentReminderEnabled')
+        ?.checked
+    );
+
+  const options=
+    $('#classParentReminderOptions');
+
+  if(!options){
+    return;
+  }
+
+  enabled
+    ? show(options)
+    : hide(options);
+}
+
+
+if($('#classPaymentSchedule')){
+
+  $('#classPaymentSchedule')
+    .addEventListener(
+      'change',
+      updateClassPaymentUI
+    );
+
+  updateClassPaymentUI();
+}
+
+
+if($('#classParentReminderEnabled')){
+
+  $('#classParentReminderEnabled')
+    .addEventListener(
+      'change',
+      updateClassParentReminderUI
+    );
+
+  updateClassParentReminderUI();
+}
+
+
 $('#saveClass').onclick=async()=>{
   let name=$('#className').value.trim();
 

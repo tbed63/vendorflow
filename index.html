@@ -170,100 +170,160 @@
           <input id="classTuition" class="input" type="number" placeholder="Tuition">
           <input id="classLocation" class="input" placeholder="Learning center / location">
 
-          <div class="vf-info-strip" style="margin-top:16px;">
-            <strong>Payment defaults</strong><br>
-            These rules will automatically fill in when this class is assigned
-            to a student's service. You can still change an individual student's
-            arrangement later.
+          <div class="vf-class-section">
+
+            <h3>Payment</h3>
+
+            <div class="vf-class-fields vf-class-fields-3">
+
+              <label class="vf-field-label">
+                <span>Payment plan</span>
+                <select id="classPaymentSchedule" class="input">
+                  <option value="Full">Pay in full</option>
+                  <option value="Monthly">Monthly</option>
+                  <option value="Custom">Custom</option>
+                </select>
+              </label>
+
+              <label
+                id="classDueDateWrap"
+                class="vf-field-label">
+                <span>Payment due</span>
+                <input
+                  id="classPaymentDueDate"
+                  class="input"
+                  type="date">
+              </label>
+
+              <label
+                id="classDueDayWrap"
+                class="vf-field-label hidden">
+                <span>Due day each month</span>
+                <input
+                  id="classDueDay"
+                  class="input"
+                  type="number"
+                  min="1"
+                  max="28"
+                  value="4">
+              </label>
+
+            </div>
+
           </div>
 
-          <select id="classPaymentSchedule" class="input">
-            <option value="Full">Pay in full</option>
-            <option value="Monthly">Monthly payments</option>
-            <option value="Custom">Custom arrangement</option>
-          </select>
 
-          <input
-            id="classPaymentDueDate"
-            class="input"
-            type="date"
-            aria-label="Payment due date">
+          <details class="vf-class-options">
 
-          <input
-            id="classDueDay"
-            class="input"
-            type="number"
-            min="1"
-            max="28"
-            value="4"
-            placeholder="Monthly payment due day">
+            <summary>
+              Reminders & late-payment settings
+            </summary>
 
-          <input
-            id="classLateFee"
-            class="input"
-            type="number"
-            min="0"
-            step=".01"
-            value="25"
-            placeholder="Late fee amount">
+            <div class="vf-class-options-body">
 
-          <input
-            id="classLateFeeGraceDays"
-            class="input"
-            type="number"
-            min="0"
-            max="60"
-            value="0"
-            placeholder="Days after due date before late fee applies">
+              <div class="vf-class-fields vf-class-fields-3">
 
-          <div class="vf-info-strip" style="margin-top:16px;">
-            <strong>Your reminders</strong><br>
-            VendorFlow can alert you before families still owing money reach
-            the payment deadline.
-          </div>
+                <label class="vf-field-label">
+                  <span>Late fee</span>
+                  <div class="vf-money-field">
+                    <span>$</span>
+                    <input
+                      id="classLateFee"
+                      class="input"
+                      type="number"
+                      min="0"
+                      step=".01"
+                      value="25">
+                  </div>
+                </label>
 
-          <input
-            id="classVendorAlertDays"
-            class="input"
-            type="number"
-            min="0"
-            max="60"
-            value="3"
-            placeholder="Alert me this many days before payment is due">
+                <label class="vf-field-label">
+                  <span>Grace period</span>
+                  <div class="vf-number-suffix">
+                    <input
+                      id="classLateFeeGraceDays"
+                      class="input"
+                      type="number"
+                      min="0"
+                      max="60"
+                      value="0">
+                    <span>days</span>
+                  </div>
+                </label>
 
-          <div class="vf-info-strip" style="margin-top:16px;">
-            <strong>Parent reminders</strong><br>
-            Save the automatic reminder settings now. VendorFlow will not
-            send these until automatic parent reminders are enabled later.
-          </div>
+                <label class="vf-field-label">
+                  <span>Alert me before payment is due</span>
+                  <div class="vf-number-suffix">
+                    <input
+                      id="classVendorAlertDays"
+                      class="input"
+                      type="number"
+                      min="0"
+                      max="60"
+                      value="3">
+                    <span>days</span>
+                  </div>
+                </label>
 
-          <label class="vf-check-row">
-            <input
-              id="classParentReminderEnabled"
-              type="checkbox">
-            Automatically remind parents who still owe money
-          </label>
+              </div>
 
-          <input
-            id="classParentReminderDays"
-            class="input"
-            type="number"
-            min="0"
-            max="60"
-            value="3"
-            placeholder="Email parent this many days before payment is due">
 
-          <input
-            id="classReminderSubject"
-            class="input"
-            value="Payment reminder for {{studentName}}"
-            placeholder="Reminder email subject">
+              <div class="vf-parent-reminder-setting">
 
-          <textarea
-            id="classReminderBody"
-            class="input"
-            rows="7"
-            placeholder="Reminder email message">Hi {{parentName}},
+                <label class="vf-check-row">
+                  <input
+                    id="classParentReminderEnabled"
+                    type="checkbox">
+
+                  <span>
+                    <strong>Email payment reminders to parents</strong>
+                  </span>
+                </label>
+
+
+                <div
+                  id="classParentReminderOptions"
+                  class="hidden">
+
+                  <div class="vf-class-fields vf-class-fields-2">
+
+                    <label class="vf-field-label">
+                      <span>Send reminder before due date</span>
+                      <div class="vf-number-suffix">
+                        <input
+                          id="classParentReminderDays"
+                          class="input"
+                          type="number"
+                          min="0"
+                          max="60"
+                          value="3">
+                        <span>days</span>
+                      </div>
+                    </label>
+
+                  </div>
+
+
+                  <details class="vf-email-customize">
+
+                    <summary>
+                      Customize reminder email
+                    </summary>
+
+                    <label class="vf-field-label">
+                      <span>Subject</span>
+                      <input
+                        id="classReminderSubject"
+                        class="input"
+                        value="Payment reminder for {{studentName}}">
+                    </label>
+
+                    <label class="vf-field-label">
+                      <span>Message</span>
+                      <textarea
+                        id="classReminderBody"
+                        class="input"
+                        rows="7">Hi {{parentName}},
 
 This is a reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}.
 
@@ -272,6 +332,18 @@ Payment instructions:
 
 Thank you,
 {{businessName}}</textarea>
+                    </label>
+
+                  </details>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </details>
+
 
           <button id="saveClass" class="primary full">Save class</button>
           <hr><select id="classSelect" class="input"><option value="">Choose a class</option></select>
