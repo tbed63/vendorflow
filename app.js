@@ -625,10 +625,19 @@ function certificateAttentionIssue(cert){
   }
 
 
-  if(
-    cert.serviceStartDate &&
-    !cert.invoiceScheduleValid
-  ){
+  if(!cert.serviceStartDate){
+
+    return {
+      code:'missing-service-dates',
+      title:'Certificate needs service dates',
+      detail:
+        `${cert.student||'Student'} — ${money(cert.amount)} — `+
+        `enter the service start date so VendorFlow can calculate when the invoice should be created.`
+    };
+  }
+
+
+  if(!cert.invoiceScheduleValid){
 
     return {
       code:'missing-invoice-schedule',
@@ -11099,6 +11108,29 @@ function openCertificateForRepair(
   $('#certServiceEnd').value=
     cert.serviceEndDate||'';
 
+
+  $('#certServiceStart')
+    ?.classList.remove(
+      'vf-required-attention'
+    );
+
+  $('#certServiceEnd')
+    ?.classList.remove(
+      'vf-required-attention'
+    );
+
+
+  if(
+    cert.charterSchoolId &&
+    !cert.serviceStartDate
+  ){
+
+    $('#certServiceStart')
+      ?.classList.add(
+        'vf-required-attention'
+      );
+  }
+
   $('#certBillingEmail').value=
     cert.billingEmail ||
     cert.charterBillingEmail ||
@@ -11160,8 +11192,16 @@ function openCertificateForRepair(
     });
 
 
+  const issue=
+    certificateAttentionIssue(
+      cert
+    );
+
+
   toast(
-    'Fix the highlighted certificate and save your changes.'
+    issue?.code==='missing-service-dates'
+      ? 'Enter the service start date, then save. VendorFlow will calculate the invoice-ready date automatically.'
+      : 'Fix the highlighted certificate and save your changes.'
   );
 }
 
@@ -11231,6 +11271,13 @@ $('#saveCertificate').onclick=async()=>{
 
   const number =
     $('#certNumber').value.trim();
+
+
+  $('#certServiceStart')
+    ?.classList.remove(
+      'vf-required-attention'
+    );
+
 
   let status =
     $('#certStatus').value;
@@ -11381,6 +11428,25 @@ $('#saveCertificate').onclick=async()=>{
 
     const serviceStartDate=
       $('#certServiceStart')?.value.trim() || '';
+
+
+    if(
+      savedCharter &&
+      !serviceStartDate
+    ){
+
+      $('#certServiceStart')
+        ?.classList.add(
+          'vf-required-attention'
+        );
+
+      status=
+        'Needs Review';
+
+      $('#certStatus').value=
+        'Needs Review';
+    }
+
 
     const invoiceSchedule=
       certificateInvoiceSchedule(
@@ -11690,11 +11756,33 @@ $('#saveCertificate').onclick=async()=>{
     await refreshAll();
 
 
-    toast(
-      pdf
-        ? 'Certificate and PDF saved.'
-        : 'Certificate saved.'
-    );
+    if(
+      savedCharter &&
+      serviceStartDate &&
+      invoiceSchedule.valid
+    ){
+
+      toast(
+        `Certificate saved. Invoice scheduled for ${formatVendorDate(invoiceSchedule.readyDate)}.`
+      );
+
+    }else if(
+      savedCharter &&
+      !serviceStartDate
+    ){
+
+      toast(
+        'Certificate saved, but the service start date is still required before VendorFlow can schedule the invoice.'
+      );
+
+    }else{
+
+      toast(
+        pdf
+          ? 'Certificate and PDF saved.'
+          : 'Certificate saved.'
+      );
+    }
 
 
   }catch(error){
@@ -11879,15 +11967,16 @@ function renderRecords(){
                    </span>
                  </div>`
               : (
-                  d.serviceStartDate &&
-                  !d.charterSchoolId
+                  certificateAttentionIssue(d)
                     ? `<button
                          type="button"
                          class="vf-invoice-schedule vf-invoice-unlinked vf-certificate-problem"
                          data-fix-certificate="${esc(d.id)}">
-                         <strong>Invoice schedule not set</strong>
+                         <strong>
+                           ${esc(certificateAttentionIssue(d).title)}
+                         </strong>
                          <span>
-                           Save or match this charter school to use automatic invoice timing.
+                           ${esc(certificateAttentionIssue(d).detail)}
                          </span>
                        </button>`
                     : ''

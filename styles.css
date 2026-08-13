@@ -4246,3 +4246,19 @@ button.vf-certificate-problem:focus-visible{
   margin-top:10px;
 }
 
+
+/* ==========================================================
+   CERTIFICATE REQUIRED FIELD ATTENTION
+   ========================================================== */
+
+.vf-required-attention{
+  border-color:#d49b20 !important;
+  background:#fff8e8 !important;
+  box-shadow:0 0 0 2px rgba(212,155,32,.14);
+}
+
+.vf-required-attention:focus{
+  border-color:#b67b00 !important;
+  box-shadow:0 0 0 3px rgba(212,155,32,.20);
+}
+
