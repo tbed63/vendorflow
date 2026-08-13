@@ -11050,7 +11050,7 @@ if($('#certPdf')){
 
 
 
-function openCertificateForRepair(
+async function openCertificateForRepair(
   certificateId
 ){
 
@@ -11151,20 +11151,11 @@ function openCertificateForRepair(
 
 
   /*
-   * The stored PDF remains attached. We are repairing
-   * metadata, not requiring the vendor to upload it again.
+   * No re-upload is required when repairing a certificate.
+   * The stored PDF will be re-read below.
    */
-  pendingCertificatePdf=null;
-
   if($('#certPdf')){
     $('#certPdf').value='';
-  }
-
-  if($('#certPdfStatus')){
-    $('#certPdfStatus').textContent=
-      cert.pdfObjectKey
-        ? 'Existing certificate PDF is already stored securely.'
-        : 'No PDF attached.';
   }
 
 
@@ -11176,9 +11167,207 @@ function openCertificateForRepair(
   renderCertificateCharterMatches();
 
 
+  /*
+   * If this certificate already has its PDF stored,
+   * re-read that exact PDF automatically during repair.
+   *
+   * This uses the same proven extraction endpoint as a new
+   * upload. No re-upload is required.
+   */
+  if(cert.pdfObjectKey){
+
+    const status=
+      $('#certPdfStatus');
+
+    const review=
+      $('#certExtractionReview');
+
+
+    if(status){
+      status.textContent=
+        'Existing PDF found. VendorFlow is reading it again…';
+    }
+
+
+    /*
+     * Keep the existing secure PDF attached to this record.
+     */
+    pendingCertificatePdf={
+      objectKey:
+        cert.pdfObjectKey,
+
+      originalName:
+        cert.pdfName||'',
+
+      size:
+        Number(cert.pdfSize||0),
+
+      extraction:
+        cert.extraction||null
+    };
+
+
+    try{
+
+      const extraction=
+        await extractCertificatePdf(
+          cert.pdfObjectKey
+        );
+
+
+      pendingCertificatePdf={
+        ...pendingCertificatePdf,
+
+        extraction:
+          extraction.extraction || {},
+
+        clientValidation:
+          validateExtractedCertificate(
+            extraction
+          ),
+
+        sourceTextLength:
+          extraction.sourceTextLength || 0
+      };
+
+
+      /*
+       * Fill values found in the PDF.
+       * Empty extracted values do not erase known data because
+       * setCertificateField intentionally ignores blank values.
+       */
+      fillCertificateFromExtraction(
+        extraction
+      );
+
+
+      /*
+       * Restore exact saved links after extraction changes
+       * visible student / charter text.
+       */
+      if(cert.studentId){
+
+        const savedStudent=
+          students.find(
+            student=>
+              student.id===cert.studentId
+          );
+
+        if(savedStudent){
+          linkCertificateStudent(
+            savedStudent
+          );
+        }
+      }
+
+
+      if(cert.charterSchoolId){
+
+        const savedCharter=
+          charterSchools.find(
+            charter=>
+              charter.id===cert.charterSchoolId &&
+              !charter.archived
+          );
+
+        if(savedCharter){
+          linkCertificateCharter(
+            savedCharter
+          );
+        }
+
+      }else{
+
+        /*
+         * If this older certificate was never linked, try an
+         * exact safe match using the school name read from PDF.
+         */
+        const extractedSchool=
+          extraction?.extraction?.charterSchool || '';
+
+        const exactCharter=
+          findSavedCharterByName(
+            extractedSchool
+          );
+
+        if(exactCharter){
+          linkCertificateCharter(
+            exactCharter
+          );
+        }
+      }
+
+
+      if(status){
+
+        status.innerHTML=
+          `Existing PDF read successfully. `+
+          `<button type="button" `+
+          `class="vf-inline-link" `+
+          `data-repair-pdf-view="${esc(cert.pdfObjectKey)}">`+
+          `View PDF</button>`;
+      }
+
+
+    }catch(error){
+
+      console.error(error);
+
+
+      if(status){
+
+        status.innerHTML=
+          `Existing PDF is stored securely, but automatic reading failed. `+
+          `<button type="button" `+
+          `class="vf-inline-link" `+
+          `data-repair-pdf-view="${esc(cert.pdfObjectKey)}">`+
+          `View PDF</button>`;
+      }
+
+
+      if(review){
+
+        review.className=
+          'vf-extraction-review vf-extraction-warning';
+
+        review.innerHTML=
+          `<strong>VendorFlow could not automatically re-read this PDF.</strong>
+           The certificate is still safely stored.
+           Use View PDF if you need to verify a field manually.`;
+
+        show(review);
+      }
+    }
+
+  }else{
+
+    pendingCertificatePdf=null;
+
+    if($('#certPdfStatus')){
+      $('#certPdfStatus').textContent=
+        'No PDF attached.';
+    }
+  }
+
+
   show(
     $('#certificateForm')
   );
+
+
+  /*
+   * View PDF remains available inside the repair form.
+   */
+  $$('[data-repair-pdf-view]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        openCertificatePdf(
+          button.dataset.repairPdfView
+        );
+      };
+    });
 
 
   $('#saveCertificate').textContent=
