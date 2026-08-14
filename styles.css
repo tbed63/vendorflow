@@ -4650,3 +4650,34 @@ button.vf-certificate-problem:focus-visible{
   line-height:1.4;
 }
 
+
+
+/* ==========================================================
+   MONTHLY CLASS PAYMENT SETUP
+   ========================================================== */
+
+.vf-monthly-setup{
+  grid-column:span 2;
+  display:grid;
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+
+
+@media(max-width:600px){
+
+  .vf-monthly-setup{
+    grid-column:1 / -1;
+  }
+
+}
+
+
+@media(max-width:420px){
+
+  .vf-monthly-setup{
+    grid-template-columns:1fr;
+  }
+
+}

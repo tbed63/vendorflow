@@ -5920,6 +5920,31 @@ function firstClassPaymentDueDate(
   }
 
   if(
+    classRecord.paymentSchedule==='Monthly'
+  ){
+
+    const installments=
+      Array.isArray(
+        classRecord.monthlyInstallments
+      )
+        ? classRecord.monthlyInstallments
+        : [];
+
+    return installments
+      .filter(item=>item?.dueDate)
+      .sort(
+        (a,b)=>
+          String(a.dueDate)
+            .localeCompare(
+              String(b.dueDate)
+            )
+      )[0]?.dueDate ||
+      classRecord.monthlyFirstDueDate ||
+      '';
+  }
+
+
+  if(
     classRecord.paymentSchedule==='Custom'
   ){
 
@@ -6004,11 +6029,61 @@ function classPaymentScheduleHTML(
 
   if(schedule==='Monthly'){
 
+    const installments=
+      Array.isArray(
+        classRecord.monthlyInstallments
+      )
+        ? [...classRecord.monthlyInstallments]
+        : [];
+
+
+    if(!installments.length){
+
+      return `
+        <span>
+          Monthly payment schedule not yet set.
+        </span>
+      `;
+    }
+
+
     return `
-      <span>
-        Monthly · due on the
-        ${esc(classRecord.dueDay||4)}th
-      </span>
+      <div class="vf-saved-installments">
+
+        ${installments
+          .sort(
+            (a,b)=>
+              String(a.dueDate||'')
+                .localeCompare(
+                  String(b.dueDate||'')
+                )
+          )
+          .map(
+            (item,index)=>`
+              <div>
+
+                <span>
+                  Payment ${index+1}
+                </span>
+
+                <strong>
+                  ${money(item.amount)}
+                </strong>
+
+                <span>
+                  ${esc(
+                    classDateLabel(
+                      item.dueDate
+                    )
+                  )}
+                </span>
+
+              </div>
+            `
+          )
+          .join('')}
+
+      </div>
     `;
   }
 
@@ -6279,8 +6354,11 @@ function editSavedClass(
   $('#classPaymentDueDate').value=
     c.paymentDueDate||'';
 
-  $('#classDueDay').value=
-    Number(c.dueDay||4);
+  $('#classMonthlyFirstDueDate').value=
+    c.monthlyFirstDueDate || '';
+
+  $('#classMonthlyPaymentCount').value=
+    Number(c.monthlyPaymentCount||4);
 
   $('#classLateFee').value=
     Number(c.lateFee||0);
@@ -6312,6 +6390,44 @@ Payment instructions:
 
 Thank you,
 {{businessName}}`;
+
+
+  const monthlyList=
+    $('#classMonthlyInstallments');
+
+  if(monthlyList){
+    monthlyList.innerHTML='';
+  }
+
+
+  if(
+    c.paymentSchedule==='Monthly'
+  ){
+
+    const monthlyInstallments=
+      Array.isArray(
+        c.monthlyInstallments
+      )
+        ? c.monthlyInstallments
+        : [];
+
+
+    if(monthlyInstallments.length){
+
+      monthlyInstallments.forEach(
+        item=>
+          addClassMonthlyInstallment(
+            Number(item.amount||0)
+              .toFixed(2),
+            item.dueDate
+          )
+      );
+
+    }else{
+
+      rebuildClassMonthlyInstallments();
+    }
+  }
 
 
   const list=
@@ -6422,6 +6538,430 @@ function classTuitionAmount(){
   return Number(
     $('#classTuition')?.value || 0
   );
+}
+
+
+
+function classMonthlyInstallmentRows(){
+
+  return [
+    ...document.querySelectorAll(
+      '#classMonthlyInstallments .vf-monthly-installment-row'
+    )
+  ];
+}
+
+
+function monthlyInstallmentDate(
+  firstDate,
+  monthOffset
+){
+
+  const parts=
+    String(firstDate||'')
+      .split('-')
+      .map(Number);
+
+  if(parts.length!==3){
+    return '';
+  }
+
+  const [year,month,day]=parts;
+
+  if(
+    !year ||
+    !month ||
+    !day
+  ){
+    return '';
+  }
+
+  const targetMonthIndex=
+    (month-1)+Number(monthOffset||0);
+
+  const targetYear=
+    year+
+    Math.floor(targetMonthIndex/12);
+
+  const normalizedMonth=
+    ((targetMonthIndex%12)+12)%12;
+
+  const lastDay=
+    new Date(
+      targetYear,
+      normalizedMonth+1,
+      0,
+      12,0,0,0
+    ).getDate();
+
+  const targetDay=
+    Math.min(
+      day,
+      lastDay
+    );
+
+  return (
+    `${targetYear}-`+
+    `${String(normalizedMonth+1).padStart(2,'0')}-`+
+    `${String(targetDay).padStart(2,'0')}`
+  );
+}
+
+
+function generatedMonthlyInstallments(){
+
+  const tuition=
+    classTuitionAmount();
+
+  const firstDate=
+    $('#classMonthlyFirstDueDate')
+      ?.value || '';
+
+  const count=
+    Math.max(
+      0,
+      Math.floor(
+        Number(
+          $('#classMonthlyPaymentCount')
+            ?.value || 0
+        )
+      )
+    );
+
+  if(
+    !(tuition>0) ||
+    !firstDate ||
+    !(count>0)
+  ){
+    return [];
+  }
+
+
+  /*
+   * Work in pennies so installment totals always
+   * equal tuition exactly.
+   */
+  const totalCents=
+    Math.round(
+      tuition*100
+    );
+
+  const baseCents=
+    Math.floor(
+      totalCents/count
+    );
+
+  let extraPennies=
+    totalCents-
+    baseCents*count;
+
+
+  return Array.from(
+    {
+      length:count
+    },
+    (_,index)=>{
+
+      const cents=
+        baseCents+
+        (
+          extraPennies>0
+            ? 1
+            : 0
+        );
+
+      if(extraPennies>0){
+        extraPennies--;
+      }
+
+      return {
+        amount:
+          cents/100,
+
+        dueDate:
+          monthlyInstallmentDate(
+            firstDate,
+            index
+          )
+      };
+    }
+  );
+}
+
+
+function addClassMonthlyInstallment(
+  amount='',
+  dueDate=''
+){
+
+  const list=
+    $('#classMonthlyInstallments');
+
+  if(!list){
+    return;
+  }
+
+  const row=
+    document.createElement('div');
+
+  row.className=
+    'vf-custom-installment-row vf-monthly-installment-row';
+
+  row.innerHTML=`
+    <label class="vf-field-label">
+      <span>Amount</span>
+      <div class="vf-money-field">
+        <span>$</span>
+        <input
+          class="input"
+          type="number"
+          min="0"
+          step=".01"
+          data-monthly-installment-amount
+          value="${esc(amount)}">
+      </div>
+    </label>
+
+    <label class="vf-field-label">
+      <span>Due date</span>
+      <input
+        class="input"
+        type="date"
+        data-monthly-installment-date
+        value="${esc(dueDate)}">
+    </label>
+  `;
+
+  list.appendChild(row);
+
+
+  row.querySelector(
+    '[data-monthly-installment-amount]'
+  )?.addEventListener(
+    'input',
+    ()=>{
+
+      clearClassSaveError();
+      updateClassMonthlyInstallmentTotal();
+    }
+  );
+
+
+  row.querySelector(
+    '[data-monthly-installment-date]'
+  )?.addEventListener(
+    'input',
+    clearClassSaveError
+  );
+}
+
+
+function readClassMonthlyInstallments(){
+
+  return classMonthlyInstallmentRows()
+    .map(
+      row=>({
+        amount:
+          Number(
+            row.querySelector(
+              '[data-monthly-installment-amount]'
+            )?.value || 0
+          ),
+
+        dueDate:
+          row.querySelector(
+            '[data-monthly-installment-date]'
+          )?.value || ''
+      })
+    );
+}
+
+
+function updateClassMonthlyInstallmentTotal(){
+
+  const box=
+    $('#classMonthlyInstallmentTotal');
+
+  if(!box){
+    return;
+  }
+
+  const tuition=
+    classTuitionAmount();
+
+  const installments=
+    readClassMonthlyInstallments();
+
+  const total=
+    installments.reduce(
+      (sum,item)=>
+        sum+
+        Number(item.amount||0),
+      0
+    );
+
+  box.classList.remove(
+    'vf-installment-total-good',
+    'vf-installment-total-bad'
+  );
+
+
+  if(!installments.length){
+
+    box.textContent=
+      'Enter the first payment date and number of payments.';
+
+    return;
+  }
+
+
+  if(
+    tuition>0 &&
+    Math.abs(total-tuition)<0.005
+  ){
+
+    box.classList.add(
+      'vf-installment-total-good'
+    );
+
+    box.textContent=
+      `Payment total: $${total.toFixed(2)} — matches tuition.`;
+
+    return;
+  }
+
+
+  box.classList.add(
+    'vf-installment-total-bad'
+  );
+
+  box.textContent=
+    `Payment total: $${total.toFixed(2)} · Tuition: $${tuition.toFixed(2)}`;
+}
+
+
+function rebuildClassMonthlyInstallments(){
+
+  const list=
+    $('#classMonthlyInstallments');
+
+  if(!list){
+    return;
+  }
+
+  list.innerHTML='';
+
+
+  const generated=
+    generatedMonthlyInstallments();
+
+
+  generated.forEach(
+    item=>
+      addClassMonthlyInstallment(
+        item.amount.toFixed(2),
+        item.dueDate
+      )
+  );
+
+
+  updateClassMonthlyInstallmentTotal();
+}
+
+
+function validateClassMonthlyInstallments(){
+
+  const tuition=
+    classTuitionAmount();
+
+  const firstDate=
+    $('#classMonthlyFirstDueDate')
+      ?.value || '';
+
+  const count=
+    Math.floor(
+      Number(
+        $('#classMonthlyPaymentCount')
+          ?.value || 0
+      )
+    );
+
+
+  if(!firstDate){
+
+    showClassSaveError(
+      'Enter the first monthly payment due date.'
+    );
+
+    return null;
+  }
+
+
+  if(!(count>0)){
+
+    showClassSaveError(
+      'Enter the number of monthly payments.'
+    );
+
+    return null;
+  }
+
+
+  const installments=
+    readClassMonthlyInstallments();
+
+
+  if(
+    installments.length!==count
+  ){
+
+    showClassSaveError(
+      'The monthly payment schedule is incomplete. Re-enter the first payment date or number of payments.'
+    );
+
+    return null;
+  }
+
+
+  if(
+    installments.some(
+      item=>
+        !(item.amount>0) ||
+        !item.dueDate
+    )
+  ){
+
+    showClassSaveError(
+      'Every monthly payment needs both an amount and a due date.'
+    );
+
+    return null;
+  }
+
+
+  const total=
+    installments.reduce(
+      (sum,item)=>
+        sum+
+        Number(item.amount||0),
+      0
+    );
+
+
+  if(
+    !tuition ||
+    Math.abs(total-tuition)>=0.005
+  ){
+
+    showClassSaveError(
+      `Monthly payments total $${total.toFixed(2)}, but tuition is $${tuition.toFixed(2)}. Adjust the amounts so they match exactly.`
+    );
+
+    return null;
+  }
+
+
+  return installments;
 }
 
 
@@ -6689,8 +7229,11 @@ function updateClassPaymentUI(){
   const dueDate=
     $('#classDueDateWrap');
 
-  const dueDay=
-    $('#classDueDayWrap');
+  const monthlySetup=
+    $('#classMonthlySetupWrap');
+
+  const monthlySchedule=
+    $('#classMonthlyInstallmentsWrap');
 
   const custom=
     $('#classCustomInstallmentsWrap');
@@ -6699,13 +7242,24 @@ function updateClassPaymentUI(){
   if(schedule==='Monthly'){
 
     hide(dueDate);
-    show(dueDay);
+    show(monthlySetup);
+    show(monthlySchedule);
     hide(custom);
+
+    if(
+      classMonthlyInstallmentRows()
+        .length===0
+    ){
+      rebuildClassMonthlyInstallments();
+    }
+
+    updateClassMonthlyInstallmentTotal();
 
   }else if(schedule==='Custom'){
 
     hide(dueDate);
-    hide(dueDay);
+    hide(monthlySetup);
+    hide(monthlySchedule);
     show(custom);
 
     if(
@@ -6720,7 +7274,8 @@ function updateClassPaymentUI(){
   }else{
 
     show(dueDate);
-    hide(dueDay);
+    hide(monthlySetup);
+    hide(monthlySchedule);
     hide(custom);
   }
 }
@@ -6775,6 +7330,35 @@ if($('#classParentReminderEnabled')){
 }
 
 
+
+if($('#classMonthlyFirstDueDate')){
+
+  $('#classMonthlyFirstDueDate')
+    .addEventListener(
+      'change',
+      ()=>{
+
+        clearClassSaveError();
+        rebuildClassMonthlyInstallments();
+      }
+    );
+}
+
+
+if($('#classMonthlyPaymentCount')){
+
+  $('#classMonthlyPaymentCount')
+    .addEventListener(
+      'input',
+      ()=>{
+
+        clearClassSaveError();
+        rebuildClassMonthlyInstallments();
+      }
+    );
+}
+
+
 if($('#addClassInstallment')){
 
   $('#addClassInstallment')
@@ -6793,6 +7377,14 @@ if($('#classTuition')){
       ()=>{
 
         clearClassSaveError();
+
+        if(
+          $('#classPaymentSchedule')
+            ?.value==='Monthly'
+        ){
+          rebuildClassMonthlyInstallments();
+        }
+
         updateClassCustomInstallmentTotal();
       }
     );
@@ -6818,6 +7410,22 @@ $('#saveClass').onclick=async()=>{
     $('#classPaymentSchedule').value;
 
   let customInstallments=[];
+  let monthlyInstallments=[];
+
+
+  if(paymentSchedule==='Monthly'){
+
+    const checkedMonthly=
+      validateClassMonthlyInstallments();
+
+    if(!checkedMonthly){
+      return;
+    }
+
+    monthlyInstallments=
+      checkedMonthly;
+  }
+
 
   if(paymentSchedule==='Custom'){
 
@@ -6852,9 +7460,41 @@ $('#saveClass').onclick=async()=>{
         ? ($('#classPaymentDueDate').value || '')
         : '',
 
-    dueDay:
+    monthlyFirstDueDate:
       paymentSchedule==='Monthly'
-        ? Number($('#classDueDay').value||4)
+        ? (
+            $('#classMonthlyFirstDueDate')
+              .value || ''
+          )
+        : '',
+
+    monthlyPaymentCount:
+      paymentSchedule==='Monthly'
+        ? Math.floor(
+            Number(
+              $('#classMonthlyPaymentCount')
+                .value || 0
+            )
+          )
+        : null,
+
+    monthlyInstallments:
+      paymentSchedule==='Monthly'
+        ? monthlyInstallments
+        : [],
+
+    /*
+     * Keep legacy dueDay for existing service code.
+     * It is derived from the first monthly payment date.
+     */
+    dueDay:
+      paymentSchedule==='Monthly' &&
+      $('#classMonthlyFirstDueDate').value
+        ? Number(
+            $('#classMonthlyFirstDueDate')
+              .value
+              .split('-')[2]
+          )
         : null,
 
     customInstallments:
@@ -6964,7 +7604,13 @@ $('#saveClass').onclick=async()=>{
 
   $('#classPaymentSchedule').value='Full';
   $('#classPaymentDueDate').value='';
-  $('#classDueDay').value='4';
+
+  $('#classMonthlyFirstDueDate').value='';
+  $('#classMonthlyPaymentCount').value='4';
+
+  if($('#classMonthlyInstallments')){
+    $('#classMonthlyInstallments').innerHTML='';
+  }
 
   resetClassCustomInstallments();
   updateClassPaymentUI();

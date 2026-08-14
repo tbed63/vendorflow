@@ -195,18 +195,53 @@
                   type="date">
               </label>
 
-              <label
-                id="classDueDayWrap"
-                class="vf-field-label hidden">
-                <span>Due day each month</span>
-                <input
-                  id="classDueDay"
-                  class="input"
-                  type="number"
-                  min="1"
-                  max="28"
-                  value="4">
-              </label>
+              <div
+                id="classMonthlySetupWrap"
+                class="vf-monthly-setup hidden">
+
+                <label class="vf-field-label">
+                  <span>First payment due</span>
+                  <input
+                    id="classMonthlyFirstDueDate"
+                    class="input"
+                    type="date">
+                </label>
+
+                <label class="vf-field-label">
+                  <span>Number of payments</span>
+                  <input
+                    id="classMonthlyPaymentCount"
+                    class="input"
+                    type="number"
+                    min="1"
+                    max="36"
+                    value="4">
+                </label>
+
+              </div>
+
+            </div>
+
+            <div
+              id="classMonthlyInstallmentsWrap"
+              class="vf-custom-installments hidden">
+
+              <div class="vf-custom-installments-head">
+                <div>
+                  <strong>Monthly payment schedule</strong>
+                  <span>
+                    VendorFlow divides the tuition automatically.
+                    You can adjust individual dates or amounts.
+                  </span>
+                </div>
+              </div>
+
+              <div id="classMonthlyInstallments"></div>
+
+              <div
+                id="classMonthlyInstallmentTotal"
+                class="vf-custom-installment-total">
+              </div>
 
             </div>
 
