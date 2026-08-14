@@ -4492,3 +4492,142 @@ button.vf-certificate-problem:focus-visible{
     grid-column:auto;
   }
 }
+
+
+/* ==========================================================
+   SAVED CLASS DETAILS / EDITING
+   ========================================================== */
+
+.vf-class-saved-details{
+  margin-top:14px;
+  padding:16px;
+  border:1px solid #d7dfe5;
+  border-radius:12px;
+  background:#f8fafb;
+}
+
+.vf-class-details-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:14px;
+}
+
+.vf-class-details-head h3{
+  margin:3px 0;
+}
+
+.vf-class-details-sub{
+  font-size:13px;
+  color:#5f6f78;
+}
+
+.vf-class-detail-grid{
+  display:grid;
+  grid-template-columns:
+    repeat(3,minmax(0,1fr));
+  gap:10px;
+  margin-top:16px;
+}
+
+.vf-class-detail-grid > div{
+  padding:10px;
+  border:1px solid #dde4e9;
+  border-radius:8px;
+  background:white;
+}
+
+.vf-class-detail-grid small{
+  display:block;
+  margin-bottom:4px;
+  color:#66757d;
+}
+
+.vf-class-detail-grid strong{
+  display:block;
+}
+
+.vf-class-payment-summary{
+  margin-top:14px;
+  padding-top:12px;
+  border-top:1px solid #dce3e8;
+}
+
+.vf-class-payment-summary > strong{
+  display:block;
+  margin-bottom:8px;
+}
+
+.vf-saved-installments{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.vf-saved-installments > div{
+  display:grid;
+  grid-template-columns:
+    90px 90px 1fr;
+  gap:10px;
+  align-items:center;
+}
+
+.vf-auto-late-notice{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  margin-top:14px;
+  padding:11px 12px;
+  border:1px solid #e4cf99;
+  border-radius:8px;
+  background:#fff8e7;
+  font-size:13px;
+}
+
+.vf-saved-reminder{
+  margin-top:12px;
+}
+
+.vf-saved-reminder summary{
+  cursor:pointer;
+  font-weight:700;
+}
+
+.vf-saved-reminder > div{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  margin-top:10px;
+}
+
+.vf-reminder-message{
+  white-space:pre-wrap;
+}
+
+
+@media(max-width:700px){
+
+  .vf-class-detail-grid{
+    grid-template-columns:
+      repeat(2,minmax(0,1fr));
+  }
+
+}
+
+
+@media(max-width:470px){
+
+  .vf-class-details-head{
+    flex-direction:column;
+  }
+
+  .vf-class-detail-grid{
+    grid-template-columns:1fr;
+  }
+
+  .vf-saved-installments > div{
+    grid-template-columns:
+      75px 80px 1fr;
+  }
+
+}

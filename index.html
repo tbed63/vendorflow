@@ -261,7 +261,7 @@
                       type="number"
                       min="0"
                       step=".01"
-                      value="25">
+                      value="0">
                   </div>
                 </label>
 
@@ -374,7 +374,19 @@ Thank you,
 
 
           <button id="saveClass" class="primary full">Save class</button>
-          <hr><select id="classSelect" class="input"><option value="">Choose a class</option></select>
+          <hr>
+
+          <label class="vf-field-label">
+            <span>Saved class</span>
+            <select id="classSelect" class="input">
+              <option value="">Choose a class</option>
+            </select>
+          </label>
+
+          <div
+            id="classDetailsCard"
+            class="vf-class-saved-details hidden">
+          </div>
         </div>
         <div class="card">
           <div class="eyebrow">Fast setup</div><h2>Upload roster CSV</h2>
@@ -585,7 +597,7 @@ Thank you,
             type="number"
             min="0"
             step=".01"
-            value="25"
+            value="0"
             placeholder="Late fee">
 
         </div>

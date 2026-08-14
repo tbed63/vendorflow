@@ -5759,6 +5759,623 @@ async function loadRoster(){
 }
 
 
+
+let editingClassId='';
+
+
+function classDateLabel(value){
+
+  const text=
+    String(value||'').trim();
+
+  if(!text){
+    return '';
+  }
+
+  const parts=
+    text.split('-')
+      .map(Number);
+
+  if(parts.length!==3){
+    return text;
+  }
+
+  const [year,month,day]=parts;
+
+  const date=
+    new Date(
+      year,
+      month-1,
+      day,
+      12,0,0,0
+    );
+
+  if(Number.isNaN(date.getTime())){
+    return text;
+  }
+
+  return date.toLocaleDateString(
+    undefined,
+    {
+      month:'short',
+      day:'numeric',
+      year:'numeric'
+    }
+  );
+}
+
+
+function addCalendarDays(
+  isoDate,
+  days
+){
+
+  const parts=
+    String(isoDate||'')
+      .split('-')
+      .map(Number);
+
+  if(parts.length!==3){
+    return '';
+  }
+
+  const [year,month,day]=parts;
+
+  const date=
+    new Date(
+      year,
+      month-1,
+      day,
+      12,0,0,0
+    );
+
+  if(Number.isNaN(date.getTime())){
+    return '';
+  }
+
+  date.setDate(
+    date.getDate()+
+    Number(days||0)
+  );
+
+  const y=date.getFullYear();
+
+  const m=
+    String(date.getMonth()+1)
+      .padStart(2,'0');
+
+  const d=
+    String(date.getDate())
+      .padStart(2,'0');
+
+  return `${y}-${m}-${d}`;
+}
+
+
+/*
+ * Grace-day rule:
+ *
+ * Due Jan 1 + 3 grace days means:
+ * Jan 2, Jan 3 and Jan 4 are grace days.
+ * Late fee is added Jan 5.
+ */
+function classLateFeeDate(
+  dueDate,
+  graceDays
+){
+
+  return addCalendarDays(
+    dueDate,
+    Number(graceDays||0)+1
+  );
+}
+
+
+function automaticLateFeeReminderText(
+  classRecord,
+  dueDate
+){
+
+  const lateFee=
+    Number(classRecord?.lateFee||0);
+
+  if(
+    !(lateFee>0) ||
+    !dueDate
+  ){
+    return '';
+  }
+
+  const feeDate=
+    classLateFeeDate(
+      dueDate,
+      classRecord.lateFeeGraceDays
+    );
+
+  if(!feeDate){
+    return '';
+  }
+
+  return (
+    `If payment has not been received by the end of `+
+    `${classDateLabel(addCalendarDays(feeDate,-1))}, `+
+    `a ${money(lateFee)} late fee will be added on `+
+    `${classDateLabel(feeDate)}.`
+  );
+}
+
+
+function firstClassPaymentDueDate(
+  classRecord
+){
+
+  if(!classRecord){
+    return '';
+  }
+
+  if(
+    classRecord.paymentSchedule==='Full'
+  ){
+    return classRecord.paymentDueDate||'';
+  }
+
+  if(
+    classRecord.paymentSchedule==='Custom'
+  ){
+
+    const installments=
+      Array.isArray(
+        classRecord.customInstallments
+      )
+        ? classRecord.customInstallments
+        : [];
+
+    return installments
+      .filter(item=>item?.dueDate)
+      .sort(
+        (a,b)=>
+          String(a.dueDate)
+            .localeCompare(
+              String(b.dueDate)
+            )
+      )[0]?.dueDate || '';
+  }
+
+  return '';
+}
+
+
+function classPaymentScheduleHTML(
+  classRecord
+){
+
+  const schedule=
+    classRecord?.paymentSchedule ||
+    'Full';
+
+  if(schedule==='Custom'){
+
+    const installments=
+      Array.isArray(
+        classRecord.customInstallments
+      )
+        ? [...classRecord.customInstallments]
+        : [];
+
+    if(!installments.length){
+      return '<span>No installments saved.</span>';
+    }
+
+    return `
+      <div class="vf-saved-installments">
+        ${installments
+          .sort(
+            (a,b)=>
+              String(a.dueDate||'')
+                .localeCompare(
+                  String(b.dueDate||'')
+                )
+          )
+          .map(
+            (item,index)=>`
+              <div>
+                <span>
+                  Payment ${index+1}
+                </span>
+
+                <strong>
+                  ${money(item.amount)}
+                </strong>
+
+                <span>
+                  ${esc(
+                    classDateLabel(
+                      item.dueDate
+                    )
+                  )}
+                </span>
+              </div>
+            `
+          )
+          .join('')}
+      </div>
+    `;
+  }
+
+  if(schedule==='Monthly'){
+
+    return `
+      <span>
+        Monthly · due on the
+        ${esc(classRecord.dueDay||4)}th
+      </span>
+    `;
+  }
+
+  return `
+    <span>
+      Pay in full
+      ${
+        classRecord.paymentDueDate
+          ? ' · due '+
+            esc(
+              classDateLabel(
+                classRecord.paymentDueDate
+              )
+            )
+          : ''
+      }
+    </span>
+  `;
+}
+
+
+function renderSelectedClassDetails(){
+
+  const box=
+    $('#classDetailsCard');
+
+  if(!box){
+    return;
+  }
+
+  const c=
+    currentClass();
+
+  if(!c){
+
+    box.innerHTML='';
+    hide(box);
+    return;
+  }
+
+
+  const dueDate=
+    firstClassPaymentDueDate(c);
+
+  const automaticLateText=
+    automaticLateFeeReminderText(
+      c,
+      dueDate
+    );
+
+
+  box.innerHTML=`
+
+    <div class="vf-class-details-head">
+
+      <div>
+        <div class="eyebrow">
+          Class details
+        </div>
+
+        <h3>
+          ${esc(c.name||'Unnamed class')}
+        </h3>
+
+        <div class="vf-class-details-sub">
+          ${c.term?esc(c.term):''}
+          ${
+            c.location
+              ? `${c.term?' · ':''}${esc(c.location)}`
+              : ''
+          }
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="primary"
+        id="editSelectedClass">
+        Edit class
+      </button>
+
+    </div>
+
+
+    <div class="vf-class-detail-grid">
+
+      <div>
+        <small>Tuition</small>
+        <strong>
+          ${money(c.tuition)}
+        </strong>
+      </div>
+
+      <div>
+        <small>Payment plan</small>
+        <strong>
+          ${esc(c.paymentSchedule||'Full')}
+        </strong>
+      </div>
+
+      <div>
+        <small>Late fee</small>
+        <strong>
+          ${
+            Number(c.lateFee||0)>0
+              ? money(c.lateFee)
+              : 'None'
+          }
+        </strong>
+      </div>
+
+      <div>
+        <small>Grace period</small>
+        <strong>
+          ${Number(c.lateFeeGraceDays||0)}
+          day${Number(c.lateFeeGraceDays||0)===1?'':'s'}
+        </strong>
+      </div>
+
+      <div>
+        <small>Vendor alert</small>
+        <strong>
+          ${Number(c.vendorAlertDays||0)}
+          day${Number(c.vendorAlertDays||0)===1?'':'s'}
+          before due
+        </strong>
+      </div>
+
+      <div>
+        <small>Parent reminders</small>
+        <strong>
+          ${
+            c.parentReminderEnabled
+              ? `${Number(c.parentReminderDays||0)} days before due`
+              : 'Off'
+          }
+        </strong>
+      </div>
+
+    </div>
+
+
+    <div class="vf-class-payment-summary">
+
+      <strong>Payment schedule</strong>
+
+      ${classPaymentScheduleHTML(c)}
+
+    </div>
+
+
+    ${
+      Number(c.lateFee||0)>0
+        ? `
+          <div class="vf-auto-late-notice">
+            <strong>
+              Automatic parent-reminder language
+            </strong>
+
+            ${
+              automaticLateText
+                ? `<span>${esc(automaticLateText)}</span>`
+                : `
+                  <span>
+                    VendorFlow will automatically include the late-fee
+                    amount and application date when a specific payment
+                    due date is available.
+                  </span>
+                `
+            }
+          </div>
+        `
+        : ''
+    }
+
+
+    ${
+      c.parentReminderEnabled
+        ? `
+          <details class="vf-saved-reminder">
+            <summary>
+              View parent reminder settings
+            </summary>
+
+            <div>
+              <strong>Subject</strong>
+              <span>
+                ${esc(c.reminderSubject||'')}
+              </span>
+            </div>
+
+            <div>
+              <strong>Custom message</strong>
+              <span class="vf-reminder-message">
+                ${esc(c.reminderBody||'')}
+              </span>
+            </div>
+
+            ${
+              Number(c.lateFee||0)>0
+                ? `
+                  <p>
+                    The late-fee notice above is added automatically;
+                    it does not need to be typed into this custom message.
+                  </p>
+                `
+                : ''
+            }
+
+          </details>
+        `
+        : ''
+    }
+
+  `;
+
+
+  show(box);
+
+
+  $('#editSelectedClass')
+    .onclick=()=>{
+
+      editSavedClass(
+        c.id
+      );
+    };
+}
+
+
+function editSavedClass(
+  classId
+){
+
+  const c=
+    classes.find(
+      item=>item.id===classId
+    );
+
+  if(!c){
+    return toast(
+      'Class could not be found.'
+    );
+  }
+
+
+  editingClassId=
+    c.id;
+
+
+  $('#className').value=
+    c.name||'';
+
+  $('#classTerm').value=
+    c.term||'';
+
+  $('#classTuition').value=
+    Number(c.tuition||0) || '';
+
+  $('#classLocation').value=
+    c.location||'';
+
+  $('#classPaymentSchedule').value=
+    c.paymentSchedule||'Full';
+
+  $('#classPaymentDueDate').value=
+    c.paymentDueDate||'';
+
+  $('#classDueDay').value=
+    Number(c.dueDay||4);
+
+  $('#classLateFee').value=
+    Number(c.lateFee||0);
+
+  $('#classLateFeeGraceDays').value=
+    Number(c.lateFeeGraceDays||0);
+
+  $('#classVendorAlertDays').value=
+    Number(c.vendorAlertDays||0);
+
+  $('#classParentReminderEnabled').checked=
+    Boolean(c.parentReminderEnabled);
+
+  $('#classParentReminderDays').value=
+    Number(c.parentReminderDays||0);
+
+  $('#classReminderSubject').value=
+    c.reminderSubject ||
+    'Payment reminder for {{studentName}}';
+
+  $('#classReminderBody').value=
+    c.reminderBody ||
+`Hi {{parentName}},
+
+This is a reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}.
+
+Payment instructions:
+{{paymentInstructions}}
+
+Thank you,
+{{businessName}}`;
+
+
+  const list=
+    $('#classCustomInstallments');
+
+  if(list){
+    list.innerHTML='';
+  }
+
+
+  if(
+    c.paymentSchedule==='Custom'
+  ){
+
+    const installments=
+      Array.isArray(
+        c.customInstallments
+      )
+        ? c.customInstallments
+        : [];
+
+    if(installments.length){
+
+      installments.forEach(
+        item=>
+          addClassCustomInstallment(
+            item.amount,
+            item.dueDate
+          )
+      );
+
+    }else{
+
+      resetClassCustomInstallments();
+    }
+
+  }else{
+
+    resetClassCustomInstallments();
+  }
+
+
+  updateClassPaymentUI();
+  updateClassParentReminderUI();
+  updateClassCustomInstallmentTotal();
+
+
+  $('#saveClass').textContent=
+    'Save changes';
+
+
+  $('#className')
+    .scrollIntoView({
+      behavior:'smooth',
+      block:'center'
+    });
+
+  $('#className').focus();
+
+
+  toast(
+    `Editing ${c.name}.`
+  );
+}
+
+
 function classTuitionAmount(){
 
   return Number(
@@ -6143,6 +6760,14 @@ $('#saveClass').onclick=async()=>{
     customInstallments=checked;
   }
 
+  const existingClass=
+    editingClassId
+      ? classes.find(
+          item=>item.id===editingClassId
+        )
+      : null;
+
+
   let data={
     name,
     term:$('#classTerm').value.trim(),
@@ -6187,19 +6812,79 @@ $('#saveClass').onclick=async()=>{
     reminderBody:
       $('#classReminderBody').value.trim(),
 
-    activeStudentCount:0,
-    createdAt:serverTimestamp(),
+    automaticLateFeeNotice:
+      true,
+
+    activeStudentCount:
+      existingClass
+        ? Number(existingClass.activeStudentCount||0)
+        : 0,
+
     updatedAt:serverTimestamp()
   };
 
-  let r=await addDoc(sub('classes'),data);
 
-  await log('Class created',name,'Manual');
+  if(!existingClass){
+    data.createdAt=
+      serverTimestamp();
+  }
+
+  let savedClassId='';
+
+
+  if(existingClass){
+
+    savedClassId=
+      existingClass.id;
+
+    await setDoc(
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'classes',
+        existingClass.id
+      ),
+      data,
+      {
+        merge:true
+      }
+    );
+
+    await log(
+      'Class updated',
+      name,
+      'Manual'
+    );
+
+  }else{
+
+    const r=
+      await addDoc(
+        sub('classes'),
+        data
+      );
+
+    savedClassId=
+      r.id;
+
+    await log(
+      'Class created',
+      name,
+      'Manual'
+    );
+  }
+
+
   await refreshAll();
 
-  $('#classSelect').value=r.id;
+  $('#classSelect').value=
+    savedClassId;
+
   await loadRoster();
   renderRoster();
+
+  renderSelectedClassDetails();
 
   $('#className').value='';
   $('#classTerm').value='';
@@ -6213,7 +6898,7 @@ $('#saveClass').onclick=async()=>{
   resetClassCustomInstallments();
   updateClassPaymentUI();
 
-  $('#classLateFee').value='25';
+  $('#classLateFee').value='0';
   $('#classLateFeeGraceDays').value='0';
   $('#classVendorAlertDays').value='3';
   $('#classParentReminderEnabled').checked=false;
@@ -6231,14 +6916,40 @@ Payment instructions:
 Thank you,
 {{businessName}}`;
 
-  toast('Class saved.');
+  const wasEditing=
+    Boolean(editingClassId);
+
+  editingClassId='';
+
+  $('#saveClass').textContent=
+    'Save class';
+
+
+  toast(
+    wasEditing
+      ? 'Class updated.'
+      : 'Class saved.'
+  );
 };
 
 $('#classSelect').onchange=async()=>{
+
+  /*
+   * Changing the selected class is viewing that class,
+   * not continuing an old edit.
+   */
+  editingClassId='';
+
+  $('#saveClass').textContent=
+    'Save class';
+
   preview=[];
   hide($('#previewCard'));
+
   await loadRoster();
+
   renderRoster();
+  renderSelectedClassDetails();
 };
 
 
@@ -9472,7 +10183,7 @@ $('#saveService').onclick=async()=>{
 
       lateFee:
         Number(
-          $('#serviceLateFee').value||25
+          $('#serviceLateFee').value||0
         ),
 
       status:'Active',
@@ -9513,7 +10224,7 @@ $('#saveService').onclick=async()=>{
 
 
   $('#serviceDueDay').value='4';
-  $('#serviceLateFee').value='25';
+  $('#serviceLateFee').value='0';
   $('#serviceSchedule').value='Full';
   $('#serviceType').value='Class';
   $('#serviceClass').value='';
@@ -9782,7 +10493,8 @@ async function syncRosterToCoreRecords(
 
           dueDay:4,
 
-          lateFee:25,
+          lateFee:
+            Number(classRecord.lateFee||0),
 
           status,
 
