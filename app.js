@@ -9449,7 +9449,6 @@ function resetRefundForm(){
   $('#refundMethod').value='Venmo';
   $('#refundReason').value='Overpayment';
   $('#refundNote').value='';
-  $('#refundOverride').checked=false;
 
   updateRefundAvailable();
 }
@@ -13417,6 +13416,150 @@ $('#refundStudent').onchange=()=>{
 };
 
 
+
+function confirmRefundAbovePaid(
+  amount,
+  available
+){
+
+  return new Promise(resolve=>{
+
+    const prior=
+      $('#refundOverpaymentDialog');
+
+    if(prior){
+      prior.remove();
+    }
+
+
+    const overlay=
+      document.createElement('div');
+
+    overlay.id=
+      'refundOverpaymentDialog';
+
+    overlay.className=
+      'vf-confirm-overlay';
+
+
+    overlay.innerHTML=`
+      <div
+        class="vf-confirm-card"
+        role="dialog"
+        aria-modal="true">
+
+        <div class="eyebrow">
+          Check refund amount
+        </div>
+
+        <h3>
+          You are refunding more money to this parent than the parent has currently paid.
+        </h3>
+
+        <p>
+          Refund:
+          <strong>${money(amount)}</strong>
+          <br>
+          Parent payments currently available to refund:
+          <strong>${money(available)}</strong>
+        </p>
+
+        <div class="vf-confirm-actions">
+
+          <button
+            type="button"
+            class="primary"
+            data-refund-anyway>
+            Refund Anyway
+          </button>
+
+          <button
+            type="button"
+            data-edit-refund>
+            Edit Refund
+          </button>
+
+        </div>
+
+      </div>
+    `;
+
+
+    document.body.appendChild(
+      overlay
+    );
+
+
+    let done=false;
+
+
+    function finish(result){
+
+      if(done){
+        return;
+      }
+
+      done=true;
+
+      document.removeEventListener(
+        'keydown',
+        keyHandler
+      );
+
+      overlay.remove();
+
+      resolve(result);
+    }
+
+
+    function keyHandler(event){
+
+      if(event.key==='Escape'){
+        finish(false);
+      }
+    }
+
+
+    overlay
+      .querySelector(
+        '[data-refund-anyway]'
+      )
+      .onclick=
+        ()=>finish(true);
+
+
+    overlay
+      .querySelector(
+        '[data-edit-refund]'
+      )
+      .onclick=
+        ()=>finish(false);
+
+
+    overlay.onclick=
+      event=>{
+
+        if(event.target===overlay){
+          finish(false);
+        }
+      };
+
+
+    document.addEventListener(
+      'keydown',
+      keyHandler
+    );
+
+
+    overlay
+      .querySelector(
+        '[data-edit-refund]'
+      )
+      .focus();
+  });
+}
+
+
 $('#saveRefund').onclick=async()=>{
 
   const student=
@@ -13455,34 +13598,25 @@ $('#saveRefund').onclick=async()=>{
     );
 
 
-  const override=
-    $('#refundOverride').checked;
+  let override=false;
 
 
   if(
-    amount>available+.009 &&
-    !override
+    amount>available+.009
   ){
 
-    return toast(
-      `Refund exceeds the ${money(available)} currently refundable.`
-    );
-  }
-
-
-  if(
-    amount>available+.009 &&
-    override
-  ){
-
-    const ok=
-      confirm(
-        `Refund ${money(amount)} even though VendorFlow shows ` +
-        `${money(available)} in refundable parent payments?\n\n` +
-        `This override will be recorded in History.`
+    override=
+      await confirmRefundAbovePaid(
+        amount,
+        available
       );
 
-    if(!ok){
+
+    if(!override){
+
+      $('#refundAmount').focus();
+      $('#refundAmount').select();
+
       return;
     }
   }
