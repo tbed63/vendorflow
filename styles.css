@@ -4396,3 +4396,99 @@ button.vf-certificate-problem:focus-visible{
 
 }
 
+
+
+/* ==========================================================
+   CUSTOM CLASS INSTALLMENTS
+   ========================================================== */
+
+.vf-custom-installments{
+  margin-top:14px;
+  padding:14px;
+  border:1px solid #d7dfe5;
+  border-radius:10px;
+  background:#f8fafb;
+}
+
+.vf-custom-installments-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:14px;
+  margin-bottom:12px;
+}
+
+.vf-custom-installments-head > div{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+
+.vf-custom-installments-head strong{
+  font-size:14px;
+}
+
+.vf-custom-installments-head span{
+  font-size:12px;
+  color:#5f6f78;
+}
+
+.vf-custom-installment-row{
+  display:grid;
+  grid-template-columns:
+    minmax(0,1fr)
+    minmax(0,1fr)
+    auto;
+  gap:10px;
+  align-items:end;
+  margin-top:10px;
+}
+
+.vf-remove-installment{
+  min-height:42px;
+}
+
+.vf-custom-installment-total{
+  margin-top:12px;
+  padding-top:10px;
+  border-top:1px solid #dce3e8;
+  font-size:13px;
+  font-weight:700;
+  color:#5f6f78;
+}
+
+.vf-installment-total-good{
+  color:#237447;
+}
+
+.vf-installment-total-bad{
+  color:#a14c31;
+}
+
+
+@media(max-width:600px){
+
+  .vf-custom-installments-head{
+    flex-direction:column;
+  }
+
+  .vf-custom-installment-row{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .vf-remove-installment{
+    grid-column:1 / -1;
+  }
+}
+
+
+@media(max-width:420px){
+
+  .vf-custom-installment-row{
+    grid-template-columns:1fr;
+  }
+
+  .vf-remove-installment{
+    grid-column:auto;
+  }
+}
