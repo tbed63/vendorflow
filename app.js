@@ -34,7 +34,7 @@ const VENDORFLOW_API =
   "https://vendorflow-api.tbed63.workers.dev";
 
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),$=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],show=e=>e.classList.remove("hidden"),hide=e=>e.classList.add("hidden"),esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
-let user=null,profile={},classes=[],roster=[],students=[],services=[],charterSchools=[],payments=[],certs=[],invoices=[],compliance=[],reviews=[],history=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
+let user=null,profile={},classes=[],roster=[],students=[],services=[],obligations=[],charterSchools=[],payments=[],certs=[],invoices=[],compliance=[],reviews=[],history=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
 let invoiceStatusFilter='all';
 let invoiceSearchQuery='';
 
@@ -714,6 +714,7 @@ async function refreshAll(){
 
   students=await getList('students',false);
   services=await getList('services',false);
+  obligations=await getList('obligations',false);
   charterSchools=await getList('charterSchools',false);
   payments=await getList('payments');
   certs=await getList('certificates');
@@ -10343,6 +10344,9 @@ function renderStudentsServices(){
 
                   </div>
 
+
+                  ${serviceObligationHTML(service)}
+
                 </div>
 
               `).join('')
@@ -10721,6 +10725,574 @@ $('#saveCoreStudent').onclick=async()=>{
 };
 
 
+
+/* ==========================================================
+   STUDENT PAYMENT OBLIGATIONS
+   ========================================================== */
+
+
+/*
+ * An obligation is one specific amount due on one specific date
+ * for one student service.
+ *
+ * IMPORTANT:
+ * Obligations do NOT replace the existing balance calculation yet.
+ * They are the dated foundation for future reminders, late fees,
+ * payment allocation and certificate allocation.
+ */
+
+
+function serviceObligations(
+  serviceId
+){
+
+  return obligations
+    .filter(
+      obligation=>
+        obligation.serviceId===serviceId &&
+        !obligation.deleted
+    )
+    .sort(
+      (a,b)=>
+        String(a.dueDate||'')
+          .localeCompare(
+            String(b.dueDate||'')
+          )
+    );
+}
+
+
+function classPaymentItemsForObligations(
+  classRecord,
+  serviceTotal
+){
+
+  if(!classRecord){
+
+    return {
+      items:[],
+      reason:
+        'This service is not linked to a class payment plan.'
+    };
+  }
+
+
+  const total=
+    Number(serviceTotal||0);
+
+  const classTuition=
+    Number(classRecord.tuition||0);
+
+
+  /*
+   * Never quietly reshape a class payment plan if this
+   * individual service price was overridden.
+   *
+   * Individual obligation editing comes next.
+   */
+  if(
+    total>0 &&
+    classTuition>0 &&
+    Math.abs(total-classTuition)>=0.005
+  ){
+
+    return {
+      items:[],
+      reason:
+        `Service price ${money(total)} differs from class tuition `+
+        `${money(classTuition)}. Set this student's payment schedule manually.`
+    };
+  }
+
+
+  const schedule=
+    classRecord.paymentSchedule ||
+    'Full';
+
+
+  let items=[];
+
+
+  if(schedule==='Full'){
+
+    if(
+      classRecord.paymentDueDate &&
+      total>0
+    ){
+
+      items=[
+        {
+          amount:total,
+          dueDate:
+            classRecord.paymentDueDate
+        }
+      ];
+    }
+
+  }else if(schedule==='Monthly'){
+
+    items=
+      Array.isArray(
+        classRecord.monthlyInstallments
+      )
+        ? classRecord.monthlyInstallments
+            .map(
+              item=>({
+                amount:
+                  Number(item.amount||0),
+
+                dueDate:
+                  item.dueDate||''
+              })
+            )
+        : [];
+
+  }else if(schedule==='Custom'){
+
+    items=
+      Array.isArray(
+        classRecord.customInstallments
+      )
+        ? classRecord.customInstallments
+            .map(
+              item=>({
+                amount:
+                  Number(item.amount||0),
+
+                dueDate:
+                  item.dueDate||''
+              })
+            )
+        : [];
+  }
+
+
+  items=
+    items.filter(
+      item=>
+        Number(item.amount||0)>0 &&
+        Boolean(item.dueDate)
+    );
+
+
+  if(!items.length){
+
+    return {
+      items:[],
+      reason:
+        'The class does not yet have a complete dated payment schedule.'
+    };
+  }
+
+
+  const itemTotal=
+    items.reduce(
+      (sum,item)=>
+        sum+
+        Number(item.amount||0),
+      0
+    );
+
+
+  if(
+    total>0 &&
+    Math.abs(itemTotal-total)>=0.005
+  ){
+
+    return {
+      items:[],
+      reason:
+        `The class payment schedule totals ${money(itemTotal)}, `+
+        `but this service is ${money(total)}. Review before creating obligations.`
+    };
+  }
+
+
+  return {
+    items,
+    reason:''
+  };
+}
+
+
+function serviceLateFeeApplicationDate(
+  dueDate,
+  graceDays
+){
+
+  /*
+   * Same convention as the class reminder rule:
+   *
+   * Due Sep 1 + 3 grace days:
+   * Sep 2, 3, 4 are grace days
+   * fee becomes eligible Sep 5.
+   */
+  return classLateFeeDate(
+    dueDate,
+    Number(graceDays||0)
+  );
+}
+
+
+async function createServiceObligations(
+  serviceRef,
+  serviceRecord,
+  classRecord
+){
+
+  if(
+    !serviceRef ||
+    !serviceRecord ||
+    !classRecord ||
+    serviceRecord.serviceType!=='Class'
+  ){
+
+    return {
+      created:0,
+      reason:''
+    };
+  }
+
+
+  const result=
+    classPaymentItemsForObligations(
+      classRecord,
+      serviceRecord.totalPrice
+    );
+
+
+  if(!result.items.length){
+
+    await setDoc(
+      serviceRef,
+      {
+        obligationScheduleStatus:
+          'Needs Review',
+
+        obligationScheduleReason:
+          result.reason,
+
+        obligationCount:0,
+
+        obligationTotal:0,
+
+        updatedAt:
+          serverTimestamp()
+      },
+      {
+        merge:true
+      }
+    );
+
+
+    return {
+      created:0,
+      reason:
+        result.reason
+    };
+  }
+
+
+  let created=0;
+  let total=0;
+
+
+  for(
+    let index=0;
+    index<result.items.length;
+    index++
+  ){
+
+    const item=
+      result.items[index];
+
+    const amount=
+      Number(item.amount||0);
+
+    total+=amount;
+
+
+    /*
+     * Deterministic ID:
+     * calling this function twice cannot create duplicate
+     * obligations for the same service/payment number.
+     */
+    const obligationId=
+      `${serviceRef.id}__${String(index+1).padStart(3,'0')}`;
+
+
+    const obligationRef=
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'obligations',
+        obligationId
+      );
+
+
+    const existing=
+      await getDoc(
+        obligationRef
+      );
+
+
+    if(existing.exists()){
+      continue;
+    }
+
+
+    const lateFee=
+      Number(
+        serviceRecord.lateFee ??
+        classRecord.lateFee ??
+        0
+      );
+
+    const graceDays=
+      Number(
+        serviceRecord.lateFeeGraceDays ??
+        classRecord.lateFeeGraceDays ??
+        0
+      );
+
+
+    await setDoc(
+      obligationRef,
+      {
+        serviceId:
+          serviceRef.id,
+
+        studentId:
+          serviceRecord.studentId||'',
+
+        studentName:
+          serviceRecord.studentName||'',
+
+        classId:
+          classRecord.id||'',
+
+        className:
+          classRecord.name||serviceRecord.name||'',
+
+        serviceName:
+          serviceRecord.name||classRecord.name||'',
+
+        sequence:
+          index+1,
+
+        amount,
+
+        originalAmount:
+          amount,
+
+        remainingAmount:
+          amount,
+
+        creditedAmount:0,
+
+        waivedAmount:0,
+
+        dueDate:
+          item.dueDate,
+
+        status:
+          'Scheduled',
+
+        paymentSchedule:
+          classRecord.paymentSchedule||'Full',
+
+        lateFeeAmount:
+          lateFee,
+
+        lateFeeGraceDays:
+          graceDays,
+
+        lateFeeDate:
+          lateFee>0
+            ? serviceLateFeeApplicationDate(
+                item.dueDate,
+                graceDays
+              )
+            : '',
+
+        lateFeeApplied:false,
+
+        lateFeeWaived:false,
+
+        vendorAlertDays:
+          Number(
+            classRecord.vendorAlertDays||0
+          ),
+
+        parentReminderEnabled:
+          Boolean(
+            classRecord.parentReminderEnabled
+          ),
+
+        parentReminderDays:
+          Number(
+            classRecord.parentReminderDays||0
+          ),
+
+        automaticLateFeeNotice:
+          Boolean(
+            classRecord.automaticLateFeeNotice
+          ),
+
+        source:
+          'Class payment plan',
+
+        createdAt:
+          serverTimestamp(),
+
+        updatedAt:
+          serverTimestamp()
+      }
+    );
+
+
+    created++;
+  }
+
+
+  await setDoc(
+    serviceRef,
+    {
+      paymentScheduleSource:
+        'Class payment plan',
+
+      paymentScheduleSnapshot:
+        classRecord.paymentSchedule||'Full',
+
+      obligationScheduleStatus:
+        'Ready',
+
+      obligationScheduleReason:
+        '',
+
+      obligationCount:
+        result.items.length,
+
+      obligationTotal:
+        Number(total.toFixed(2)),
+
+      obligationGeneratedAt:
+        serverTimestamp(),
+
+      lateFeeGraceDays:
+        Number(
+          classRecord.lateFeeGraceDays||0
+        ),
+
+      vendorAlertDays:
+        Number(
+          classRecord.vendorAlertDays||0
+        ),
+
+      parentReminderEnabled:
+        Boolean(
+          classRecord.parentReminderEnabled
+        ),
+
+      parentReminderDays:
+        Number(
+          classRecord.parentReminderDays||0
+        ),
+
+      updatedAt:
+        serverTimestamp()
+    },
+    {
+      merge:true
+    }
+  );
+
+
+  return {
+    created,
+    reason:''
+  };
+}
+
+
+function serviceObligationHTML(
+  service
+){
+
+  const list=
+    serviceObligations(
+      service.id
+    );
+
+
+  if(!list.length){
+
+    if(
+      service.obligationScheduleStatus===
+      'Needs Review'
+    ){
+
+      return `
+        <div class="vf-obligation-warning">
+          <strong>Payment schedule needs attention</strong>
+          <span>
+            ${esc(
+              service.obligationScheduleReason ||
+              'VendorFlow could not create dated payment obligations.'
+            )}
+          </span>
+        </div>
+      `;
+    }
+
+
+    return '';
+  }
+
+
+  return `
+    <div class="vf-service-obligations">
+
+      <div class="vf-service-obligations-title">
+        Payment obligations
+      </div>
+
+      ${list
+        .map(
+          obligation=>`
+            <div class="vf-obligation-row">
+
+              <span>
+                Payment ${esc(obligation.sequence||'')}
+              </span>
+
+              <strong>
+                ${money(obligation.amount)}
+              </strong>
+
+              <span>
+                due ${esc(
+                  classDateLabel(
+                    obligation.dueDate
+                  )
+                )}
+              </span>
+
+              <span class="vf-obligation-status">
+                ${esc(obligation.status||'Scheduled')}
+              </span>
+
+            </div>
+          `
+        )
+        .join('')}
+
+    </div>
+  `;
+}
+
+
 /* ----------------------------------------------------------
    Service setup
    ---------------------------------------------------------- */
@@ -10857,9 +11429,13 @@ $('#saveService').onclick=async()=>{
     serviceType;
 
 
-  await addDoc(
-    sub('services'),
-    {
+  const serviceRef=
+    doc(
+      sub('services')
+    );
+
+
+  const serviceData={
 
       studentId,
 
@@ -10893,6 +11469,7 @@ $('#saveService').onclick=async()=>{
         ),
 
       schedule:
+        classRecord?.paymentSchedule ||
         $('#serviceSchedule').value,
 
       dueDay:
@@ -10905,6 +11482,26 @@ $('#saveService').onclick=async()=>{
           $('#serviceLateFee').value||0
         ),
 
+      lateFeeGraceDays:
+        Number(
+          classRecord?.lateFeeGraceDays||0
+        ),
+
+      vendorAlertDays:
+        Number(
+          classRecord?.vendorAlertDays||0
+        ),
+
+      parentReminderEnabled:
+        Boolean(
+          classRecord?.parentReminderEnabled
+        ),
+
+      parentReminderDays:
+        Number(
+          classRecord?.parentReminderDays||0
+        ),
+
       status:'Active',
 
       source:'Manual',
@@ -10913,9 +11510,31 @@ $('#saveService').onclick=async()=>{
         serverTimestamp(),
 
       updatedAt:
-        serverTimestamp()
-    }
+        serverTimestamp()    };
+
+
+  await setDoc(
+    serviceRef,
+    serviceData
   );
+
+
+  if(
+    classRecord &&
+    serviceType==='Class'
+  ){
+
+    await createServiceObligations(
+      serviceRef,
+      {
+        ...serviceData,
+        studentId,
+        studentName:
+          student.studentName||''
+      },
+      classRecord
+    );
+  }
 
 
   await log(
@@ -11180,9 +11799,13 @@ async function syncRosterToCoreRecords(
         );
 
 
-      await addDoc(
-        sub('services'),
-        {
+      const serviceRef=
+        doc(
+          sub('services')
+        );
+
+
+      const serviceData={
 
           studentId:
             coreStudent.id,
@@ -11208,12 +11831,37 @@ async function syncRosterToCoreRecords(
 
           tutoringRate:0,
 
-          schedule:'Custom',
+          schedule:
+            classRecord.paymentSchedule ||
+            'Full',
 
-          dueDay:4,
+          dueDay:
+            Number(
+              classRecord.dueDay||0
+            ) || null,
 
           lateFee:
             Number(classRecord.lateFee||0),
+
+          lateFeeGraceDays:
+            Number(
+              classRecord.lateFeeGraceDays||0
+            ),
+
+          vendorAlertDays:
+            Number(
+              classRecord.vendorAlertDays||0
+            ),
+
+          parentReminderEnabled:
+            Boolean(
+              classRecord.parentReminderEnabled
+            ),
+
+          parentReminderDays:
+            Number(
+              classRecord.parentReminderDays||0
+            ),
 
           status,
 
@@ -11223,8 +11871,26 @@ async function syncRosterToCoreRecords(
             serverTimestamp(),
 
           updatedAt:
-            serverTimestamp()
-        }
+            serverTimestamp()        };
+
+
+      await setDoc(
+        serviceRef,
+        serviceData
+      );
+
+
+      await createServiceObligations(
+        serviceRef,
+        {
+          ...serviceData,
+          studentId:
+            coreStudent.id,
+
+          studentName:
+            row.studentName||''
+        },
+        classRecord
       );
 
     }else{

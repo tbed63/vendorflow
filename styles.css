@@ -4681,3 +4681,76 @@ button.vf-certificate-problem:focus-visible{
   }
 
 }
+
+
+/* ==========================================================
+   STUDENT PAYMENT OBLIGATIONS
+   ========================================================== */
+
+.vf-service-obligations{
+  grid-column:1 / -1;
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px solid #e1e7eb;
+}
+
+.vf-service-obligations-title{
+  margin-bottom:6px;
+  font-size:12px;
+  font-weight:800;
+  color:#556872;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+
+.vf-obligation-row{
+  display:grid;
+  grid-template-columns:
+    90px
+    90px
+    minmax(130px,1fr)
+    auto;
+  gap:10px;
+  align-items:center;
+  padding:6px 0;
+  font-size:13px;
+}
+
+.vf-obligation-status{
+  font-size:11px;
+  font-weight:700;
+  color:#61727b;
+}
+
+.vf-obligation-warning{
+  grid-column:1 / -1;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  margin-top:10px;
+  padding:10px 12px;
+  border:1px solid #e1c07d;
+  border-radius:8px;
+  background:#fff8e8;
+  font-size:13px;
+}
+
+.vf-obligation-warning strong{
+  color:#7b5619;
+}
+
+
+@media(max-width:600px){
+
+  .vf-obligation-row{
+    grid-template-columns:
+      80px
+      80px
+      1fr;
+  }
+
+  .vf-obligation-status{
+    grid-column:1 / -1;
+  }
+
+}
