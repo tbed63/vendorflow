@@ -4631,3 +4631,22 @@ button.vf-certificate-problem:focus-visible{
   }
 
 }
+
+
+/* ==========================================================
+   INLINE FORM VALIDATION
+   ========================================================== */
+
+.vf-form-error{
+  margin:12px 0 8px;
+  padding:11px 13px;
+  border:1px solid #d49a87;
+  border-left:4px solid #b45437;
+  border-radius:8px;
+  background:#fff3ef;
+  color:#7a321f;
+  font-size:13px;
+  font-weight:700;
+  line-height:1.4;
+}
+

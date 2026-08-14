@@ -6258,6 +6258,8 @@ function editSavedClass(
   editingClassId=
     c.id;
 
+  clearClassSaveError();
+
 
   $('#className').value=
     c.name||'';
@@ -6373,6 +6375,45 @@ Thank you,
   toast(
     `Editing ${c.name}.`
   );
+}
+
+
+
+function clearClassSaveError(){
+
+  const box=
+    $('#classSaveError');
+
+  if(!box){
+    return;
+  }
+
+  box.textContent='';
+  hide(box);
+}
+
+
+function showClassSaveError(
+  message
+){
+
+  const box=
+    $('#classSaveError');
+
+  if(!box){
+    toast(message);
+    return;
+  }
+
+  box.textContent=
+    String(message||'');
+
+  show(box);
+
+  box.scrollIntoView({
+    behavior:'smooth',
+    block:'nearest'
+  });
 }
 
 
@@ -6512,7 +6553,19 @@ function addClassCustomInstallment(
     '[data-installment-amount]'
   )?.addEventListener(
     'input',
-    updateClassCustomInstallmentTotal
+    ()=>{
+
+      clearClassSaveError();
+      updateClassCustomInstallmentTotal();
+    }
+  );
+
+
+  row.querySelector(
+    '[data-installment-date]'
+  )?.addEventListener(
+    'input',
+    clearClassSaveError
   );
 
   row.querySelector(
@@ -6583,8 +6636,8 @@ function validateClassCustomInstallments(){
 
   if(!installments.length){
 
-    toast(
-      'Add at least one custom installment.'
+    showClassSaveError(
+      'Add at least one custom installment before saving.'
     );
 
     return null;
@@ -6598,8 +6651,8 @@ function validateClassCustomInstallments(){
     )
   ){
 
-    toast(
-      'Enter an amount and due date for every custom installment.'
+    showClassSaveError(
+      'Each installment needs both an amount and a due date.'
     );
 
     return null;
@@ -6616,8 +6669,8 @@ function validateClassCustomInstallments(){
     Math.abs(total-tuition)>=0.005
   ){
 
-    toast(
-      `Custom installments must total the $${tuition.toFixed(2)} tuition.`
+    showClassSaveError(
+      `Installments total $${total.toFixed(2)}, but tuition is $${tuition.toFixed(2)}. Adjust the installment amounts so they match exactly.`
     );
 
     return null;
@@ -6699,7 +6752,11 @@ if($('#classPaymentSchedule')){
   $('#classPaymentSchedule')
     .addEventListener(
       'change',
-      updateClassPaymentUI
+      ()=>{
+
+        clearClassSaveError();
+        updateClassPaymentUI();
+      }
     );
 
   updateClassPaymentUI();
@@ -6733,15 +6790,29 @@ if($('#classTuition')){
   $('#classTuition')
     .addEventListener(
       'input',
-      updateClassCustomInstallmentTotal
+      ()=>{
+
+        clearClassSaveError();
+        updateClassCustomInstallmentTotal();
+      }
     );
 }
 
 
 $('#saveClass').onclick=async()=>{
+
+  clearClassSaveError();
+
   let name=$('#className').value.trim();
 
-  if(!name)return toast('Enter a class name.');
+  if(!name){
+
+    showClassSaveError(
+      'Enter a class name before saving.'
+    );
+
+    return;
+  }
 
   const paymentSchedule=
     $('#classPaymentSchedule').value;
@@ -6924,6 +6995,8 @@ Thank you,
   $('#saveClass').textContent=
     'Save class';
 
+
+  clearClassSaveError();
 
   toast(
     wasEditing
