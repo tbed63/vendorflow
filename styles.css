@@ -4754,3 +4754,34 @@ button.vf-certificate-problem:focus-visible{
   }
 
 }
+
+
+/* ==========================================================
+   OBLIGATION FUNDING STATUS
+   ========================================================== */
+
+.vf-obligation-remaining{
+  font-size:11px;
+  font-weight:700;
+  color:#9a5a20;
+}
+
+.vf-obligation-funded{
+  font-size:11px;
+  font-weight:800;
+  color:#237447;
+}
+
+
+@media(min-width:601px){
+
+  .vf-obligation-row{
+    grid-template-columns:
+      90px
+      90px
+      minmax(130px,1fr)
+      110px
+      auto;
+  }
+
+}

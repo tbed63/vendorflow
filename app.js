@@ -760,6 +760,26 @@ async function refreshAll(){
     history=await getList('history');
   }
 
+
+  /*
+   * Reconcile all currently known parent-payment and
+   * certificate funding against dated obligations.
+   *
+   * This is idempotent: it calculates what the records
+   * SHOULD look like and only writes actual differences.
+   */
+  const obligationChanges=
+    await reconcileObligationFunding();
+
+  if(obligationChanges>0){
+    obligations=
+      await getList(
+        'obligations',
+        false
+      );
+  }
+
+
   renderAll();
 }
 
@@ -11216,6 +11236,720 @@ async function createServiceObligations(
 }
 
 
+
+function activeCertificateForObligations(
+  certificate
+){
+
+  if(
+    !certificate ||
+    certificate.deleted
+  ){
+    return false;
+  }
+
+  return ![
+    'cancelled',
+    'deleted'
+  ].includes(
+    String(
+      certificate.status||''
+    ).toLowerCase()
+  );
+}
+
+
+function parentPaymentForObligations(
+  payment
+){
+
+  if(!payment){
+    return false;
+  }
+
+  /*
+   * Charter payments pay the vendor's receivable.
+   * The certificate already satisfied the parent's
+   * obligation, so charter cash must NOT credit it twice.
+   *
+   * Refunds are negative parent payments and therefore
+   * reduce the parent-payment funding pool naturally.
+   */
+  return (
+    String(payment.method||'')
+      .trim()
+      .toLowerCase()
+    !==
+    'charter payment'
+  );
+}
+
+
+function obligationStudentServices(
+  studentId
+){
+
+  return [
+    ...new Set(
+      obligations
+        .filter(
+          obligation=>
+            obligation.studentId===studentId &&
+            !obligation.deleted
+        )
+        .map(
+          obligation=>
+            obligation.serviceId||''
+        )
+        .filter(Boolean)
+    )
+  ];
+}
+
+
+function allocationTargetsForRecord(
+  record,
+  studentObligations
+){
+
+  if(!record){
+    return [];
+  }
+
+
+  /*
+   * Best possible link: exact service.
+   */
+  if(record.serviceId){
+
+    return studentObligations.filter(
+      obligation=>
+        obligation.serviceId===
+        record.serviceId
+    );
+  }
+
+
+  /*
+   * Next best: exact class.
+   */
+  if(record.classId){
+
+    return studentObligations.filter(
+      obligation=>
+        obligation.classId===
+        record.classId
+    );
+  }
+
+
+  /*
+   * Some payment records carry a class name
+   * rather than an ID.
+   */
+  const className=
+    normalizedName(
+      record.className ||
+      record.class ||
+      ''
+    );
+
+
+  if(className){
+
+    const matches=
+      studentObligations.filter(
+        obligation=>
+          normalizedName(
+            obligation.className||''
+          )===className
+      );
+
+    if(matches.length){
+      return matches;
+    }
+  }
+
+
+  /*
+   * Safe fallback:
+   * if this student has ONLY ONE obligation-bearing
+   * service, there is nothing to guess.
+   */
+  const serviceIds=[
+    ...new Set(
+      studentObligations
+        .map(
+          obligation=>
+            obligation.serviceId||''
+        )
+        .filter(Boolean)
+    )
+  ];
+
+
+  if(serviceIds.length===1){
+    return studentObligations;
+  }
+
+
+  /*
+   * Multiple services + no reliable service/class link:
+   * VendorFlow does not quietly guess.
+   */
+  return [];
+}
+
+
+function emptyObligationAllocation(
+  obligation
+){
+
+  return {
+    ...obligation,
+
+    parentCreditedAmount:0,
+    certificateCreditedAmount:0,
+    creditedAmount:0,
+
+    remainingAmount:
+      Math.max(
+        0,
+        Number(
+          obligation.amount||0
+        )-
+        Number(
+          obligation.waivedAmount||0
+        )
+      )
+  };
+}
+
+
+function applyFundingPool(
+  targetObligations,
+  amount,
+  type
+){
+
+  let remaining=
+    Number(amount||0);
+
+
+  /*
+   * Negative funding is possible because refunds
+   * are stored as negative payments.
+   *
+   * Reconciliation is deterministic, so below we
+   * deal with net funding rather than trying to
+   * mutate an old historical allocation.
+   */
+  if(remaining<=0){
+    return;
+  }
+
+
+  const ordered=
+    [...targetObligations]
+      .sort(
+        (a,b)=>{
+
+          const dateCompare=
+            String(a.dueDate||'')
+              .localeCompare(
+                String(b.dueDate||'')
+              );
+
+          if(dateCompare){
+            return dateCompare;
+          }
+
+          return (
+            Number(a.sequence||0)-
+            Number(b.sequence||0)
+          );
+        }
+      );
+
+
+  for(const obligation of ordered){
+
+    if(remaining<=0){
+      break;
+    }
+
+
+    const available=
+      Math.max(
+        0,
+        Number(
+          obligation.remainingAmount||0
+        )
+      );
+
+
+    if(available<=0){
+      continue;
+    }
+
+
+    const applied=
+      Math.min(
+        available,
+        remaining
+      );
+
+
+    if(type==='certificate'){
+
+      obligation.certificateCreditedAmount=
+        Number(
+          obligation.certificateCreditedAmount||0
+        )+
+        applied;
+
+    }else{
+
+      obligation.parentCreditedAmount=
+        Number(
+          obligation.parentCreditedAmount||0
+        )+
+        applied;
+    }
+
+
+    obligation.creditedAmount=
+      Number(
+        obligation.creditedAmount||0
+      )+
+      applied;
+
+
+    obligation.remainingAmount=
+      Math.max(
+        0,
+        Number(
+          obligation.remainingAmount||0
+        )-
+        applied
+      );
+
+
+    remaining-=applied;
+  }
+}
+
+
+function expectedObligationFunding(){
+
+  const expected=
+    new Map(
+      obligations
+        .filter(
+          obligation=>
+            !obligation.deleted
+        )
+        .map(
+          obligation=>[
+            obligation.id,
+            emptyObligationAllocation(
+              obligation
+            )
+          ]
+        )
+    );
+
+
+  const studentIds=[
+    ...new Set(
+      obligations
+        .map(
+          obligation=>
+            obligation.studentId||''
+        )
+        .filter(Boolean)
+    )
+  ];
+
+
+  for(const studentId of studentIds){
+
+    const studentObligations=
+      [...expected.values()]
+        .filter(
+          obligation=>
+            obligation.studentId===
+            studentId
+        );
+
+
+    /*
+     * CERTIFICATES
+     *
+     * Certificates satisfy parent obligation
+     * immediately, even before the charter pays.
+     */
+    const studentCertificatesForAllocation=
+      certs
+        .filter(
+          certificate=>
+            certificate.studentId===
+              studentId &&
+            activeCertificateForObligations(
+              certificate
+            )
+        );
+
+
+    for(
+      const certificate of
+      studentCertificatesForAllocation
+    ){
+
+      const targets=
+        allocationTargetsForRecord(
+          certificate,
+          studentObligations
+        );
+
+
+      if(!targets.length){
+        continue;
+      }
+
+
+      applyFundingPool(
+        targets,
+        Number(
+          certificate.amount||0
+        ),
+        'certificate'
+      );
+    }
+
+
+    /*
+     * PARENT PAYMENTS
+     *
+     * Group unscoped parent payments as a NET amount.
+     * This makes refunds reduce prior parent-payment
+     * credit automatically.
+     */
+    const studentPaymentsForAllocation=
+      payments
+        .filter(
+          payment=>
+            payment.studentId===
+              studentId &&
+            parentPaymentForObligations(
+              payment
+            )
+        );
+
+
+    const scopedPayments=
+      studentPaymentsForAllocation
+        .filter(
+          payment=>
+            payment.serviceId ||
+            payment.classId ||
+            payment.className ||
+            payment.class
+        );
+
+
+    const unscopedPayments=
+      studentPaymentsForAllocation
+        .filter(
+          payment=>
+            !(
+              payment.serviceId ||
+              payment.classId ||
+              payment.className ||
+              payment.class
+            )
+        );
+
+
+    /*
+     * NET SCOPED PAYMENTS BY THEIR ACTUAL TARGET.
+     *
+     * Example:
+     *   +$300 Math payment
+     *   -$100 Math refund
+     * becomes $200 of Math funding.
+     *
+     * We calculate the target first, so refunds cannot
+     * accidentally affect a different service.
+     */
+    const scopedPaymentGroups=
+      new Map();
+
+
+    for(const payment of scopedPayments){
+
+      const targets=
+        allocationTargetsForRecord(
+          payment,
+          studentObligations
+        );
+
+
+      if(!targets.length){
+        continue;
+      }
+
+
+      const targetIds=[
+        ...new Set(
+          targets
+            .map(
+              obligation=>
+                obligation.serviceId||''
+            )
+            .filter(Boolean)
+        )
+      ].sort();
+
+
+      if(!targetIds.length){
+        continue;
+      }
+
+
+      const key=
+        targetIds.join('|');
+
+
+      const group=
+        scopedPaymentGroups.get(key) || {
+          targets,
+          netAmount:0
+        };
+
+
+      group.netAmount+=
+        Number(payment.amount||0);
+
+
+      scopedPaymentGroups.set(
+        key,
+        group
+      );
+    }
+
+
+    for(
+      const group of
+      scopedPaymentGroups.values()
+    ){
+
+      if(group.netAmount<=0){
+        continue;
+      }
+
+
+      applyFundingPool(
+        group.targets,
+        group.netAmount,
+        'parent'
+      );
+    }
+
+
+    const unscopedNet=
+      unscopedPayments.reduce(
+        (sum,payment)=>
+          sum+
+          Number(payment.amount||0),
+        0
+      );
+
+
+    if(unscopedNet>0){
+
+      const targets=
+        allocationTargetsForRecord(
+          {},
+          studentObligations
+        );
+
+
+      if(targets.length){
+
+        applyFundingPool(
+          targets,
+          unscopedNet,
+          'parent'
+        );
+      }
+    }
+  }
+
+
+  /*
+   * Final status is derived from remaining amount.
+   */
+  for(const obligation of expected.values()){
+
+    const remaining=
+      Number(
+        obligation.remainingAmount||0
+      );
+
+    const credited=
+      Number(
+        obligation.creditedAmount||0
+      );
+
+
+    if(remaining<=0.009){
+
+      obligation.status=
+        'Funded';
+
+    }else if(credited>0.009){
+
+      obligation.status=
+        'Partially funded';
+
+    }else{
+
+      obligation.status=
+        'Scheduled';
+    }
+  }
+
+
+  return expected;
+}
+
+
+async function reconcileObligationFunding(){
+
+  if(!obligations.length){
+    return 0;
+  }
+
+
+  const expected=
+    expectedObligationFunding();
+
+
+  let changed=0;
+
+
+  for(const obligation of obligations){
+
+    const next=
+      expected.get(
+        obligation.id
+      );
+
+    if(!next){
+      continue;
+    }
+
+
+    const fields={
+      parentCreditedAmount:
+        Number(
+          next.parentCreditedAmount||0
+        ),
+
+      certificateCreditedAmount:
+        Number(
+          next.certificateCreditedAmount||0
+        ),
+
+      creditedAmount:
+        Number(
+          next.creditedAmount||0
+        ),
+
+      remainingAmount:
+        Number(
+          next.remainingAmount||0
+        ),
+
+      status:
+        next.status||'Scheduled'
+    };
+
+
+    const same=
+      Math.abs(
+        Number(
+          obligation.parentCreditedAmount||0
+        )-
+        fields.parentCreditedAmount
+      )<0.005 &&
+
+      Math.abs(
+        Number(
+          obligation.certificateCreditedAmount||0
+        )-
+        fields.certificateCreditedAmount
+      )<0.005 &&
+
+      Math.abs(
+        Number(
+          obligation.creditedAmount||0
+        )-
+        fields.creditedAmount
+      )<0.005 &&
+
+      Math.abs(
+        Number(
+          obligation.remainingAmount ??
+          obligation.amount ??
+          0
+        )-
+        fields.remainingAmount
+      )<0.005 &&
+
+      String(
+        obligation.status||'Scheduled'
+      )===
+      fields.status;
+
+
+    if(same){
+      continue;
+    }
+
+
+    await setDoc(
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'obligations',
+        obligation.id
+      ),
+      {
+        ...fields,
+
+        fundingReconciledAt:
+          serverTimestamp(),
+
+        updatedAt:
+          serverTimestamp()
+      },
+      {
+        merge:true
+      }
+    );
+
+
+    changed++;
+  }
+
+
+  return changed;
+}
+
+
 function serviceObligationHTML(
   service
 ){
@@ -11282,6 +12016,27 @@ function serviceObligationHTML(
               <span class="vf-obligation-status">
                 ${esc(obligation.status||'Scheduled')}
               </span>
+
+              ${
+                Number(obligation.remainingAmount ?? obligation.amount)>0.009 &&
+                Number(obligation.creditedAmount||0)>0.009
+                  ? `
+                    <span class="vf-obligation-remaining">
+                      ${money(obligation.remainingAmount)} remaining
+                    </span>
+                  `
+                  : ''
+              }
+
+              ${
+                Number(obligation.remainingAmount ?? obligation.amount)<=0.009
+                  ? `
+                    <span class="vf-obligation-funded">
+                      Fully funded
+                    </span>
+                  `
+                  : ''
+              }
 
             </div>
           `
