@@ -11646,46 +11646,30 @@ function expectedObligationFunding(){
         );
 
 
-    const scopedPayments=
-      studentPaymentsForAllocation
-        .filter(
-          payment=>
-            payment.serviceId ||
-            payment.classId ||
-            payment.className ||
-            payment.class
-        );
-
-
-    const unscopedPayments=
-      studentPaymentsForAllocation
-        .filter(
-          payment=>
-            !(
-              payment.serviceId ||
-              payment.classId ||
-              payment.className ||
-              payment.class
-            )
-        );
-
-
     /*
-     * NET SCOPED PAYMENTS BY THEIR ACTUAL TARGET.
+     * PARENT PAYMENT / REFUND TARGET NETTING
      *
-     * Example:
-     *   +$300 Math payment
-     *   -$100 Math refund
-     * becomes $200 of Math funding.
+     * Resolve EVERY parent transaction to its obligation target
+     * first, then net all transactions that resolve to the same
+     * target.
      *
-     * We calculate the target first, so refunds cannot
-     * accidentally affect a different service.
+     * This matters because a payment may contain a class/service
+     * link while a later refund may only contain the student.
+     *
+     * If the student has only one obligation-bearing service,
+     * both safely resolve to that service.
+     *
+     * If there are multiple services and no reliable target,
+     * VendorFlow still does not guess.
      */
-    const scopedPaymentGroups=
+    const paymentTargetGroups=
       new Map();
 
 
-    for(const payment of scopedPayments){
+    for(
+      const payment of
+      studentPaymentsForAllocation
+    ){
 
       const targets=
         allocationTargetsForRecord(
@@ -11721,7 +11705,7 @@ function expectedObligationFunding(){
 
 
       const group=
-        scopedPaymentGroups.get(key) || {
+        paymentTargetGroups.get(key) || {
           targets,
           netAmount:0
         };
@@ -11731,7 +11715,7 @@ function expectedObligationFunding(){
         Number(payment.amount||0);
 
 
-      scopedPaymentGroups.set(
+      paymentTargetGroups.set(
         key,
         group
       );
@@ -11740,7 +11724,7 @@ function expectedObligationFunding(){
 
     for(
       const group of
-      scopedPaymentGroups.values()
+      paymentTargetGroups.values()
     ){
 
       if(group.netAmount<=0){
@@ -11753,35 +11737,6 @@ function expectedObligationFunding(){
         group.netAmount,
         'parent'
       );
-    }
-
-
-    const unscopedNet=
-      unscopedPayments.reduce(
-        (sum,payment)=>
-          sum+
-          Number(payment.amount||0),
-        0
-      );
-
-
-    if(unscopedNet>0){
-
-      const targets=
-        allocationTargetsForRecord(
-          {},
-          studentObligations
-        );
-
-
-      if(targets.length){
-
-        applyFundingPool(
-          targets,
-          unscopedNet,
-          'parent'
-        );
-      }
     }
   }
 
