@@ -176,7 +176,867 @@
 
             <div class="vf-class-fields vf-class-fields-3">
 
-              
+              <label class="vf-field-label">
+                <span>Payment plan</span>
+                <select id="classPaymentSchedule" class="input">
+                  <option value="Full">Pay in full</option>
+                  <option value="Monthly">Monthly</option>
+                  <option value="Custom">Custom</option>
+                </select>
+              </label>
+
+              <label
+                id="classDueDateWrap"
+                class="vf-field-label">
+                <span>Payment due</span>
+                <input
+                  id="classPaymentDueDate"
+                  class="input"
+                  type="date">
+              </label>
+
+              <div
+                id="classMonthlySetupWrap"
+                class="vf-monthly-setup hidden">
+
+                <label class="vf-field-label">
+                  <span>First payment due</span>
+                  <input
+                    id="classMonthlyFirstDueDate"
+                    class="input"
+                    type="date">
+                </label>
+
+                <label class="vf-field-label">
+                  <span>Number of payments</span>
+                  <input
+                    id="classMonthlyPaymentCount"
+                    class="input"
+                    type="number"
+                    min="1"
+                    max="36"
+                    value="4">
+                </label>
+
+              </div>
+
+            </div>
+
+            <div
+              id="classMonthlyInstallmentsWrap"
+              class="vf-custom-installments hidden">
+
+              <div class="vf-custom-installments-head">
+                <div>
+                  <strong>Monthly payment schedule</strong>
+                  <span>
+                    VendorFlow divides the tuition automatically.
+                    You can adjust individual dates or amounts.
+                  </span>
+                </div>
+              </div>
+
+              <div id="classMonthlyInstallments"></div>
+
+              <div
+                id="classMonthlyInstallmentTotal"
+                class="vf-custom-installment-total">
+              </div>
+
+            </div>
+
+            <div
+              id="classCustomInstallmentsWrap"
+              class="vf-custom-installments hidden">
+
+              <div class="vf-custom-installments-head">
+                <div>
+                  <strong>Custom installments</strong>
+                  <span>
+                    Enter each payment amount and its due date.
+                  </span>
+                </div>
+
+                <button
+                  id="addClassInstallment"
+                  type="button">
+                  Add installment
+                </button>
+              </div>
+
+              <div id="classCustomInstallments"></div>
+
+              <div
+                id="classCustomInstallmentTotal"
+                class="vf-custom-installment-total">
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <details class="vf-class-options">
+
+            <summary>
+              Reminders & late-payment settings
+            </summary>
+
+            <div class="vf-class-options-body">
+
+              <div class="vf-class-fields vf-class-fields-3">
+
+                <label class="vf-field-label">
+                  <span>Late fee</span>
+                  <div class="vf-money-field">
+                    <span>$</span>
+                    <input
+                      id="classLateFee"
+                      class="input"
+                      type="number"
+                      min="0"
+                      step=".01"
+                      value="0">
+                  </div>
+                </label>
+
+                <label class="vf-field-label">
+                  <span>Grace period</span>
+                  <div class="vf-number-suffix">
+                    <input
+                      id="classLateFeeGraceDays"
+                      class="input"
+                      type="number"
+                      min="0"
+                      max="60"
+                      value="0">
+                    <span>days</span>
+                  </div>
+                </label>
+
+                <label class="vf-field-label">
+                  <span>Alert me before payment is due</span>
+                  <div class="vf-number-suffix">
+                    <input
+                      id="classVendorAlertDays"
+                      class="input"
+                      type="number"
+                      min="0"
+                      max="60"
+                      value="3">
+                    <span>days</span>
+                  </div>
+                </label>
+
+              </div>
+
+
+              <div class="vf-parent-reminder-setting">
+
+                <label class="vf-check-row">
+                  <input
+                    id="classParentReminderEnabled"
+                    type="checkbox">
+
+                  <span>
+                    <strong>Email payment reminders to parents</strong>
+                  </span>
+                </label>
+
+
+                <div
+                  id="classParentReminderOptions"
+                  class="hidden">
+
+                  <div class="vf-class-fields vf-class-fields-2">
+
+                    <label class="vf-field-label">
+                      <span>Send reminder before due date</span>
+                      <div class="vf-number-suffix">
+                        <input
+                          id="classParentReminderDays"
+                          class="input"
+                          type="number"
+                          min="0"
+                          max="60"
+                          value="3">
+                        <span>days</span>
+                      </div>
+                    </label>
+
+                  </div>
+
+
+                  <details class="vf-email-customize">
+
+                    <summary>
+                      Customize reminder email
+                    </summary>
+
+                    <label class="vf-field-label">
+                      <span>Subject</span>
+                      <input
+                        id="classReminderSubject"
+                        class="input"
+                        value="Payment reminder for {{studentName}}">
+                    </label>
+
+                    <label class="vf-field-label">
+                      <span>Message</span>
+                      <textarea
+                        id="classReminderBody"
+                        class="input"
+                        rows="7">Hi {{parentName}},
+
+This is a reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}.
+
+Payment instructions:
+{{paymentInstructions}}
+
+Thank you,
+{{businessName}}</textarea>
+                    </label>
+
+                  </details>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </details>
+
+
+          <div
+            id="classSaveError"
+            class="vf-form-error hidden"
+            role="alert">
+          </div>
+
+          <div
+            id="classSaveError"
+            class="vf-form-error hidden"
+            role="alert">
+          </div>
+
+          <button id="saveClass" class="primary full">Save class</button>
+          <hr>
+
+          <label class="vf-field-label">
+            <span>Saved class</span>
+            <select id="classSelect" class="input">
+              <option value="">Choose a class</option>
+            </select>
+          </label>
+
+          <div
+            id="classDetailsCard"
+            class="vf-class-saved-details hidden">
+          </div>
+        </div>
+        <div class="card">
+          <div class="eyebrow">Fast setup</div><h2>Upload roster CSV</h2>
+          <p>Download the roster CSV from your school or learning center and drop it here.</p>
+          <label class="drop"><input id="csv" type="file" accept=".csv" hidden><strong>Drop CSV here</strong><span>or click to choose</span></label>
+          <div id="csvStatus"></div>
+        </div>
+      </div>
+      <div id="previewCard" class="card hidden"><div class="row between"><div><div class="eyebrow">Preview</div><h2>What VendorFlow found</h2><p id="mapping"></p></div><button id="saveRoster" class="primary">Save roster</button></div><div id="warnings" class="warn hidden"></div><div class="tablewrap"><table><thead><tr><th>Student</th><th>Parent</th><th>Email</th><th>Phone</th><th>Status</th><th>Grade</th></tr></thead><tbody id="previewBody"></tbody></table></div></div>
+      <div class="card"><div class="row between"><div><div class="eyebrow">Saved data</div><h2>Current roster</h2></div><div><button id="addStudent" class="hidden">Add student manually</button> <button id="archiveClass" class="danger hidden">Archive class</button></div></div><div id="studentForm" class="formgrid hidden"><input id="sf" class="input" placeholder="Student first name"><input id="sl" class="input" placeholder="Student last name"><input id="pn" class="input" placeholder="Parent / guardian"><input id="pe" class="input" type="email" placeholder="Parent email"><input id="pp" class="input" placeholder="Parent phone"><input id="sg" class="input" placeholder="Grade"><select id="ss" class="input">
+<option>Active</option>
+<option>Inactive</option>
+<option>Removed</option>
+</select>
+<div id="studentStatusHelp" class="vf-student-status-help"></div>
+<button id="saveStudent" class="primary">Save student</button><button id="cancelStudent">Cancel</button></div><div id="rosterEmpty" class="empty">Choose a class.</div><div id="rosterWrap" class="tablewrap hidden"><table><thead><tr><th>Student</th><th>Parent</th><th>Email</th><th>Phone</th><th>Status</th><th>Grade</th><th>Action</th></tr></thead><tbody id="rosterBody"></tbody></table></div></div>
+    
+
+      <div class="card vf-archive-card">
+
+        <div class="row between">
+
+          <div>
+            <div class="eyebrow">Past classes</div>
+            <h2>Archived Classes</h2>
+            <p>
+              Archived classes keep their rosters and history,
+              but no longer appear as active classes.
+            </p>
+          </div>
+
+          <button id="toggleArchivedClasses">
+            Show archived classes
+          </button>
+
+        </div>
+
+        <div
+          id="archivedClassesPanel"
+          class="hidden">
+
+          <div id="archivedClassesList"></div>
+
+          <div
+            id="archivedRosterViewer"
+            class="hidden vf-archived-roster-viewer">
+          </div>
+
+        </div>
+
+      </div>
+
+</section>
+
+    
+    <section id="studentsView" class="view">
+
+      <div class="card">
+        <div class="row between">
+          <div>
+            <div class="eyebrow">Student accounts</div>
+            <h2>Students & Services</h2>
+            <p>
+              Classes and tutoring both live here. VendorFlow records payments
+              and certificates as they actually arrive.
+            </p>
+          </div>
+
+          <div class="row">
+            <button id="addCoreStudent">Add student</button>
+            <button id="addService" class="primary">Add service</button>
+          </div>
+        </div>
+
+        <div class="vf-info-strip">
+          <strong>Simple rule:</strong>
+          VendorFlow does not make you predict how a family will pay.
+          Payments and charter certificates are credited when they arrive.
+        </div>
+      </div>
+
+
+      <div id="coreStudentForm" class="card hidden">
+
+        <div class="eyebrow">Manual control</div>
+        <h2>Add a student</h2>
+
+        <div class="formgrid vf-form-2">
+
+          <input
+            id="coreStudentFirst"
+            class="input"
+            placeholder="Student first name">
+
+          <input
+            id="coreStudentLast"
+            class="input"
+            placeholder="Student last name">
+
+          <input
+            id="coreParentName"
+            class="input"
+            placeholder="Parent / guardian">
+
+          <input
+            id="coreParentEmail"
+            class="input"
+            type="email"
+            placeholder="Parent email">
+
+          <input
+            id="coreParentPhone"
+            class="input"
+            placeholder="Parent phone">
+
+        </div>
+
+        <div class="row">
+          <button id="saveCoreStudent" class="primary">
+            Save student
+          </button>
+
+          <button id="cancelCoreStudent">
+            Cancel
+          </button>
+        </div>
+      </div>
+
+
+      <div id="serviceForm" class="card hidden">
+
+        <div class="eyebrow">Service setup</div>
+        <h2>Add a service</h2>
+
+        <p class="vf-form-help">
+          Set what the student owes for the service. Payments and certificates
+          will reduce that balance later as VendorFlow receives them.
+        </p>
+
+        <div class="formgrid vf-form-2">
+
+          <select id="serviceStudent" class="input">
+            <option value="">Choose student</option>
+          </select>
+
+          <select id="serviceType" class="input">
+            <option value="Class">Class</option>
+            <option value="Tutoring">Tutoring</option>
+            <option value="Other">Other</option>
+          </select>
+
+          <input
+            id="serviceName"
+            class="input"
+            placeholder="Service name">
+
+          <select id="serviceClass" class="input">
+            <option value="">
+              Not linked to a roster class
+            </option>
+          </select>
+
+          <input
+            id="serviceStart"
+            class="input"
+            type="date">
+
+          <input
+            id="serviceEnd"
+            class="input"
+            type="date">
+
+          <input
+            id="serviceTotal"
+            class="input"
+            type="number"
+            min="0"
+            step=".01"
+            placeholder="Total price">
+
+          <input
+            id="serviceTutoringRate"
+            class="input"
+            type="number"
+            min="0"
+            step=".01"
+            placeholder="Tutoring rate, if applicable">
+
+          <select id="serviceSchedule" class="input">
+            <option value="Full">Pay in full</option>
+            <option value="Monthly">Monthly payments</option>
+            <option value="Per Session">Per tutoring session</option>
+            <option value="Custom">Custom arrangement</option>
+          </select>
+
+          <input
+            id="serviceDueDay"
+            class="input"
+            type="number"
+            min="1"
+            max="28"
+            value="4"
+            placeholder="Monthly due day">
+
+          <input
+            id="serviceLateFee"
+            class="input"
+            type="number"
+            min="0"
+            step=".01"
+            value="0"
+            placeholder="Late fee">
+
+        </div>
+
+        <textarea
+          id="serviceNotes"
+          class="input"
+          rows="3"
+          placeholder="Notes about this arrangement"></textarea>
+
+        <div class="row">
+          <button id="saveService" class="primary">
+            Save service
+          </button>
+
+          <button id="cancelService">
+            Cancel
+          </button>
+        </div>
+
+      </div>
+
+
+      <div class="card">
+
+        <div class="row between">
+          <div>
+            <div class="eyebrow">Accounts</div>
+            <h2>Who are you serving?</h2>
+          </div>
+
+          <span
+            id="coreStudentCount"
+            class="vf-count-pill">
+            0 students
+          </span>
+        </div>
+
+
+        <div class="vf-global-student-search">
+
+          <div>
+            <div class="eyebrow">Find a student</div>
+            <h3>Search students & families</h3>
+            <p>
+              Search by student name, parent name, email, or phone.
+            </p>
+          </div>
+
+          <input
+            id="globalStudentSearch"
+            class="input"
+            autocomplete="off"
+            placeholder="Start typing a student, parent, email, or phone">
+
+          <div
+            id="globalStudentSearchResults"
+            class="vf-global-student-results hidden">
+          </div>
+
+        </div>
+
+        <div id="studentsServicesList"></div>
+
+      </div>
+
+    </section>
+
+
+<section id="chartersView" class="view">
+
+  <div class="row between">
+
+    <div>
+      <div class="eyebrow">
+        Your charter network
+      </div>
+
+      <h2>
+        Charter Schools
+      </h2>
+
+      <p>
+        Save the schools you work with so VendorFlow can
+        prepare certificates, invoices, and emails correctly.
+      </p>
+    </div>
+
+    <div class="row">
+
+      <button
+        id="showArchivedCharters">
+        Archived
+      </button>
+
+      <button
+        id="addCharterSchool"
+        class="primary">
+        Add charter school
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <div
+    id="charterForm"
+    class="card vf-charter-form hidden">
+
+    <div class="row between">
+
+      <div>
+        <div class="eyebrow">
+          Charter school
+        </div>
+
+        <h3 id="charterFormTitle">
+          Add charter school
+        </h3>
+      </div>
+
+      <button
+        id="cancelCharterEdit"
+        type="button">
+        Cancel
+      </button>
+
+    </div>
+
+
+    <div class="formgrid vf-charter-grid">
+
+      <label class="vf-charter-wide">
+        <span>Charter school name</span>
+        <input
+          id="charterName"
+          class="input"
+          placeholder="Charter school name">
+      </label>
+
+      <label>
+        <span>Billing / invoice email</span>
+        <input
+          id="charterBillingEmail"
+          class="input"
+          type="email"
+          placeholder="billing@charterschool.org">
+      </label>
+
+      <label>
+        <span>Phone</span>
+        <input
+          id="charterPhone"
+          class="input"
+          placeholder="Phone">
+      </label>
+
+      <label>
+        <span>Contact name</span>
+        <input
+          id="charterContactName"
+          class="input"
+          placeholder="Accounts payable contact">
+      </label>
+
+      <label>
+        <span>Contact email</span>
+        <input
+          id="charterContactEmail"
+          class="input"
+          type="email"
+          placeholder="Contact email">
+      </label>
+
+      <label class="vf-charter-wide">
+        <span>Street address</span>
+        <input
+          id="charterAddress"
+          class="input"
+          placeholder="Street address">
+      </label>
+
+      <label>
+        <span>City</span>
+        <input
+          id="charterCity"
+          class="input"
+          placeholder="City">
+      </label>
+
+      <label>
+        <span>State</span>
+        <input
+          id="charterState"
+          class="input"
+          placeholder="State">
+      </label>
+
+      <label>
+        <span>ZIP</span>
+        <input
+          id="charterZip"
+          class="input"
+          placeholder="ZIP">
+      </label>
+
+      <label>
+        <span>Invoice timing</span>
+
+        <div class="vf-days-input">
+          <input
+            id="charterInvoiceDays"
+            class="input"
+            type="number"
+            min="0"
+            max="365"
+            step="1"
+            value="14">
+
+          <label class="vf-charter-payment-terms">
+            <span>Payment terms</span>
+
+            <select
+              id="charterPaymentTerms"
+              class="input">
+
+              <option value="0">Due upon receipt</option>
+              <option value="15">Net 15</option>
+              <option value="30" selected>Net 30</option>
+              <option value="45">Net 45</option>
+              <option value="60">Net 60</option>
+
+            </select>
+          </label>
+
+
+          <span>
+            days after certificate start date
+          </span>
+        </div>
+      </label>
+
+      <label class="vf-charter-wide">
+        <span>Invoice notes / special instructions</span>
+        <textarea
+          id="charterNotes"
+          class="input"
+          rows="3"
+          placeholder="PO requirements, invoice instructions, preferred wording, etc."></textarea>
+      </label>
+
+    </div>
+
+
+    <div class="vf-charter-form-note">
+      VendorFlow will use this address on invoices and the
+      billing email when preparing charter invoice emails.
+    </div>
+
+
+    <button
+      id="saveCharterSchool"
+      class="primary">
+      Save charter school
+    </button>
+
+  </div>
+
+
+  <div
+    id="charterSchoolList"
+    class="vf-charter-list">
+  </div>
+
+
+  <div
+    id="archivedCharterPanel"
+    class="card hidden">
+
+    <div class="row between">
+
+      <div>
+        <div class="eyebrow">
+          Archived
+        </div>
+
+        <h3>
+          Archived charter schools
+        </h3>
+      </div>
+
+      <button
+        id="closeArchivedCharters">
+        Close
+      </button>
+
+    </div>
+
+    <div id="archivedCharterList"></div>
+
+  </div>
+
+</section>
+
+
+<section id="paymentsView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Manual control</div><h2>Payments</h2><p>Forwarded payment emails will automate this later.</p></div><div class="row">
+<button id="addRefund" class="vf-refund-button">Refund</button>
+<button id="addPayment" class="primary">Add payment</button>
+</div></div><div id="paymentForm" class="formgrid hidden"><input id="payDate" class="input" type="date"><input id="payPayer" class="input" placeholder="Payer / parent"><div class="vf-student-search-wrap">
+  <input
+    id="payStudent"
+    class="input"
+    autocomplete="off"
+    placeholder="Start typing student or parent name">
+  <div
+    id="payStudentMatches"
+    class="vf-student-matches hidden"></div>
+</div><input id="payClass" class="input" placeholder="Class"><input id="payAmount" class="input" type="number" step=".01" placeholder="Amount"><select id="payMethod" class="input"><option>Venmo</option><option>Zelle</option><option>Cash</option><option>Check</option><option>Charter payment</option><option>Other</option></select><button id="savePayment" class="primary">Save payment</button></div>
+<div
+  id="refundForm"
+  class="vf-refund-form hidden">
+
+  <div class="vf-refund-heading">
+    <div class="eyebrow">Money returned to family</div>
+    <h3>Record a refund</h3>
+    <p>
+      Refunds reduce the parent payment credit without changing
+      or deleting the original payment.
+    </p>
+  </div>
+
+  <div class="formgrid">
+
+    <select
+      id="refundStudent"
+      class="input">
+      <option value="">Choose student</option>
+    </select>
+
+    <input
+      id="refundDate"
+      class="input"
+      type="date">
+
+    <input
+      id="refundAmount"
+      class="input"
+      type="number"
+      min="0"
+      step=".01"
+      placeholder="Refund amount">
+
+    <select
+      id="refundMethod"
+      class="input">
+      <option>Venmo</option>
+      <option>Zelle</option>
+      <option>Cash</option>
+      <option>Check</option>
+      <option>Other</option>
+    </select>
+
+    <select
+      id="refundReason"
+      class="input">
+      <option>Overpayment</option>
+      <option>Class withdrawal</option>
+      <option>Duplicate payment</option>
+      <option>Vendor adjustment</option>
+      <option>Other</option>
+    </select>
+
+    <input
+      id="refundNote"
+      class="input"
+      placeholder="Optional note">
+
+  </div>
+
+  <div
+    id="refundAvailable"
+    class="vf-refund-available">
+    Choose a student to see refundable parent payments.
+  </div>
+
+  <label class="vf-refund-override">
+    <input
+      id="refundOverride"
+      type="checkbox">
+    Allow refund above recorded refundable parent payments
+  </label>
 
   <div class="row">
 
