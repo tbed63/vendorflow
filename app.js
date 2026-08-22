@@ -17581,6 +17581,75 @@ if($('#bulkPdfFit')){
 }
 
 
+
+/*
+ * Small read-only helpers used by the bulk certificate
+ * list and verification window.
+ *
+ * These do NOT save anything or change financial data.
+ */
+
+function bulkCertificateExtraction(item){
+
+  return item?.result?.extraction || {};
+}
+
+
+function bulkCertificateStudentName(item){
+
+  const x=
+    bulkCertificateExtraction(item);
+
+  return (
+    x.studentName ||
+    x.student ||
+    x.learnerName ||
+    ''
+  );
+}
+
+
+function bulkCertificateSchoolName(item){
+
+  const x=
+    bulkCertificateExtraction(item);
+
+  return (
+    x.charterSchool ||
+    x.charterSchoolName ||
+    x.schoolName ||
+    x.school ||
+    ''
+  );
+}
+
+
+function bulkCertificateAmount(item){
+
+  const x=
+    bulkCertificateExtraction(item);
+
+  return Number(
+    x.amount ||
+    x.certificateAmount ||
+    0
+  );
+}
+
+
+function bulkCertificateReference(item){
+
+  const x=
+    bulkCertificateExtraction(item);
+
+  return (
+    x.certificateNumber ||
+    x.purchaseOrderNumber ||
+    ''
+  );
+}
+
+
 /* ==========================================================
    BULK CERTIFICATE VENDOR REVIEW / CORRECTIONS
    ========================================================== */
