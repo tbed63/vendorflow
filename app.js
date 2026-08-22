@@ -10935,89 +10935,6 @@ function renderStudentsServices(){
       .join('');
 
 
-  $$('[data-student-certificate]')
-    .forEach(button=>{
-
-      button.onclick=()=>{
-
-        const student=
-          students.find(
-            item=>
-              item.id===
-              button.dataset.studentCertificate
-          );
-
-        if(!student){
-          return;
-        }
-
-        const linked=
-          studentCertificates(
-            student.studentName
-          )
-            .filter(
-              cert=>
-                !cert.deleted &&
-                ![
-                  'cancelled',
-                  'deleted'
-                ].includes(
-                  String(cert.status||'')
-                    .toLowerCase()
-                )
-            );
-
-        if(
-          linked.length===1
-        ){
-
-          openSavedCertificateEvidence(
-            linked[0].id
-          );
-
-          return;
-        }
-
-        switchView('certificates');
-
-        requestAnimationFrame(()=>{
-
-          const list=
-            $('#certificateList');
-
-          if(!list){
-            return;
-          }
-
-          const wanted=
-            normalizedName(
-              student.studentName
-            );
-
-          Array.from(
-            list.querySelectorAll('.record')
-          ).forEach(record=>{
-
-            const text=
-              normalizedName(
-                record.textContent||''
-              );
-
-            record.style.display=
-              text.includes(wanted)
-                ? ''
-                : 'none';
-          });
-
-          list.scrollIntoView({
-            behavior:'smooth',
-            block:'start'
-          });
-        });
-      };
-    });
-
-
   $$('[data-add-service-student]')
     .forEach(btn=>{
 
@@ -16395,22 +16312,7 @@ function renderHistoryInto(
       : '<div class="empty">No history yet.</div>';
 
 
-  $$('[data-history-evidence]')
-    .forEach(
-      button=>{
-
-        button.onclick=()=>{
-
-          openHistoryEvidence(
-            button.dataset.historyEvidence
-          );
-        };
-      }
-    );
-}
-
-
-function renderHistory(){
+  function renderHistory(){
   renderHistoryInto(
     $('#historyList'),
     history
@@ -16507,6 +16409,211 @@ $('#saveProfile').onclick=async()=>{
 
   toast('Business profile saved.');
 };
+
+
+/* ==========================================================
+   PERMANENT EVIDENCE CLICK ROUTING
+
+   Student and History sections rerender frequently.
+   Use one delegated listener so newly-rendered controls
+   never lose their evidence click behavior.
+   ========================================================== */
+
+function handleVendorFlowEvidenceClick(
+  event
+){
+
+  /*
+   * STUDENT → VIEW CERTIFICATE
+   */
+  const studentControl=
+    event.target.closest(
+      '[data-student-certificate]'
+    );
+
+
+  if(studentControl){
+
+    event.preventDefault();
+    event.stopPropagation();
+
+
+    const student=
+      students.find(
+        item=>
+          item.id===
+          studentControl.dataset.studentCertificate
+      );
+
+
+    if(!student){
+
+      console.warn(
+        'VendorFlow could not find the selected student.'
+      );
+
+      return;
+    }
+
+
+    const linked=
+      studentCertificates(
+        student.studentName
+      )
+        .filter(
+          cert=>
+            !cert.deleted &&
+            ![
+              'cancelled',
+              'deleted'
+            ].includes(
+              String(cert.status||'')
+                .toLowerCase()
+            )
+        );
+
+
+    if(linked.length===1){
+
+      openSavedCertificateEvidence(
+        linked[0].id
+      );
+
+      return;
+    }
+
+
+    /*
+     * If the student has several certificates,
+     * take the vendor to the certificate list
+     * filtered to this student.
+     */
+    switchView(
+      'certificates'
+    );
+
+
+    requestAnimationFrame(
+      ()=>{
+
+        const list=
+          $('#certificateList');
+
+        if(!list){
+          return;
+        }
+
+
+        const wanted=
+          normalizedName(
+            student.studentName
+          );
+
+
+        Array.from(
+          list.querySelectorAll(
+            '[data-certificate-id]'
+          )
+        )
+          .forEach(
+            record=>{
+
+              const text=
+                normalizedName(
+                  record.textContent || ''
+                );
+
+
+              record.style.display=
+                text.includes(wanted)
+                  ? ''
+                  : 'none';
+            }
+          );
+
+
+        list.scrollIntoView({
+          behavior:'smooth',
+          block:'start'
+        });
+      }
+    );
+
+
+    return;
+  }
+
+
+  /*
+   * ACTION / HISTORY → EVIDENCE
+   */
+  const historyControl=
+    event.target.closest(
+      '[data-history-evidence]'
+    );
+
+
+  if(historyControl){
+
+    event.preventDefault();
+    event.stopPropagation();
+
+
+    openHistoryEvidence(
+      historyControl.dataset.historyEvidence
+    );
+
+    return;
+  }
+}
+
+
+document.addEventListener(
+  'click',
+  handleVendorFlowEvidenceClick
+);
+
+
+document.addEventListener(
+  'keydown',
+  event=>{
+
+    if(
+      event.key!=='Enter' &&
+      event.key!==' '
+    ){
+      return;
+    }
+
+
+    const evidenceControl=
+      event.target.closest(
+        '[data-student-certificate], [data-history-evidence]'
+      );
+
+
+    if(!evidenceControl){
+      return;
+    }
+
+
+    event.preventDefault();
+
+
+    /*
+     * Native buttons already generate click on keyboard.
+     * This fallback matters only if one of these controls
+     * is ever rendered as a non-button element.
+     */
+    if(
+      evidenceControl.tagName!=='BUTTON'
+    ){
+
+      evidenceControl.click();
+    }
+  }
+);
+
 
 function switchView(v){
   $$('.view').forEach(

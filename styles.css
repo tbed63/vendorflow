@@ -5463,3 +5463,15 @@ button.history.vf-history-evidence:focus-visible{
   background:rgba(244,247,252,.85);
 }
 
+
+/* Evidence controls must remain interactive after rerenders. */
+
+[data-student-certificate],
+[data-history-evidence]{
+  pointer-events:auto;
+}
+
+[data-history-evidence] *{
+  pointer-events:none;
+}
+
