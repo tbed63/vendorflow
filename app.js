@@ -16617,22 +16617,40 @@ function renderBulkCertificateItems(){
       'vf-bulk-item ' +
       `vf-bulk-item-${item.state}`;
 
+    row.dataset.bulkCertificateReview=
+      item.id;
+
+    row.setAttribute(
+      'role',
+      'button'
+    );
+
+    row.setAttribute(
+      'tabindex',
+      '0'
+    );
+
+    row.setAttribute(
+      'title',
+      'Click to review VendorFlow’s certificate details'
+    );
+
 
     const extraction=
       item.result?.extraction || {};
 
 
     const student=
-      extraction.student ||
       extraction.studentName ||
+      extraction.student ||
       extraction.learnerName ||
       '';
 
 
     const school=
-      extraction.school ||
       extraction.charterSchool ||
       extraction.charterSchoolName ||
+      extraction.school ||
       '';
 
 
@@ -16642,6 +16660,21 @@ function renderBulkCertificateItems(){
         extraction.certificateAmount ||
         0
       );
+
+
+    const reference=
+      extraction.certificateNumber ||
+      extraction.purchaseOrderNumber ||
+      '';
+
+
+    const serviceDates=
+      [
+        extraction.serviceStartDate,
+        extraction.serviceEndDate
+      ]
+        .filter(Boolean)
+        .join(' – ');
 
 
     row.innerHTML=`
@@ -16671,6 +16704,22 @@ function renderBulkCertificateItems(){
               : ''
           }
 
+          ${
+            reference
+              ? `<span>#${esc(reference)}</span>`
+              : ''
+          }
+
+          ${
+            serviceDates
+              ? `<span>${esc(serviceDates)}</span>`
+              : ''
+          }
+
+        </div>
+
+        <div class="vf-bulk-review-hint">
+          Click to check details
         </div>
 
       </div>
@@ -16701,6 +16750,8 @@ function renderBulkCertificateItems(){
 
 
   updateBulkCertificateSummary();
+
+  wireBulkCertificateReviewRows();
 }
 
 
@@ -17072,4 +17123,560 @@ if($('#clearBulkCertificates')){
       resetBulkCertificateIntake
     );
 }
+
+
+
+/* ==========================================================
+   BULK CERTIFICATE REVIEW
+   ========================================================== */
+
+let activeBulkCertificateReviewId='';
+
+let activeBulkCertificatePdfUrl='';
+
+
+function bulkCertificateExtraction(item){
+
+  return item?.result?.extraction || {};
+}
+
+
+function bulkCertificateReference(item){
+
+  const x=
+    bulkCertificateExtraction(item);
+
+  return (
+    x.certificateNumber ||
+    x.purchaseOrderNumber ||
+    ''
+  );
+}
+
+
+function bulkCertificateStudentName(item){
+
+  const x=
+    bulkCertificateExtraction(item);
+
+  return (
+    x.studentName ||
+    x.student ||
+    x.learnerName ||
+    ''
+  );
+}
+
+
+function bulkCertificateSchoolName(item){
+
+  const x=
+    bulkCertificateExtraction(item);
+
+  return (
+    x.charterSchool ||
+    x.charterSchoolName ||
+    x.school ||
+    ''
+  );
+}
+
+
+function bulkCertificateAmount(item){
+
+  const x=
+    bulkCertificateExtraction(item);
+
+  return Number(
+    x.amount ||
+    x.certificateAmount ||
+    0
+  );
+}
+
+
+function bulkReviewValue(value){
+
+  const text=
+    String(
+      value===undefined ||
+      value===null
+        ? ''
+        : value
+    ).trim();
+
+  return text || 'Not found';
+}
+
+
+
+function clearBulkCertificatePdf(){
+
+  const frame=
+    $('#bulkCertificatePdfFrame');
+
+  if(frame){
+    frame.removeAttribute('src');
+  }
+
+
+  if(activeBulkCertificatePdfUrl){
+
+    URL.revokeObjectURL(
+      activeBulkCertificatePdfUrl
+    );
+
+    activeBulkCertificatePdfUrl='';
+  }
+}
+
+
+async function loadBulkCertificatePdf(
+  item
+){
+
+  const frame=
+    $('#bulkCertificatePdfFrame');
+
+  const status=
+    $('#bulkCertificatePdfStatus');
+
+
+  clearBulkCertificatePdf();
+
+
+  if(
+    !item?.result?.objectKey
+  ){
+
+    if(status){
+      status.textContent=
+        'Original PDF is not available.';
+    }
+
+    return;
+  }
+
+
+  if(status){
+    status.textContent=
+      'Loading original certificate…';
+  }
+
+
+  try{
+
+    const token=
+      await user.getIdToken();
+
+
+    const response=
+      await fetch(
+        `${VENDORFLOW_API}/certificate/file/` +
+        encodeURIComponent(
+          item.result.objectKey
+        ),
+        {
+          headers:{
+            Authorization:
+              `Bearer ${token}`
+          }
+        }
+      );
+
+
+    if(!response.ok){
+
+      let data={};
+
+      try{
+        data=
+          await response.json();
+      }catch{}
+
+
+      throw new Error(
+        data.error ||
+        'Could not load certificate PDF.'
+      );
+    }
+
+
+    const blob=
+      await response.blob();
+
+
+    /*
+     * Force the browser to treat this as a PDF viewer source.
+     */
+    const pdfBlob=
+      blob.type==='application/pdf'
+        ? blob
+        : new Blob(
+            [blob],
+            {
+              type:'application/pdf'
+            }
+          );
+
+
+    activeBulkCertificatePdfUrl=
+      URL.createObjectURL(
+        pdfBlob
+      );
+
+
+    if(frame){
+
+      frame.src=
+        activeBulkCertificatePdfUrl +
+        '#view=FitH';
+    }
+
+
+    if(status){
+      status.textContent='';
+    }
+
+
+  }catch(error){
+
+    console.error(
+      'Bulk certificate PDF preview failed:',
+      error
+    );
+
+
+    if(status){
+
+      status.textContent=
+        error?.message ||
+        'Could not display the original certificate.';
+    }
+  }
+}
+
+
+function closeBulkCertificateReview(){
+
+  activeBulkCertificateReviewId='';
+
+  clearBulkCertificatePdf();
+
+  hide(
+    $('#bulkCertificateReviewModal')
+  );
+}
+
+
+function openBulkCertificateReview(itemId){
+
+  const item=
+    bulkCertificateItems.find(
+      entry=>entry.id===itemId
+    );
+
+  if(!item){
+    return;
+  }
+
+
+  activeBulkCertificateReviewId=
+    item.id;
+
+
+  const x=
+    bulkCertificateExtraction(item);
+
+  const validation=
+    item.result?.clientValidation || {};
+
+
+  const status=
+    $('#bulkCertificateReviewStatus');
+
+  const fields=
+    $('#bulkCertificateReviewFields');
+
+  const title=
+    $('#bulkCertificateReviewTitle');
+
+
+
+  if(title){
+
+    title.textContent=
+      bulkCertificateStudentName(item) ||
+      item.file?.name ||
+      'Review certificate';
+  }
+
+
+  if(status){
+
+    let heading=
+      'Waiting';
+
+    if(item.state==='ready'){
+      heading='Ready';
+    }
+
+    if(item.state==='review'){
+      heading='Check this certificate';
+    }
+
+    if(item.state==='error'){
+      heading='Problem reading certificate';
+    }
+
+
+    const problems=[
+      ...(validation.problems || [])
+    ];
+
+    const warnings=[
+      ...(validation.warnings || [])
+    ];
+
+
+    status.innerHTML=`
+      <strong>${esc(heading)}</strong>
+
+      ${
+        item.message
+          ? `<div>${esc(item.message)}</div>`
+          : ''
+      }
+
+      ${
+        problems.length
+          ? `
+            <div class="vf-bulk-review-warning">
+              ${problems
+                .map(
+                  problem=>
+                    `<div>• ${esc(problem)}</div>`
+                )
+                .join('')}
+            </div>
+          `
+          : ''
+      }
+
+      ${
+        warnings.length
+          ? `
+            <div class="vf-bulk-review-note">
+              ${warnings
+                .map(
+                  warning=>
+                    `<div>• ${esc(warning)}</div>`
+                )
+                .join('')}
+            </div>
+          `
+          : ''
+      }
+    `;
+  }
+
+
+  if(fields){
+
+    const amount=
+      bulkCertificateAmount(item);
+
+    fields.innerHTML=`
+
+      <div>
+        <span>Student</span>
+        <strong>
+          ${esc(
+            bulkReviewValue(
+              bulkCertificateStudentName(item)
+            )
+          )}
+        </strong>
+      </div>
+
+      <div>
+        <span>Charter school</span>
+        <strong>
+          ${esc(
+            bulkReviewValue(
+              bulkCertificateSchoolName(item)
+            )
+          )}
+        </strong>
+      </div>
+
+      <div>
+        <span>Amount</span>
+        <strong>
+          ${
+            amount>0
+              ? money(amount)
+              : 'Not found'
+          }
+        </strong>
+      </div>
+
+      <div>
+        <span>Certificate / PO #</span>
+        <strong>
+          ${esc(
+            bulkReviewValue(
+              bulkCertificateReference(item)
+            )
+          )}
+        </strong>
+      </div>
+
+      <div>
+        <span>Issue date</span>
+        <strong>
+          ${esc(
+            bulkReviewValue(
+              x.issueDate
+            )
+          )}
+        </strong>
+      </div>
+
+      <div>
+        <span>Service start</span>
+        <strong>
+          ${esc(
+            bulkReviewValue(
+              x.serviceStartDate
+            )
+          )}
+        </strong>
+      </div>
+
+      <div>
+        <span>Service end</span>
+        <strong>
+          ${esc(
+            bulkReviewValue(
+              x.serviceEndDate
+            )
+          )}
+        </strong>
+      </div>
+
+      <div>
+        <span>Billing email</span>
+        <strong>
+          ${esc(
+            bulkReviewValue(
+              x.billingEmail
+            )
+          )}
+        </strong>
+      </div>
+
+      <div class="vf-bulk-review-wide">
+        <span>Service description</span>
+        <strong>
+          ${esc(
+            bulkReviewValue(
+              x.serviceDescription
+            )
+          )}
+        </strong>
+      </div>
+
+      <div class="vf-bulk-review-wide">
+        <span>Invoice instructions</span>
+        <strong>
+          ${esc(
+            bulkReviewValue(
+              x.invoiceInstructions
+            )
+          )}
+        </strong>
+      </div>
+
+    `;
+  }
+
+
+
+
+  show(
+    $('#bulkCertificateReviewModal')
+  );
+
+
+  loadBulkCertificatePdf(
+    item
+  );
+}
+
+
+function wireBulkCertificateReviewRows(){
+
+  $$('[data-bulk-certificate-review]')
+    .forEach(row=>{
+
+      row.onclick=()=>{
+
+        openBulkCertificateReview(
+          row.dataset.bulkCertificateReview
+        );
+      };
+
+
+      row.onkeydown=
+        event=>{
+
+          if(
+            event.key==='Enter' ||
+            event.key===' '
+          ){
+
+            event.preventDefault();
+
+            openBulkCertificateReview(
+              row.dataset.bulkCertificateReview
+            );
+          }
+        };
+    });
+}
+
+
+if($('#closeBulkCertificateReview')){
+
+  $('#closeBulkCertificateReview')
+    .onclick=
+      closeBulkCertificateReview;
+}
+
+
+if($('#doneBulkCertificateReview')){
+
+  $('#doneBulkCertificateReview')
+    .onclick=
+      closeBulkCertificateReview;
+}
+
+
+if($('#bulkCertificateReviewModal')){
+
+  $('#bulkCertificateReviewModal')
+    .onclick=
+      event=>{
+
+        if(
+          event.target===
+          $('#bulkCertificateReviewModal')
+        ){
+          closeBulkCertificateReview();
+        }
+      };
+}
+
+
 

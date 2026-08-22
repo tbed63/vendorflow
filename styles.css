@@ -4920,3 +4920,226 @@ button.vf-certificate-problem:focus-visible{
   }
 }
 
+
+
+/* ==========================================================
+   BULK CERTIFICATE REVIEW
+   ========================================================== */
+
+.vf-bulk-item{
+  cursor:pointer;
+}
+
+.vf-bulk-item:hover{
+  box-shadow:0 2px 10px rgba(25,45,60,.08);
+}
+
+.vf-bulk-item:focus{
+  outline:2px solid currentColor;
+  outline-offset:2px;
+}
+
+.vf-bulk-review-hint{
+  margin-top:5px;
+  font-size:11px;
+  font-weight:600;
+  color:#64747c;
+}
+
+.vf-bulk-cert-review-card{
+  width:min(720px,calc(100vw - 32px));
+  max-height:88vh;
+  overflow:auto;
+}
+
+.vf-bulk-review-status{
+  margin:8px 0 16px;
+  padding:12px;
+  border:1px solid #e0e6e9;
+  border-radius:9px;
+}
+
+.vf-bulk-review-status > strong{
+  display:block;
+  margin-bottom:4px;
+}
+
+.vf-bulk-review-warning{
+  margin-top:8px;
+  font-size:13px;
+}
+
+.vf-bulk-review-note{
+  margin-top:8px;
+  font-size:13px;
+  color:#617078;
+}
+
+.vf-bulk-review-fields{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+}
+
+.vf-bulk-review-fields > div{
+  min-width:0;
+  padding:10px 11px;
+  border:1px solid #e1e6e9;
+  border-radius:8px;
+}
+
+.vf-bulk-review-fields span{
+  display:block;
+  margin-bottom:3px;
+  font-size:11px;
+  color:#68777f;
+}
+
+.vf-bulk-review-fields strong{
+  display:block;
+  overflow-wrap:anywhere;
+}
+
+.vf-bulk-review-wide{
+  grid-column:1 / -1;
+}
+
+.vf-bulk-review-actions{
+  display:flex;
+  gap:9px;
+  margin-top:16px;
+}
+
+@media(max-width:620px){
+
+  .vf-bulk-review-fields{
+    grid-template-columns:1fr;
+  }
+
+  .vf-bulk-review-wide{
+    grid-column:auto;
+  }
+
+  .vf-bulk-review-actions{
+    flex-direction:column;
+  }
+
+  .vf-bulk-review-actions button{
+    width:100%;
+  }
+}
+
+
+
+/* ==========================================================
+   SIDE-BY-SIDE CERTIFICATE VERIFICATION
+   ========================================================== */
+
+.vf-bulk-cert-review-card{
+  width:min(1500px,calc(100vw - 36px));
+  height:min(900px,calc(100vh - 36px));
+  max-height:none;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+
+.vf-bulk-review-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding-right:38px;
+  margin-bottom:12px;
+}
+
+.vf-bulk-review-header h3{
+  margin-bottom:0;
+}
+
+.vf-bulk-review-split{
+  min-height:0;
+  flex:1;
+  display:grid;
+  grid-template-columns:minmax(0,1.08fr) minmax(360px,.92fr);
+  gap:14px;
+}
+
+.vf-bulk-review-pdf-side,
+.vf-bulk-review-data-side{
+  min-height:0;
+  border:1px solid #dfe5e8;
+  border-radius:10px;
+  background:#fff;
+  overflow:hidden;
+}
+
+.vf-bulk-review-pdf-side{
+  display:flex;
+  flex-direction:column;
+}
+
+.vf-bulk-review-data-side{
+  overflow:auto;
+  padding-bottom:14px;
+}
+
+.vf-bulk-review-column-title{
+  padding:10px 12px;
+  border-bottom:1px solid #e2e7ea;
+  font-size:12px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+
+.vf-bulk-pdf-status{
+  padding:8px 12px;
+  font-size:12px;
+  color:#64747c;
+}
+
+.vf-bulk-pdf-status:empty{
+  display:none;
+}
+
+.vf-bulk-pdf-frame{
+  width:100%;
+  min-height:0;
+  flex:1;
+  border:0;
+  background:#f3f5f6;
+}
+
+.vf-bulk-review-data-side .vf-bulk-review-status{
+  margin:12px;
+}
+
+.vf-bulk-review-data-side .vf-bulk-review-fields{
+  padding:0 12px;
+}
+
+@media(max-width:900px){
+
+  .vf-bulk-cert-review-card{
+    height:calc(100vh - 24px);
+    width:calc(100vw - 24px);
+    overflow:auto;
+  }
+
+  .vf-bulk-review-split{
+    display:flex;
+    flex-direction:column;
+    overflow:visible;
+  }
+
+  .vf-bulk-review-pdf-side{
+    min-height:520px;
+  }
+
+  .vf-bulk-review-data-side{
+    overflow:visible;
+  }
+
+}
+

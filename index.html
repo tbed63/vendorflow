@@ -1108,7 +1108,95 @@ Thank you,
     multiple
     hidden>
 
+  
+<div
+  id="bulkCertificateReviewModal"
+  class="vf-modal-overlay hidden">
+
   <div
+    class="vf-modal-card vf-bulk-cert-review-card"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="bulkCertificateReviewTitle">
+
+    <button
+      type="button"
+      id="closeBulkCertificateReview"
+      class="vf-modal-close"
+      aria-label="Close">
+      ×
+    </button>
+
+    <div class="vf-bulk-review-header">
+
+      <div>
+        <div class="eyebrow">
+          Check VendorFlow's work
+        </div>
+
+        <h3 id="bulkCertificateReviewTitle">
+          Review certificate
+        </h3>
+      </div>
+
+      <button
+        type="button"
+        id="doneBulkCertificateReview">
+        Done
+      </button>
+
+    </div>
+
+
+    <div class="vf-bulk-review-split">
+
+      <section class="vf-bulk-review-pdf-side">
+
+        <div class="vf-bulk-review-column-title">
+          Original certificate
+        </div>
+
+        <div
+          id="bulkCertificatePdfStatus"
+          class="vf-bulk-pdf-status">
+          Loading PDF…
+        </div>
+
+        <iframe
+          id="bulkCertificatePdfFrame"
+          class="vf-bulk-pdf-frame"
+          title="Original certificate PDF">
+        </iframe>
+
+      </section>
+
+
+      <section class="vf-bulk-review-data-side">
+
+        <div class="vf-bulk-review-column-title">
+          What VendorFlow found
+        </div>
+
+        <div
+          id="bulkCertificateReviewStatus"
+          class="vf-bulk-review-status">
+        </div>
+
+        <div
+          id="bulkCertificateReviewFields"
+          class="vf-bulk-review-fields">
+        </div>
+
+      </section>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<div
     id="bulkCertificateWorkspace"
     class="vf-bulk-workspace hidden">
 
