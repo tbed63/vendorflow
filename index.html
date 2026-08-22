@@ -1080,7 +1080,96 @@ Thank you,
         </div>
 
 
-        <div id="certificateForm"
+        
+<div
+  id="bulkCertificateIntake"
+  class="vf-bulk-intake-card">
+
+  <div class="vf-bulk-intake-heading">
+
+    <div>
+      <strong>Have several certificates already?</strong>
+      <div class="muted">
+        Upload multiple certificate PDFs at once.
+        VendorFlow will read them one at a time.
+      </div>
+    </div>
+
+    <button
+      type="button"
+      id="chooseBulkCertificates">
+      Upload certificates
+    </button>
+
+  </div>
+
+  <input
+    id="bulkCertificateFiles"
+    type="file"
+    accept="application/pdf,.pdf"
+    multiple
+    hidden>
+
+  <div
+    id="bulkCertificateWorkspace"
+    class="vf-bulk-workspace hidden">
+
+    <div class="vf-bulk-summary">
+
+      <div>
+        <strong id="bulkCertificateCount">0</strong>
+        <span>selected</span>
+      </div>
+
+      <div>
+        <strong id="bulkCertificateReadyCount">0</strong>
+        <span>ready</span>
+      </div>
+
+      <div>
+        <strong id="bulkCertificateReviewCount">0</strong>
+        <span>review</span>
+      </div>
+
+      <div>
+        <strong id="bulkCertificateErrorCount">0</strong>
+        <span>problems</span>
+      </div>
+
+    </div>
+
+    <div
+      id="bulkCertificateStatus"
+      class="vf-bulk-status">
+    </div>
+
+    <div
+      id="bulkCertificateList"
+      class="vf-bulk-list">
+    </div>
+
+    <div class="vf-bulk-actions">
+
+      <button
+        type="button"
+        id="startBulkCertificates"
+        class="primary">
+        Read certificates
+      </button>
+
+      <button
+        type="button"
+        id="clearBulkCertificates">
+        Clear
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+<div id="certificateForm"
              class="hidden vf-certificate-form">
 
           <div class="vf-certificate-upload">

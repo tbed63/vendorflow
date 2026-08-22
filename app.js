@@ -16484,3 +16484,592 @@ if($('#saveInvoiceNumbering')){
 
 
 installVendorFlowBranding();setAuthMode('login');
+
+
+/* ==========================================================
+   BULK CERTIFICATE INTAKE
+   ----------------------------------------------------------
+   This intentionally reuses the proven single-PDF extraction
+   service. It does NOT create certificates automatically yet.
+   The first foundation pass reads each PDF and prepares a
+   reviewable batch without changing financial records.
+   ========================================================== */
+
+let bulkCertificateItems=[];
+
+
+function bulkCertificateItemId(){
+
+  return (
+    'bulk-cert-' +
+    Date.now() +
+    '-' +
+    Math.random()
+      .toString(36)
+      .slice(2,9)
+  );
+}
+
+
+function resetBulkCertificateIntake(){
+
+  bulkCertificateItems=[];
+
+  const input=
+    $('#bulkCertificateFiles');
+
+  if(input){
+    input.value='';
+  }
+
+  const list=
+    $('#bulkCertificateList');
+
+  if(list){
+    list.innerHTML='';
+  }
+
+  const status=
+    $('#bulkCertificateStatus');
+
+  if(status){
+    status.textContent='';
+  }
+
+  updateBulkCertificateSummary();
+
+  hide(
+    $('#bulkCertificateWorkspace')
+  );
+}
+
+
+function updateBulkCertificateSummary(){
+
+  const total=
+    bulkCertificateItems.length;
+
+  const ready=
+    bulkCertificateItems.filter(
+      item=>item.state==='ready'
+    ).length;
+
+  const review=
+    bulkCertificateItems.filter(
+      item=>item.state==='review'
+    ).length;
+
+  const errors=
+    bulkCertificateItems.filter(
+      item=>item.state==='error'
+    ).length;
+
+
+  if($('#bulkCertificateCount')){
+    $('#bulkCertificateCount').textContent=
+      String(total);
+  }
+
+  if($('#bulkCertificateReadyCount')){
+    $('#bulkCertificateReadyCount').textContent=
+      String(ready);
+  }
+
+  if($('#bulkCertificateReviewCount')){
+    $('#bulkCertificateReviewCount').textContent=
+      String(review);
+  }
+
+  if($('#bulkCertificateErrorCount')){
+    $('#bulkCertificateErrorCount').textContent=
+      String(errors);
+  }
+}
+
+
+function bulkCertificateStateLabel(item){
+
+  if(item.state==='reading'){
+    return 'Reading PDF…';
+  }
+
+  if(item.state==='ready'){
+    return 'Read successfully';
+  }
+
+  if(item.state==='review'){
+    return 'Needs review';
+  }
+
+  if(item.state==='error'){
+    return 'Could not read';
+  }
+
+  return 'Waiting';
+}
+
+
+function renderBulkCertificateItems(){
+
+  const list=
+    $('#bulkCertificateList');
+
+  if(!list){
+    return;
+  }
+
+  list.innerHTML='';
+
+
+  for(const item of bulkCertificateItems){
+
+    const row=
+      document.createElement('div');
+
+    row.className=
+      'vf-bulk-item ' +
+      `vf-bulk-item-${item.state}`;
+
+
+    const extraction=
+      item.result?.extraction || {};
+
+
+    const student=
+      extraction.student ||
+      extraction.studentName ||
+      extraction.learnerName ||
+      '';
+
+
+    const school=
+      extraction.school ||
+      extraction.charterSchool ||
+      extraction.charterSchoolName ||
+      '';
+
+
+    const amount=
+      Number(
+        extraction.amount ||
+        extraction.certificateAmount ||
+        0
+      );
+
+
+    row.innerHTML=`
+      <div class="vf-bulk-item-main">
+
+        <div class="vf-bulk-file-name">
+          ${esc(item.file.name)}
+        </div>
+
+        <div class="vf-bulk-item-details">
+
+          ${
+            student
+              ? `<span>${esc(student)}</span>`
+              : ''
+          }
+
+          ${
+            school
+              ? `<span>${esc(school)}</span>`
+              : ''
+          }
+
+          ${
+            amount
+              ? `<span>${money(amount)}</span>`
+              : ''
+          }
+
+        </div>
+
+      </div>
+
+      <div class="vf-bulk-item-state">
+        ${esc(bulkCertificateStateLabel(item))}
+      </div>
+    `;
+
+
+    if(item.message){
+
+      const message=
+        document.createElement('div');
+
+      message.className=
+        'vf-bulk-item-message';
+
+      message.textContent=
+        item.message;
+
+      row.appendChild(message);
+    }
+
+
+    list.appendChild(row);
+  }
+
+
+  updateBulkCertificateSummary();
+}
+
+
+async function readOneBulkCertificate(item){
+
+  item.state='reading';
+  item.message='';
+  item.result=null;
+
+  renderBulkCertificateItems();
+
+
+  let uploaded=null;
+
+
+  try{
+
+    /*
+     * Follow the SAME proven pipeline as the existing
+     * single-certificate workflow:
+     *
+     * 1. Securely upload the PDF.
+     * 2. Read the stored PDF using its object key.
+     * 3. Run the same client validation.
+     *
+     * Nothing is saved as a certificate here.
+     */
+
+    uploaded=
+      await uploadCertificatePdf(
+        item.file
+      );
+
+
+    /*
+     * Keep the successful upload information immediately.
+     * If extraction fails, the batch still knows that the
+     * original PDF made it safely into secure storage.
+     */
+    item.result={
+      ...uploaded,
+      extraction:null,
+      clientValidation:null,
+      sourceTextLength:0
+    };
+
+
+    renderBulkCertificateItems();
+
+
+    const extracted=
+      await extractCertificatePdf(
+        uploaded.objectKey
+      );
+
+
+    const extraction=
+      extracted?.extraction || {};
+
+
+    const clientValidation=
+      validateExtractedCertificate(
+        extracted
+      );
+
+
+    item.result={
+      ...uploaded,
+      extraction,
+      clientValidation,
+      sourceTextLength:
+        Number(
+          extracted?.sourceTextLength || 0
+        )
+    };
+
+
+    /*
+     * The existing validator is the authority here.
+     * We do not invent a separate bulk validation system.
+     */
+    const validationNeedsReview=
+      Boolean(
+        clientValidation?.needsReview
+      );
+
+
+    const extractionNeedsReview=
+      Boolean(
+        extraction?.needsReview
+      );
+
+
+    const confidence=
+      Number(
+        extraction?.confidence || 0
+      );
+
+
+    if(
+      validationNeedsReview ||
+      extractionNeedsReview ||
+      (
+        confidence>0 &&
+        confidence<0.75
+      )
+    ){
+
+      item.state='review';
+
+      item.message=
+        'VendorFlow read this certificate, but it should be checked before importing.';
+
+    }else{
+
+      item.state='ready';
+
+      item.message=
+        'Certificate read successfully.';
+    }
+
+
+  }catch(error){
+
+    console.error(
+      'Bulk certificate read failed:',
+      error
+    );
+
+
+    if(uploaded?.objectKey){
+
+      /*
+       * Match the behavior of the working single-file form:
+       * upload success is not treated the same as upload failure.
+       */
+      item.state='review';
+
+      item.result={
+        ...(item.result || uploaded)
+      };
+
+      item.message=
+        'PDF stored securely, but VendorFlow could not confidently read it. Review it before importing.';
+
+    }else{
+
+      item.state='error';
+
+      item.message=
+        error?.message ||
+        'VendorFlow could not upload this PDF.';
+    }
+  }
+
+
+  renderBulkCertificateItems();
+}
+
+async function processBulkCertificateBatch(){
+
+  const button=
+    $('#startBulkCertificates');
+
+  if(!bulkCertificateItems.length){
+    return;
+  }
+
+
+  if(button){
+    button.disabled=true;
+    button.textContent=
+      'Reading certificates…';
+  }
+
+
+  const status=
+    $('#bulkCertificateStatus');
+
+  if(status){
+    status.textContent=
+      'VendorFlow is reading the certificates one at a time.';
+  }
+
+
+  /*
+   * Sequential on purpose.
+   *
+   * This protects the existing upload/extraction service from a
+   * sudden burst of simultaneous historical PDFs and makes the
+   * batch easier to recover if one individual file fails.
+   */
+  for(
+    let index=0;
+    index<bulkCertificateItems.length;
+    index++
+  ){
+
+    const item=
+      bulkCertificateItems[index];
+
+
+    if(
+      item.state==='ready' ||
+      item.state==='review'
+    ){
+      continue;
+    }
+
+
+    if(status){
+
+      status.textContent=
+        `Reading certificate ${index+1} of ${bulkCertificateItems.length}…`;
+    }
+
+
+    await readOneBulkCertificate(
+      item
+    );
+  }
+
+
+  if(button){
+    button.disabled=false;
+    button.textContent=
+      'Read certificates';
+  }
+
+
+  const ready=
+    bulkCertificateItems.filter(
+      item=>item.state==='ready'
+    ).length;
+
+  const review=
+    bulkCertificateItems.filter(
+      item=>item.state==='review'
+    ).length;
+
+  const errors=
+    bulkCertificateItems.filter(
+      item=>item.state==='error'
+    ).length;
+
+
+  if(status){
+
+    status.textContent=
+      `${ready} read successfully` +
+      `${review ? ` · ${review} need review` : ''}` +
+      `${errors ? ` · ${errors} could not be read` : ''}. ` +
+      `Nothing has been added to the account yet.`;
+  }
+}
+
+
+if($('#chooseBulkCertificates')){
+
+  $('#chooseBulkCertificates')
+    .addEventListener(
+      'click',
+      ()=>{
+
+        $('#bulkCertificateFiles')
+          ?.click();
+      }
+    );
+}
+
+
+if($('#bulkCertificateFiles')){
+
+  $('#bulkCertificateFiles')
+    .addEventListener(
+      'change',
+      event=>{
+
+        const files=[
+          ...(event.target.files || [])
+        ];
+
+
+        const pdfs=
+          files.filter(
+            file=>
+              file.type==='application/pdf' ||
+              file.name
+                .toLowerCase()
+                .endsWith('.pdf')
+          );
+
+
+        bulkCertificateItems=
+          pdfs.map(
+            file=>({
+              id:bulkCertificateItemId(),
+              file,
+              state:'waiting',
+              result:null,
+              message:''
+            })
+          );
+
+
+        if(!bulkCertificateItems.length){
+
+          resetBulkCertificateIntake();
+
+          toast(
+            'Choose one or more certificate PDFs.'
+          );
+
+          return;
+        }
+
+
+        show(
+          $('#bulkCertificateWorkspace')
+        );
+
+
+        const status=
+          $('#bulkCertificateStatus');
+
+        if(status){
+
+          status.textContent=
+            `${bulkCertificateItems.length} certificate` +
+            `${bulkCertificateItems.length===1 ? '' : 's'} selected. ` +
+            `Nothing will be added until you review the batch.`;
+        }
+
+
+        renderBulkCertificateItems();
+      }
+    );
+}
+
+
+if($('#startBulkCertificates')){
+
+  $('#startBulkCertificates')
+    .addEventListener(
+      'click',
+      processBulkCertificateBatch
+    );
+}
+
+
+if($('#clearBulkCertificates')){
+
+  $('#clearBulkCertificates')
+    .addEventListener(
+      'click',
+      resetBulkCertificateIntake
+    );
+}
+
