@@ -1093,7 +1093,37 @@ Thank you,
       </div>
     </div>
 
-    <button
+    <div class="vf-certificate-import-preference-row">
+
+          <div class="vf-certificate-review-preference">
+            <label class="vf-toggle-setting">
+              <input
+                type="checkbox"
+                id="reviewCertificatesBeforeImport"
+                checked>
+
+              <span class="vf-toggle-control"></span>
+
+              <span class="vf-toggle-copy">
+                <strong>
+                  Review certificates before importing
+                </strong>
+
+                <small>
+                  Let me check VendorFlow’s work before certificates are added to my account.
+                </small>
+              </span>
+            </label>
+          </div>
+
+          <div
+            id="certificateImportConfirmation"
+            class="vf-certificate-import-confirmation hidden">
+          </div>
+
+        </div>
+
+        <button
       type="button"
       id="chooseBulkCertificates">
       Choose PDFs
@@ -1139,12 +1169,7 @@ Thank you,
         </h3>
       </div>
 
-      <button
-            type="button"
-            class="primary"
-            id="approveBulkCertificateReview">
-            Looks Good — Import Now
-          </button>
+      
 
           <button
         type="button"
@@ -1275,6 +1300,15 @@ Thank you,
 
     </div>
 
+    <div class="vf-bulk-review-footer">
+      <button
+            type="button"
+            class="primary"
+            id="approveBulkCertificateReview">
+            Looks Good — Import Now
+          </button>
+    </div>
+
   </div>
 
 </div>
@@ -1327,21 +1361,7 @@ Thank you,
         Read certificates
       </button>
 
-      <div class="vf-certificate-review-preference">
-            <label class="vf-toggle-setting">
-              <input
-                type="checkbox"
-                id="reviewCertificatesBeforeImport"
-                checked>
-              <span class="vf-toggle-control"></span>
-              <span class="vf-toggle-copy">
-                <strong>Review certificates before importing</strong>
-                <small>
-                  Let me check VendorFlow’s extracted information before certificates are added to my account.
-                </small>
-              </span>
-            </label>
-          </div>
+      
 
           <button
             type="button"

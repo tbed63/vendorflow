@@ -5343,3 +5343,40 @@ button.vf-certificate-problem:focus-visible{
   opacity:.72;
 }
 
+
+/* ==========================================================
+   CERTIFICATE IMPORT UX
+   ========================================================== */
+
+.vf-certificate-import-preference-row{
+  margin:10px 0 12px;
+}
+
+.vf-certificate-import-preference-row
+.vf-certificate-review-preference{
+  margin:0;
+}
+
+.vf-certificate-import-confirmation{
+  margin-top:10px;
+  padding:10px 14px;
+  border:1px solid rgba(31,120,70,.24);
+  border-radius:9px;
+  background:rgba(230,247,237,.88);
+  font-weight:700;
+}
+
+.vf-bulk-review-footer{
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  padding:14px 18px 16px;
+  border-top:1px solid rgba(0,0,0,.10);
+  background:#fff;
+}
+
+.vf-bulk-review-footer
+#approveBulkCertificateReview{
+  min-width:210px;
+}
+

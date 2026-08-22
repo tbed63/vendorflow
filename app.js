@@ -16553,6 +16553,36 @@ let bulkCertificateItems=[];
 
 
 
+
+function showCertificateImportConfirmation(
+  message=''
+){
+
+  const box=
+    $('#certificateImportConfirmation');
+
+  if(!box){
+    return;
+  }
+
+
+  const text=
+    String(
+      message || ''
+    ).trim();
+
+
+  box.textContent=
+    text;
+
+
+  box.classList.toggle(
+    'hidden',
+    !text
+  );
+}
+
+
 function vendorReviewsCertificatesBeforeImport(){
 
   /*
@@ -16623,11 +16653,13 @@ async function saveCertificateReviewPreference(){
 
     renderBulkCertificateItems();
 
+    showCertificateImportConfirmation('');
+
 
     toast(
       enabled
-        ? 'VendorFlow will wait for you to review certificates before importing.'
-        : 'VendorFlow will automatically import certificates it can verify safely.'
+        ? 'Certificate review is on.'
+        : 'Certificate review is off. VendorFlow will import certificates it can verify safely.'
     );
 
 
@@ -17880,23 +17912,48 @@ async function importReadyBulkCertificates(
 
 
     const summary=
-      `${imported} imported` +
+      `${imported} certificate${imported===1?'':'s'} imported` +
       `${duplicates ? ` · ${duplicates} possible duplicate${duplicates===1?'':'s'} sent to review` : ''}` +
       `${skipped ? ` · ${skipped} skipped` : ''}.`;
 
 
-    if(status){
+    if(
+      automatic &&
+      imported>0 &&
+      duplicates===0 &&
+      skipped===0 &&
+      bulkCertificateItems.length===0
+    ){
 
-      status.textContent=
-        summary;
+      resetBulkCertificateIntake();
+
+      showCertificateImportConfirmation(
+        `${imported} certificate${imported===1?'':'s'} imported.`
+      );
+
+    }else{
+
+      if(status){
+
+        status.textContent=
+          summary;
+      }
+
+
+      if(
+        duplicates ||
+        skipped
+      ){
+
+        showCertificateImportConfirmation(
+          `${imported} certificate${imported===1?'':'s'} imported. ` +
+          `${duplicates+skipped} need attention.`
+        );
+      }
     }
 
 
-    if(
-      !automatic ||
-      duplicates ||
-      skipped
-    ){
+    if(!automatic){
 
       toast(
         summary
@@ -17975,6 +18032,8 @@ if($('#bulkCertificateFiles')){
       'change',
       event=>{
 
+        showCertificateImportConfirmation('');
+
         const files=[
           ...(event.target.files || [])
         ];
@@ -18040,7 +18099,11 @@ if($('#bulkCertificateFiles')){
           status.textContent=
             `${bulkCertificateItems.length} certificate` +
             `${bulkCertificateItems.length===1 ? '' : 's'} selected. ` +
-            `Nothing will be added until you review the batch.`;
+            (
+              vendorReviewsCertificatesBeforeImport()
+                ? `VendorFlow will read them for your review.`
+                : `VendorFlow will read and import the certificates it can verify safely.`
+            );
         }
 
 
@@ -19511,20 +19574,31 @@ if($('#approveBulkCertificateReview')){
           if(status){
 
             status.innerHTML=
-              '<strong>Cannot import yet</strong>' +
+              '<strong>Fix this before importing</strong>' +
+              '<div>VendorFlow found something that still needs your attention:</div>' +
               readiness.problems
                 .map(
                   problem=>
                     `<div class="vf-bulk-review-warning">• ${esc(problem)}</div>`
                 )
                 .join('');
+
+
+            status.scrollIntoView({
+              behavior:'smooth',
+              block:'nearest'
+            });
           }
 
 
-          toast(
-            'This certificate still needs attention before it can be imported.'
-          );
-
+          /*
+           * Do not use a page-level toast here.
+           * The review modal covers it and makes the message
+           * difficult or impossible to read.
+           *
+           * The exact blocking reasons are already displayed
+           * above the extraction inside this review window.
+           */
           return;
         }
 
