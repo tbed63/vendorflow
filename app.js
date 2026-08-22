@@ -14712,19 +14712,6 @@ async function openCertificateForRepair(
 }
 
 
-$('#addCertificate').onclick=()=>{
-
-  editingCertificateId='';
-
-  $('#saveCertificate').textContent=
-    'Save certificate';
-
-  toggle('#certificateForm');
-
-};
-
-
-
 $('#cancelCertificate').onclick=()=>{
 
   editingCertificateId='';
@@ -17005,6 +16992,19 @@ if($('#bulkCertificateFiles')){
                 .toLowerCase()
                 .endsWith('.pdf')
           );
+
+        if(pdfs.length>20){
+
+          event.target.value='';
+
+          resetBulkCertificateIntake();
+
+          toast(
+            'Choose no more than 20 certificate PDFs at a time.'
+          );
+
+          return;
+        }
 
 
         bulkCertificateItems=
