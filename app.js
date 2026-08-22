@@ -16858,7 +16858,8 @@ let bulkCertificateItems=[];
 
 
 function showCertificateImportConfirmation(
-  message=''
+  message='',
+  action=''
 ){
 
   const box=
@@ -16879,10 +16880,73 @@ function showCertificateImportConfirmation(
     text;
 
 
+  box.dataset.action=
+    String(
+      action || ''
+    );
+
+
+  box.classList.toggle(
+    'vf-certificate-import-confirmation-clickable',
+    Boolean(
+      text &&
+      action
+    )
+  );
+
+
   box.classList.toggle(
     'hidden',
     !text
   );
+}
+
+
+
+if($('#certificateImportConfirmation')){
+
+  $('#certificateImportConfirmation')
+    .addEventListener(
+      'click',
+      ()=>{
+
+        const box=
+          $('#certificateImportConfirmation');
+
+
+        const action=
+          box?.dataset.action || '';
+
+
+        if(action==='needs-review-page'){
+
+          switchView(
+            'review'
+          );
+
+          return;
+        }
+
+
+        if(action==='batch-review'){
+
+          const item=
+            bulkCertificateItems.find(
+              entry=>
+                entry.state==='review' ||
+                entry.state==='ready'
+            );
+
+
+          if(item){
+
+            openBulkCertificateReview(
+              item.id
+            );
+          }
+        }
+      }
+    );
 }
 
 
@@ -17127,6 +17191,36 @@ function exactBulkCertificateStudent(
   return matches.length===1
     ? matches[0]
     : null;
+}
+
+
+
+function bulkCertificateExistingDuplicate(
+  item
+){
+
+  const x=
+    bulkCertificateVendorExtraction(
+      item
+    );
+
+
+  const number=
+    String(
+      x.certificateNumber ||
+      x.purchaseOrderNumber ||
+      ''
+    ).trim();
+
+
+  if(!number){
+    return null;
+  }
+
+
+  return findDuplicateCertificate({
+    number
+  });
 }
 
 
@@ -17807,11 +17901,77 @@ async function processBulkCertificateBatch(){
 
 
   /*
-   * When review is OFF, only clean Ready items with exact
-   * student/charter matches and all required information are
-   * eligible for automatic import.
+   * Detect known duplicate certificate numbers BEFORE asking
+   * the vendor to review/import them.
    *
-   * Needs Review / duplicate / ambiguous records remain stopped.
+   * A duplicate belongs in Needs Review, not in the normal
+   * certificate-import flow.
+   */
+  const duplicateItems=
+    bulkCertificateItems.filter(
+      item=>
+        item.state==='ready' &&
+        Boolean(
+          bulkCertificateExistingDuplicate(
+            item
+          )
+        )
+    );
+
+
+  for(const duplicateItem of duplicateItems){
+
+    await importReadyBulkCertificates({
+      automatic:true,
+      onlyItemId:
+        duplicateItem.id,
+      skipConfirmation:true
+    });
+  }
+
+
+  /*
+   * REVIEW ON:
+   * The vendor already asked to review every certificate.
+   * Open the first remaining certificate automatically.
+   */
+  if(
+    vendorReviewsCertificatesBeforeImport()
+  ){
+
+    const nextItem=
+      bulkCertificateItems.find(
+        item=>
+          item.state==='ready' ||
+          item.state==='review'
+      );
+
+
+    if(nextItem){
+
+      openBulkCertificateReview(
+        nextItem.id
+      );
+
+    }else if(duplicateItems.length){
+
+      showCertificateImportConfirmation(
+        `${duplicateItems.length} possible duplicate` +
+        `${duplicateItems.length===1?'':'s'} sent to Needs Review. ` +
+        `Click to review.`,
+        'needs-review-page'
+      );
+    }
+
+
+    return;
+  }
+
+
+  /*
+   * REVIEW OFF:
+   * Only clean Ready items with exact/safe matches and all
+   * required information are eligible for automatic import.
    */
   if(
     !vendorReviewsCertificatesBeforeImport()
@@ -17879,7 +18039,8 @@ async function processBulkCertificateBatch(){
       showCertificateImportConfirmation(
         `${remaining} certificate` +
         `${remaining===1?'':'s'} need attention. ` +
-        `Click the certificate to fix the issue.`
+        `Click to review.`,
+        'batch-review'
       );
     }
   }
@@ -18246,7 +18407,13 @@ async function importReadyBulkCertificates(
         );
 
 
-        item.state='review';
+        /*
+         * This PDF is not an importable pending certificate anymore.
+         * It now lives in the real Needs Review queue.
+         */
+        item.state='duplicate';
+
+        item.duplicateQueued=true;
 
         item.message=
           'Possible duplicate — sent to Needs Review.';
@@ -18317,7 +18484,8 @@ async function importReadyBulkCertificates(
     bulkCertificateItems=
       bulkCertificateItems.filter(
         item=>
-          item.state!=='imported'
+          item.state!=='imported' &&
+          !item.duplicateQueued
       );
 
 
@@ -18358,9 +18526,18 @@ async function importReadyBulkCertificates(
         skipped
       ){
 
+        const needsReviewOnly=
+          duplicates>0 &&
+          skipped===0;
+
+
         showCertificateImportConfirmation(
           `${imported} certificate${imported===1?'':'s'} imported. ` +
-          `${duplicates+skipped} need attention.`
+          `${duplicates+skipped} need attention. ` +
+          `Click to review.`,
+          needsReviewOnly
+            ? 'needs-review-page'
+            : 'batch-review'
         );
       }
     }
@@ -20202,16 +20379,38 @@ if($('#approveBulkCertificateReview')){
 
             closeBulkCertificateReview();
 
-            toast(
-              'Certificate imported successfully.'
+
+            showCertificateImportConfirmation(
+              '1 certificate imported.'
             );
+
+
+            return;
+          }
+
+
+          if(result?.duplicates>0){
+
+            /*
+             * Duplicate was not accepted as a certificate.
+             * It was moved to Needs Review and removed from
+             * this temporary intake batch.
+             */
+            closeBulkCertificateReview();
+
+
+            showCertificateImportConfirmation(
+              'Possible duplicate sent to Needs Review. Click to review.',
+              'needs-review-page'
+            );
+
 
             return;
           }
 
 
           /*
-           * A duplicate or last-second safety issue may
+           * A different last-second safety issue may
            * deliberately prevent the import.
            */
           const current=

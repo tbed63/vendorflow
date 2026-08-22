@@ -5423,3 +5423,14 @@ button.vf-certificate-problem:focus-visible{
   background:#f3f6fc;
 }
 
+
+.vf-certificate-import-confirmation-clickable{
+  cursor:pointer;
+  text-decoration:underline;
+  text-underline-offset:2px;
+}
+
+.vf-certificate-import-confirmation-clickable:hover{
+  filter:brightness(.98);
+}
+
