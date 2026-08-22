@@ -17132,101 +17132,250 @@ if($('#clearBulkCertificates')){
 
 let activeBulkCertificateReviewId='';
 
-let activeBulkCertificatePdfUrl='';
+let activeBulkCertificatePdfDocument=null;
+
+let activeBulkCertificatePdfData=null;
+
+let bulkCertificatePdfZoom=1;
 
 
-function bulkCertificateExtraction(item){
+if(window.pdfjsLib){
 
-  return item?.result?.extraction || {};
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc=
+    'vendor/pdfjs/pdf.worker.min.js';
 }
-
-
-function bulkCertificateReference(item){
-
-  const x=
-    bulkCertificateExtraction(item);
-
-  return (
-    x.certificateNumber ||
-    x.purchaseOrderNumber ||
-    ''
-  );
-}
-
-
-function bulkCertificateStudentName(item){
-
-  const x=
-    bulkCertificateExtraction(item);
-
-  return (
-    x.studentName ||
-    x.student ||
-    x.learnerName ||
-    ''
-  );
-}
-
-
-function bulkCertificateSchoolName(item){
-
-  const x=
-    bulkCertificateExtraction(item);
-
-  return (
-    x.charterSchool ||
-    x.charterSchoolName ||
-    x.school ||
-    ''
-  );
-}
-
-
-function bulkCertificateAmount(item){
-
-  const x=
-    bulkCertificateExtraction(item);
-
-  return Number(
-    x.amount ||
-    x.certificateAmount ||
-    0
-  );
-}
-
-
-function bulkReviewValue(value){
-
-  const text=
-    String(
-      value===undefined ||
-      value===null
-        ? ''
-        : value
-    ).trim();
-
-  return text || 'Not found';
-}
-
 
 
 function clearBulkCertificatePdf(){
 
-  const frame=
-    $('#bulkCertificatePdfFrame');
+  activeBulkCertificatePdfDocument=null;
+  activeBulkCertificatePdfData=null;
+  bulkCertificatePdfZoom=1;
 
-  if(frame){
-    frame.removeAttribute('src');
+
+  const pages=
+    $('#bulkCertificatePdfPages');
+
+  if(pages){
+    pages.innerHTML='';
   }
 
 
-  if(activeBulkCertificatePdfUrl){
+  const status=
+    $('#bulkCertificatePdfStatus');
 
-    URL.revokeObjectURL(
-      activeBulkCertificatePdfUrl
+  if(status){
+    status.textContent='';
+  }
+
+
+  updateBulkCertificatePdfZoomLabel();
+}
+
+
+function updateBulkCertificatePdfZoomLabel(){
+
+  const label=
+    $('#bulkPdfZoomLabel');
+
+  if(!label){
+    return;
+  }
+
+
+  if(
+    Math.abs(
+      bulkCertificatePdfZoom-1
+    )<0.01
+  ){
+    label.textContent='Fit';
+    return;
+  }
+
+
+  label.textContent=
+    `${Math.round(
+      bulkCertificatePdfZoom*100
+    )}%`;
+}
+
+
+async function renderBulkCertificatePdf(){
+
+  const pdf=
+    activeBulkCertificatePdfDocument;
+
+  const pages=
+    $('#bulkCertificatePdfPages');
+
+  const viewportBox=
+    $('#bulkCertificatePdfViewport');
+
+  const status=
+    $('#bulkCertificatePdfStatus');
+
+
+  if(
+    !pdf ||
+    !pages ||
+    !viewportBox
+  ){
+    return;
+  }
+
+
+  pages.innerHTML='';
+
+
+  if(status){
+    status.textContent=
+      'Rendering certificate…';
+  }
+
+
+  try{
+
+    const firstPage=
+      await pdf.getPage(1);
+
+
+    const baseViewport=
+      firstPage.getViewport({
+        scale:1
+      });
+
+
+    const availableWidth=
+      Math.max(
+        300,
+        viewportBox.clientWidth-28
+      );
+
+
+    const fitScale=
+      availableWidth /
+      baseViewport.width;
+
+
+    const renderScale=
+      fitScale *
+      bulkCertificatePdfZoom;
+
+
+    const deviceScale=
+      Math.min(
+        window.devicePixelRatio || 1,
+        2
+      );
+
+
+    for(
+      let pageNumber=1;
+      pageNumber<=pdf.numPages;
+      pageNumber++
+    ){
+
+      const page=
+        pageNumber===1
+          ? firstPage
+          : await pdf.getPage(
+              pageNumber
+            );
+
+
+      const viewport=
+        page.getViewport({
+          scale:renderScale
+        });
+
+
+      const wrapper=
+        document.createElement('div');
+
+      wrapper.className=
+        'vf-bulk-pdf-page';
+
+
+      const canvas=
+        document.createElement('canvas');
+
+
+      canvas.width=
+        Math.floor(
+          viewport.width *
+          deviceScale
+        );
+
+      canvas.height=
+        Math.floor(
+          viewport.height *
+          deviceScale
+        );
+
+
+      canvas.style.width=
+        `${Math.floor(
+          viewport.width
+        )}px`;
+
+      canvas.style.height=
+        `${Math.floor(
+          viewport.height
+        )}px`;
+
+
+      const context=
+        canvas.getContext('2d');
+
+
+      wrapper.appendChild(
+        canvas
+      );
+
+      pages.appendChild(
+        wrapper
+      );
+
+
+      await page.render({
+        canvasContext:context,
+        viewport,
+        transform:
+          deviceScale===1
+            ? null
+            : [
+                deviceScale,
+                0,
+                0,
+                deviceScale,
+                0,
+                0
+              ]
+      }).promise;
+    }
+
+
+    if(status){
+      status.textContent='';
+    }
+
+
+    updateBulkCertificatePdfZoomLabel();
+
+
+  }catch(error){
+
+    console.error(
+      'Certificate PDF render failed:',
+      error
     );
 
-    activeBulkCertificatePdfUrl='';
+
+    if(status){
+      status.textContent=
+        error?.message ||
+        'Could not display the certificate.';
+    }
   }
 }
 
@@ -17235,14 +17384,11 @@ async function loadBulkCertificatePdf(
   item
 ){
 
-  const frame=
-    $('#bulkCertificatePdfFrame');
+  clearBulkCertificatePdf();
+
 
   const status=
     $('#bulkCertificatePdfStatus');
-
-
-  clearBulkCertificatePdf();
 
 
   if(
@@ -17252,6 +17398,17 @@ async function loadBulkCertificatePdf(
     if(status){
       status.textContent=
         'Original PDF is not available.';
+    }
+
+    return;
+  }
+
+
+  if(!window.pdfjsLib){
+
+    if(status){
+      status.textContent=
+        'PDF viewer did not load.';
     }
 
     return;
@@ -17302,40 +17459,37 @@ async function loadBulkCertificatePdf(
     }
 
 
-    const blob=
-      await response.blob();
+    const arrayBuffer=
+      await response.arrayBuffer();
 
 
-    /*
-     * Force the browser to treat this as a PDF viewer source.
-     */
-    const pdfBlob=
-      blob.type==='application/pdf'
-        ? blob
-        : new Blob(
-            [blob],
-            {
-              type:'application/pdf'
-            }
-          );
-
-
-    activeBulkCertificatePdfUrl=
-      URL.createObjectURL(
-        pdfBlob
+    activeBulkCertificatePdfData=
+      new Uint8Array(
+        arrayBuffer
       );
 
 
-    if(frame){
+    activeBulkCertificatePdfDocument=
+      await window.pdfjsLib
+        .getDocument({
+          data:
+            activeBulkCertificatePdfData
+        })
+        .promise;
 
-      frame.src=
-        activeBulkCertificatePdfUrl +
-        '#view=FitH&pagemode=none&navpanes=0';
-    }
+
+    bulkCertificatePdfZoom=1;
 
 
-    if(status){
-      status.textContent='';
+    await renderBulkCertificatePdf();
+
+
+    const viewport=
+      $('#bulkCertificatePdfViewport');
+
+    if(viewport){
+      viewport.scrollLeft=0;
+      viewport.scrollTop=0;
     }
 
 
@@ -17348,7 +17502,6 @@ async function loadBulkCertificatePdf(
 
 
     if(status){
-
       status.textContent=
         error?.message ||
         'Could not display the original certificate.';
@@ -17357,9 +17510,693 @@ async function loadBulkCertificatePdf(
 }
 
 
+async function changeBulkPdfZoom(
+  amount
+){
+
+  if(
+    !activeBulkCertificatePdfDocument
+  ){
+    return;
+  }
+
+
+  bulkCertificatePdfZoom=
+    Math.max(
+      .5,
+      Math.min(
+        3,
+        bulkCertificatePdfZoom+
+        amount
+      )
+    );
+
+
+  await renderBulkCertificatePdf();
+}
+
+
+async function fitBulkPdf(){
+
+  if(
+    !activeBulkCertificatePdfDocument
+  ){
+    return;
+  }
+
+
+  bulkCertificatePdfZoom=1;
+
+  await renderBulkCertificatePdf();
+
+
+  const viewport=
+    $('#bulkCertificatePdfViewport');
+
+  if(viewport){
+    viewport.scrollLeft=0;
+    viewport.scrollTop=0;
+  }
+}
+
+
+if($('#bulkPdfZoomIn')){
+
+  $('#bulkPdfZoomIn').onclick=
+    ()=>changeBulkPdfZoom(.25);
+}
+
+
+if($('#bulkPdfZoomOut')){
+
+  $('#bulkPdfZoomOut').onclick=
+    ()=>changeBulkPdfZoom(-.25);
+}
+
+
+if($('#bulkPdfFit')){
+
+  $('#bulkPdfFit').onclick=
+    fitBulkPdf;
+}
+
+
+/* ==========================================================
+   BULK CERTIFICATE VENDOR REVIEW / CORRECTIONS
+   ========================================================== */
+
+let bulkCertificateEditMode=false;
+
+
+function activeBulkCertificateItem(){
+
+  return bulkCertificateItems.find(
+    item=>
+      item.id===
+      activeBulkCertificateReviewId
+  ) || null;
+}
+
+
+function bulkCertificateVendorExtraction(
+  item
+){
+
+  const original=
+    bulkCertificateExtraction(item) || {};
+
+
+  return {
+    ...original,
+    ...(item?.vendorOverrides || {})
+  };
+}
+
+
+function setBulkCertificateEditMode(
+  editing
+){
+
+  bulkCertificateEditMode=
+    Boolean(editing);
+
+
+  const edit=
+    $('#editBulkCertificateExtraction');
+
+  const save=
+    $('#saveBulkCertificateCorrections');
+
+  const cancel=
+    $('#cancelBulkCertificateCorrections');
+
+  const restore=
+    $('#restoreBulkCertificateExtraction');
+
+
+  if(edit){
+    edit.classList.toggle(
+      'hidden',
+      bulkCertificateEditMode
+    );
+  }
+
+
+  if(save){
+    save.classList.toggle(
+      'hidden',
+      !bulkCertificateEditMode
+    );
+  }
+
+
+  if(cancel){
+    cancel.classList.toggle(
+      'hidden',
+      !bulkCertificateEditMode
+    );
+  }
+
+
+  if(restore){
+
+    const item=
+      activeBulkCertificateItem();
+
+    restore.classList.toggle(
+      'hidden',
+      !bulkCertificateEditMode ||
+      !item?.vendorEdited
+    );
+  }
+}
+
+
+function updateBulkVendorEditNotice(
+  item
+){
+
+  const notice=
+    $('#bulkCertificateVendorEditNotice');
+
+  if(!notice){
+    return;
+  }
+
+
+  notice.classList.toggle(
+    'hidden',
+    !item?.vendorEdited
+  );
+}
+
+
+function bulkCertificateReviewDisplayValue(
+  value
+){
+
+  if(
+    value===undefined ||
+    value===null ||
+    String(value).trim()===''
+  ){
+    return 'Not found';
+  }
+
+  return String(value);
+}
+
+
+function renderBulkCertificateReviewFields(
+  item
+){
+
+  const fields=
+    $('#bulkCertificateReviewFields');
+
+  if(!fields || !item){
+    return;
+  }
+
+
+  const x=
+    bulkCertificateVendorExtraction(
+      item
+    );
+
+
+  if(bulkCertificateEditMode){
+
+    fields.innerHTML=`
+
+      <label>
+        <span>Student</span>
+        <input
+          class="input"
+          data-bulk-edit="studentName"
+          value="${esc(
+            x.studentName || ''
+          )}">
+      </label>
+
+      <label>
+        <span>Charter school</span>
+        <input
+          class="input"
+          data-bulk-edit="charterSchool"
+          value="${esc(
+            x.charterSchool ||
+            x.schoolName ||
+            ''
+          )}">
+      </label>
+
+      <label>
+        <span>Amount</span>
+        <input
+          class="input"
+          type="number"
+          min="0"
+          step=".01"
+          data-bulk-edit="amount"
+          value="${esc(
+            x.amount ?? ''
+          )}">
+      </label>
+
+      <label>
+        <span>Certificate / PO #</span>
+        <input
+          class="input"
+          data-bulk-edit="certificateNumber"
+          value="${esc(
+            x.certificateNumber ||
+            x.purchaseOrderNumber ||
+            ''
+          )}">
+      </label>
+
+      <label>
+        <span>Issue date</span>
+        <input
+          class="input"
+          data-bulk-edit="issueDate"
+          value="${esc(
+            x.issueDate || ''
+          )}">
+      </label>
+
+      <label>
+        <span>Service start</span>
+        <input
+          class="input"
+          data-bulk-edit="serviceStartDate"
+          value="${esc(
+            x.serviceStartDate || ''
+          )}">
+      </label>
+
+      <label>
+        <span>Service end</span>
+        <input
+          class="input"
+          data-bulk-edit="serviceEndDate"
+          value="${esc(
+            x.serviceEndDate || ''
+          )}">
+      </label>
+
+      <label>
+        <span>Billing email</span>
+        <input
+          class="input"
+          type="email"
+          data-bulk-edit="billingEmail"
+          value="${esc(
+            x.billingEmail || ''
+          )}">
+      </label>
+
+      <label class="vf-bulk-review-wide">
+        <span>Service description</span>
+        <textarea
+          class="input"
+          rows="3"
+          data-bulk-edit="serviceDescription">${esc(
+            x.serviceDescription || ''
+          )}</textarea>
+      </label>
+
+      <label class="vf-bulk-review-wide">
+        <span>Invoice instructions</span>
+        <textarea
+          class="input"
+          rows="4"
+          data-bulk-edit="invoiceInstructions">${esc(
+            x.invoiceInstructions || ''
+          )}</textarea>
+      </label>
+
+    `;
+
+    return;
+  }
+
+
+  const amount=
+    Number(x.amount || 0);
+
+
+  fields.innerHTML=`
+
+    <div>
+      <span>Student</span>
+      <strong>
+        ${esc(
+          bulkCertificateReviewDisplayValue(
+            x.studentName
+          )
+        )}
+      </strong>
+    </div>
+
+    <div>
+      <span>Charter school</span>
+      <strong>
+        ${esc(
+          bulkCertificateReviewDisplayValue(
+            x.charterSchool ||
+            x.schoolName
+          )
+        )}
+      </strong>
+    </div>
+
+    <div>
+      <span>Amount</span>
+      <strong>
+        ${
+          amount>0
+            ? money(amount)
+            : 'Not found'
+        }
+      </strong>
+    </div>
+
+    <div>
+      <span>Certificate / PO #</span>
+      <strong>
+        ${esc(
+          bulkCertificateReviewDisplayValue(
+            x.certificateNumber ||
+            x.purchaseOrderNumber
+          )
+        )}
+      </strong>
+    </div>
+
+    <div>
+      <span>Issue date</span>
+      <strong>
+        ${esc(
+          bulkCertificateReviewDisplayValue(
+            x.issueDate
+          )
+        )}
+      </strong>
+    </div>
+
+    <div>
+      <span>Service start</span>
+      <strong>
+        ${esc(
+          bulkCertificateReviewDisplayValue(
+            x.serviceStartDate
+          )
+        )}
+      </strong>
+    </div>
+
+    <div>
+      <span>Service end</span>
+      <strong>
+        ${esc(
+          bulkCertificateReviewDisplayValue(
+            x.serviceEndDate
+          )
+        )}
+      </strong>
+    </div>
+
+    <div>
+      <span>Billing email</span>
+      <strong>
+        ${esc(
+          bulkCertificateReviewDisplayValue(
+            x.billingEmail
+          )
+        )}
+      </strong>
+    </div>
+
+    <div class="vf-bulk-review-wide">
+      <span>Service description</span>
+      <strong>
+        ${esc(
+          bulkCertificateReviewDisplayValue(
+            x.serviceDescription
+          )
+        )}
+      </strong>
+    </div>
+
+    <div class="vf-bulk-review-wide">
+      <span>Invoice instructions</span>
+      <strong>
+        ${esc(
+          bulkCertificateReviewDisplayValue(
+            x.invoiceInstructions
+          )
+        )}
+      </strong>
+    </div>
+
+  `;
+}
+
+
+function enterBulkCertificateEdit(){
+
+  const item=
+    activeBulkCertificateItem();
+
+  if(!item){
+    return;
+  }
+
+  setBulkCertificateEditMode(true);
+
+  renderBulkCertificateReviewFields(
+    item
+  );
+}
+
+
+function cancelBulkCertificateEdit(){
+
+  const item=
+    activeBulkCertificateItem();
+
+  if(!item){
+    return;
+  }
+
+  setBulkCertificateEditMode(false);
+
+  renderBulkCertificateReviewFields(
+    item
+  );
+}
+
+
+function saveBulkCertificateCorrections(){
+
+  const item=
+    activeBulkCertificateItem();
+
+  if(!item){
+    return;
+  }
+
+
+  const original=
+    bulkCertificateExtraction(item) || {};
+
+  const overrides={};
+
+
+  $$('#bulkCertificateReviewFields [data-bulk-edit]')
+    .forEach(field=>{
+
+      const key=
+        field.dataset.bulkEdit;
+
+      let value=
+        field.value.trim();
+
+
+      if(key==='amount'){
+        value=
+          value===''
+            ? ''
+            : Number(value);
+      }
+
+
+      overrides[key]=value;
+    });
+
+
+  /*
+   * Keep the vendor's deliberate correction separate
+   * from the AI extraction.
+   *
+   * This lets us preserve the original reading while
+   * ensuring later review/import uses the human correction.
+   */
+  item.vendorOverrides=
+    overrides;
+
+  item.vendorEdited=true;
+
+
+  /*
+   * Also mirror the corrected values into the pending
+   * extraction object so the EXISTING batch helpers,
+   * validation display and future import step see the
+   * vendor-approved values.
+   *
+   * This affects only the unsaved batch item.
+   */
+  if(item.result){
+
+    item.result.extraction={
+      ...original,
+      ...overrides
+    };
+
+
+    if(
+      Object.prototype.hasOwnProperty.call(
+        overrides,
+        'certificateNumber'
+      )
+    ){
+      item.result.extraction
+        .purchaseOrderNumber='';
+    }
+  }
+
+
+  item.message=
+    'Corrections saved. Reviewed by vendor.';
+
+
+  setBulkCertificateEditMode(false);
+
+  renderBulkCertificateReviewFields(
+    item
+  );
+
+  updateBulkVendorEditNotice(
+    item
+  );
+
+  renderBulkCertificateItems();
+}
+
+
+function restoreBulkCertificateReading(){
+
+  const item=
+    activeBulkCertificateItem();
+
+  if(!item){
+    return;
+  }
+
+
+  /*
+   * Capture the original AI reading the first time a
+   * vendor correction is made.
+   *
+   * Older batch items without that snapshot simply
+   * clear their temporary overrides.
+   */
+  if(item.originalVendorFlowExtraction){
+
+    if(item.result){
+      item.result.extraction={
+        ...item.originalVendorFlowExtraction
+      };
+    }
+  }
+
+
+  item.vendorOverrides={};
+  item.vendorEdited=false;
+
+  item.message=
+    'VendorFlow reading restored.';
+
+
+  setBulkCertificateEditMode(false);
+
+  renderBulkCertificateReviewFields(
+    item
+  );
+
+  updateBulkVendorEditNotice(
+    item
+  );
+
+  renderBulkCertificateItems();
+}
+
+
+if($('#editBulkCertificateExtraction')){
+
+  $('#editBulkCertificateExtraction')
+    .onclick=
+      ()=>{
+
+        const item=
+          activeBulkCertificateItem();
+
+        if(
+          item &&
+          !item.originalVendorFlowExtraction
+        ){
+
+          item.originalVendorFlowExtraction={
+            ...(bulkCertificateExtraction(item) || {})
+          };
+        }
+
+        enterBulkCertificateEdit();
+      };
+}
+
+
+if($('#saveBulkCertificateCorrections')){
+
+  $('#saveBulkCertificateCorrections')
+    .onclick=
+      saveBulkCertificateCorrections;
+}
+
+
+if($('#cancelBulkCertificateCorrections')){
+
+  $('#cancelBulkCertificateCorrections')
+    .onclick=
+      cancelBulkCertificateEdit;
+}
+
+
+if($('#restoreBulkCertificateExtraction')){
+
+  $('#restoreBulkCertificateExtraction')
+    .onclick=
+      restoreBulkCertificateReading;
+}
+
+
 function closeBulkCertificateReview(){
 
   activeBulkCertificateReviewId='';
+
+  bulkCertificateEditMode=false;
 
   clearBulkCertificatePdf();
 
@@ -17385,18 +18222,12 @@ function openBulkCertificateReview(itemId){
     item.id;
 
 
-  const x=
-    bulkCertificateExtraction(item);
-
   const validation=
     item.result?.clientValidation || {};
 
 
   const status=
     $('#bulkCertificateReviewStatus');
-
-  const fields=
-    $('#bulkCertificateReviewFields');
 
   const title=
     $('#bulkCertificateReviewTitle');
@@ -17481,127 +18312,17 @@ function openBulkCertificateReview(itemId){
   }
 
 
-  if(fields){
+  setBulkCertificateEditMode(
+    false
+  );
 
-    const amount=
-      bulkCertificateAmount(item);
+  renderBulkCertificateReviewFields(
+    item
+  );
 
-    fields.innerHTML=`
-
-      <div>
-        <span>Student</span>
-        <strong>
-          ${esc(
-            bulkReviewValue(
-              bulkCertificateStudentName(item)
-            )
-          )}
-        </strong>
-      </div>
-
-      <div>
-        <span>Charter school</span>
-        <strong>
-          ${esc(
-            bulkReviewValue(
-              bulkCertificateSchoolName(item)
-            )
-          )}
-        </strong>
-      </div>
-
-      <div>
-        <span>Amount</span>
-        <strong>
-          ${
-            amount>0
-              ? money(amount)
-              : 'Not found'
-          }
-        </strong>
-      </div>
-
-      <div>
-        <span>Certificate / PO #</span>
-        <strong>
-          ${esc(
-            bulkReviewValue(
-              bulkCertificateReference(item)
-            )
-          )}
-        </strong>
-      </div>
-
-      <div>
-        <span>Issue date</span>
-        <strong>
-          ${esc(
-            bulkReviewValue(
-              x.issueDate
-            )
-          )}
-        </strong>
-      </div>
-
-      <div>
-        <span>Service start</span>
-        <strong>
-          ${esc(
-            bulkReviewValue(
-              x.serviceStartDate
-            )
-          )}
-        </strong>
-      </div>
-
-      <div>
-        <span>Service end</span>
-        <strong>
-          ${esc(
-            bulkReviewValue(
-              x.serviceEndDate
-            )
-          )}
-        </strong>
-      </div>
-
-      <div>
-        <span>Billing email</span>
-        <strong>
-          ${esc(
-            bulkReviewValue(
-              x.billingEmail
-            )
-          )}
-        </strong>
-      </div>
-
-      <div class="vf-bulk-review-wide">
-        <span>Service description</span>
-        <strong>
-          ${esc(
-            bulkReviewValue(
-              x.serviceDescription
-            )
-          )}
-        </strong>
-      </div>
-
-      <div class="vf-bulk-review-wide">
-        <span>Invoice instructions</span>
-        <strong>
-          ${esc(
-            bulkReviewValue(
-              x.invoiceInstructions
-            )
-          )}
-        </strong>
-      </div>
-
-    `;
-  }
-
-
+  updateBulkVendorEditNotice(
+    item
+  );
 
 
   show(

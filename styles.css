@@ -5143,3 +5143,128 @@ button.vf-certificate-problem:focus-visible{
 
 }
 
+
+
+/* ==========================================================
+   CERTIFICATE VERIFICATION WORKSPACE
+   ========================================================== */
+
+.vf-bulk-pdf-toolbar{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:7px 10px;
+  border-bottom:1px solid #dfe5e8;
+  background:#f6f8f9;
+}
+
+.vf-bulk-pdf-toolbar button{
+  min-width:34px;
+  height:30px;
+  padding:3px 9px;
+}
+
+.vf-bulk-pdf-zoom-label{
+  min-width:46px;
+  text-align:center;
+  font-size:12px;
+  font-weight:700;
+}
+
+.vf-bulk-pdf-viewport{
+  min-height:0;
+  flex:1;
+  overflow:auto;
+  overscroll-behavior:contain;
+  background:#303234;
+}
+
+.vf-bulk-pdf-pages{
+  width:max-content;
+  min-width:100%;
+  min-height:100%;
+  padding:14px;
+  box-sizing:border-box;
+}
+
+.vf-bulk-pdf-page{
+  width:max-content;
+  margin:0 auto 14px;
+  background:#fff;
+  box-shadow:0 2px 8px rgba(0,0,0,.2);
+}
+
+.vf-bulk-pdf-page:last-child{
+  margin-bottom:0;
+}
+
+.vf-bulk-pdf-page canvas{
+  display:block;
+}
+
+.vf-bulk-review-data-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  border-bottom:1px solid #e2e7ea;
+}
+
+.vf-bulk-review-data-header
+.vf-bulk-review-column-title{
+  border-bottom:0;
+}
+
+.vf-bulk-edit-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  padding:6px 10px 6px 0;
+}
+
+.vf-bulk-edit-actions button{
+  white-space:nowrap;
+}
+
+.vf-bulk-vendor-edit-notice{
+  margin:0 12px 10px;
+  padding:7px 9px;
+  border:1px solid #d7e2d9;
+  border-radius:7px;
+  font-size:12px;
+  font-weight:700;
+}
+
+.vf-bulk-review-fields label{
+  display:block;
+  min-width:0;
+  padding:10px 11px;
+  border:1px solid #e1e6e9;
+  border-radius:8px;
+}
+
+.vf-bulk-review-fields label > span{
+  display:block;
+  margin-bottom:5px;
+  font-size:12px;
+  font-weight:700;
+}
+
+.vf-bulk-review-fields label .input{
+  width:100%;
+  margin:0;
+  box-sizing:border-box;
+}
+
+@media(max-width:900px){
+
+  .vf-bulk-review-data-header{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .vf-bulk-edit-actions{
+    padding:0 10px 10px;
+  }
+}
+

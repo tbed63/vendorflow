@@ -1156,30 +1156,107 @@ Thank you,
           Original certificate
         </div>
 
+        <div class="vf-bulk-pdf-toolbar">
+
+          <button
+            type="button"
+            id="bulkPdfZoomOut"
+            title="Zoom out">
+            −
+          </button>
+
+          <span
+            id="bulkPdfZoomLabel"
+            class="vf-bulk-pdf-zoom-label">
+            Fit
+          </span>
+
+          <button
+            type="button"
+            id="bulkPdfZoomIn"
+            title="Zoom in">
+            +
+          </button>
+
+          <button
+            type="button"
+            id="bulkPdfFit"
+            title="Fit certificate to width">
+            Fit
+          </button>
+
+        </div>
+
         <div
           id="bulkCertificatePdfStatus"
           class="vf-bulk-pdf-status">
           Loading PDF…
         </div>
 
-        <iframe
-          id="bulkCertificatePdfFrame"
-          class="vf-bulk-pdf-frame"
-          title="Original certificate PDF">
-        </iframe>
+        <div
+          id="bulkCertificatePdfViewport"
+          class="vf-bulk-pdf-viewport">
+
+          <div
+            id="bulkCertificatePdfPages"
+            class="vf-bulk-pdf-pages">
+          </div>
+
+        </div>
 
       </section>
 
 
       <section class="vf-bulk-review-data-side">
 
-        <div class="vf-bulk-review-column-title">
-          What VendorFlow found
+        <div class="vf-bulk-review-data-header">
+
+          <div class="vf-bulk-review-column-title">
+            What VendorFlow found
+          </div>
+
+          <div class="vf-bulk-edit-actions">
+
+            <button
+              type="button"
+              id="editBulkCertificateExtraction">
+              Edit
+            </button>
+
+            <button
+              type="button"
+              id="saveBulkCertificateCorrections"
+              class="primary hidden">
+              Save corrections
+            </button>
+
+            <button
+              type="button"
+              id="cancelBulkCertificateCorrections"
+              class="hidden">
+              Cancel
+            </button>
+
+            <button
+              type="button"
+              id="restoreBulkCertificateExtraction"
+              class="hidden">
+              Restore VendorFlow reading
+            </button>
+
+          </div>
+
         </div>
 
         <div
           id="bulkCertificateReviewStatus"
           class="vf-bulk-review-status">
+        </div>
+
+        <div
+          id="bulkCertificateVendorEditNotice"
+          class="vf-bulk-vendor-edit-notice hidden">
+          Edited by vendor
         </div>
 
         <div
@@ -1933,5 +2010,6 @@ Thank you,
 </div>
 <div id="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="vendor/pdfjs/pdf.min.js"></script>
 <script type="module" src="app.js"></script>
 </body></html>
