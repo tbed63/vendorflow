@@ -17821,7 +17821,33 @@ function renderBulkCertificateReviewFields(
       </label>
 
       <label>
-        <span>Amount</span>
+        <span>Service amount</span>
+        <input
+          class="input"
+          type="number"
+          min="0"
+          step=".01"
+          data-bulk-edit="serviceAmount"
+          value="${esc(
+            x.serviceAmount ?? ''
+          )}">
+      </label>
+
+      <label>
+        <span>Materials fee</span>
+        <input
+          class="input"
+          type="number"
+          min="0"
+          step=".01"
+          data-bulk-edit="materialsFee"
+          value="${esc(
+            x.materialsFee ?? ''
+          )}">
+      </label>
+
+      <label>
+        <span>Total certificate amount</span>
         <input
           class="input"
           type="number"
@@ -17942,7 +17968,31 @@ function renderBulkCertificateReviewFields(
     </div>
 
     <div>
-      <span>Amount</span>
+      <span>Service amount</span>
+      <strong>
+        ${
+          Number(x.serviceAmount || 0)>0
+            ? money(Number(x.serviceAmount || 0))
+            : 'Not found'
+        }
+      </strong>
+    </div>
+
+    ${
+      Number(x.materialsFee || 0)>0
+        ? `
+          <div>
+            <span>Materials fee</span>
+            <strong>
+              ${money(Number(x.materialsFee || 0))}
+            </strong>
+          </div>
+        `
+        : ''
+    }
+
+    <div>
+      <span>Total certificate amount</span>
       <strong>
         ${
           amount>0
@@ -18094,7 +18144,11 @@ function saveBulkCertificateCorrections(){
         field.value.trim();
 
 
-      if(key==='amount'){
+      if(
+        key==='amount' ||
+        key==='serviceAmount' ||
+        key==='materialsFee'
+      ){
         value=
           value===''
             ? ''
