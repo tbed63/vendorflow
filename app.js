@@ -3501,6 +3501,22 @@ async function createDueInvoices(){
       certificateAmount:
         Number(cert.amount||0),
 
+      serviceAmount:
+        Number(
+          cert.serviceAmount ||
+          Math.max(
+            0,
+            Number(cert.amount||0) -
+            Number(cert.materialsFee||0)
+          )
+        ),
+
+      materialsFee:
+        Math.max(
+          0,
+          Number(cert.materialsFee||0)
+        ),
+
       amount:
         Number(cert.amount||0),
 
@@ -3764,6 +3780,19 @@ async function openInvoicePdf(
           paymentTermsDays
         ),
 
+      serviceAmount:
+        Number(
+          invoice.serviceAmount ??
+          invoice.amount ??
+          0
+        ),
+
+      materialsFee:
+        Math.max(
+          0,
+          Number(invoice.materialsFee||0)
+        ),
+
       amount:
         Number(invoice.amount||0),
 
@@ -4024,6 +4053,19 @@ async function sendInvoiceThroughVendorFlow(
 
     invoiceDate:
       invoice.invoiceDate||'',
+
+    serviceAmount:
+      Number(
+        invoice.serviceAmount ??
+        invoice.amount ??
+        0
+      ),
+
+    materialsFee:
+      Math.max(
+        0,
+        Number(invoice.materialsFee||0)
+      ),
 
     amount:
       Number(invoice.amount||0),
@@ -4707,7 +4749,30 @@ function showInvoiceLedgerDetail(invoice){
       </div>
 
       <div>
-        <small>Amount</small>
+        <small>Service amount</small>
+        <strong>
+          ${money(
+            invoice.serviceAmount ??
+            invoice.amount
+          )}
+        </strong>
+      </div>
+
+      ${
+        Number(invoice.materialsFee||0)>0
+          ? `
+            <div>
+              <small>Materials fee</small>
+              <strong>
+                ${money(invoice.materialsFee)}
+              </strong>
+            </div>
+          `
+          : ''
+      }
+
+      <div>
+        <small>Total</small>
         <strong>${money(invoice.amount)}</strong>
       </div>
 
