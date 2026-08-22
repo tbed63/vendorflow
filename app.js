@@ -17474,6 +17474,16 @@ async function importReadyBulkCertificates(
       options.automatic
     );
 
+  const onlyItemId=
+    String(
+      options.onlyItemId || ''
+    ).trim();
+
+  const skipConfirmation=
+    Boolean(
+      options.skipConfirmation
+    );
+
 
   const button=
     $('#importReadyCertificates');
@@ -17485,7 +17495,11 @@ async function importReadyBulkCertificates(
   const candidates=
     bulkCertificateImportableItems({
       automatic
-    });
+    }).filter(
+      item=>
+        !onlyItemId ||
+        item.id===onlyItemId
+    );
 
 
   if(!candidates.length){
@@ -17505,7 +17519,10 @@ async function importReadyBulkCertificates(
   }
 
 
-  if(!automatic){
+  if(
+    !automatic &&
+    !skipConfirmation
+  ){
 
     const ok=
       confirm(
@@ -19432,7 +19449,7 @@ if($('#approveBulkCertificateReview')){
 
   $('#approveBulkCertificateReview')
     .onclick=
-      ()=>{
+      async ()=>{
 
         const item=
           activeBulkCertificateItem();
@@ -19440,6 +19457,10 @@ if($('#approveBulkCertificateReview')){
         if(!item){
           return;
         }
+
+
+        const button=
+          $('#approveBulkCertificateReview');
 
 
         item.vendorApproved=true;
@@ -19452,18 +19473,129 @@ if($('#approveBulkCertificateReview')){
 
 
         item.message=
-          'Reviewed by vendor — looks correct.';
+          'Reviewed by vendor — approved for import.';
 
 
-        renderBulkCertificateItems();
+        /*
+         * Approval never bypasses safety.
+         * Run all existing readiness checks again.
+         */
+        const readiness=
+          bulkCertificateImportReadiness(
+            item,
+            {
+              automatic:false
+            }
+          );
 
-        closeBulkCertificateReview();
 
-        toast(
-          'Certificate marked ready to import.'
-        );
+        if(!readiness.ready){
+
+          item.state='review';
+
+          item.message=
+            readiness.problems.join(' ');
+
+
+          renderBulkCertificateItems();
+
+          renderBulkCertificateReviewFields(
+            item
+          );
+
+
+          const status=
+            $('#bulkCertificateReviewStatus');
+
+
+          if(status){
+
+            status.innerHTML=
+              '<strong>Cannot import yet</strong>' +
+              readiness.problems
+                .map(
+                  problem=>
+                    `<div class="vf-bulk-review-warning">• ${esc(problem)}</div>`
+                )
+                .join('');
+          }
+
+
+          toast(
+            'This certificate still needs attention before it can be imported.'
+          );
+
+          return;
+        }
+
+
+        if(button){
+
+          button.disabled=true;
+
+          button.textContent=
+            'Importing…';
+        }
+
+
+        try{
+
+          const result=
+            await importReadyBulkCertificates({
+              automatic:false,
+              onlyItemId:item.id,
+              skipConfirmation:true
+            });
+
+
+          if(result?.imported===1){
+
+            closeBulkCertificateReview();
+
+            toast(
+              'Certificate imported successfully.'
+            );
+
+            return;
+          }
+
+
+          /*
+           * A duplicate or last-second safety issue may
+           * deliberately prevent the import.
+           */
+          const current=
+            bulkCertificateItems.find(
+              entry=>
+                entry.id===item.id
+            );
+
+
+          if(current){
+
+            activeBulkCertificateReviewId=
+              current.id;
+
+
+            renderBulkCertificateReviewFields(
+              current
+            );
+          }
+
+
+        }finally{
+
+          if(button){
+
+            button.disabled=false;
+
+            button.textContent=
+              'Looks Good — Import Now';
+          }
+        }
       };
 }
+
 
 
 if($('#doneBulkCertificateReview')){
