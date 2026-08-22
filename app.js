@@ -476,13 +476,38 @@ async function enterApp(){
   await refreshAll();
 }
 
-async function log(action,detail,source='Manual'){
-  await addDoc(sub('history'),{
+async function log(
+  action,
+  detail,
+  source='Manual',
+  evidence=null
+){
+
+  const data={
     action,
     detail,
     source,
-    createdAt:serverTimestamp()
-  });
+
+    createdAt:
+      serverTimestamp()
+  };
+
+
+  if(
+    evidence &&
+    typeof evidence==='object'
+  ){
+
+    data.evidence={
+      ...evidence
+    };
+  }
+
+
+  await addDoc(
+    sub('history'),
+    data
+  );
 }
 
 async function getList(name,ordered=true){
@@ -10943,12 +10968,13 @@ function renderStudentsServices(){
             );
 
         if(
-          linked.length===1 &&
-          linked[0].pdfObjectKey
+          linked.length===1
         ){
-          openCertificatePdf(
-            linked[0].pdfObjectKey
+
+          openSavedCertificateEvidence(
+            linked[0].id
           );
+
           return;
         }
 
@@ -15800,7 +15826,12 @@ function renderRecords(){
   $('#certificateList').innerHTML=
     visibleCertificates.length
     ? visibleCertificates.map(d=>
-        `<div class="record" data-certificate-id="${esc(d.id)}">
+        `<div
+          class="record vf-saved-certificate-record"
+          data-certificate-id="${esc(d.id)}"
+          role="button"
+          tabindex="0"
+          title="Open certificate and evidence">
           <strong>${esc(d.student)} — $${Number(d.amount).toFixed(2)}</strong>
           <div class="meta">${esc(d.school)} · ${esc(d.number)} · ${esc(d.status)}</div>
 
@@ -15848,15 +15879,6 @@ function renderRecords(){
 
           <div class="vf-cert-actions">
 
-            ${d.pdfObjectKey
-              ? `<button
-                   type="button"
-                   class="vf-small-button"
-                   data-cert-pdf="${esc(d.pdfObjectKey)}">
-                   View PDF
-                 </button>`
-              : ''}
-
             <button
               type="button"
               class="vf-cert-delete-button"
@@ -15870,7 +15892,61 @@ function renderRecords(){
       ).join('')
     : '<div class="empty">No certificates yet.</div>';
 
-  wireCertificatePdfButtons();
+  $$('[data-certificate-id]')
+    .forEach(record=>{
+
+      const open=()=>{
+
+        openSavedCertificateEvidence(
+          record.dataset.certificateId
+        );
+      };
+
+
+      record.onclick=
+        event=>{
+
+          /*
+           * Buttons inside the certificate remain their own actions.
+           */
+          if(
+            event.target.closest(
+              '[data-delete-cert], [data-fix-certificate]'
+            )
+          ){
+            return;
+          }
+
+          open();
+        };
+
+
+      record.onkeydown=
+        event=>{
+
+          if(
+            event.key!=='Enter' &&
+            event.key!==' '
+          ){
+            return;
+          }
+
+
+          if(
+            event.target.closest(
+              '[data-delete-cert], [data-fix-certificate]'
+            )
+          ){
+            return;
+          }
+
+
+          event.preventDefault();
+
+          open();
+        };
+    });
+
 
   $$('[data-fix-certificate]')
     .forEach(button=>{
@@ -16082,21 +16158,155 @@ function date(ts){
     : 'Just now';
 }
 
-function renderHistoryInto(el,list){
+function historyCertificateEvidence(
+  item
+){
+
+  const evidence=
+    item?.evidence || {};
+
+
+  /*
+   * New actions use an exact document reference.
+   */
+  if(
+    evidence.type==='certificate' &&
+    evidence.id
+  ){
+
+    return certs.find(
+      cert=>
+        cert.id===evidence.id
+    ) || null;
+  }
+
+
+  /*
+   * Older actions did not store a certificate ID.
+   *
+   * Recover an older relationship ONLY when one unique
+   * certificate number is clearly present in the detail.
+   */
+  const detail=
+    String(
+      item?.detail || ''
+    );
+
+
+  const matches=
+    certs.filter(
+      cert=>
+        cert.number &&
+        detail.includes(
+          String(cert.number)
+        )
+    );
+
+
+  return matches.length===1
+    ? matches[0]
+    : null;
+}
+
+
+function openHistoryEvidence(
+  historyId
+){
+
+  const item=
+    history.find(
+      entry=>
+        entry.id===historyId
+    );
+
+
+  if(!item){
+    return;
+  }
+
+
+  const certificate=
+    historyCertificateEvidence(
+      item
+    );
+
+
+  if(certificate){
+
+    openSavedCertificateEvidence(
+      certificate.id
+    );
+
+    return;
+  }
+
+
+  /*
+   * Every action remains inspectable even if an older record
+   * has no document attached to it.
+   */
+  alert(
+    `${item.action || 'VendorFlow action'}\n\n` +
+    `${item.detail || 'No additional details were recorded.'}\n\n` +
+    `Source: ${item.source || 'VendorFlow'}\n` +
+    `Date: ${date(item.createdAt)}`
+  );
+}
+
+
+function renderHistoryInto(
+  el,
+  list
+){
+
   el.innerHTML=
     list.length
-    ? list.map(d=>
-        `<div class="history">
-          <span>${esc(date(d.createdAt))}</span>
-          <div>
-            <small>${esc(d.source)}</small>
-            <strong>${esc(d.action)}</strong>
-            <div class="meta">${esc(d.detail)}</div>
-          </div>
-        </div>`
-      ).join('')
-    : '<div class="empty">No history yet.</div>';
+      ? list.map(
+          item=>`
+            <button
+              type="button"
+              class="history vf-history-evidence"
+              data-history-evidence="${esc(item.id)}"
+              title="Open action details">
+
+              <span>
+                ${esc(date(item.createdAt))}
+              </span>
+
+              <div>
+                <small>
+                  ${esc(item.source)}
+                </small>
+
+                <strong>
+                  ${esc(item.action)}
+                </strong>
+
+                <div class="meta">
+                  ${esc(item.detail)}
+                </div>
+              </div>
+
+            </button>
+          `
+        ).join('')
+      : '<div class="empty">No history yet.</div>';
+
+
+  $$('[data-history-evidence]')
+    .forEach(
+      button=>{
+
+        button.onclick=()=>{
+
+          openHistoryEvidence(
+            button.dataset.historyEvidence
+          );
+        };
+      }
+    );
 }
+
 
 function renderHistory(){
   renderHistoryInto(
@@ -18424,10 +18634,11 @@ async function importReadyBulkCertificates(
       }
 
 
-      await addDoc(
-        sub('certificates'),
-        data
-      );
+      const importedCertificateRef=
+        await addDoc(
+          sub('certificates'),
+          data
+        );
 
 
       /*
@@ -18456,7 +18667,11 @@ async function importReadyBulkCertificates(
         `${charter.name} certificate for ` +
         `${data.student} — ${money(amount)} — ` +
         `${automatic?'automatic':'bulk'} PDF import.`,
-        'VendorFlow'
+        'VendorFlow',
+        {
+          type:'certificate',
+          id:importedCertificateRef.id
+        }
       );
 
 
@@ -19252,10 +19467,272 @@ function bulkCertificateReference(item){
    BULK CERTIFICATE VENDOR REVIEW / CORRECTIONS
    ========================================================== */
 
+
+let savedCertificateEvidenceMode=false;
+let savedCertificateEvidenceId='';
+
+
+function savedCertificateEvidenceItem(){
+
+  if(
+    !savedCertificateEvidenceMode ||
+    !savedCertificateEvidenceId
+  ){
+    return null;
+  }
+
+
+  const cert=
+    certs.find(
+      item=>
+        item.id===
+        savedCertificateEvidenceId
+    );
+
+
+  if(!cert){
+    return null;
+  }
+
+
+  const extraction={
+    ...(cert.extraction || {}),
+
+    studentName:
+      cert.student ||
+      cert.extraction?.studentName ||
+      '',
+
+    charterSchool:
+      cert.charterSchoolName ||
+      cert.school ||
+      cert.extraction?.charterSchool ||
+      '',
+
+    serviceAmount:
+      Number(
+        cert.serviceAmount ??
+        Math.max(
+          0,
+          Number(cert.amount||0) -
+          Number(cert.materialsFee||0)
+        )
+      ),
+
+    materialsFee:
+      Number(
+        cert.materialsFee || 0
+      ),
+
+    amount:
+      Number(cert.amount||0),
+
+    certificateNumber:
+      cert.number ||
+      cert.extraction?.certificateNumber ||
+      '',
+
+    issueDate:
+      cert.issueDate ||
+      cert.extraction?.issueDate ||
+      '',
+
+    serviceStartDate:
+      cert.serviceStartDate ||
+      cert.extraction?.serviceStartDate ||
+      '',
+
+    serviceEndDate:
+      cert.serviceEndDate ||
+      cert.extraction?.serviceEndDate ||
+      '',
+
+    billingEmail:
+      cert.billingEmail ||
+      cert.charterBillingEmail ||
+      cert.extraction?.billingEmail ||
+      '',
+
+    serviceDescription:
+      cert.serviceDescription ||
+      cert.extraction?.serviceDescription ||
+      '',
+
+    invoiceInstructions:
+      cert.invoiceInstructions ||
+      cert.extraction?.invoiceInstructions ||
+      ''
+  };
+
+
+  return {
+
+    id:
+      `saved-certificate-${cert.id}`,
+
+    state:'saved',
+
+    file:{
+      name:
+        cert.pdfName ||
+        cert.number ||
+        'Saved certificate'
+    },
+
+    result:{
+      objectKey:
+        cert.pdfObjectKey || '',
+
+      originalName:
+        cert.pdfName || '',
+
+      size:
+        Number(cert.pdfSize||0),
+
+      extraction,
+
+      clientValidation:{
+        safe:true,
+        problems:[],
+        warnings:[]
+      }
+    },
+
+    vendorOverrides:{
+      ...extraction
+    },
+
+    savedCertificate:
+      cert
+  };
+}
+
+
+function openSavedCertificateEvidence(
+  certificateId
+){
+
+  const cert=
+    certs.find(
+      item=>
+        item.id===certificateId
+    );
+
+
+  if(!cert){
+    return;
+  }
+
+
+  savedCertificateEvidenceMode=true;
+  savedCertificateEvidenceId=
+    cert.id;
+
+
+  const item=
+    savedCertificateEvidenceItem();
+
+
+  if(!item){
+    return;
+  }
+
+
+  activeBulkCertificateReviewId=
+    item.id;
+
+
+  bulkCertificateEditMode=false;
+
+
+  const title=
+    $('#bulkCertificateReviewTitle');
+
+  if(title){
+
+    title.textContent=
+      cert.student ||
+      cert.number ||
+      'Certificate';
+  }
+
+
+  const status=
+    $('#bulkCertificateReviewStatus');
+
+  if(status){
+
+    status.innerHTML=
+      '<strong>Saved certificate</strong>' +
+      '<div>This certificate is already recorded in VendorFlow.</div>';
+  }
+
+
+  /*
+   * Saved evidence is for checking the record, not importing it.
+   */
+  const approve=
+    $('#approveBulkCertificateReview');
+
+  if(approve){
+
+    approve.classList.add(
+      'hidden'
+    );
+  }
+
+
+  const edit=
+    $('#editBulkCertificateExtraction');
+
+  if(edit){
+
+    edit.classList.add(
+      'hidden'
+    );
+  }
+
+
+  const done=
+    $('#doneBulkCertificateReview');
+
+  if(done){
+
+    done.classList.remove(
+      'hidden'
+    );
+  }
+
+
+  renderBulkCertificateReviewFields(
+    item
+  );
+
+
+  show(
+    $('#bulkCertificateReviewModal')
+  );
+
+
+  loadBulkCertificatePdf(
+    item
+  );
+}
+
+
 let bulkCertificateEditMode=false;
 
 
 function activeBulkCertificateItem(){
+
+  if(savedCertificateEvidenceMode){
+
+    return (
+      savedCertificateEvidenceItem() ||
+      null
+    );
+  }
+
 
   return bulkCertificateItems.find(
     item=>
@@ -20081,6 +20558,31 @@ function closeBulkCertificateReview(){
   activeBulkCertificateReviewId='';
 
   bulkCertificateEditMode=false;
+
+  savedCertificateEvidenceMode=false;
+  savedCertificateEvidenceId='';
+
+
+  const approve=
+    $('#approveBulkCertificateReview');
+
+  if(approve){
+
+    approve.classList.remove(
+      'hidden'
+    );
+  }
+
+
+  const edit=
+    $('#editBulkCertificateExtraction');
+
+  if(edit){
+
+    edit.classList.remove(
+      'hidden'
+    );
+  }
 
   clearBulkCertificatePdf();
 

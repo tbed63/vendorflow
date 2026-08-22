@@ -5434,3 +5434,32 @@ button.vf-certificate-problem:focus-visible{
   filter:brightness(.98);
 }
 
+
+/* ==========================================================
+   SAVED CERTIFICATE + ACTION EVIDENCE
+   ========================================================== */
+
+.vf-saved-certificate-record{
+  cursor:pointer;
+}
+
+.vf-saved-certificate-record:hover,
+.vf-saved-certificate-record:focus-visible{
+  border-color:rgba(26,52,111,.48);
+  background:rgba(244,247,252,.75);
+  outline:none;
+}
+
+button.history.vf-history-evidence{
+  width:100%;
+  color:inherit;
+  font:inherit;
+  text-align:left;
+  cursor:pointer;
+}
+
+button.history.vf-history-evidence:hover,
+button.history.vf-history-evidence:focus-visible{
+  background:rgba(244,247,252,.85);
+}
+
