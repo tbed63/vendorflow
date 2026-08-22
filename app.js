@@ -16167,7 +16167,7 @@ function historyCertificateEvidence(
 
 
   /*
-   * New actions use an exact document reference.
+   * New actions: exact evidence ID.
    */
   if(
     evidence.type==='certificate' &&
@@ -16181,19 +16181,17 @@ function historyCertificateEvidence(
   }
 
 
-  /*
-   * Older actions did not store a certificate ID.
-   *
-   * Recover an older relationship ONLY when one unique
-   * certificate number is clearly present in the detail.
-   */
   const detail=
     String(
       item?.detail || ''
     );
 
 
-  const matches=
+  /*
+   * Older actions often include the certificate / PO number.
+   * This is the strongest legacy relationship.
+   */
+  const numberMatches=
     certs.filter(
       cert=>
         cert.number &&
@@ -16203,9 +16201,113 @@ function historyCertificateEvidence(
     );
 
 
-  return matches.length===1
-    ? matches[0]
-    : null;
+  if(numberMatches.length===1){
+
+    return numberMatches[0];
+  }
+
+
+  /*
+   * Older "Certificate added" actions created before evidence
+   * IDs often contain:
+   *
+   * charter + student + dollar amount.
+   *
+   * Resolve only when that combination identifies ONE record.
+   */
+  if(
+    String(
+      item?.action || ''
+    )
+      .toLowerCase()
+      .includes('certificate')
+  ){
+
+    const lowerDetail=
+      detail.toLowerCase();
+
+
+    let candidates=
+      certs.filter(
+        cert=>{
+
+          const student=
+            String(
+              cert.student || ''
+            ).trim();
+
+
+          if(
+            !student ||
+            !lowerDetail.includes(
+              student.toLowerCase()
+            )
+          ){
+            return false;
+          }
+
+
+          const amountText=
+            money(
+              Number(
+                cert.amount || 0
+              )
+            );
+
+
+          return (
+            amountText &&
+            detail.includes(
+              amountText
+            )
+          );
+        }
+      );
+
+
+    if(candidates.length>1){
+
+      const charterFiltered=
+        candidates.filter(
+          cert=>{
+
+            const charter=
+              String(
+                cert.charterSchoolName ||
+                cert.school ||
+                ''
+              ).trim();
+
+
+            return (
+              charter &&
+              lowerDetail.includes(
+                charter.toLowerCase()
+              )
+            );
+          }
+        );
+
+
+      if(charterFiltered.length){
+
+        candidates=
+          charterFiltered;
+      }
+    }
+
+
+    if(candidates.length===1){
+
+      return candidates[0];
+    }
+  }
+
+
+  /*
+   * Ambiguous history never guesses.
+   */
+  return null;
 }
 
 
@@ -19687,7 +19789,7 @@ function openSavedCertificateEvidence(
 
   if(edit){
 
-    edit.classList.add(
+    edit.classList.remove(
       'hidden'
     );
   }
@@ -19809,6 +19911,7 @@ function setBulkCertificateEditMode(
 
     restore.classList.toggle(
       'hidden',
+      savedCertificateEvidenceMode ||
       !bulkCertificateEditMode ||
       !item?.vendorEdited
     );
@@ -20356,7 +20459,488 @@ function cancelBulkCertificateEdit(){
 }
 
 
-function saveBulkCertificateCorrections(){
+
+async function saveSavedCertificateEvidenceCorrections(
+  item,
+  overrides
+){
+
+  const cert=
+    item?.savedCertificate;
+
+
+  if(
+    !cert ||
+    !cert.id
+  ){
+    return;
+  }
+
+
+  const status=
+    $('#bulkCertificateReviewStatus');
+
+  const saveButton=
+    $('#saveBulkCertificateCorrections');
+
+
+  const showProblem=
+    message=>{
+
+      if(status){
+
+        status.innerHTML=
+          '<strong>Cannot save yet</strong>' +
+          `<div class="vf-bulk-review-warning">${esc(message)}</div>`;
+      }
+    };
+
+
+  const studentName=
+    String(
+      overrides.studentName || ''
+    ).trim();
+
+
+  const student=
+    exactBulkCertificateStudent(
+      studentName
+    );
+
+
+  if(!student){
+
+    showProblem(
+      'Student must match one saved VendorFlow student.'
+    );
+
+    return;
+  }
+
+
+  const charterName=
+    String(
+      overrides.charterSchool || ''
+    ).trim();
+
+
+  const charterResolution=
+    resolveSavedCharterMatch(
+      charterName
+    );
+
+
+  const charter=
+    charterResolution.charter;
+
+
+  if(!charter){
+
+    showProblem(
+      'Choose a charter school that matches one saved VendorFlow charter.'
+    );
+
+    return;
+  }
+
+
+  const amount=
+    Number(
+      overrides.amount || 0
+    );
+
+
+  const materialsFee=
+    Math.max(
+      0,
+      Number(
+        overrides.materialsFee || 0
+      )
+    );
+
+
+  let serviceAmount=
+    overrides.serviceAmount;
+
+
+  if(
+    serviceAmount==='' ||
+    serviceAmount===undefined ||
+    serviceAmount===null
+  ){
+
+    serviceAmount=
+      Math.max(
+        0,
+        amount-materialsFee
+      );
+
+  }else{
+
+    serviceAmount=
+      Math.max(
+        0,
+        Number(serviceAmount)
+      );
+  }
+
+
+  if(!(amount>0)){
+
+    showProblem(
+      'Total certificate amount must be greater than zero.'
+    );
+
+    return;
+  }
+
+
+  if(
+    Math.abs(
+      (
+        Number(serviceAmount) +
+        Number(materialsFee)
+      ) -
+      amount
+    ) > .009
+  ){
+
+    showProblem(
+      'Service amount plus materials fee must equal the total certificate amount.'
+    );
+
+    return;
+  }
+
+
+  const number=
+    String(
+      overrides.certificateNumber || ''
+    ).trim();
+
+
+  if(!number){
+
+    showProblem(
+      'Certificate / PO number is required.'
+    );
+
+    return;
+  }
+
+
+  const duplicate=
+    findDuplicateCertificate({
+      number
+    });
+
+
+  if(
+    duplicate &&
+    duplicate.id!==cert.id
+  ){
+
+    showProblem(
+      'That certificate / PO number already belongs to another certificate.'
+    );
+
+    return;
+  }
+
+
+  const serviceStartDate=
+    String(
+      overrides.serviceStartDate || ''
+    ).trim();
+
+
+  if(!serviceStartDate){
+
+    showProblem(
+      'Service start date is required.'
+    );
+
+    return;
+  }
+
+
+  const invoiceSchedule=
+    certificateInvoiceSchedule(
+      serviceStartDate,
+      charter
+    );
+
+
+  const originalExtraction={
+    ...(cert.extraction || {})
+  };
+
+
+  const vendorCorrections={
+
+    studentName:
+      student.studentName ||
+      studentName,
+
+    charterSchool:
+      charter.name,
+
+    serviceAmount,
+
+    materialsFee,
+
+    amount,
+
+    certificateNumber:
+      number,
+
+    issueDate:
+      String(
+        overrides.issueDate || ''
+      ).trim(),
+
+    serviceStartDate,
+
+    serviceEndDate:
+      String(
+        overrides.serviceEndDate || ''
+      ).trim(),
+
+    billingEmail:
+      String(
+        overrides.billingEmail ||
+        charter.billingEmail ||
+        ''
+      ).trim(),
+
+    serviceDescription:
+      String(
+        overrides.serviceDescription || ''
+      ).trim(),
+
+    invoiceInstructions:
+      String(
+        overrides.invoiceInstructions || ''
+      ).trim()
+  };
+
+
+  const update={
+
+    studentId:
+      student.id,
+
+    student:
+      student.studentName ||
+      studentName,
+
+    parentName:
+      student.parentName || '',
+
+    parentEmail:
+      student.parentEmail || '',
+
+
+    school:
+      charter.name,
+
+    charterSchoolId:
+      charter.id,
+
+    charterSchoolName:
+      charter.name,
+
+    charterMatched:true,
+
+    charterBillingEmail:
+      charter.billingEmail || '',
+
+    charterAddress:
+      charter.address || '',
+
+    charterCity:
+      charter.city || '',
+
+    charterState:
+      charter.state || '',
+
+    charterZip:
+      charter.zip || '',
+
+
+    amount,
+
+    serviceAmount,
+
+    materialsFee,
+
+    number,
+
+    issueDate:
+      vendorCorrections.issueDate,
+
+    serviceStartDate,
+
+    serviceEndDate:
+      vendorCorrections.serviceEndDate,
+
+    billingEmail:
+      vendorCorrections.billingEmail,
+
+    serviceDescription:
+      vendorCorrections.serviceDescription,
+
+    invoiceInstructions:
+      vendorCorrections.invoiceInstructions,
+
+
+    invoiceDaysAfterStart:
+      invoiceSchedule.days,
+
+    invoiceReadyDate:
+      invoiceSchedule.readyDate,
+
+    invoiceScheduleValid:
+      Boolean(
+        invoiceSchedule.valid
+      ),
+
+    invoiceScheduleSource:
+      'Charter school settings',
+
+
+    /*
+     * Preserve VendorFlow's original extraction.
+     * Human corrections are kept separately for auditability.
+     */
+    extraction:
+      originalExtraction,
+
+    vendorCorrections,
+
+    vendorEdited:true,
+
+    updatedAt:
+      serverTimestamp()
+  };
+
+
+  if(saveButton){
+
+    saveButton.disabled=true;
+
+    saveButton.textContent=
+      'Saving…';
+  }
+
+
+  try{
+
+    await setDoc(
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'certificates',
+        cert.id
+      ),
+      update,
+      {
+        merge:true
+      }
+    );
+
+
+    if(
+      charterResolution.type==='strong' &&
+      charterName
+    ){
+
+      await rememberCharterAlias(
+        charter,
+        charterName
+      );
+    }
+
+
+    await log(
+      'Certificate updated',
+      `${update.student} — ${money(amount)} — certificate evidence corrected.`,
+      'Manual',
+      {
+        type:'certificate',
+        id:cert.id
+      }
+    );
+
+
+    /*
+     * Student balances, receivables, invoice readiness,
+     * certificate lists and history are all derived from
+     * the saved records, so refresh everything after the write.
+     */
+    await refreshAll();
+
+
+    setBulkCertificateEditMode(
+      false
+    );
+
+
+    const refreshed=
+      savedCertificateEvidenceItem();
+
+
+    if(refreshed){
+
+      renderBulkCertificateReviewFields(
+        refreshed
+      );
+
+      updateBulkVendorEditNotice(
+        {
+          vendorEdited:true
+        }
+      );
+    }
+
+
+    if(status){
+
+      status.innerHTML=
+        '<strong>Saved</strong>' +
+        '<div>Certificate corrections have been saved to VendorFlow.</div>';
+    }
+
+
+  }catch(error){
+
+    console.error(
+      'Saved certificate evidence update failed:',
+      error
+    );
+
+
+    showProblem(
+      error?.message ||
+      'VendorFlow could not save these certificate corrections.'
+    );
+
+
+  }finally{
+
+    if(saveButton){
+
+      saveButton.disabled=false;
+
+      saveButton.textContent=
+        'Save corrections';
+    }
+  }
+}
+
+
+async function saveBulkCertificateCorrections(){
 
   const item=
     activeBulkCertificateItem();
@@ -20396,6 +20980,22 @@ function saveBulkCertificateCorrections(){
 
       overrides[key]=value;
     });
+
+
+  /*
+   * An already-imported certificate is a REAL account record.
+   * Save through the persistent certificate update path rather
+   * than mutating the temporary intake object.
+   */
+  if(savedCertificateEvidenceMode){
+
+    await saveSavedCertificateEvidenceCorrections(
+      item,
+      overrides
+    );
+
+    return;
+  }
 
 
   /*
