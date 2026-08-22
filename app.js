@@ -17330,7 +17330,7 @@ async function loadBulkCertificatePdf(
 
       frame.src=
         activeBulkCertificatePdfUrl +
-        '#view=FitH';
+        '#view=FitH&pagemode=none&navpanes=0';
     }
 
 
