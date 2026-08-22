@@ -870,6 +870,8 @@ function renderAll(){
   renderStudentsServices();
   renderRefundStudentSelect();
   renderRecords();
+
+  renderCertificateReviewPreference();
   renderInvoices();
   renderReviews();
   renderHistory();
@@ -16550,6 +16552,130 @@ installVendorFlowBranding();setAuthMode('login');
 let bulkCertificateItems=[];
 
 
+
+function vendorReviewsCertificatesBeforeImport(){
+
+  /*
+   * Default ON for every vendor unless they explicitly
+   * turn the preference off.
+   */
+  return (
+    profile?.reviewCertificatesBeforeImport !== false
+  );
+}
+
+
+function renderCertificateReviewPreference(){
+
+  const input=
+    $('#reviewCertificatesBeforeImport');
+
+  if(!input){
+    return;
+  }
+
+
+  input.checked=
+    vendorReviewsCertificatesBeforeImport();
+}
+
+
+async function saveCertificateReviewPreference(){
+
+  const input=
+    $('#reviewCertificatesBeforeImport');
+
+  if(!input || !user){
+    return;
+  }
+
+
+  const enabled=
+    Boolean(
+      input.checked
+    );
+
+
+  try{
+
+    await setDoc(
+      vendorDoc(),
+      {
+        reviewCertificatesBeforeImport:
+          enabled,
+
+        updatedAt:
+          serverTimestamp()
+      },
+      {
+        merge:true
+      }
+    );
+
+
+    profile={
+      ...profile,
+
+      reviewCertificatesBeforeImport:
+        enabled
+    };
+
+
+    renderBulkCertificateItems();
+
+
+    toast(
+      enabled
+        ? 'VendorFlow will wait for you to review certificates before importing.'
+        : 'VendorFlow will automatically import certificates it can verify safely.'
+    );
+
+
+    /*
+     * If the vendor turns review OFF while a batch is already
+     * waiting, immediately finalize only the certificates that
+     * meet the stricter automatic-import rules.
+     */
+    if(
+      !enabled &&
+      bulkCertificateItems.length
+    ){
+
+      await importReadyBulkCertificates({
+        automatic:true
+      });
+    }
+
+
+  }catch(error){
+
+    console.error(
+      'Could not save certificate review preference:',
+      error
+    );
+
+
+    input.checked=
+      vendorReviewsCertificatesBeforeImport();
+
+
+    toast(
+      'VendorFlow could not save that preference.'
+    );
+  }
+}
+
+
+if($('#reviewCertificatesBeforeImport')){
+
+  $('#reviewCertificatesBeforeImport')
+    .addEventListener(
+      'change',
+      saveCertificateReviewPreference
+    );
+}
+
+
 function bulkCertificateItemId(){
 
   return (
@@ -16639,6 +16765,243 @@ function updateBulkCertificateSummary(){
 }
 
 
+
+function exactBulkCertificateStudent(
+  name
+){
+
+  const target=
+    normalizedName(
+      name || ''
+    );
+
+  if(!target){
+    return null;
+  }
+
+
+  const matches=
+    students.filter(
+      student=>
+        normalizedName(
+          student.studentName || ''
+        )===target
+    );
+
+
+  return matches.length===1
+    ? matches[0]
+    : null;
+}
+
+
+function bulkCertificateImportReadiness(
+  item,
+  options={}
+){
+
+  const automatic=
+    Boolean(
+      options.automatic
+    );
+
+
+  const x=
+    bulkCertificateVendorExtraction(
+      item
+    );
+
+
+  const student=
+    exactBulkCertificateStudent(
+      x.studentName ||
+      x.student ||
+      x.learnerName ||
+      ''
+    );
+
+
+  const charter=
+    findSavedCharterByName(
+      x.charterSchool ||
+      x.charterSchoolName ||
+      x.schoolName ||
+      x.school ||
+      ''
+    );
+
+
+  const amount=
+    Number(
+      x.amount ||
+      x.certificateAmount ||
+      0
+    );
+
+
+  const number=
+    String(
+      x.certificateNumber ||
+      x.purchaseOrderNumber ||
+      ''
+    ).trim();
+
+
+  const serviceStartDate=
+    String(
+      x.serviceStartDate ||
+      ''
+    ).trim();
+
+
+  /*
+   * Automatic importing is deliberately stricter.
+   *
+   * It may use only a clean VendorFlow "ready" result.
+   * A Needs Review item never slips through automatically.
+   */
+  const reviewed=
+    automatic
+      ? item.state==='ready'
+      : (
+          item.vendorEdited ||
+          item.vendorApproved
+        );
+
+
+  const problems=[];
+
+
+  if(!reviewed){
+
+    problems.push(
+      automatic
+        ? 'VendorFlow flagged this certificate for review.'
+        : 'Open this certificate and either save a correction or choose Looks correct before importing.'
+    );
+  }
+
+
+  if(!student){
+
+    problems.push(
+      'Student does not exactly match one saved VendorFlow student.'
+    );
+  }
+
+
+  if(!charter){
+
+    problems.push(
+      'Charter school does not exactly match one saved charter school.'
+    );
+  }
+
+
+  if(!(amount>0)){
+
+    problems.push(
+      'Certificate amount is missing.'
+    );
+  }
+
+
+  if(!number){
+
+    problems.push(
+      'Certificate / PO number is missing.'
+    );
+  }
+
+
+  if(!item?.result?.objectKey){
+
+    problems.push(
+      'Original PDF is not securely stored.'
+    );
+  }
+
+
+  if(!serviceStartDate){
+
+    problems.push(
+      'Service start date is required.'
+    );
+  }
+
+
+  return {
+
+    ready:
+      problems.length===0,
+
+    problems,
+
+    student,
+
+    charter,
+
+    extraction:x,
+
+    amount,
+
+    number,
+
+    serviceStartDate
+  };
+}
+
+
+function bulkCertificateImportableItems(
+  options={}
+){
+
+  return bulkCertificateItems.filter(
+    item=>
+      bulkCertificateImportReadiness(
+        item,
+        options
+      ).ready
+  );
+}
+
+
+function updateBulkCertificateImportButton(){
+
+  const button=
+    $('#importReadyCertificates');
+
+  if(!button){
+    return;
+  }
+
+
+  const count=
+    bulkCertificateImportableItems()
+      .length;
+
+
+  const manualReview=
+    vendorReviewsCertificatesBeforeImport();
+
+
+  button.classList.toggle(
+    'hidden',
+    !manualReview
+  );
+
+
+  button.disabled=
+    count===0;
+
+
+  button.textContent=
+    count
+      ? `Import ${count} ready certificate${count===1?'':'s'}`
+      : 'Import ready certificates';
+}
+
+
 function bulkCertificateStateLabel(item){
 
   if(item.state==='reading'){
@@ -16655,6 +17018,10 @@ function bulkCertificateStateLabel(item){
 
   if(item.state==='error'){
     return 'Could not read';
+  }
+
+  if(item.state==='imported'){
+    return 'Imported';
   }
 
   return 'Waiting';
@@ -16815,6 +17182,8 @@ function renderBulkCertificateItems(){
 
 
   updateBulkCertificateSummary();
+
+  updateBulkCertificateImportButton();
 
   wireBulkCertificateReviewRows();
 }
@@ -17069,8 +17438,502 @@ async function processBulkCertificateBatch(){
       `${ready} read successfully` +
       `${review ? ` · ${review} need review` : ''}` +
       `${errors ? ` · ${errors} could not be read` : ''}. ` +
-      `Nothing has been added to the account yet.`;
+      (
+        vendorReviewsCertificatesBeforeImport()
+          ? `Nothing has been added to the account yet.`
+          : `VendorFlow is finalizing certificates it can verify safely.`
+      );
   }
+
+
+  /*
+   * When review is OFF, only clean Ready items with exact
+   * student/charter matches and all required information are
+   * eligible for automatic import.
+   *
+   * Needs Review / duplicate / ambiguous records remain stopped.
+   */
+  if(
+    !vendorReviewsCertificatesBeforeImport()
+  ){
+
+    await importReadyBulkCertificates({
+      automatic:true
+    });
+  }
+}
+
+
+
+async function importReadyBulkCertificates(
+  options={}
+){
+
+  const automatic=
+    Boolean(
+      options.automatic
+    );
+
+
+  const button=
+    $('#importReadyCertificates');
+
+  const status=
+    $('#bulkCertificateStatus');
+
+
+  const candidates=
+    bulkCertificateImportableItems({
+      automatic
+    });
+
+
+  if(!candidates.length){
+
+    if(!automatic){
+
+      toast(
+        'No certificates are ready to import yet.'
+      );
+    }
+
+    return {
+      imported:0,
+      duplicates:0,
+      skipped:0
+    };
+  }
+
+
+  if(!automatic){
+
+    const ok=
+      confirm(
+        `Import ${candidates.length} ready certificate` +
+        `${candidates.length===1?'':'s'}?\n\n` +
+        `VendorFlow will add these certificate records now.\n\n` +
+        `Possible duplicates will be sent to Needs Review instead of being imported twice.`
+      );
+
+
+    if(!ok){
+      return {
+        imported:0,
+        duplicates:0,
+        skipped:0
+      };
+    }
+  }
+
+
+  if(button){
+
+    button.disabled=true;
+
+    button.textContent=
+      automatic
+        ? 'Finalizing certificates…'
+        : 'Importing certificates…';
+  }
+
+
+  let imported=0;
+  let duplicates=0;
+  let skipped=0;
+
+
+  try{
+
+    for(
+      let index=0;
+      index<candidates.length;
+      index++
+    ){
+
+      const item=
+        candidates[index];
+
+
+      const readiness=
+        bulkCertificateImportReadiness(
+          item,
+          {
+            automatic
+          }
+        );
+
+
+      /*
+       * Re-check immediately before every Firestore write.
+       */
+      if(!readiness.ready){
+
+        item.state='review';
+
+        item.message=
+          readiness.problems.join(' ');
+
+        skipped++;
+
+        continue;
+      }
+
+
+      const {
+        student,
+        charter,
+        extraction:x,
+        amount,
+        number,
+        serviceStartDate
+      }=readiness;
+
+
+      const invoiceSchedule=
+        certificateInvoiceSchedule(
+          serviceStartDate,
+          charter
+        );
+
+
+      const materialsFee=
+        Math.max(
+          0,
+          Number(
+            x.materialsFee || 0
+          )
+        );
+
+
+      const serviceAmount=
+        Math.max(
+          0,
+          Number(
+            x.serviceAmount ||
+            Math.max(
+              0,
+              amount-materialsFee
+            )
+          )
+        );
+
+
+      const data={
+
+        studentId:
+          student.id,
+
+        student:
+          student.studentName ||
+          String(
+            x.studentName || ''
+          ).trim(),
+
+        parentName:
+          student.parentName || '',
+
+        parentEmail:
+          student.parentEmail || '',
+
+
+        school:
+          charter.name,
+
+        charterSchoolId:
+          charter.id,
+
+        charterSchoolName:
+          charter.name,
+
+        charterMatched:
+          true,
+
+        charterBillingEmail:
+          charter.billingEmail || '',
+
+        charterAddress:
+          charter.address || '',
+
+        charterCity:
+          charter.city || '',
+
+        charterState:
+          charter.state || '',
+
+        charterZip:
+          charter.zip || '',
+
+
+        serviceAmount,
+
+        materialsFee,
+
+        amount,
+
+        number,
+
+        status:
+          'Received - Not Billed',
+
+        source:
+          automatic
+            ? 'Automatic PDF import'
+            : 'Bulk PDF import',
+
+        matchedBy:
+          'Exact student + charter match',
+
+
+        pdfObjectKey:
+          item.result?.objectKey || '',
+
+        pdfName:
+          item.result?.originalName ||
+          item.file?.name ||
+          '',
+
+        pdfSize:
+          Number(
+            item.result?.size ||
+            item.file?.size ||
+            0
+          ),
+
+        pdfStored:
+          Boolean(
+            item.result?.objectKey
+          ),
+
+
+        issueDate:
+          String(
+            x.issueDate || ''
+          ).trim(),
+
+        serviceStartDate,
+
+        serviceEndDate:
+          String(
+            x.serviceEndDate || ''
+          ).trim(),
+
+        serviceDescription:
+          String(
+            x.serviceDescription || ''
+          ).trim(),
+
+        billingEmail:
+          String(
+            x.billingEmail ||
+            charter.billingEmail ||
+            ''
+          ).trim(),
+
+        invoiceInstructions:
+          String(
+            x.invoiceInstructions || ''
+          ).trim(),
+
+
+        invoiceDaysAfterStart:
+          invoiceSchedule.days,
+
+        paymentTermsDays:
+          invoicePaymentTermsDays(
+            charter.paymentTermsDays
+          ),
+
+        invoiceReadyDate:
+          invoiceSchedule.readyDate,
+
+        invoiceScheduleValid:
+          Boolean(
+            invoiceSchedule.valid
+          ),
+
+        invoiceScheduleSource:
+          'Charter school settings',
+
+
+        notes:'',
+
+        extraction:{
+          ...x
+        },
+
+        extractionConfidence:
+          Number(
+            x.confidence || 0
+          ),
+
+        extractionNeedsReview:
+          false,
+
+
+        bulkImported:
+          true,
+
+        automaticallyImported:
+          automatic,
+
+        vendorReviewed:
+          Boolean(
+            item.vendorEdited ||
+            item.vendorApproved
+          ),
+
+        createdAt:
+          serverTimestamp(),
+
+        updatedAt:
+          serverTimestamp()
+      };
+
+
+      const duplicateCertificate=
+        findDuplicateCertificate(
+          data
+        );
+
+
+      if(duplicateCertificate){
+
+        await queueDuplicateReview(
+          'certificate',
+          data,
+          duplicateCertificate
+        );
+
+
+        item.state='review';
+
+        item.message=
+          'Possible duplicate — sent to Needs Review.';
+
+        duplicates++;
+
+        continue;
+      }
+
+
+      await addDoc(
+        sub('certificates'),
+        data
+      );
+
+
+      await log(
+        'Certificate added',
+        `${charter.name} certificate for ` +
+        `${data.student} — ${money(amount)} — ` +
+        `${automatic?'automatic':'bulk'} PDF import.`,
+        'VendorFlow'
+      );
+
+
+      item.state='imported';
+
+      item.message=
+        'Imported successfully.';
+
+      imported++;
+
+
+      if(status){
+
+        status.textContent=
+          automatic
+            ? `Finalizing certificate ${index+1} of ${candidates.length}…`
+            : `Importing certificate ${index+1} of ${candidates.length}…`;
+      }
+    }
+
+
+    await refreshAll();
+
+
+    bulkCertificateItems=
+      bulkCertificateItems.filter(
+        item=>
+          item.state!=='imported'
+      );
+
+
+    renderBulkCertificateItems();
+
+
+    const summary=
+      `${imported} imported` +
+      `${duplicates ? ` · ${duplicates} possible duplicate${duplicates===1?'':'s'} sent to review` : ''}` +
+      `${skipped ? ` · ${skipped} skipped` : ''}.`;
+
+
+    if(status){
+
+      status.textContent=
+        summary;
+    }
+
+
+    if(
+      !automatic ||
+      duplicates ||
+      skipped
+    ){
+
+      toast(
+        summary
+      );
+    }
+
+
+    return {
+      imported,
+      duplicates,
+      skipped
+    };
+
+
+  }catch(error){
+
+    console.error(
+      'Certificate import failed:',
+      error
+    );
+
+
+    toast(
+      error?.message ||
+      'VendorFlow could not finish importing the certificates.'
+    );
+
+
+    return {
+      imported,
+      duplicates,
+      skipped,
+      error
+    };
+
+
+  }finally{
+
+    renderBulkCertificateItems();
+
+    updateBulkCertificateImportButton();
+  }
+}
+
+
+if($('#importReadyCertificates')){
+
+  $('#importReadyCertificates')
+    .addEventListener(
+      'click',
+      ()=>importReadyBulkCertificates({
+        automatic:false
+      })
+    );
 }
 
 
@@ -18561,6 +19424,45 @@ if($('#closeBulkCertificateReview')){
   $('#closeBulkCertificateReview')
     .onclick=
       closeBulkCertificateReview;
+}
+
+
+
+if($('#approveBulkCertificateReview')){
+
+  $('#approveBulkCertificateReview')
+    .onclick=
+      ()=>{
+
+        const item=
+          activeBulkCertificateItem();
+
+        if(!item){
+          return;
+        }
+
+
+        item.vendorApproved=true;
+
+
+        if(item.state==='review'){
+
+          item.state='ready';
+        }
+
+
+        item.message=
+          'Reviewed by vendor — looks correct.';
+
+
+        renderBulkCertificateItems();
+
+        closeBulkCertificateReview();
+
+        toast(
+          'Certificate marked ready to import.'
+        );
+      };
 }
 
 
