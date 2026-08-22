@@ -21574,3 +21574,224 @@ if($('#bulkCertificateReviewModal')){
 
 
 
+
+
+/* ==========================================================
+   EVIDENCE CLICK SAFETY ROUTER
+
+   This is intentionally isolated at the end of app.js.
+
+   It does not replace or modify the existing render logic.
+   It intercepts only:
+     - Students & Services → View certificate
+     - History / Actions → evidence row
+
+   Capture phase prevents another handler from swallowing
+   these clicks before VendorFlow can respond.
+   ========================================================== */
+
+function vfEvidenceClickCapture(event){
+
+  const target=
+    event.target instanceof Element
+      ? event.target
+      : null;
+
+
+  if(!target){
+    return;
+  }
+
+
+  /*
+   * STUDENT → VIEW CERTIFICATE
+   */
+  const studentButton=
+    target.closest(
+      '[data-student-certificate]'
+    );
+
+
+  if(studentButton){
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+
+    try{
+
+      const student=
+        students.find(
+          item=>
+            item.id===
+            studentButton.dataset.studentCertificate
+        );
+
+
+      if(!student){
+
+        toast(
+          'VendorFlow could not find this student.'
+        );
+
+        return;
+      }
+
+
+      const linked=
+        studentCertificates(
+          student.studentName
+        )
+          .filter(
+            cert=>
+              !cert.deleted &&
+              ![
+                'cancelled',
+                'deleted'
+              ].includes(
+                String(cert.status||'')
+                  .toLowerCase()
+              )
+          );
+
+
+      if(linked.length===1){
+
+        openSavedCertificateEvidence(
+          linked[0].id
+        );
+
+        return;
+      }
+
+
+      if(linked.length===0){
+
+        toast(
+          'VendorFlow could not find a saved certificate for this student.'
+        );
+
+        return;
+      }
+
+
+      /*
+       * More than one certificate:
+       * go to Certificates and show this student's records.
+       */
+      switchView(
+        'certificates'
+      );
+
+
+      requestAnimationFrame(
+        ()=>{
+
+          const list=
+            $('#certificateList');
+
+          if(!list){
+            return;
+          }
+
+
+          const wanted=
+            normalizedName(
+              student.studentName
+            );
+
+
+          Array.from(
+            list.querySelectorAll(
+              '[data-certificate-id]'
+            )
+          )
+            .forEach(
+              record=>{
+
+                const text=
+                  normalizedName(
+                    record.textContent || ''
+                  );
+
+
+                record.style.display=
+                  text.includes(wanted)
+                    ? ''
+                    : 'none';
+              }
+            );
+        }
+      );
+
+
+    }catch(error){
+
+      console.error(
+        'Student certificate evidence click failed:',
+        error
+      );
+
+
+      toast(
+        'Certificate could not open: ' +
+        (
+          error?.message ||
+          'unknown error'
+        )
+      );
+    }
+
+
+    return;
+  }
+
+
+  /*
+   * ACTION / HISTORY → EVIDENCE
+   */
+  const historyButton=
+    target.closest(
+      '[data-history-evidence]'
+    );
+
+
+  if(historyButton){
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+
+    try{
+
+      openHistoryEvidence(
+        historyButton.dataset.historyEvidence
+      );
+
+
+    }catch(error){
+
+      console.error(
+        'History evidence click failed:',
+        error
+      );
+
+
+      toast(
+        'Action details could not open: ' +
+        (
+          error?.message ||
+          'unknown error'
+        )
+      );
+    }
+  }
+}
+
+
+document.addEventListener(
+  'click',
+  vfEvidenceClickCapture,
+  true
+);
+
