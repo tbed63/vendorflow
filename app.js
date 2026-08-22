@@ -2418,22 +2418,325 @@ function normalizedCharterName(value){
 }
 
 
-function findSavedCharterByName(name){
+/*
+ * Strong comparison form used only for matching.
+ *
+ * Examples:
+ *
+ * Pacific Coast Academy
+ * Pacific Coast Academy (PCA)
+ *
+ * both become:
+ *
+ * pacific coast academy
+ *
+ * We deliberately remove only a TRAILING parenthetical
+ * abbreviation/name note. We do not broadly delete words.
+ */
+function comparableCharterName(value){
+
+  return normalizedCharterName(
+    value
+  )
+    .replace(
+      /\s*\([^)]{1,30}\)\s*$/,
+      ''
+    )
+    .replace(
+      /[.,]/g,
+      ''
+    )
+    .replace(
+      /\s+/g,
+      ' '
+    )
+    .trim();
+}
+
+
+function savedCharterAliases(
+  charter
+){
+
+  const raw=
+    Array.isArray(
+      charter?.aliases
+    )
+      ? charter.aliases
+      : [];
+
+
+  return raw
+    .map(
+      alias=>
+        String(alias||'').trim()
+    )
+    .filter(Boolean);
+}
+
+
+function resolveSavedCharterMatch(
+  name
+){
+
+  const typed=
+    String(name||'').trim();
 
   const normalized=
-    normalizedCharterName(name);
+    normalizedCharterName(
+      typed
+    );
+
+  const comparable=
+    comparableCharterName(
+      typed
+    );
+
 
   if(!normalized){
-    return null;
+
+    return {
+      charter:null,
+      type:'none',
+      candidates:[]
+    };
   }
 
-  return charterSchools.find(
-    charter=>
-      !charter.archived &&
-      normalizedCharterName(
-        charter.name
-      )===normalized
-  ) || null;
+
+  const active=
+    charterSchools.filter(
+      charter=>
+        !charter.archived
+    );
+
+
+  /*
+   * 1. Exact saved charter name.
+   */
+  const exact=
+    active.filter(
+      charter=>
+        normalizedCharterName(
+          charter.name
+        )===normalized
+    );
+
+
+  if(exact.length===1){
+
+    return {
+      charter:exact[0],
+      type:'exact',
+      candidates:exact
+    };
+  }
+
+
+  /*
+   * 2. Exact remembered alias.
+   */
+  const aliasMatches=
+    active.filter(
+      charter=>
+        savedCharterAliases(
+          charter
+        ).some(
+          alias=>
+            normalizedCharterName(
+              alias
+            )===normalized
+        )
+    );
+
+
+  if(aliasMatches.length===1){
+
+    return {
+      charter:aliasMatches[0],
+      type:'alias',
+      candidates:aliasMatches
+    };
+  }
+
+
+  /*
+   * 3. Strong canonical match.
+   *
+   * This safely handles cases such as:
+   *
+   * Pacific Coast Academy
+   * Pacific Coast Academy (PCA)
+   */
+  const comparableMatches=
+    comparable
+      ? active.filter(
+          charter=>
+            comparableCharterName(
+              charter.name
+            )===comparable ||
+            savedCharterAliases(
+              charter
+            ).some(
+              alias=>
+                comparableCharterName(
+                  alias
+                )===comparable
+            )
+        )
+      : [];
+
+
+  if(comparableMatches.length===1){
+
+    return {
+      charter:comparableMatches[0],
+      type:'strong',
+      candidates:comparableMatches
+    };
+  }
+
+
+  /*
+   * 4. Suggestions only.
+   *
+   * These are NOT automatically accepted. If more than one
+   * school could plausibly be intended, the vendor chooses.
+   */
+  const suggestions=
+    comparable
+      ? active.filter(
+          charter=>{
+
+            const candidate=
+              comparableCharterName(
+                charter.name
+              );
+
+
+            if(!candidate){
+              return false;
+            }
+
+
+            return (
+              candidate.includes(
+                comparable
+              ) ||
+              comparable.includes(
+                candidate
+              )
+            );
+          }
+        )
+      : [];
+
+
+  return {
+    charter:null,
+    type:
+      suggestions.length
+        ? 'suggestions'
+        : 'none',
+    candidates:
+      suggestions.slice(0,6)
+  };
+}
+
+
+function findSavedCharterByName(name){
+
+  return (
+    resolveSavedCharterMatch(
+      name
+    ).charter ||
+    null
+  );
+}
+
+
+async function rememberCharterAlias(
+  charter,
+  alias
+){
+
+  if(
+    !charter ||
+    !charter.id ||
+    !user
+  ){
+    return;
+  }
+
+
+  const clean=
+    String(alias||'').trim();
+
+
+  if(!clean){
+    return;
+  }
+
+
+  const normalized=
+    normalizedCharterName(
+      clean
+    );
+
+
+  if(
+    normalizedCharterName(
+      charter.name
+    )===normalized
+  ){
+    return;
+  }
+
+
+  const existing=
+    savedCharterAliases(
+      charter
+    );
+
+
+  if(
+    existing.some(
+      value=>
+        normalizedCharterName(
+          value
+        )===normalized
+    )
+  ){
+    return;
+  }
+
+
+  const aliases=[
+    ...existing,
+    clean
+  ];
+
+
+  await setDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'charterSchools',
+      charter.id
+    ),
+    {
+      aliases,
+      updatedAt:
+        serverTimestamp()
+    },
+    {
+      merge:true
+    }
+  );
+
+
+  charter.aliases=
+    aliases;
 }
 
 
@@ -16853,14 +17156,24 @@ function bulkCertificateImportReadiness(
     );
 
 
-  const charter=
-    findSavedCharterByName(
+  const extractedCharterName=
+    String(
       x.charterSchool ||
       x.charterSchoolName ||
       x.schoolName ||
       x.school ||
       ''
+    ).trim();
+
+
+  const charterResolution=
+    resolveSavedCharterMatch(
+      extractedCharterName
     );
+
+
+  const charter=
+    charterResolution.charter;
 
 
   const amount=
@@ -16924,9 +17237,20 @@ function bulkCertificateImportReadiness(
 
   if(!charter){
 
-    problems.push(
-      'Charter school does not exactly match one saved charter school.'
-    );
+    if(
+      charterResolution.candidates.length
+    ){
+
+      problems.push(
+        'Charter school needs matching.'
+      );
+
+    }else{
+
+      problems.push(
+        `No saved charter school matches “${extractedCharterName || 'the extracted school name'}”.`
+      );
+    }
   }
 
 
@@ -16972,6 +17296,10 @@ function bulkCertificateImportReadiness(
     student,
 
     charter,
+
+    charterResolution,
+
+    extractedCharterName,
 
     extraction:x,
 
@@ -17492,6 +17820,68 @@ async function processBulkCertificateBatch(){
     await importReadyBulkCertificates({
       automatic:true
     });
+
+
+    /*
+     * Automatic import must never fail silently.
+     *
+     * Anything still sitting in Ready state after the automatic
+     * pass did not qualify for import. Convert it to Needs Review
+     * and display the actual reason.
+     */
+    for(const item of bulkCertificateItems){
+
+      if(item.state!=='ready'){
+        continue;
+      }
+
+
+      const readiness=
+        bulkCertificateImportReadiness(
+          item,
+          {
+            automatic:true
+          }
+        );
+
+
+      if(!readiness.ready){
+
+        item.state='review';
+
+        item.message=
+          readiness.problems.join(' ');
+      }
+    }
+
+
+    renderBulkCertificateItems();
+
+
+    const remaining=
+      bulkCertificateItems.length;
+
+
+    if(remaining){
+
+      const status=
+        $('#bulkCertificateStatus');
+
+
+      if(status){
+
+        status.textContent=
+          `${remaining} certificate` +
+          `${remaining===1?'':'s'} need attention before importing.`;
+      }
+
+
+      showCertificateImportConfirmation(
+        `${remaining} certificate` +
+        `${remaining===1?'':'s'} need attention. ` +
+        `Click the certificate to fix the issue.`
+      );
+    }
   }
 }
 
@@ -17631,6 +18021,8 @@ async function importReadyBulkCertificates(
       const {
         student,
         charter,
+        charterResolution,
+        extractedCharterName,
         extraction:x,
         amount,
         number,
@@ -17869,6 +18261,27 @@ async function importReadyBulkCertificates(
         sub('certificates'),
         data
       );
+
+
+      /*
+       * When VendorFlow makes a unique strong name match,
+       * remember the PDF's charter name as an alias.
+       *
+       * Example:
+       * Pacific Coast Academy
+       *        ↕
+       * Pacific Coast Academy (PCA)
+       */
+      if(
+        charterResolution?.type==='strong' &&
+        extractedCharterName
+      ){
+
+        await rememberCharterAlias(
+          charter,
+          extractedCharterName
+        );
+      }
 
 
       await log(
@@ -18784,6 +19197,165 @@ function bulkCertificateReviewDisplayValue(
 }
 
 
+
+function renderBulkCharterMatchSuggestions(
+  item
+){
+
+  const readiness=
+    bulkCertificateImportReadiness(
+      item,
+      {
+        automatic:false
+      }
+    );
+
+
+  if(readiness.charter){
+    return '';
+  }
+
+
+  const candidates=
+    readiness.charterResolution
+      ?.candidates || [];
+
+
+  if(!candidates.length){
+    return '';
+  }
+
+
+  return `
+    <div class="vf-bulk-charter-suggestions">
+
+      <strong>
+        Which saved charter school is this?
+      </strong>
+
+      <div class="vf-bulk-charter-suggestion-help">
+        VendorFlow found a close match. Choose it once and
+        VendorFlow will remember it for future certificates.
+      </div>
+
+      <div class="vf-bulk-charter-suggestion-buttons">
+
+        ${candidates
+          .map(
+            charter=>`
+              <button
+                type="button"
+                class="vf-bulk-charter-suggestion"
+                data-bulk-charter-match="${esc(charter.id)}">
+
+                ${esc(charter.name || 'Saved charter')}
+
+              </button>
+            `
+          )
+          .join('')
+        }
+
+      </div>
+
+    </div>
+  `;
+}
+
+
+function wireBulkCharterMatchSuggestions(){
+
+  $$('[data-bulk-charter-match]')
+    .forEach(
+      button=>{
+
+        button.onclick=
+          async ()=>{
+
+            const item=
+              activeBulkCertificateItem();
+
+            if(!item){
+              return;
+            }
+
+
+            const charter=
+              charterSchools.find(
+                candidate=>
+                  candidate.id===
+                  button.dataset.bulkCharterMatch
+              );
+
+
+            if(!charter){
+              return;
+            }
+
+
+            const x=
+              bulkCertificateVendorExtraction(
+                item
+              );
+
+
+            const extractedName=
+              String(
+                x.charterSchool ||
+                x.charterSchoolName ||
+                x.schoolName ||
+                x.school ||
+                ''
+              ).trim();
+
+
+            item.vendorOverrides={
+              ...(item.vendorOverrides || {}),
+
+              charterSchool:
+                charter.name
+            };
+
+
+            item.vendorApproved=true;
+
+            item.message=
+              `Matched to ${charter.name}.`;
+
+
+            if(item.result){
+
+              item.result.extraction={
+                ...(item.result.extraction || {}),
+
+                charterSchool:
+                  charter.name
+              };
+            }
+
+
+            if(extractedName){
+
+              await rememberCharterAlias(
+                charter,
+                extractedName
+              );
+            }
+
+
+            renderBulkCertificateReviewFields(
+              item
+            );
+
+            renderBulkCertificateItems();
+
+            wireBulkCharterMatchSuggestions();
+          };
+      }
+    );
+}
+
+
 function renderBulkCertificateReviewFields(
   item
 ){
@@ -18952,6 +19524,8 @@ function renderBulkCertificateReviewFields(
 
   fields.innerHTML=`
 
+    ${renderBulkCharterMatchSuggestions(item)}
+
     <div>
       <span>Student</span>
       <strong>
@@ -19089,6 +19663,8 @@ function renderBulkCertificateReviewFields(
     </div>
 
   `;
+
+  wireBulkCharterMatchSuggestions();
 }
 
 

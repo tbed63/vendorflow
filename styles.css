@@ -5380,3 +5380,46 @@ button.vf-certificate-problem:focus-visible{
   min-width:210px;
 }
 
+
+/* ==========================================================
+   CERTIFICATE CHARTER MATCHING
+   ========================================================== */
+
+.vf-bulk-charter-suggestions{
+  grid-column:1 / -1;
+  padding:12px;
+  border:1px solid rgba(26,52,111,.22);
+  border-radius:10px;
+  background:rgba(238,243,252,.80);
+}
+
+.vf-bulk-charter-suggestions > strong{
+  display:block;
+  margin-bottom:4px;
+}
+
+.vf-bulk-charter-suggestion-help{
+  margin-bottom:10px;
+  line-height:1.35;
+}
+
+.vf-bulk-charter-suggestion-buttons{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+.vf-bulk-charter-suggestion{
+  padding:8px 12px;
+  border:1px solid #1a346f;
+  border-radius:8px;
+  background:#fff;
+  color:#1a346f;
+  font-weight:700;
+  cursor:pointer;
+}
+
+.vf-bulk-charter-suggestion:hover{
+  background:#f3f6fc;
+}
+
