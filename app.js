@@ -24674,6 +24674,582 @@ function paymentStatementEsc(value){
 }
 
 
+function paymentStatementStudentMatch(tx){
+
+  const payer=
+    String(tx?.payer || '').trim();
+
+  if(!payer){
+    return null;
+  }
+
+
+  const matches=
+    paymentStudentMatches(payer);
+
+  if(!matches.length){
+    return null;
+  }
+
+
+  const best=
+    matches[0];
+
+  const second=
+    matches[1];
+
+
+  /*
+   * Only exact student or parent matches are automatic.
+   * Ties are never guessed.
+   */
+  if(
+    best.score<95 ||
+    (
+      second &&
+      second.score===best.score
+    )
+  ){
+    return null;
+  }
+
+
+  return best.student;
+}
+
+
+function paymentStatementStudentOptions(
+  selectedId=''
+){
+
+  const sorted=
+    [...students]
+      .sort(
+        (a,b)=>
+          String(a.studentName||'')
+            .localeCompare(
+              String(b.studentName||'')
+            )
+      );
+
+
+  return `
+    <option value="">
+      Choose student…
+    </option>
+
+    ${
+      sorted.map(student=>`
+
+        <option
+          value="${paymentStatementEsc(student.id)}"
+          ${
+            student.id===selectedId
+              ? 'selected'
+              : ''
+          }>
+
+          ${paymentStatementEsc(
+            student.studentName ||
+            'Unnamed student'
+          )}
+
+          ${
+            student.parentName
+              ? ` — ${paymentStatementEsc(
+                  student.parentName
+                )}`
+              : ''
+          }
+
+        </option>
+
+      `).join('')
+    }
+  `;
+}
+
+
+function selectedPaymentStatementRows(){
+
+  return Array.from(
+    document.querySelectorAll(
+      '.vf-statement-select:checked'
+    )
+  )
+    .filter(
+      checkbox=>
+        !checkbox.disabled
+    );
+}
+
+
+function updatePaymentStatementImportButton(){
+
+  const button=
+    $('#importSelectedStatementPayments');
+
+  if(!button){
+    return;
+  }
+
+
+  const count=
+    selectedPaymentStatementRows().length;
+
+
+  button.textContent=
+    `Import Selected Payment${
+      count===1 ? '' : 's'
+    } (${count})`;
+
+  button.disabled=
+    count===0;
+}
+
+
+function selectVendorFlowStatementPayments(){
+
+  if(
+    !paymentStatementResult ||
+    !Array.isArray(
+      paymentStatementResult.transactions
+    )
+  ){
+    return;
+  }
+
+
+  paymentStatementResult.transactions
+    .forEach((tx,index)=>{
+
+      const checkbox=
+        document.querySelector(
+          `.vf-statement-select[data-statement-index="${index}"]`
+        );
+
+      if(!checkbox || checkbox.disabled){
+        return;
+      }
+
+
+      const matchedStudent=
+        paymentStatementStudentMatch(tx);
+
+
+      checkbox.checked=
+        Boolean(
+          tx.direction==='incoming' &&
+          !tx.needsReview &&
+          matchedStudent &&
+          !tx._imported &&
+          !tx._duplicateQueued
+        );
+
+
+      if(matchedStudent){
+
+        const select=
+          document.querySelector(
+            `.vf-statement-student[data-statement-index="${index}"]`
+          );
+
+        if(select && !select.value){
+          select.value=
+            matchedStudent.id;
+        }
+      }
+    });
+
+
+  updatePaymentStatementImportButton();
+}
+
+
+function installPaymentStatementReviewControls(){
+
+  document
+    .querySelectorAll(
+      '.vf-statement-select'
+    )
+    .forEach(checkbox=>{
+
+      checkbox.addEventListener(
+        'change',
+        updatePaymentStatementImportButton
+      );
+    });
+
+
+  document
+    .querySelectorAll(
+      '.vf-statement-student'
+    )
+    .forEach(select=>{
+
+      select.addEventListener(
+        'change',
+        ()=>{
+
+          const index=
+            Number(
+              select.dataset.statementIndex
+            );
+
+          const checkbox=
+            document.querySelector(
+              `.vf-statement-select[data-statement-index="${index}"]`
+            );
+
+
+          if(
+            checkbox &&
+            select.value &&
+            !checkbox.disabled
+          ){
+            checkbox.checked=true;
+          }
+
+
+          updatePaymentStatementImportButton();
+        }
+      );
+    });
+
+
+  const selectAllButton=
+    $('#selectStatementPayments');
+
+  if(selectAllButton){
+
+    selectAllButton.onclick=
+      selectVendorFlowStatementPayments;
+  }
+
+
+  const importButton=
+    $('#importSelectedStatementPayments');
+
+  if(importButton){
+
+    importButton.onclick=
+      importSelectedStatementPayments;
+  }
+
+
+  updatePaymentStatementImportButton();
+}
+
+
+async function importSelectedStatementPayments(){
+
+  if(
+    !paymentStatementResult ||
+    !Array.isArray(
+      paymentStatementResult.transactions
+    )
+  ){
+    return;
+  }
+
+
+  const selected=
+    selectedPaymentStatementRows();
+
+
+  if(!selected.length){
+
+    toast(
+      'Select at least one payment.'
+    );
+
+    return;
+  }
+
+
+  const button=
+    $('#importSelectedStatementPayments');
+
+  const status=
+    $('#paymentStatementStatus');
+
+
+  if(button){
+    button.disabled=true;
+    button.textContent='Importing…';
+  }
+
+
+  let imported=0;
+  let duplicates=0;
+  let skipped=0;
+  let needsMatch=0;
+
+
+  try{
+
+    for(const checkbox of selected){
+
+      const index=
+        Number(
+          checkbox.dataset.statementIndex
+        );
+
+      const tx=
+        paymentStatementResult
+          .transactions[index];
+
+
+      if(
+        !tx ||
+        tx._imported ||
+        tx._duplicateQueued
+      ){
+        skipped++;
+        continue;
+      }
+
+
+      if(tx.direction==='outgoing'){
+
+        tx._importError=
+          'Outgoing transactions cannot be imported as payments.';
+
+        skipped++;
+        continue;
+      }
+
+
+      const studentSelect=
+        document.querySelector(
+          `.vf-statement-student[data-statement-index="${index}"]`
+        );
+
+      const studentId=
+        studentSelect?.value || '';
+
+      const student=
+        students.find(
+          item=>item.id===studentId
+        );
+
+
+      if(!student){
+
+        tx._importError=
+          'Choose the correct student before importing.';
+
+        needsMatch++;
+        continue;
+      }
+
+
+      const amount=
+        Math.abs(
+          Number(tx.amount||0)
+        );
+
+
+      if(!amount){
+
+        tx._importError=
+          'This transaction does not have a valid payment amount.';
+
+        skipped++;
+        continue;
+      }
+
+
+      const payment={
+
+        date:
+          String(tx.date||'').trim() ||
+          new Date()
+            .toISOString()
+            .slice(0,10),
+
+        payer:
+          String(tx.payer||'').trim() ||
+          student.parentName ||
+          '',
+
+        studentId:
+          student.id,
+
+        student:
+          student.studentName||'',
+
+        parentName:
+          student.parentName||'',
+
+        parentEmail:
+          student.parentEmail||'',
+
+        className:'',
+
+        amount,
+
+        method:
+          String(tx.method||'').trim() ||
+          'Other',
+
+        memo:
+          String(
+            tx.memo ||
+            tx.description ||
+            ''
+          ).trim(),
+
+        source:
+          'Payment statement',
+
+        matchedBy:
+          paymentStatementStudentMatch(tx)?.id===
+            student.id
+              ? 'VendorFlow exact statement match'
+              : 'Vendor statement selection',
+
+        createdAt:
+          serverTimestamp(),
+
+        updatedAt:
+          serverTimestamp()
+      };
+
+
+      const duplicatePayment=
+        findDuplicatePayment(payment);
+
+
+      if(duplicatePayment){
+
+        await queueDuplicateReview(
+          'payment',
+          payment,
+          duplicatePayment
+        );
+
+        tx._duplicateQueued=true;
+        tx._importError='';
+
+        duplicates++;
+        continue;
+      }
+
+
+      const paymentRef=
+        await addDoc(
+          sub('payments'),
+          payment
+        );
+
+
+      /*
+       * Keep the local duplicate list current during this batch.
+       * This prevents two identical selected rows from both posting.
+       */
+      payments.push({
+        ...payment,
+        id:paymentRef.id
+      });
+
+
+      await log(
+        'Payment imported from statement',
+        `${student.studentName} — `+
+        `${money(amount)} via ${payment.method}.`,
+        'Statement import',
+        {
+          type:'payment',
+          id:paymentRef.id
+        }
+      );
+
+
+      tx._imported=true;
+      tx._importError='';
+
+      imported++;
+    }
+
+
+    await refreshAll();
+
+    renderPaymentStatementResults();
+
+
+    const resultParts=[
+      `${imported} imported`
+    ];
+
+
+    if(duplicates){
+      resultParts.push(
+        `${duplicates} duplicate${
+          duplicates===1?'':'s'
+        } sent to review`
+      );
+    }
+
+
+    if(needsMatch){
+      resultParts.push(
+        `${needsMatch} needing a student match`
+      );
+    }
+
+
+    if(skipped){
+      resultParts.push(
+        `${skipped} skipped`
+      );
+    }
+
+
+    const resultText=
+      resultParts.join(' · ');
+
+
+    if(status){
+      status.textContent=
+        `Statement import finished: ${resultText}.`;
+    }
+
+
+    toast(
+      `Statement import finished: ${resultText}.`
+    );
+
+
+  }catch(error){
+
+    console.error(
+      'Statement payment import failed:',
+      error
+    );
+
+
+    if(status){
+      status.textContent=
+        `Import stopped: ${error.message}`;
+    }
+
+
+    toast(
+      'The statement import stopped. Review the results before trying again.'
+    );
+
+
+    renderPaymentStatementResults();
+
+
+  }finally{
+
+    updatePaymentStatementImportButton();
+  }
+}
+
+
 function renderPaymentStatementResults(){
 
   const target=
@@ -24699,24 +25275,24 @@ function renderPaymentStatementResults(){
   const data=
     paymentStatementResult;
 
-
   const rows=
     data.transactions;
 
-
   const incoming=
     rows.filter(
-      tx=>
-        tx.direction==='incoming'
+      tx=>tx.direction==='incoming'
     );
-
 
   const uncertain=
     rows.filter(
       tx=>
-        tx.direction==='uncertain'
-        ||
+        tx.direction==='uncertain' ||
         tx.needsReview
+    );
+
+  const imported=
+    rows.filter(
+      tx=>tx._imported
     );
 
 
@@ -24736,6 +25312,11 @@ function renderPaymentStatementResults(){
         ${rows.length} transaction${rows.length===1?'':'s'} found
         · ${incoming.length} incoming
         · ${uncertain.length} needing attention
+        ${
+          imported.length
+            ? ` · ${imported.length} imported`
+            : ''
+        }
       </span>
 
       ${
@@ -24754,15 +25335,49 @@ function renderPaymentStatementResults(){
 
     </div>
 
+    <div class="vf-statement-review-toolbar">
+
+      <div>
+        <strong>Review payments before importing</strong>
+        <span>
+          VendorFlow selects only clear incoming payments with an exact family match.
+        </span>
+      </div>
+
+      <div class="vf-statement-review-actions">
+
+        <button
+          id="selectStatementPayments"
+          type="button"
+          class="secondary">
+          Select All VF-Identified Payments
+        </button>
+
+        <button
+          id="importSelectedStatementPayments"
+          type="button"
+          class="primary"
+          disabled>
+          Import Selected Payments (0)
+        </button>
+
+      </div>
+
+    </div>
+
     <div class="vf-statement-table-wrap">
 
       <table class="vf-statement-table">
 
         <thead>
           <tr>
+            <th class="vf-statement-check-column">
+              Import
+            </th>
             <th>Status</th>
             <th>Date</th>
             <th>Payer</th>
+            <th>Student</th>
             <th>Description / memo</th>
             <th>Method</th>
             <th class="right">Amount</th>
@@ -24773,9 +25388,29 @@ function renderPaymentStatementResults(){
 
           ${
             rows.length
-              ? rows.map(tx=>{
+              ? rows.map((tx,index)=>{
 
-                  const status=
+                  const matchedStudent=
+                    paymentStatementStudentMatch(tx);
+
+                  const outgoing=
+                    tx.direction==='outgoing';
+
+                  const unavailable=
+                    outgoing ||
+                    tx._imported ||
+                    tx._duplicateQueued;
+
+                  const vfSelected=
+                    Boolean(
+                      tx.direction==='incoming' &&
+                      !tx.needsReview &&
+                      matchedStudent &&
+                      !unavailable
+                    );
+
+
+                  let status=
                     tx.direction==='incoming'
                       ? (
                           tx.needsReview
@@ -24783,28 +25418,67 @@ function renderPaymentStatementResults(){
                             : 'Incoming'
                         )
                       : (
-                          tx.direction==='outgoing'
+                          outgoing
                             ? 'Outgoing'
                             : 'Uncertain'
                         );
 
 
+                  if(tx._imported){
+                    status='Imported';
+                  }else if(tx._duplicateQueued){
+                    status='Duplicate review';
+                  }
+
+
+                  const rowClass=
+                    tx._imported
+                      ? 'vf-statement-imported'
+                      : (
+                          tx._duplicateQueued
+                            ? 'vf-statement-duplicate'
+                            : (
+                                tx.direction==='incoming' &&
+                                !tx.needsReview
+                                  ? 'vf-statement-incoming'
+                                  : (
+                                      outgoing
+                                        ? 'vf-statement-outgoing'
+                                        : 'vf-statement-review'
+                                    )
+                              )
+                        );
+
+
                   return `
-                    <tr class="${
-                      tx.direction==='incoming' &&
-                      !tx.needsReview
-                        ? 'vf-statement-incoming'
-                        : (
-                            tx.direction==='outgoing'
-                              ? 'vf-statement-outgoing'
-                              : 'vf-statement-review'
-                          )
-                    }">
+                    <tr class="${rowClass}">
+
+                      <td class="vf-statement-check-column">
+
+                        <input
+                          type="checkbox"
+                          class="vf-statement-select"
+                          data-statement-index="${index}"
+                          aria-label="Import this transaction"
+                          ${vfSelected?'checked':''}
+                          ${unavailable?'disabled':''}>
+
+                      </td>
 
                       <td>
                         <strong>
                           ${paymentStatementEsc(status)}
                         </strong>
+
+                        ${
+                          tx._importError
+                            ? `<div class="vf-statement-row-warning">
+                                 ${paymentStatementEsc(
+                                   tx._importError
+                                 )}
+                               </div>`
+                            : ''
+                        }
                       </td>
 
                       <td>
@@ -24813,6 +25487,52 @@ function renderPaymentStatementResults(){
 
                       <td>
                         ${paymentStatementEsc(tx.payer)}
+                      </td>
+
+                      <td>
+
+                        ${
+                          unavailable
+                            ? paymentStatementEsc(
+                                matchedStudent?.studentName ||
+                                (
+                                  tx._imported
+                                    ? 'Imported'
+                                    : ''
+                                )
+                              )
+                            : `
+                                <select
+                                  class="input vf-statement-student"
+                                  data-statement-index="${index}"
+                                  aria-label="Student for this payment">
+
+                                  ${paymentStatementStudentOptions(
+                                    matchedStudent?.id || ''
+                                  )}
+
+                                </select>
+                              `
+                        }
+
+                        ${
+                          matchedStudent &&
+                          !tx._imported &&
+                          !tx._duplicateQueued
+                            ? `<div class="vf-statement-match-note">
+                                 VF exact match
+                               </div>`
+                            : (
+                                !outgoing &&
+                                !tx._imported &&
+                                !tx._duplicateQueued
+                                  ? `<div class="vf-statement-row-warning">
+                                       Student match required
+                                     </div>`
+                                  : ''
+                              )
+                        }
+
                       </td>
 
                       <td>
@@ -24827,7 +25547,11 @@ function renderPaymentStatementResults(){
                       </td>
 
                       <td class="right">
-                        ${money(tx.amount)}
+                        ${money(
+                          Math.abs(
+                            Number(tx.amount||0)
+                          )
+                        )}
                       </td>
 
                     </tr>
@@ -24835,7 +25559,7 @@ function renderPaymentStatementResults(){
                 }).join('')
               : `
                   <tr>
-                    <td colspan="6">
+                    <td colspan="8">
                       No transactions were extracted.
                     </td>
                   </tr>
@@ -24849,9 +25573,12 @@ function renderPaymentStatementResults(){
     </div>
 
     <div class="vf-statement-safety-note">
-      Nothing on this statement has been imported yet.
+      Only checked payments are imported. Outgoing transactions cannot be imported as payments.
     </div>
   `;
+
+
+  installPaymentStatementReviewControls();
 }
 
 
