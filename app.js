@@ -6628,6 +6628,43 @@ function renderSelectedClassDetails(){
     </div>
 
 
+    ${
+      c.classType==='Tutoring'
+        ? `
+          <div class="vf-tutoring-class-summary">
+
+            <div>
+              <small>Class type</small>
+              <strong>Tutoring</strong>
+            </div>
+
+            <div>
+              <small>Normal session</small>
+              <strong>
+                ${Number(c.sessionLengthMinutes||60)} minutes
+              </strong>
+            </div>
+
+            <div>
+              <small>Rate per session</small>
+              <strong>
+                ${money(c.ratePerSession||0)}
+              </strong>
+            </div>
+
+            <div>
+              <small>Accounting</small>
+              <strong>
+                Charges tracked in dollars
+              </strong>
+            </div>
+
+          </div>
+        `
+        : ''
+    }
+
+
     <div class="vf-class-detail-grid">
 
       <div>
@@ -6799,6 +6836,30 @@ function editSavedClass(
   $('#className').value=
     c.name||'';
 
+
+  if($('#classType')){
+
+    $('#classType').value=
+      c.classType==='Tutoring'
+        ? 'Tutoring'
+        : 'Class';
+  }
+
+
+  if($('#classSessionLength')){
+
+    $('#classSessionLength').value=
+      Number(c.sessionLengthMinutes||60);
+  }
+
+
+  if($('#classSessionRate')){
+
+    $('#classSessionRate').value=
+      Number(c.ratePerSession||0) || '';
+  }
+
+
   $('#classTerm').value=
     c.term||'';
 
@@ -6930,6 +6991,7 @@ Thank you,
   }
 
 
+  updateClassTypeUI();
   updateClassPaymentUI();
   updateClassParentReminderUI();
   updateClassCustomInstallmentTotal();
@@ -7680,6 +7742,113 @@ function validateClassCustomInstallments(){
 }
 
 
+
+function selectedClassIsTutoring(){
+
+  return (
+    $('#classType')?.value ===
+    'Tutoring'
+  );
+}
+
+
+function updateClassTypeUI(){
+
+  const tutoring=
+    selectedClassIsTutoring();
+
+  const settings=
+    $('#classTutoringSettings');
+
+  const tuition=
+    $('#classTuition');
+
+  const payment=
+    $('#classPaymentSchedule');
+
+
+  if(settings){
+
+    tutoring
+      ? show(settings)
+      : hide(settings);
+  }
+
+
+  /*
+   * Existing regular-class payment behavior is preserved.
+   * Tutoring has no predetermined tuition obligation.
+   */
+  if(tuition){
+
+    tuition.disabled=
+      tutoring;
+
+    tuition.placeholder=
+      tutoring
+        ? 'No fixed tuition for tutoring'
+        : 'Tuition';
+
+    if(tutoring){
+      tuition.value='';
+    }
+  }
+
+
+  if(payment){
+
+    payment.disabled=
+      tutoring;
+  }
+
+
+  const paymentSection=
+    payment?.closest(
+      '.vf-class-section'
+    );
+
+
+  if(paymentSection){
+
+    tutoring
+      ? hide(paymentSection)
+      : show(paymentSection);
+  }
+
+
+  const options=
+    document.querySelector(
+      '.vf-class-options'
+    );
+
+
+  if(options){
+
+    tutoring
+      ? hide(options)
+      : show(options);
+  }
+}
+
+
+if($('#classType')){
+
+  $('#classType')
+    .addEventListener(
+      'change',
+      ()=>{
+
+        clearClassSaveError();
+        updateClassTypeUI();
+        updateClassPaymentUI();
+      }
+    );
+
+
+  updateClassTypeUI();
+}
+
+
 function updateClassPaymentUI(){
 
   const schedule=
@@ -7866,8 +8035,57 @@ $('#saveClass').onclick=async()=>{
     return;
   }
 
+  const classType=
+    $('#classType')?.value==='Tutoring'
+      ? 'Tutoring'
+      : 'Class';
+
+
+  const tutoring=
+    classType==='Tutoring';
+
+
+  const sessionLengthMinutes=
+    tutoring
+      ? Math.max(
+          1,
+          Math.round(
+            Number(
+              $('#classSessionLength')?.value || 60
+            )
+          )
+        )
+      : null;
+
+
+  const ratePerSession=
+    tutoring
+      ? Math.max(
+          0,
+          Number(
+            $('#classSessionRate')?.value || 0
+          )
+        )
+      : null;
+
+
+  if(
+    tutoring &&
+    !(ratePerSession>0)
+  ){
+
+    showClassSaveError(
+      'Enter the tutoring rate per session.'
+    );
+
+    return;
+  }
+
+
   const paymentSchedule=
-    $('#classPaymentSchedule').value;
+    tutoring
+      ? 'Per Session'
+      : $('#classPaymentSchedule').value;
 
   let customInstallments=[];
   let monthlyInstallments=[];
@@ -7909,18 +8127,37 @@ $('#saveClass').onclick=async()=>{
 
   let data={
     name,
+
+    classType,
+
+    sessionLengthMinutes,
+
+    ratePerSession,
+
     term:$('#classTerm').value.trim(),
-    tuition:Number($('#classTuition').value)||null,
+
+    tuition:
+      tutoring
+        ? null
+        : (
+            Number(
+              $('#classTuition').value
+            ) || null
+          ),
+
     location:$('#classLocation').value.trim(),
 
     paymentSchedule,
 
     paymentDueDate:
+      !tutoring &&
       paymentSchedule==='Full'
         ? ($('#classPaymentDueDate').value || '')
         : '',
 
     monthlyFirstDueDate:
+      !tutoring &&
+      !tutoring &&
       paymentSchedule==='Monthly'
         ? (
             $('#classMonthlyFirstDueDate')
@@ -7948,6 +8185,7 @@ $('#saveClass').onclick=async()=>{
      * It is derived from the first monthly payment date.
      */
     dueDay:
+      !tutoring &&
       paymentSchedule==='Monthly' &&
       $('#classMonthlyFirstDueDate').value
         ? Number(
@@ -7958,6 +8196,7 @@ $('#saveClass').onclick=async()=>{
         : null,
 
     customInstallments:
+      !tutoring &&
       paymentSchedule==='Custom'
         ? customInstallments
         : [],
@@ -8058,6 +8297,19 @@ $('#saveClass').onclick=async()=>{
   renderSelectedClassDetails();
 
   $('#className').value='';
+
+  if($('#classType')){
+    $('#classType').value='Class';
+  }
+
+  if($('#classSessionLength')){
+    $('#classSessionLength').value='60';
+  }
+
+  if($('#classSessionRate')){
+    $('#classSessionRate').value='';
+  }
+
   $('#classTerm').value='';
   $('#classTuition').value='';
   $('#classLocation').value='';
@@ -8073,6 +8325,7 @@ $('#saveClass').onclick=async()=>{
   }
 
   resetClassCustomInstallments();
+  updateClassTypeUI();
   updateClassPaymentUI();
 
   $('#classLateFee').value='0';
@@ -10732,6 +10985,13 @@ function renderStudentsServices(){
         const balance=
           balanceStatus(account.parentBalance);
 
+
+        const availableTutoringCredit=
+          tutoringAvailableCredit(
+            student
+          );
+
+
         const serviceList=
           studentServices(student.id);
 
@@ -10795,7 +11055,14 @@ function renderStudentsServices(){
                   <div class="vf-service-money">
 
                     <div>
-                      <small>Service price</small>
+                      <small>
+                        ${
+                          tutoringClassForService(service)
+                            ? 'Tutoring charges'
+                            : 'Service price'
+                        }
+                      </small>
+
                       <strong>
                         ${money(service.totalPrice)}
                       </strong>
@@ -10805,6 +11072,40 @@ function renderStudentsServices(){
 
 
                   ${serviceObligationHTML(service)}
+
+
+                  ${
+                    tutoringClassForService(service)
+                      ? `
+                        <div class="vf-tutoring-service-actions">
+
+                          <button
+                            type="button"
+                            class="primary"
+                            data-record-tutoring-session="${service.id}">
+                            Add session / charge
+                          </button>
+
+                          <span>
+                            ${
+                              Number(
+                                tutoringClassForService(service)
+                                  ?.sessionLengthMinutes || 60
+                              )
+                            } min normal session
+                            ·
+                            ${
+                              money(
+                                tutoringClassForService(service)
+                                  ?.ratePerSession || 0
+                              )
+                            }
+                          </span>
+
+                        </div>
+                      `
+                      : ''
+                  }
 
                 </div>
 
@@ -11104,6 +11405,19 @@ function renderStudentsServices(){
           });
       };
     });
+
+
+  $$('[data-record-tutoring-session]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        recordTutoringSessionCharge(
+          button.dataset.recordTutoringSession
+        );
+      };
+    });
+
 }
 
 
@@ -13012,9 +13326,11 @@ async function syncRosterToCoreRecords(
     if(!existingService){
 
       const totalPrice=
-        Number(
-          classRecord.tuition||0
-        );
+        classRecord.classType==='Tutoring'
+          ? 0
+          : Number(
+              classRecord.tuition||0
+            );
 
 
       const serviceRef=
@@ -13031,7 +13347,10 @@ async function syncRosterToCoreRecords(
           studentName:
             row.studentName||'',
 
-          serviceType:'Class',
+          serviceType:
+            classRecord.classType==='Tutoring'
+              ? 'Tutoring'
+              : 'Class',
 
           name:
             classRecord.name||'Class',
@@ -13047,7 +13366,19 @@ async function syncRosterToCoreRecords(
 
           totalPrice,
 
-          tutoringRate:0,
+          tutoringRate:
+            classRecord.classType==='Tutoring'
+              ? Number(
+                  classRecord.ratePerSession||0
+                )
+              : 0,
+
+          sessionLengthMinutes:
+            classRecord.classType==='Tutoring'
+              ? Number(
+                  classRecord.sessionLengthMinutes||60
+                )
+              : null,
 
           schedule:
             classRecord.paymentSchedule ||
@@ -13098,8 +13429,12 @@ async function syncRosterToCoreRecords(
       );
 
 
-      await createServiceObligations(
-        serviceRef,
+      if(
+        classRecord.classType!=='Tutoring'
+      ){
+
+        await createServiceObligations(
+          serviceRef,
         {
           ...serviceData,
           studentId:
@@ -13110,6 +13445,7 @@ async function syncRosterToCoreRecords(
         },
         classRecord
       );
+      }
 
     }else{
 
@@ -23009,5 +23345,386 @@ if($('#duplicateCompareKeep')){
             'No — Keep Both';
         }
       };
+}
+
+
+
+/* ==========================================================
+   TUTORING CLASS — SESSION / CHARGE ENTRY
+   ========================================================== */
+
+/*
+ * Accounting rule:
+ *
+ * MONEY is authoritative.
+ *
+ * Session quantity is only a quick calculator:
+ *     quantity × ratePerSession = charge amount
+ *
+ * A tutoring service's totalPrice is cumulative delivered
+ * tutoring. Every tutoring entry also creates one dated
+ * obligation so the existing certificate/payment allocator
+ * can fund it normally.
+ */
+
+function tutoringClassForService(
+  service
+){
+
+  if(!service?.classId){
+    return null;
+  }
+
+
+  const classRecord=
+    classes.find(
+      item=>
+        item.id===service.classId
+    );
+
+
+  return (
+    classRecord?.classType==='Tutoring'
+      ? classRecord
+      : null
+  );
+}
+
+
+function tutoringAvailableCredit(
+  student
+){
+
+  const account=
+    studentAccountTotals(
+      student
+    );
+
+
+  return Math.max(
+    0,
+    -Number(
+      account.parentBalance||0
+    )
+  );
+}
+
+
+async function recordTutoringSessionCharge(
+  serviceId
+){
+
+  const service=
+    services.find(
+      item=>item.id===serviceId
+    );
+
+
+  if(!service){
+    return;
+  }
+
+
+  const classRecord=
+    tutoringClassForService(
+      service
+    );
+
+
+  if(!classRecord){
+
+    return toast(
+      'This service is not linked to a tutoring class.'
+    );
+  }
+
+
+  const student=
+    students.find(
+      item=>
+        item.id===service.studentId
+    );
+
+
+  if(!student){
+    return toast(
+      'Student could not be found.'
+    );
+  }
+
+
+  const rate=
+    Number(
+      classRecord.ratePerSession ||
+      service.tutoringRate ||
+      0
+    );
+
+
+  if(!(rate>0)){
+
+    return toast(
+      'Enter a rate per session in the tutoring class first.'
+    );
+  }
+
+
+  const defaultDate=
+    new Date()
+      .toISOString()
+      .slice(0,10);
+
+
+  const date=
+    prompt(
+      `Service date for ${student.studentName}:`,
+      defaultDate
+    );
+
+
+  if(!date){
+    return;
+  }
+
+
+  const quantityText=
+    prompt(
+      `How many sessions?\n\n` +
+      `Use decimals when needed — for example 0.5 for half a session.\n` +
+      `${money(rate)} per normal session.`,
+      '1'
+    );
+
+
+  if(
+    quantityText===null ||
+    quantityText.trim()===''
+  ){
+    return;
+  }
+
+
+  const quantity=
+    Number(
+      quantityText
+    );
+
+
+  if(
+    !Number.isFinite(quantity) ||
+    !(quantity>0)
+  ){
+
+    return toast(
+      'Enter a session amount greater than zero.'
+    );
+  }
+
+
+  const calculated=
+    Number(
+      (
+        quantity*rate
+      ).toFixed(2)
+    );
+
+
+  const amountText=
+    prompt(
+      `Charge amount for this tutoring entry:`,
+      calculated.toFixed(2)
+    );
+
+
+  if(
+    amountText===null ||
+    amountText.trim()===''
+  ){
+    return;
+  }
+
+
+  const amount=
+    Number(
+      amountText
+    );
+
+
+  if(
+    !Number.isFinite(amount) ||
+    !(amount>0)
+  ){
+
+    return toast(
+      'Enter a charge greater than zero.'
+    );
+  }
+
+
+  const note=
+    prompt(
+      'Optional note for this tutoring entry:',
+      ''
+    );
+
+
+  if(note===null){
+    return;
+  }
+
+
+  const oldTotal=
+    Math.max(
+      0,
+      Number(
+        service.totalPrice||0
+      )
+    );
+
+
+  const newTotal=
+    Number(
+      (
+        oldTotal+amount
+      ).toFixed(2)
+    );
+
+
+  const obligationRef=
+    doc(
+      sub('obligations')
+    );
+
+
+  const batch=
+    writeBatch(db);
+
+
+  batch.set(
+    obligationRef,
+    {
+      studentId:
+        student.id,
+
+      studentName:
+        student.studentName||'',
+
+      serviceId:
+        service.id,
+
+      serviceName:
+        service.name ||
+        classRecord.name ||
+        'Tutoring',
+
+      classId:
+        classRecord.id,
+
+      className:
+        classRecord.name||'Tutoring',
+
+      obligationType:
+        'Tutoring session',
+
+      amount,
+
+      originalAmount:
+        amount,
+
+      dueDate:
+        date,
+
+      serviceDate:
+        date,
+
+      sessionQuantity:
+        quantity,
+
+      ratePerSession:
+        rate,
+
+      sessionLengthMinutes:
+        Number(
+          classRecord.sessionLengthMinutes||60
+        ),
+
+      note:
+        String(note||'').trim(),
+
+      parentCreditedAmount:
+        0,
+
+      certificateCreditedAmount:
+        0,
+
+      creditedAmount:
+        0,
+
+      remainingAmount:
+        amount,
+
+      status:
+        'Scheduled',
+
+      source:
+        'Tutoring entry',
+
+      createdAt:
+        serverTimestamp(),
+
+      updatedAt:
+        serverTimestamp()
+    }
+  );
+
+
+  batch.set(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'services',
+      service.id
+    ),
+    {
+      totalPrice:
+        newTotal,
+
+      tutoringRate:
+        rate,
+
+      sessionLengthMinutes:
+        Number(
+          classRecord.sessionLengthMinutes||60
+        ),
+
+      updatedAt:
+        serverTimestamp()
+    },
+    {
+      merge:true
+    }
+  );
+
+
+  await batch.commit();
+
+
+  await log(
+    'Tutoring charge recorded',
+    `${student.studentName} — `+
+    `${quantity} session${quantity===1?'':'s'} — `+
+    `${money(amount)} on ${date}`+
+    `${note.trim()?` — ${note.trim()}`:''}.`,
+    'Manual'
+  );
+
+
+  await refreshAll();
+
+
+  toast(
+    `${money(amount)} tutoring charge recorded.`
+  );
 }
 

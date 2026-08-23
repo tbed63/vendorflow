@@ -5717,3 +5717,75 @@ button.history.vf-history-evidence:focus-visible{
   }
 }
 
+
+/* ==========================================================
+   TUTORING CLASSES + SESSION CHARGES
+   ========================================================== */
+
+.vf-tutoring-class-settings{
+  margin:14px 0;
+  padding:16px;
+  border:1px solid #d6e1e8;
+  border-radius:12px;
+  background:#f7fafc;
+}
+
+.vf-tutoring-class-settings p{
+  margin:5px 0 14px;
+  color:#5d757d;
+  font-size:13px;
+}
+
+.vf-tutoring-class-fields{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+}
+
+.vf-tutoring-class-summary{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  margin:14px 0;
+  padding:14px;
+  border:1px solid #d6e1e8;
+  border-radius:10px;
+  background:#f7fafc;
+}
+
+.vf-tutoring-class-summary > div{
+  display:grid;
+  gap:4px;
+}
+
+.vf-tutoring-class-summary small{
+  color:#64777f;
+  font-size:10px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+
+.vf-tutoring-service-actions{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-top:12px;
+  padding-top:12px;
+  border-top:1px solid #e1e7ea;
+}
+
+.vf-tutoring-service-actions span{
+  color:#5d757d;
+  font-size:12px;
+}
+
+@media(max-width:760px){
+
+  .vf-tutoring-class-fields,
+  .vf-tutoring-class-summary{
+    grid-template-columns:1fr;
+  }
+}
+

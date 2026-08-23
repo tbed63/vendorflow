@@ -166,6 +166,89 @@
         <div class="card">
           <div class="eyebrow">Manual control</div><h2>Create or choose a class</h2>
           <input id="className" class="input" placeholder="Class name">
+
+          <label class="vf-field-label vf-class-type-field">
+            <span>Class type</span>
+
+            <select
+              id="classType"
+              class="input">
+
+              <option value="Class">
+                Regular class
+              </option>
+
+              <option value="Tutoring">
+                Tutoring class
+              </option>
+
+            </select>
+          </label>
+
+
+          <div
+            id="classTutoringSettings"
+            class="vf-tutoring-class-settings hidden">
+
+            <div>
+              <div class="eyebrow">
+                Tutoring setup
+              </div>
+
+              <strong>
+                Set the normal session so VendorFlow can enter charges quickly.
+              </strong>
+
+              <p>
+                VendorFlow tracks the actual balance in dollars.
+                Session information is only a shortcut for calculating charges.
+              </p>
+            </div>
+
+
+            <div class="vf-tutoring-class-fields">
+
+              <label class="vf-field-label">
+                <span>Session length</span>
+
+                <div class="vf-number-suffix">
+
+                  <input
+                    id="classSessionLength"
+                    class="input"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value="60">
+
+                  <span>minutes</span>
+
+                </div>
+              </label>
+
+
+              <label class="vf-field-label">
+                <span>Rate per session</span>
+
+                <div class="vf-money-field">
+
+                  <span>$</span>
+
+                  <input
+                    id="classSessionRate"
+                    class="input"
+                    type="number"
+                    min="0"
+                    step=".01"
+                    placeholder="80">
+
+                </div>
+              </label>
+
+            </div>
+
+          </div>
+
           <input id="classTerm" class="input" placeholder="School year / term">
           <input id="classTuition" class="input" type="number" placeholder="Tuition">
           <input id="classLocation" class="input" placeholder="Learning center / location">
@@ -2269,5 +2352,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=payment-evidence-20260822-2"></script>
+<script type="module" src="app.js?v=tutoring-classes-20260823-1"></script>
 </body></html>
