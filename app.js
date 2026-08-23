@@ -13805,7 +13805,11 @@ async function repairUnmatchedPayments(){
       'Payment matched to student',
       `${money(payment.amount)} payment matched to `+
       `${student.studentName}.`,
-      'VendorFlow'
+      'VendorFlow',
+      {
+        type:'payment',
+        id:payment.id
+      }
     );
   }
 
@@ -14011,10 +14015,11 @@ $('#saveRefund').onclick=async()=>{
   };
 
 
-  await addDoc(
-    sub('payments'),
-    refund
-  );
+  const refundRef=
+    await addDoc(
+      sub('payments'),
+      refund
+    );
 
 
   await log(
@@ -14023,7 +14028,11 @@ $('#saveRefund').onclick=async()=>{
     `${student.studentName} via ${method}. ` +
     `Reason: ${refund.refundReason}` +
     `${override?' — manual limit override used.':''}`,
-    'Manual'
+    'Manual',
+    {
+      type:'payment',
+      id:refundRef.id
+    }
   );
 
 
@@ -14177,17 +14186,22 @@ $('#savePayment').onclick=async()=>{
 
 
 
-  await addDoc(
-    sub('payments'),
-    d
-  );
+  const paymentRef=
+    await addDoc(
+      sub('payments'),
+      d
+    );
 
 
   await log(
     'Payment recorded',
     `${selectedStudent.studentName} — `+
     `${money(amount)} via ${d.method}.`,
-    'Manual'
+    'Manual',
+    {
+      type:'payment',
+      id:paymentRef.id
+    }
   );
 
 
@@ -15872,11 +15886,320 @@ async function safeDeleteCertificate(
 }
 
 
+
+function closePaymentDetail(){
+
+  const modal=
+    $('#paymentDetailModal');
+
+  if(modal){
+    hide(modal);
+  }
+}
+
+
+function paymentDetailValue(
+  value,
+  fallback='—'
+){
+
+  const text=
+    String(
+      value ?? ''
+    ).trim();
+
+  return text || fallback;
+}
+
+
+function showPaymentDetail(
+  payment
+){
+
+  const modal=
+    $('#paymentDetailModal');
+
+  const content=
+    $('#paymentDetailContent');
+
+
+  if(
+    !modal ||
+    !content ||
+    !payment
+  ){
+    return;
+  }
+
+
+  /*
+   * Payment Details is shared across Payments and History,
+   * so always keep it outside hidden VendorFlow views.
+   */
+  if(
+    modal.parentElement!==
+    document.body
+  ){
+    document.body.appendChild(
+      modal
+    );
+  }
+
+
+  const amount=
+    Number(
+      payment.amount || 0
+    );
+
+
+  const isRefund=
+    String(
+      payment.transactionType || ''
+    )
+      .toLowerCase()==='refund' ||
+    amount<0;
+
+
+  const type=
+    isRefund
+      ? 'Refund'
+      : 'Payment';
+
+
+  content.innerHTML=`
+    <div class="vf-payment-detail-heading">
+
+      <div>
+        <div class="eyebrow">
+          ${esc(type)}
+        </div>
+
+        <h2 id="paymentDetailTitle">
+          ${money(Math.abs(amount))}
+        </h2>
+
+        <div class="meta">
+          Saved VendorFlow transaction record
+        </div>
+      </div>
+
+      <span class="vf-payment-detail-type ${isRefund?'refund':'payment'}">
+        ${esc(type.toUpperCase())}
+      </span>
+
+    </div>
+
+
+    <div class="vf-payment-detail-grid">
+
+      <div>
+        <small>Student</small>
+        <strong>
+          ${esc(paymentDetailValue(payment.student))}
+        </strong>
+      </div>
+
+      <div>
+        <small>Payer</small>
+        <strong>
+          ${esc(
+            paymentDetailValue(
+              payment.payer ||
+              payment.parentName
+            )
+          )}
+        </strong>
+      </div>
+
+      <div>
+        <small>Date</small>
+        <strong>
+          ${esc(paymentDetailValue(payment.date))}
+        </strong>
+      </div>
+
+      <div>
+        <small>Method</small>
+        <strong>
+          ${esc(paymentDetailValue(payment.method))}
+        </strong>
+      </div>
+
+      <div>
+        <small>Amount</small>
+        <strong>
+          ${money(Math.abs(amount))}
+        </strong>
+      </div>
+
+      <div>
+        <small>Source</small>
+        <strong>
+          ${esc(paymentDetailValue(payment.source))}
+        </strong>
+      </div>
+
+      ${
+        payment.className ||
+        payment.class
+          ? `
+            <div>
+              <small>Class</small>
+              <strong>
+                ${esc(
+                  payment.className ||
+                  payment.class
+                )}
+              </strong>
+            </div>
+          `
+          : ''
+      }
+
+      ${
+        payment.serviceName
+          ? `
+            <div>
+              <small>Service</small>
+              <strong>
+                ${esc(payment.serviceName)}
+              </strong>
+            </div>
+          `
+          : ''
+      }
+
+      ${
+        payment.matchedBy
+          ? `
+            <div>
+              <small>Matched by</small>
+              <strong>
+                ${esc(payment.matchedBy)}
+              </strong>
+            </div>
+          `
+          : ''
+      }
+
+      ${
+        payment.parentEmail
+          ? `
+            <div>
+              <small>Parent email</small>
+              <strong>
+                ${esc(payment.parentEmail)}
+              </strong>
+            </div>
+          `
+          : ''
+      }
+
+    </div>
+
+
+    ${
+      isRefund
+        ? `
+          <div class="vf-payment-refund-detail">
+
+            <div class="eyebrow">
+              Refund details
+            </div>
+
+            <div class="vf-payment-detail-grid">
+
+              <div>
+                <small>Reason</small>
+                <strong>
+                  ${esc(
+                    paymentDetailValue(
+                      payment.refundReason
+                    )
+                  )}
+                </strong>
+              </div>
+
+              <div>
+                <small>Manual override</small>
+                <strong>
+                  ${payment.refundOverride?'Yes':'No'}
+                </strong>
+              </div>
+
+            </div>
+
+            ${
+              payment.refundNote
+                ? `
+                  <div class="vf-payment-detail-note">
+                    <small>Note</small>
+                    <div>
+                      ${esc(payment.refundNote)}
+                    </div>
+                  </div>
+                `
+                : ''
+            }
+
+          </div>
+        `
+        : ''
+    }
+
+
+    <div class="vf-payment-evidence-note">
+      <strong>Evidence available:</strong>
+      VendorFlow's saved transaction record.
+      ${
+        payment.pdfObjectKey ||
+        payment.receiptObjectKey ||
+        payment.proofObjectKey
+          ? ' Original documentation is also attached to this record.'
+          : ' No receipt or original payment document is currently attached.'
+      }
+    </div>
+  `;
+
+
+  show(modal);
+}
+
+
+if($('#closePaymentDetail')){
+
+  $('#closePaymentDetail')
+    .onclick=
+      closePaymentDetail;
+}
+
+
+if($('#paymentDetailModal')){
+
+  $('#paymentDetailModal')
+    .onclick=
+      event=>{
+
+        if(
+          event.target===
+          $('#paymentDetailModal')
+        ){
+          closePaymentDetail();
+        }
+      };
+}
+
+
 function renderRecords(){
   $('#paymentList').innerHTML=
     payments.length
     ? payments.map(d=>
-        `<div class="record">
+        `<div
+          class="record vf-payment-record"
+          data-payment-id="${esc(d.id)}"
+          role="button"
+          tabindex="0"
+          title="Open payment details">
           <strong>$${Number(d.amount).toFixed(2)} — ${esc(d.payer||d.student)}</strong>
           <div class="meta">${esc(d.date)} · ${d.transactionType==='Refund'
           ? '<strong class="vf-refund-label">REFUND</strong> · '
@@ -15890,7 +16213,45 @@ function renderRecords(){
       cert=>!cert.deleted
     );
 
-  $('#certificateList').innerHTML=
+  
+
+  $$('[data-payment-id]')
+    .forEach(record=>{
+
+      const open=()=>{
+
+        const payment=
+          payments.find(
+            item=>
+              item.id===
+              record.dataset.paymentId
+          );
+
+
+        if(payment){
+          showPaymentDetail(payment);
+        }
+      };
+
+
+      record.onclick=open;
+
+
+      record.onkeydown=
+        event=>{
+
+          if(
+            event.key==='Enter' ||
+            event.key===' '
+          ){
+            event.preventDefault();
+            open();
+          }
+        };
+    });
+
+
+$('#certificateList').innerHTML=
     visibleCertificates.length
     ? visibleCertificates.map(d=>
         `<div
@@ -16477,6 +16838,134 @@ function historyInvoiceEvidence(
 }
 
 
+
+function historyPaymentEvidence(
+  item
+){
+
+  const evidence=
+    item?.evidence || {};
+
+
+  if(
+    evidence.type==='payment' &&
+    evidence.id
+  ){
+
+    return payments.find(
+      payment=>
+        payment.id===evidence.id
+    ) || null;
+  }
+
+
+  const action=
+    String(
+      item?.action || ''
+    ).toLowerCase();
+
+
+  if(
+    !action.includes('payment') &&
+    !action.includes('refund')
+  ){
+    return null;
+  }
+
+
+  /*
+   * Legacy History has no payment ID.
+   * Resolve conservatively from saved data and ONLY when
+   * exactly one payment matches.
+   */
+  const detail=
+    String(
+      item?.detail || ''
+    );
+
+  const lower=
+    detail.toLowerCase();
+
+
+  const candidates=
+    payments.filter(
+      payment=>{
+
+        const amountText=
+          money(
+            Math.abs(
+              Number(
+                payment.amount || 0
+              )
+            )
+          );
+
+
+        if(
+          !amountText ||
+          !detail.includes(amountText)
+        ){
+          return false;
+        }
+
+
+        const student=
+          String(
+            payment.student || ''
+          ).trim();
+
+
+        if(
+          student &&
+          !lower.includes(
+            student.toLowerCase()
+          )
+        ){
+          return false;
+        }
+
+
+        const method=
+          String(
+            payment.method || ''
+          ).trim();
+
+
+        if(
+          method &&
+          !lower.includes(
+            method.toLowerCase()
+          )
+        ){
+          return false;
+        }
+
+
+        if(
+          action.includes('refund') &&
+          !(
+            String(
+              payment.transactionType || ''
+            )
+              .toLowerCase()==='refund' ||
+            Number(payment.amount)<0
+          )
+        ){
+          return false;
+        }
+
+
+        return true;
+      }
+    );
+
+
+  return candidates.length===1
+    ? candidates[0]
+    : null;
+}
+
+
 function openHistoryEvidence(
   historyId
 ){
@@ -16519,6 +17008,22 @@ function openHistoryEvidence(
 
     showInvoiceLedgerDetail(
       invoice
+    );
+
+    return;
+  }
+
+
+  const payment=
+    historyPaymentEvidence(
+      item
+    );
+
+
+  if(payment){
+
+    showPaymentDetail(
+      payment
     );
 
     return;
