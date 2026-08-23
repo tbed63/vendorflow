@@ -16114,25 +16114,48 @@ function renderReviews(){
 
           <div class="vf-review-actions">
 
-            <button
-              type="button"
-              class="primary"
-              data-reject-duplicate="${review.id}">
-              Reject duplicate
-            </button>
+            ${
+              review.itemType==='certificate'
+                ? `
+                  <button
+                    type="button"
+                    class="primary"
+                    data-compare-duplicate-certificate="${review.id}">
+                    Compare certificates
+                  </button>
+                `
+                : `
+                  <button
+                    type="button"
+                    class="primary"
+                    data-reject-duplicate="${review.id}">
+                    Reject duplicate
+                  </button>
 
-            <button
-              type="button"
-              class="vf-secondary-button"
-              data-keep-duplicate="${review.id}">
-              Keep anyway
-            </button>
+                  <button
+                    type="button"
+                    class="vf-secondary-button"
+                    data-keep-duplicate="${review.id}">
+                    Keep anyway
+                  </button>
+                `
+            }
 
           </div>
 
-          <div class="vf-default-note">
-            Default: reject duplicate
-          </div>
+          ${
+            review.itemType==='certificate'
+              ? `
+                <div class="vf-default-note">
+                  Review both original certificates before deciding.
+                </div>
+              `
+              : `
+                <div class="vf-default-note">
+                  Default: reject duplicate
+                </div>
+              `
+          }
 
         </div>
       `;
@@ -16146,6 +16169,18 @@ function renderReviews(){
 
         openCertificateForRepair(
           button.dataset.fixReviewCertificate
+        );
+      };
+    });
+
+
+  $$('[data-compare-duplicate-certificate]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        openDuplicateCertificateCompare(
+          button.dataset.compareDuplicateCertificate
         );
       };
     });
@@ -21635,4 +21670,715 @@ if($('#bulkCertificateReviewModal')){
 
 
 
+
+
+
+/* ==========================================================
+   DUPLICATE CERTIFICATE — TWO-PDF COMPARISON
+   ========================================================== */
+
+let activeDuplicateCertificateReviewId='';
+
+
+const duplicatePdfState={
+
+  existing:{
+    document:null,
+    data:null,
+    zoom:1
+  },
+
+  incoming:{
+    document:null,
+    data:null,
+    zoom:1
+  }
+};
+
+
+function duplicatePdfElements(
+  side
+){
+
+  const prefix=
+    side==='existing'
+      ? 'duplicateExisting'
+      : 'duplicateIncoming';
+
+
+  return {
+
+    status:
+      $(`#${prefix}PdfStatus`),
+
+    viewport:
+      $(`#${prefix}PdfViewport`),
+
+    pages:
+      $(`#${prefix}PdfPages`),
+
+    zoomLabel:
+      $(`#${prefix}ZoomLabel`)
+  };
+}
+
+
+function clearDuplicatePdf(
+  side
+){
+
+  const state=
+    duplicatePdfState[side];
+
+  const elements=
+    duplicatePdfElements(side);
+
+
+  state.document=null;
+  state.data=null;
+  state.zoom=1;
+
+
+  if(elements.pages){
+    elements.pages.innerHTML='';
+  }
+
+
+  if(elements.status){
+    elements.status.textContent='';
+  }
+
+
+  if(elements.zoomLabel){
+    elements.zoomLabel.textContent='Fit';
+  }
+}
+
+
+async function fetchCertificatePdfBytes(
+  objectKey
+){
+
+  if(!objectKey){
+
+    throw new Error(
+      'Original PDF is not available.'
+    );
+  }
+
+
+  const token=
+    await user.getIdToken();
+
+
+  const response=
+    await fetch(
+      `${VENDORFLOW_API}/certificate/file/` +
+      encodeURIComponent(
+        objectKey
+      ),
+      {
+        headers:{
+          Authorization:
+            `Bearer ${token}`
+        }
+      }
+    );
+
+
+  if(!response.ok){
+
+    let data={};
+
+    try{
+      data=
+        await response.json();
+    }catch{}
+
+
+    throw new Error(
+      data.error ||
+      'Could not load certificate PDF.'
+    );
+  }
+
+
+  return new Uint8Array(
+    await response.arrayBuffer()
+  );
+}
+
+
+async function renderDuplicatePdf(
+  side
+){
+
+  const state=
+    duplicatePdfState[side];
+
+  const elements=
+    duplicatePdfElements(side);
+
+
+  if(
+    !state.document ||
+    !elements.pages
+  ){
+    return;
+  }
+
+
+  elements.pages.innerHTML='';
+
+
+  const availableWidth=
+    Math.max(
+      280,
+      Number(
+        elements.viewport?.clientWidth ||
+        500
+      ) - 24
+    );
+
+
+  for(
+    let pageNumber=1;
+    pageNumber<=state.document.numPages;
+    pageNumber++
+  ){
+
+    const page=
+      await state.document.getPage(
+        pageNumber
+      );
+
+
+    const natural=
+      page.getViewport({
+        scale:1
+      });
+
+
+    const fitScale=
+      availableWidth /
+      natural.width;
+
+
+    const scale=
+      fitScale *
+      state.zoom;
+
+
+    const viewport=
+      page.getViewport({
+        scale
+      });
+
+
+    const wrapper=
+      document.createElement(
+        'div'
+      );
+
+    wrapper.className=
+      'vf-duplicate-pdf-page';
+
+
+    const canvas=
+      document.createElement(
+        'canvas'
+      );
+
+
+    const deviceScale=
+      Math.max(
+        1,
+        window.devicePixelRatio || 1
+      );
+
+
+    canvas.width=
+      Math.floor(
+        viewport.width *
+        deviceScale
+      );
+
+
+    canvas.height=
+      Math.floor(
+        viewport.height *
+        deviceScale
+      );
+
+
+    canvas.style.width=
+      `${Math.floor(viewport.width)}px`;
+
+    canvas.style.height=
+      `${Math.floor(viewport.height)}px`;
+
+
+    wrapper.appendChild(
+      canvas
+    );
+
+    elements.pages.appendChild(
+      wrapper
+    );
+
+
+    const context=
+      canvas.getContext('2d');
+
+
+    await page.render({
+
+      canvasContext:
+        context,
+
+      viewport,
+
+      transform:
+        deviceScale===1
+          ? null
+          : [
+              deviceScale,
+              0,
+              0,
+              deviceScale,
+              0,
+              0
+            ]
+
+    }).promise;
+  }
+
+
+  if(elements.zoomLabel){
+
+    elements.zoomLabel.textContent=
+      state.zoom===1
+        ? 'Fit'
+        : `${Math.round(state.zoom*100)}%`;
+  }
+}
+
+
+async function loadDuplicatePdf(
+  side,
+  objectKey
+){
+
+  clearDuplicatePdf(
+    side
+  );
+
+
+  const state=
+    duplicatePdfState[side];
+
+  const elements=
+    duplicatePdfElements(side);
+
+
+  if(elements.status){
+
+    elements.status.textContent=
+      'Loading certificate…';
+  }
+
+
+  if(!window.pdfjsLib){
+
+    if(elements.status){
+
+      elements.status.textContent=
+        'PDF viewer did not load.';
+    }
+
+    return;
+  }
+
+
+  try{
+
+    state.data=
+      await fetchCertificatePdfBytes(
+        objectKey
+      );
+
+
+    state.document=
+      await window.pdfjsLib
+        .getDocument({
+          data:
+            state.data
+        })
+        .promise;
+
+
+    state.zoom=1;
+
+
+    await renderDuplicatePdf(
+      side
+    );
+
+
+    if(elements.status){
+
+      elements.status.textContent='';
+    }
+
+
+    if(elements.viewport){
+
+      elements.viewport.scrollTop=0;
+      elements.viewport.scrollLeft=0;
+    }
+
+
+  }catch(error){
+
+    console.error(
+      `Duplicate ${side} PDF failed:`,
+      error
+    );
+
+
+    if(elements.status){
+
+      elements.status.textContent=
+        error?.message ||
+        'Could not display this certificate.';
+    }
+  }
+}
+
+
+async function changeDuplicatePdfZoom(
+  side,
+  amount
+){
+
+  const state=
+    duplicatePdfState[side];
+
+
+  if(!state.document){
+    return;
+  }
+
+
+  state.zoom=
+    Math.max(
+      .5,
+      Math.min(
+        3,
+        state.zoom+amount
+      )
+    );
+
+
+  await renderDuplicatePdf(
+    side
+  );
+}
+
+
+async function fitDuplicatePdf(
+  side
+){
+
+  const state=
+    duplicatePdfState[side];
+
+
+  if(!state.document){
+    return;
+  }
+
+
+  state.zoom=1;
+
+
+  await renderDuplicatePdf(
+    side
+  );
+
+
+  const viewport=
+    duplicatePdfElements(
+      side
+    ).viewport;
+
+
+  if(viewport){
+
+    viewport.scrollTop=0;
+    viewport.scrollLeft=0;
+  }
+}
+
+
+function closeDuplicateCertificateCompare(){
+
+  activeDuplicateCertificateReviewId='';
+
+
+  clearDuplicatePdf(
+    'existing'
+  );
+
+  clearDuplicatePdf(
+    'incoming'
+  );
+
+
+  hide(
+    $('#duplicateCertificateCompareModal')
+  );
+}
+
+
+async function openDuplicateCertificateCompare(
+  reviewId
+){
+
+  const review=
+    reviews.find(
+      item=>
+        item.id===reviewId
+    );
+
+
+  if(
+    !review ||
+    review.reviewType!=='duplicate' ||
+    review.itemType!=='certificate'
+  ){
+    return;
+  }
+
+
+  const existing=
+    certs.find(
+      certificate=>
+        certificate.id===
+        review.existingId
+    );
+
+
+  if(!existing){
+
+    toast(
+      'VendorFlow could not find the already-recorded certificate.'
+    );
+
+    return;
+  }
+
+
+  const incoming=
+    review.incoming || {};
+
+
+  activeDuplicateCertificateReviewId=
+    review.id;
+
+
+  $('#duplicateExistingSummary').textContent=
+    review.existingSummary ||
+    `${existing.student||''} · ` +
+    `${existing.number||''} · ` +
+    `${money(existing.amount)}`;
+
+
+  $('#duplicateIncomingSummary').textContent=
+    `${incoming.student||''} · ` +
+    `${incoming.number||''} · ` +
+    `${money(incoming.amount)}`;
+
+
+  show(
+    $('#duplicateCertificateCompareModal')
+  );
+
+
+  await Promise.all([
+
+    loadDuplicatePdf(
+      'existing',
+      existing.pdfObjectKey || ''
+    ),
+
+    loadDuplicatePdf(
+      'incoming',
+      incoming.pdfObjectKey || ''
+    )
+
+  ]);
+}
+
+
+/* controls */
+
+if($('#closeDuplicateCertificateCompare')){
+
+  $('#closeDuplicateCertificateCompare')
+    .onclick=
+      closeDuplicateCertificateCompare;
+}
+
+
+if($('#duplicateExistingZoomIn')){
+
+  $('#duplicateExistingZoomIn')
+    .onclick=
+      ()=>changeDuplicatePdfZoom(
+        'existing',
+        .25
+      );
+}
+
+
+if($('#duplicateExistingZoomOut')){
+
+  $('#duplicateExistingZoomOut')
+    .onclick=
+      ()=>changeDuplicatePdfZoom(
+        'existing',
+        -.25
+      );
+}
+
+
+if($('#duplicateExistingFit')){
+
+  $('#duplicateExistingFit')
+    .onclick=
+      ()=>fitDuplicatePdf(
+        'existing'
+      );
+}
+
+
+if($('#duplicateIncomingZoomIn')){
+
+  $('#duplicateIncomingZoomIn')
+    .onclick=
+      ()=>changeDuplicatePdfZoom(
+        'incoming',
+        .25
+      );
+}
+
+
+if($('#duplicateIncomingZoomOut')){
+
+  $('#duplicateIncomingZoomOut')
+    .onclick=
+      ()=>changeDuplicatePdfZoom(
+        'incoming',
+        -.25
+      );
+}
+
+
+if($('#duplicateIncomingFit')){
+
+  $('#duplicateIncomingFit')
+    .onclick=
+      ()=>fitDuplicatePdf(
+        'incoming'
+      );
+}
+
+
+if($('#duplicateCompareReject')){
+
+  $('#duplicateCompareReject')
+    .onclick=
+      async ()=>{
+
+        const reviewId=
+          activeDuplicateCertificateReviewId;
+
+
+        if(!reviewId){
+          return;
+        }
+
+
+        const button=
+          $('#duplicateCompareReject');
+
+
+        button.disabled=true;
+        button.textContent=
+          'Rejecting…';
+
+
+        try{
+
+          await rejectDuplicateReview(
+            reviewId
+          );
+
+
+          closeDuplicateCertificateCompare();
+
+
+        }finally{
+
+          button.disabled=false;
+          button.textContent=
+            'Yes — Reject Duplicate';
+        }
+      };
+}
+
+
+if($('#duplicateCompareKeep')){
+
+  $('#duplicateCompareKeep')
+    .onclick=
+      async ()=>{
+
+        const reviewId=
+          activeDuplicateCertificateReviewId;
+
+
+        if(!reviewId){
+          return;
+        }
+
+
+        const button=
+          $('#duplicateCompareKeep');
+
+
+        button.disabled=true;
+        button.textContent=
+          'Keeping…';
+
+
+        try{
+
+          await keepDuplicateReview(
+            reviewId
+          );
+
+
+          closeDuplicateCertificateCompare();
+
+
+        }finally{
+
+          button.disabled=false;
+          button.textContent=
+            'No — Keep Both';
+        }
+      };
+}
 

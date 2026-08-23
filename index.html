@@ -2062,5 +2062,187 @@ Thank you,
 <div id="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="vendor/pdfjs/pdf.min.js"></script>
-<script type="module" src="app.js?v=modal-root-fix-20260822-1"></script>
+
+<div
+  id="duplicateCertificateCompareModal"
+  class="vf-modal-overlay hidden">
+
+  <div
+    class="vf-modal-card vf-duplicate-certificate-compare-card"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="duplicateCertificateCompareTitle">
+
+    <button
+      type="button"
+      id="closeDuplicateCertificateCompare"
+      class="vf-modal-close"
+      aria-label="Close">
+      ×
+    </button>
+
+
+    <div class="vf-duplicate-compare-header">
+
+      <div>
+        <div class="eyebrow">
+          Possible duplicate certificate
+        </div>
+
+        <h3 id="duplicateCertificateCompareTitle">
+          Compare the two certificates
+        </h3>
+
+        <div class="meta">
+          Check the original documents before deciding.
+        </div>
+      </div>
+
+    </div>
+
+
+    <div class="vf-duplicate-pdf-grid">
+
+      <section class="vf-duplicate-pdf-panel">
+
+        <div class="vf-duplicate-pdf-heading">
+          <div>
+            <small>ALREADY RECORDED</small>
+            <strong id="duplicateExistingSummary">
+              Existing certificate
+            </strong>
+          </div>
+
+          <div class="vf-duplicate-pdf-controls">
+            <button
+              type="button"
+              id="duplicateExistingZoomOut">
+              −
+            </button>
+
+            <span id="duplicateExistingZoomLabel">
+              Fit
+            </span>
+
+            <button
+              type="button"
+              id="duplicateExistingZoomIn">
+              +
+            </button>
+
+            <button
+              type="button"
+              id="duplicateExistingFit">
+              Fit
+            </button>
+          </div>
+        </div>
+
+        <div
+          id="duplicateExistingPdfStatus"
+          class="vf-bulk-pdf-status">
+        </div>
+
+        <div
+          id="duplicateExistingPdfViewport"
+          class="vf-duplicate-pdf-viewport">
+
+          <div
+            id="duplicateExistingPdfPages"
+            class="vf-duplicate-pdf-pages">
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <section class="vf-duplicate-pdf-panel">
+
+        <div class="vf-duplicate-pdf-heading">
+          <div>
+            <small>NEWLY UPLOADED</small>
+            <strong id="duplicateIncomingSummary">
+              New certificate
+            </strong>
+          </div>
+
+          <div class="vf-duplicate-pdf-controls">
+            <button
+              type="button"
+              id="duplicateIncomingZoomOut">
+              −
+            </button>
+
+            <span id="duplicateIncomingZoomLabel">
+              Fit
+            </span>
+
+            <button
+              type="button"
+              id="duplicateIncomingZoomIn">
+              +
+            </button>
+
+            <button
+              type="button"
+              id="duplicateIncomingFit">
+              Fit
+            </button>
+          </div>
+        </div>
+
+        <div
+          id="duplicateIncomingPdfStatus"
+          class="vf-bulk-pdf-status">
+        </div>
+
+        <div
+          id="duplicateIncomingPdfViewport"
+          class="vf-duplicate-pdf-viewport">
+
+          <div
+            id="duplicateIncomingPdfPages"
+            class="vf-duplicate-pdf-pages">
+          </div>
+
+        </div>
+
+      </section>
+
+    </div>
+
+
+    <div class="vf-duplicate-compare-footer">
+
+      <div class="vf-duplicate-decision-help">
+        Are these actually the same certificate?
+      </div>
+
+      <div class="vf-duplicate-decision-actions">
+
+        <button
+          type="button"
+          class="primary"
+          id="duplicateCompareReject">
+          Yes — Reject Duplicate
+        </button>
+
+        <button
+          type="button"
+          class="vf-secondary-button"
+          id="duplicateCompareKeep">
+          No — Keep Both
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<script type="module" src="app.js?v=duplicate-compare-20260822-1"></script>
 </body></html>
