@@ -24882,13 +24882,31 @@ async function readPaymentStatement(){
     fileInput.files[0];
 
 
-  if(
-    file.type &&
-    file.type!=='application/pdf'
-  ){
+  const lowerName=
+    String(
+      file.name || ''
+    )
+      .toLowerCase();
+
+
+  const lowerType=
+    String(
+      file.type || ''
+    )
+      .toLowerCase();
+
+
+  const supported=
+    lowerName.endsWith('.pdf') ||
+    lowerName.endsWith('.csv') ||
+    lowerType==='application/pdf' ||
+    lowerType.includes('csv');
+
+
+  if(!supported){
 
     toast(
-      'Please choose a PDF statement.'
+      'Please choose a PDF or CSV statement.'
     );
 
     return;
@@ -25038,5 +25056,189 @@ if(paymentStatementButton){
   paymentStatementButton.onclick=
     readPaymentStatement;
 }
+
+
+
+
+/* ==========================================================
+   PAYMENTS / CHARGES ACTION CHOOSER
+   ========================================================== */
+
+
+function vfButtonByExactText(text){
+
+  return Array.from(
+    document.querySelectorAll(
+      'button'
+    )
+  )
+    .find(
+      button=>
+        button.textContent
+          .trim()
+          .toLowerCase()===
+        String(text)
+          .trim()
+          .toLowerCase()
+    ) ||
+    null;
+}
+
+
+function closePaymentActionChooser(){
+
+  const chooser=
+    $('#paymentActionChooser');
+
+  if(chooser){
+    chooser.hidden=true;
+  }
+}
+
+
+function hidePaymentStatementWorkspace(){
+
+  const workspace=
+    $('#paymentStatementWorkspace');
+
+  if(workspace){
+    workspace.hidden=true;
+  }
+}
+
+
+function showPaymentStatementWorkspace(){
+
+  const workspace=
+    $('#paymentStatementWorkspace');
+
+  if(workspace){
+    workspace.hidden=false;
+
+    workspace.scrollIntoView({
+      behavior:'smooth',
+      block:'nearest'
+    });
+  }
+}
+
+
+/*
+ * Preserve the old proven buttons as internal triggers.
+ * They remain functional but are no longer part of the UX.
+ */
+[
+  'Refund',
+  'Add charge',
+  'Add family payment'
+]
+  .forEach(label=>{
+
+    const button=
+      vfButtonByExactText(
+        label
+      );
+
+    if(button){
+
+      button.classList.add(
+        'vf-hidden-legacy-payment-action'
+      );
+    }
+  });
+
+
+const paymentActionLauncher=
+  $('#openPaymentActionChooser');
+
+if(paymentActionLauncher){
+
+  paymentActionLauncher.onclick=()=>{
+
+    const chooser=
+      $('#paymentActionChooser');
+
+    if(!chooser){
+      return;
+    }
+
+    chooser.hidden=
+      !chooser.hidden;
+  };
+}
+
+
+const closePaymentChooserButton=
+  $('#closePaymentActionChooser');
+
+if(closePaymentChooserButton){
+
+  closePaymentChooserButton.onclick=
+    closePaymentActionChooser;
+}
+
+
+$$('[data-payment-choice]')
+  .forEach(button=>{
+
+    button.onclick=()=>{
+
+      const choice=
+        button.dataset.paymentChoice;
+
+
+      closePaymentActionChooser();
+
+
+      if(
+        choice!=='statement'
+      ){
+
+        hidePaymentStatementWorkspace();
+      }
+
+
+      if(
+        choice==='statement'
+      ){
+
+        showPaymentStatementWorkspace();
+        return;
+      }
+
+
+      const legacyLabel=
+        choice==='family'
+          ? 'Add family payment'
+          : (
+              choice==='charge'
+                ? 'Add charge'
+                : (
+                    choice==='refund'
+                      ? 'Refund'
+                      : ''
+                  )
+            );
+
+
+      const legacyButton=
+        vfButtonByExactText(
+          legacyLabel
+        );
+
+
+      if(!legacyButton){
+
+        toast(
+          'VendorFlow could not open that entry form.'
+        );
+
+        return;
+      }
+
+
+      legacyButton.click();
+    };
+  });
 
 

@@ -5937,3 +5937,95 @@ button.history.vf-history-evidence:focus-visible{
 }
 
 
+
+
+/* ==========================================================
+   CLEAN PAYMENTS / CHARGES ENTRY UX
+   ========================================================== */
+
+.vf-payment-heading-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:18px;
+  margin-bottom:14px;
+}
+
+.vf-payment-heading-row h2{
+  margin:0;
+}
+
+.vf-payment-action-chooser{
+  padding:18px;
+  margin-bottom:18px;
+  border:1px solid var(--border, #d6dde7);
+  border-radius:14px;
+  background:#fff;
+}
+
+.vf-payment-action-chooser[hidden],
+#paymentStatementWorkspace[hidden],
+.vf-hidden-legacy-payment-action{
+  display:none !important;
+}
+
+.vf-payment-choice-grid{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0,1fr));
+  gap:12px;
+  margin:14px 0;
+}
+
+.vf-payment-choice{
+  appearance:none;
+  width:100%;
+  min-height:88px;
+  padding:14px 16px;
+  border:1px solid var(--border, #d6dde7);
+  border-radius:12px;
+  background:#fff;
+  text-align:left;
+  cursor:pointer;
+  font:inherit;
+}
+
+.vf-payment-choice:hover{
+  border-color:#17386f;
+  background:#f7f9fc;
+}
+
+.vf-payment-choice strong{
+  display:block;
+  margin-bottom:5px;
+  color:#20303c;
+  font-size:15px;
+}
+
+.vf-payment-choice span{
+  display:block;
+  color:#607080;
+  font-size:13px;
+  line-height:1.35;
+}
+
+#paymentStatementWorkspace{
+  max-width:none;
+}
+
+#paymentStatementWorkspace input[type="file"]{
+  width:100%;
+}
+
+@media (max-width:760px){
+
+  .vf-payment-heading-row{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .vf-payment-choice-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+
