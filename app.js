@@ -10970,58 +10970,16 @@ function renderStudentsServices(){
             );
 
 
-        /*
-         * ONE certificate:
-         *
-         * Do not create another evidence-opening pathway.
-         * Find the exact saved certificate row and trigger the
-         * SAME click behavior that already works in Certificates.
-         */
         if(linked.length===1){
 
-          const certificateId=
-            linked[0].id;
-
-
-          const record=
-            Array.from(
-              document.querySelectorAll(
-                '[data-certificate-id]'
-              )
-            )
-              .find(
-                element=>
-                  element.dataset.certificateId===
-                  certificateId
-              );
-
-
-          if(record){
-
-            record.click();
-
-            return;
-          }
-
-
-          /*
-           * The certificate list should already exist because
-           * renderAll() renders it on every refresh.
-           * This message prevents another silent failure.
-           */
-          toast(
-            'VendorFlow found the certificate but could not open its record.'
+          openSavedCertificateEvidence(
+            linked[0].id
           );
 
           return;
         }
 
 
-        /*
-         * MORE THAN ONE certificate:
-         * preserve the existing behavior — show the student's
-         * certificate records in Certificates.
-         */
         if(linked.length>1){
 
           switchView(
@@ -19628,6 +19586,41 @@ function bulkCertificateReference(item){
     ''
   );
 }
+
+
+
+/*
+ * The certificate evidence modal is authored inside the
+ * Certificates view in index.html.
+ *
+ * Inactive VendorFlow views use display:none, so opening that
+ * modal while the vendor is on Students, Actions, etc. would
+ * technically open it INSIDE a hidden parent.
+ *
+ * Move the one shared modal to document.body once. It can then
+ * be opened from every VendorFlow view.
+ */
+function moveCertificateEvidenceModalToRoot(){
+
+  const modal=
+    $('#bulkCertificateReviewModal');
+
+
+  if(
+    !modal ||
+    modal.parentElement===document.body
+  ){
+    return;
+  }
+
+
+  document.body.appendChild(
+    modal
+  );
+}
+
+
+moveCertificateEvidenceModalToRoot();
 
 
 /* ==========================================================
