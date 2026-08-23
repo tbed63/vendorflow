@@ -18394,6 +18394,18 @@ if($('#saveInvoiceNumbering')){
 
 
       /*
+       * Saving is complete. Close the settings popup so the
+       * vendor gets an unmistakable visual confirmation.
+       */
+      const numberingModal=
+        $('#invoiceNumberingModal');
+
+      if(numberingModal){
+        hide(numberingModal);
+      }
+
+
+      /*
        * Refresh immediately. If certificates have already
        * reached their billing date, VendorFlow will now
        * prepare those invoices automatically.
