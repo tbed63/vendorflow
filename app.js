@@ -4004,7 +4004,11 @@ async function createDueInvoices(){
     await log(
       'Invoice prepared',
       `${invoice.invoiceNumber} for ${invoice.studentName} — ${money(invoice.amount)} — ${invoice.charterSchoolName}.`,
-      'VendorFlow'
+      'VendorFlow',
+      {
+        type:'invoice',
+        id:invoiceRef.id
+      }
     );
 
 
@@ -4589,7 +4593,11 @@ async function sendInvoiceThroughVendorFlow(
   await log(
     'Invoice sent',
     `${invoice.invoiceNumber} — ${invoice.charterSchoolName} — ${money(invoice.amount)} — sent to ${billingEmail}.`,
-    'VendorFlow'
+    'VendorFlow',
+    {
+      type:'invoice',
+      id:invoice.id
+    }
   );
 
 
@@ -4910,6 +4918,34 @@ function installInvoiceNumberingPopup(){
 }
 
 
+
+/*
+ * History can open invoice evidence from any VendorFlow page.
+ * Keep the shared invoice modal outside hidden .view containers.
+ */
+function moveInvoiceDetailModalToRoot(){
+
+  const modal=
+    $('#invoiceDetailModal');
+
+
+  if(
+    !modal ||
+    modal.parentElement===document.body
+  ){
+    return;
+  }
+
+
+  document.body.appendChild(
+    modal
+  );
+}
+
+
+moveInvoiceDetailModalToRoot();
+
+
 function closeInvoiceLedgerDetail(){
 
   const modal=
@@ -4956,7 +4992,11 @@ async function markInvoiceSentManually(invoice){
   await log(
     'Invoice marked sent',
     `${invoice.invoiceNumber} — ${invoice.charterSchoolName} — ${money(invoice.amount)}.`,
-    'Manual'
+    'Manual',
+    {
+      type:'invoice',
+      id:invoice.id
+    }
   );
 
 
@@ -5000,7 +5040,11 @@ async function markInvoicePaidManually(invoice){
   await log(
     'Invoice marked paid',
     `${invoice.invoiceNumber} — ${invoice.charterSchoolName} — ${money(invoice.amount)}.`,
-    'Manual'
+    'Manual',
+    {
+      type:'invoice',
+      id:invoice.id
+    }
   );
 
 
@@ -16369,6 +16413,70 @@ function historyCertificateEvidence(
 }
 
 
+
+function historyInvoiceEvidence(
+  item
+){
+
+  const evidence=
+    item?.evidence || {};
+
+
+  /*
+   * New history entries have an exact invoice ID.
+   */
+  if(
+    evidence.type==='invoice' &&
+    evidence.id
+  ){
+
+    return invoices.find(
+      invoice=>
+        invoice.id===evidence.id
+    ) || null;
+  }
+
+
+  /*
+   * Older invoice history predates structured evidence.
+   * Invoice numbers are designed to be unique, so resolve
+   * only when exactly one current invoice matches.
+   */
+  const detail=
+    String(
+      item?.detail || ''
+    );
+
+
+  if(
+    !String(
+      item?.action || ''
+    )
+      .toLowerCase()
+      .includes('invoice')
+  ){
+    return null;
+  }
+
+
+  const matches=
+    invoices.filter(
+      invoice=>
+        invoice.invoiceNumber &&
+        detail.includes(
+          String(
+            invoice.invoiceNumber
+          )
+        )
+    );
+
+
+  return matches.length===1
+    ? matches[0]
+    : null;
+}
+
+
 function openHistoryEvidence(
   historyId
 ){
@@ -16395,6 +16503,22 @@ function openHistoryEvidence(
 
     openSavedCertificateEvidence(
       certificate.id
+    );
+
+    return;
+  }
+
+
+  const invoice=
+    historyInvoiceEvidence(
+      item
+    );
+
+
+  if(invoice){
+
+    showInvoiceLedgerDetail(
+      invoice
     );
 
     return;
