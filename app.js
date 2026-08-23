@@ -34,7 +34,7 @@ const VENDORFLOW_API =
   "https://vendorflow-api.tbed63.workers.dev";
 
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),$=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],show=e=>e.classList.remove("hidden"),hide=e=>e.classList.add("hidden"),esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
-let user=null,profile={},classes=[],roster=[],students=[],services=[],obligations=[],charterSchools=[],payments=[],certs=[],invoices=[],compliance=[],reviews=[],history=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
+let user=null,profile={},classes=[],roster=[],students=[],services=[],obligations=[],charterSchools=[],payments=[],certs=[],invoices=[],compliance=[],reviews=[],history=[],ignoredStatementPayers=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
 let invoiceStatusFilter='all';
 let invoiceSearchQuery='';
 
@@ -787,6 +787,31 @@ async function refreshAll(){
   obligations=await getList('obligations',false);
   charterSchools=await getList('charterSchools',false);
   payments=await getList('payments');
+
+  const ignoredPayerVendorSnap=
+    await getDoc(
+      vendorDoc()
+    );
+
+  const ignoredPayerVendorData=
+    ignoredPayerVendorSnap.exists()
+      ? ignoredPayerVendorSnap.data()
+      : {};
+
+  ignoredStatementPayers=
+    Array.isArray(
+      ignoredPayerVendorData
+        .ignoredStatementPayers
+    )
+      ? ignoredPayerVendorData
+          .ignoredStatementPayers
+          .filter(
+            rule=>
+              rule &&
+              rule.payerKey
+          )
+      : [];
+
   certs=await getList('certificates');
   invoices=await getList('invoices');
 
@@ -24861,6 +24886,232 @@ function paymentStatementMatchLabel(tx){
 }
 
 
+function statementIgnoredPayerKey(value){
+
+  return paymentStatementMatchText(
+    value
+  );
+}
+
+
+function statementIgnoredMethodKey(value){
+
+  return paymentStatementMatchText(
+    value
+  );
+}
+
+
+function statementPayerIgnoreRule(tx){
+
+  const payerKey=
+    statementIgnoredPayerKey(
+      tx?.payer
+    );
+
+  const methodKey=
+    statementIgnoredMethodKey(
+      tx?.method
+    );
+
+
+  if(!payerKey){
+    return null;
+  }
+
+
+  return (
+    ignoredStatementPayers.find(rule=>
+      rule.payerKey===payerKey &&
+      rule.methodKey===methodKey
+    ) ||
+    null
+  );
+}
+
+
+function statementPayerIsIgnored(tx){
+
+  return Boolean(
+    statementPayerIgnoreRule(tx)
+  );
+}
+
+
+async function saveIgnoredStatementPayer(
+  tx
+){
+
+  const payer=
+    String(tx?.payer||'').trim();
+
+  const method=
+    String(tx?.method||'').trim() ||
+    'Other';
+
+  const payerKey=
+    statementIgnoredPayerKey(payer);
+
+  const methodKey=
+    statementIgnoredMethodKey(method);
+
+
+  if(!payerKey){
+    toast(
+      'This transaction has no payer name to ignore.'
+    );
+
+    return false;
+  }
+
+
+  const existing=
+    ignoredStatementPayers.find(rule=>
+      rule.payerKey===payerKey &&
+      rule.methodKey===methodKey
+    );
+
+
+  if(existing){
+    return true;
+  }
+
+
+  const approved=
+    window.confirm(
+      `Always ignore transactions from ${payer} `+
+      `in future ${method} statement imports?\n\n`+
+      `They will remain visible, but VendorFlow will `+
+      `leave them unchecked.`
+    );
+
+
+  if(!approved){
+    return false;
+  }
+
+
+  const rule={
+
+    payer,
+
+    payerKey,
+
+    method,
+
+    methodKey,
+
+    createdAt:
+      new Date().toISOString()
+  };
+
+
+  const updatedRules=[
+    ...ignoredStatementPayers,
+    rule
+  ];
+
+
+  await setDoc(
+    vendorDoc(),
+    {
+      ignoredStatementPayers:
+        updatedRules,
+
+      updatedAt:
+        serverTimestamp()
+    },
+    {
+      merge:true
+    }
+  );
+
+
+  ignoredStatementPayers=
+    updatedRules;
+
+
+  await log(
+    'Statement payer ignored',
+    `${payer} will be ignored in future ${method} statement imports.`,
+    'Manual'
+  );
+
+
+  return true;
+}
+
+
+async function removeIgnoredStatementPayer(
+  tx
+){
+
+  const rule=
+    statementPayerIgnoreRule(tx);
+
+
+  if(!rule){
+    return;
+  }
+
+
+  const approved=
+    window.confirm(
+      `Stop automatically ignoring ${rule.payer} `+
+      `in ${rule.method} statement imports?`
+    );
+
+
+  if(!approved){
+    return;
+  }
+
+
+  const updatedRules=
+    ignoredStatementPayers.filter(
+      item=>
+        !(
+          item.payerKey===rule.payerKey &&
+          item.methodKey===rule.methodKey
+        )
+    );
+
+
+  await setDoc(
+    vendorDoc(),
+    {
+      ignoredStatementPayers:
+        updatedRules,
+
+      updatedAt:
+        serverTimestamp()
+    },
+    {
+      merge:true
+    }
+  );
+
+
+  ignoredStatementPayers=
+    updatedRules;
+
+
+  await log(
+    'Statement payer restored',
+    `${rule.payer} will no longer be automatically ignored in ${rule.method} statement imports.`,
+    'Manual'
+  );
+
+
+  renderPaymentStatementResults();
+
+
+  toast(
+    `${rule.payer} will no longer be ignored.`
+  );
+}
+
+
 function paymentStatementStudentOptions(
   selectedId=''
 ){
@@ -24877,6 +25128,10 @@ function paymentStatementStudentOptions(
 
 
   return `
+    <option value="__VF_IGNORE_PAYER__">
+      Always Ignore This Payer
+    </option>
+
     <option value="">
       Choose student…
     </option>
@@ -24985,6 +25240,7 @@ function selectVendorFlowStatementPayments(){
           tx.direction==='incoming' &&
           !tx.needsReview &&
           matchedStudent &&
+          !statementPayerIsIgnored(tx) &&
           !tx._imported &&
           !tx._duplicateQueued
         );
@@ -25032,17 +25288,98 @@ function installPaymentStatementReviewControls(){
 
       select.addEventListener(
         'change',
-        ()=>{
+        async ()=>{
 
           const index=
             Number(
               select.dataset.statementIndex
             );
 
+          const tx=
+            paymentStatementResult
+              ?.transactions?.[index];
+
           const checkbox=
             document.querySelector(
               `.vf-statement-select[data-statement-index="${index}"]`
             );
+
+
+          if(
+            select.value===
+              '__VF_IGNORE_PAYER__'
+          ){
+
+            select.disabled=true;
+
+
+            try{
+
+              const saved=
+                await saveIgnoredStatementPayer(
+                  tx
+                );
+
+
+              if(saved){
+
+                if(tx){
+                  tx._importError='';
+                }
+
+
+                renderPaymentStatementResults();
+
+
+                toast(
+                  `${tx?.payer||'Payer'} will be ignored in future imports.`
+                );
+
+                return;
+              }
+
+
+              select.value=
+                paymentStatementStudentMatch(tx)
+                  ?.id ||
+                '';
+
+
+            }catch(error){
+
+              console.error(
+                'Could not save ignored payer:',
+                error
+              );
+
+
+              select.value=
+                paymentStatementStudentMatch(tx)
+                  ?.id ||
+                '';
+
+
+              toast(
+                'VendorFlow could not save that ignored payer.'
+              );
+
+
+            }finally{
+
+              if(
+                document.body.contains(
+                  select
+                )
+              ){
+                select.disabled=false;
+              }
+            }
+
+
+            updatePaymentStatementImportButton();
+
+            return;
+          }
 
 
           if(
@@ -25055,6 +25392,56 @@ function installPaymentStatementReviewControls(){
 
 
           updatePaymentStatementImportButton();
+        }
+      );
+    });
+
+
+  document
+    .querySelectorAll(
+      '[data-stop-ignoring-statement-payer]'
+    )
+    .forEach(button=>{
+
+      button.addEventListener(
+        'click',
+        async ()=>{
+
+          const index=
+            Number(
+              button.dataset
+                .stopIgnoringStatementPayer
+            );
+
+          const tx=
+            paymentStatementResult
+              ?.transactions?.[index];
+
+
+          button.disabled=true;
+
+
+          try{
+
+            await removeIgnoredStatementPayer(
+              tx
+            );
+
+          }catch(error){
+
+            console.error(
+              'Could not remove ignored payer:',
+              error
+            );
+
+
+            button.disabled=false;
+
+
+            toast(
+              'VendorFlow could not remove that ignored-payer rule.'
+            );
+          }
         }
       );
     });
@@ -25543,8 +25930,12 @@ function renderPaymentStatementResults(){
                   const outgoing=
                     tx.direction==='outgoing';
 
+                  const ignored=
+                    statementPayerIsIgnored(tx);
+
                   const unavailable=
                     outgoing ||
+                    ignored ||
                     tx._imported ||
                     tx._duplicateQueued;
 
@@ -25575,6 +25966,8 @@ function renderPaymentStatementResults(){
                     status='Imported';
                   }else if(tx._duplicateQueued){
                     status='Duplicate review';
+                  }else if(ignored){
+                    status='Ignored payer';
                   }
 
 
@@ -25585,13 +25978,17 @@ function renderPaymentStatementResults(){
                           tx._duplicateQueued
                             ? 'vf-statement-duplicate'
                             : (
-                                tx.direction==='incoming' &&
-                                !tx.needsReview
-                                  ? 'vf-statement-incoming'
+                                ignored
+                                  ? 'vf-statement-ignored'
                                   : (
-                                      outgoing
-                                        ? 'vf-statement-outgoing'
-                                        : 'vf-statement-review'
+                                      tx.direction==='incoming' &&
+                                      !tx.needsReview
+                                        ? 'vf-statement-incoming'
+                                        : (
+                                            outgoing
+                                              ? 'vf-statement-outgoing'
+                                              : 'vf-statement-review'
+                                          )
                                     )
                               )
                         );
@@ -25618,6 +26015,17 @@ function renderPaymentStatementResults(){
                         </strong>
 
                         ${
+                          ignored
+                            ? `<button
+                                 type="button"
+                                 class="vf-stop-ignoring-payer"
+                                 data-stop-ignoring-statement-payer="${index}">
+                                 Stop ignoring
+                               </button>`
+                            : ''
+                        }
+
+                        ${
                           tx._importError
                             ? `<div class="vf-statement-row-warning">
                                  ${paymentStatementEsc(
@@ -25641,12 +26049,16 @@ function renderPaymentStatementResults(){
                         ${
                           unavailable
                             ? paymentStatementEsc(
-                                matchedStudent?.studentName ||
-                                (
-                                  tx._imported
-                                    ? 'Imported'
-                                    : ''
-                                )
+                                ignored
+                                  ? 'Always ignored'
+                                  : (
+                                      matchedStudent?.studentName ||
+                                      (
+                                        tx._imported
+                                          ? 'Imported'
+                                          : ''
+                                      )
+                                    )
                               )
                             : `
                                 <select

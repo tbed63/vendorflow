@@ -6132,3 +6132,35 @@ button.history.vf-history-evidence:focus-visible{
     width:100%;
   }
 }
+
+
+/* ==========================================================
+   IGNORED STATEMENT PAYERS
+   ========================================================== */
+
+.vf-statement-ignored{
+  background:#f3f5f7;
+  opacity:.78;
+}
+
+.vf-statement-ignored td{
+  color:#66727d;
+}
+
+.vf-stop-ignoring-payer{
+  display:block;
+  margin-top:6px;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:#236b5d;
+  font-size:12px;
+  font-weight:700;
+  text-decoration:underline;
+  cursor:pointer;
+}
+
+.vf-stop-ignoring-payer:disabled{
+  opacity:.5;
+  cursor:not-allowed;
+}
