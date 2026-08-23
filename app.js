@@ -24674,47 +24674,190 @@ function paymentStatementEsc(value){
 }
 
 
-function paymentStatementStudentMatch(tx){
+function paymentStatementMatchText(value){
+
+  return String(value||'')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g,' ')
+    .trim()
+    .replace(/\s+/g,' ');
+}
+
+
+function paymentStatementContainsExactName(
+  text,
+  name
+){
+
+  const normalizedText=
+    paymentStatementMatchText(text);
+
+  const normalizedName=
+    paymentStatementMatchText(name);
+
+
+  if(!normalizedText || !normalizedName){
+    return false;
+  }
+
+
+  return (
+    ` ${normalizedText} `
+      .includes(
+        ` ${normalizedName} `
+      )
+  );
+}
+
+
+function paymentStatementMatchDetails(tx){
 
   const payer=
-    String(tx?.payer || '').trim();
+    paymentStatementMatchText(
+      tx?.payer
+    );
 
-  if(!payer){
-    return null;
-  }
-
-
-  const matches=
-    paymentStudentMatches(payer);
-
-  if(!matches.length){
-    return null;
-  }
-
-
-  const best=
-    matches[0];
-
-  const second=
-    matches[1];
+  const memo=
+    [
+      tx?.memo,
+      tx?.description
+    ]
+      .filter(Boolean)
+      .join(' ');
 
 
   /*
-   * Only exact student or parent matches are automatic.
-   * Ties are never guessed.
+   * First choice:
+   * an exact complete student name appears in the memo.
    */
-  if(
-    best.score<95 ||
-    (
-      second &&
-      second.score===best.score
-    )
-  ){
+  const memoMatches=
+    students.filter(student=>
+      paymentStatementContainsExactName(
+        memo,
+        student.studentName
+      )
+    );
+
+
+  if(memoMatches.length===1){
+
+    return {
+      student:
+        memoMatches[0],
+
+      label:
+        'Student name in memo',
+
+      matchedBy:
+        'VendorFlow exact student-name memo match'
+    };
+  }
+
+
+  /*
+   * If more than one roster record has the same student
+   * name, use the exact payer/parent name only to resolve
+   * that ambiguity.
+   */
+  if(memoMatches.length>1 && payer){
+
+    const memoAndParentMatches=
+      memoMatches.filter(student=>
+        paymentStatementMatchText(
+          student.parentName
+        )===payer
+      );
+
+
+    if(memoAndParentMatches.length===1){
+
+      return {
+        student:
+          memoAndParentMatches[0],
+
+        label:
+          'Student memo + parent match',
+
+        matchedBy:
+          'VendorFlow exact memo and parent match'
+      };
+    }
+
+
     return null;
   }
 
 
-  return best.student;
+  /*
+   * Second choice:
+   * the payer exactly matches one and only one student
+   * or parent roster identity.
+   *
+   * If one parent has multiple children, VendorFlow does
+   * not guess which child should receive the payment.
+   */
+  if(payer){
+
+    const payerMatches=
+      students.filter(student=>{
+
+        const studentName=
+          paymentStatementMatchText(
+            student.studentName
+          );
+
+        const parentName=
+          paymentStatementMatchText(
+            student.parentName
+          );
+
+
+        return (
+          studentName===payer ||
+          parentName===payer
+        );
+      });
+
+
+    if(payerMatches.length===1){
+
+      return {
+        student:
+          payerMatches[0],
+
+        label:
+          'Exact parent/payer match',
+
+        matchedBy:
+          'VendorFlow exact statement payer match'
+      };
+    }
+  }
+
+
+  return null;
+}
+
+
+function paymentStatementStudentMatch(tx){
+
+  return (
+    paymentStatementMatchDetails(tx)
+      ?.student ||
+    null
+  );
+}
+
+
+function paymentStatementMatchLabel(tx){
+
+  return (
+    paymentStatementMatchDetails(tx)
+      ?.label ||
+    ''
+  );
 }
 
 
@@ -25106,7 +25249,11 @@ async function importSelectedStatementPayments(){
         matchedBy:
           paymentStatementStudentMatch(tx)?.id===
             student.id
-              ? 'VendorFlow exact statement match'
+              ? (
+                  paymentStatementMatchDetails(tx)
+                    ?.matchedBy ||
+                  'VendorFlow exact statement match'
+                )
               : 'Vendor statement selection',
 
         createdAt:
@@ -25520,7 +25667,10 @@ function renderPaymentStatementResults(){
                           !tx._imported &&
                           !tx._duplicateQueued
                             ? `<div class="vf-statement-match-note">
-                                 VF exact match
+                                 ${paymentStatementEsc(
+                                   paymentStatementMatchLabel(tx) ||
+                                   'VF exact match'
+                                 )}
                                </div>`
                             : (
                                 !outgoing &&
