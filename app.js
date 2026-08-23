@@ -678,6 +678,51 @@ function certificateAttentionIssue(cert){
 }
 
 
+
+function invoiceNumberingReviewItems(){
+
+  if(profile.invoiceNumberMode){
+    return [];
+  }
+
+
+  return invoiceReadyCertificates()
+    .map(cert=>({
+
+      id:
+        `invoice-numbering-${cert.id}`,
+
+      reviewType:
+        'invoice-numbering',
+
+      itemType:
+        'invoice',
+
+      certificateId:
+        cert.id,
+
+      title:
+        'Invoice cannot be prepared yet',
+
+      detail:
+        `${cert.student||'Student'} — ${money(cert.amount)} — `+
+        `this certificate has reached its invoice date, but VendorFlow cannot prepare the invoice until you choose an invoice numbering system.`,
+
+      source:
+        'VendorFlow'
+    }));
+}
+
+
+function allNeedsReviewItems(){
+
+  return [
+    ...reviews,
+    ...invoiceNumberingReviewItems()
+  ];
+}
+
+
 function certificateAttentionReviews(){
 
   return certs
@@ -5876,6 +5921,10 @@ function renderDashboard(){
       : [];
 
 
+  const needsReviewItems=
+    allNeedsReviewItems();
+
+
   $('#statClasses').textContent=
     activeClasses.length;
 
@@ -5887,7 +5936,7 @@ function renderDashboard(){
 
 
   $('#statReview').textContent=
-    reviews.length;
+    needsReviewItems.length;
 
 
   $('#statHistory').textContent=
@@ -5895,7 +5944,7 @@ function renderDashboard(){
 
 
   $('#reviewBadge').textContent=
-    reviews.length;
+    needsReviewItems.length;
 
 
   const count=
@@ -6007,7 +6056,7 @@ function renderDashboard(){
     !activeClasses.length &&
     !readyInvoices.length &&
     !invoicesWaitingForNumbering.length &&
-    !reviews.length
+    !needsReviewItems.length
   ){
 
     count.textContent='1';
@@ -6080,7 +6129,7 @@ function renderDashboard(){
 
   const attentionTotal=
     readyInvoices.length +
-    reviews.length;
+    needsReviewItems.length;
 
   count.textContent=
     attentionTotal;
@@ -6137,10 +6186,10 @@ function renderDashboard(){
     };
 
 
-  }else if(reviews.length){
+  }else if(needsReviewItems.length){
 
     title.textContent=
-      `${reviews.length} item${reviews.length===1?'':'s'} need your attention.`;
+      `${needsReviewItems.length} item${needsReviewItems.length===1?'':'s'} need your attention.`;
 
 
     text.textContent=
@@ -16710,24 +16759,38 @@ $('#certificateList').innerHTML=
             d.invoiceReadyDate
               ? `<div class="vf-invoice-schedule ${
                     certificateIsInvoiceReady(d)
-                      ? 'vf-invoice-ready'
+                      ? (
+                          profile.invoiceNumberMode
+                            ? 'vf-invoice-ready'
+                            : 'vf-invoice-blocked'
+                        )
                       : ''
                   }">
                    <strong>
                      ${
                        certificateIsInvoiceReady(d)
-                         ? 'Invoice ready'
+                         ? (
+                             profile.invoiceNumberMode
+                               ? 'Invoice ready'
+                               : 'Cannot prepare invoice'
+                           )
                          : 'Invoice scheduled'
                      }
                    </strong>
                    <span>
-                     ${esc(formatVendorDate(d.invoiceReadyDate))}
                      ${
-                       Number.isFinite(Number(d.invoiceDaysAfterStart))
-                         ? ` · ${Number(d.invoiceDaysAfterStart)} day${
-                             Number(d.invoiceDaysAfterStart)===1?'':'s'
-                           } after service starts`
-                         : ''
+                       certificateIsInvoiceReady(d) &&
+                       !profile.invoiceNumberMode
+                         ? 'Choose your invoice numbering system first.'
+                         : (
+                             `${esc(formatVendorDate(d.invoiceReadyDate))}${
+                               Number.isFinite(Number(d.invoiceDaysAfterStart))
+                                 ? ` · ${Number(d.invoiceDaysAfterStart)} day${
+                                     Number(d.invoiceDaysAfterStart)===1?'':'s'
+                                   } after service starts`
+                                 : ''
+                             }`
+                           )
                      }
                    </span>
                  </div>`
@@ -16858,7 +16921,11 @@ function renderReviews(){
     $('#reviewList');
 
 
-  if(!reviews.length){
+  const displayReviews=
+    allNeedsReviewItems();
+
+
+  if(!displayReviews.length){
 
     list.innerHTML=
       '<div class="empty">Nothing needs review.</div>';
@@ -16868,7 +16935,42 @@ function renderReviews(){
 
 
   list.innerHTML=
-    reviews.map(review=>{
+    displayReviews.map(review=>{
+
+
+      if(
+        review.reviewType===
+        'invoice-numbering'
+      ){
+
+        return `
+          <div class="record vf-numbering-review">
+
+            <strong>
+              ${esc(review.title)}
+            </strong>
+
+            <div class="meta">
+              ${esc(review.detail)}
+            </div>
+
+            <div class="vf-review-actions">
+
+              <button
+                type="button"
+                class="primary"
+                data-open-numbering-review="${esc(review.certificateId)}">
+                Choose invoice numbering
+              </button>
+
+            </div>
+
+          </div>
+        `;
+      }
+
+
+
 
       if(
         review.reviewType!=='duplicate'
@@ -17008,6 +17110,29 @@ function renderReviews(){
         </div>
       `;
     }).join('');
+
+
+  $$('[data-open-numbering-review]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        switchView(
+          'invoices'
+        );
+
+        installInvoiceNumberingPopup();
+
+        renderInvoiceNumberingSettings();
+
+        const open=
+          $('#openInvoiceNumberingSettings');
+
+        if(open){
+          open.click();
+        }
+      };
+    });
 
 
   $$('[data-fix-review-certificate]')

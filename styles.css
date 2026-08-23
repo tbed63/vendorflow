@@ -5857,3 +5857,24 @@ button.history.vf-history-evidence:focus-visible{
 }
 
 
+
+
+/* ==========================================================
+   INVOICE NUMBERING BLOCKER
+   ========================================================== */
+
+.vf-invoice-blocked{
+  border-color:#e6b56c;
+  background:#fff8ee;
+}
+
+.vf-invoice-blocked strong{
+  color:#a24f00;
+}
+
+.vf-numbering-review{
+  border-left:4px solid #d58b35;
+  background:#fffaf2;
+}
+
+
