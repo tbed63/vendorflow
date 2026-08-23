@@ -24654,3 +24654,389 @@ if($('#saveCharge')){
 }
 
 
+
+
+/* ==========================================================
+   PAYMENT STATEMENT REVIEW
+   ========================================================== */
+
+
+let paymentStatementResult=null;
+
+
+function paymentStatementEsc(value){
+
+  return esc(
+    String(
+      value ?? ''
+    )
+  );
+}
+
+
+function renderPaymentStatementResults(){
+
+  const target=
+    $('#paymentStatementResults');
+
+  if(!target){
+    return;
+  }
+
+
+  if(
+    !paymentStatementResult ||
+    !Array.isArray(
+      paymentStatementResult.transactions
+    )
+  ){
+
+    target.innerHTML='';
+    return;
+  }
+
+
+  const data=
+    paymentStatementResult;
+
+
+  const rows=
+    data.transactions;
+
+
+  const incoming=
+    rows.filter(
+      tx=>
+        tx.direction==='incoming'
+    );
+
+
+  const uncertain=
+    rows.filter(
+      tx=>
+        tx.direction==='uncertain'
+        ||
+        tx.needsReview
+    );
+
+
+  target.innerHTML=`
+
+    <div class="vf-statement-summary">
+
+      <strong>
+        ${paymentStatementEsc(
+          data.institution ||
+          data.statementType ||
+          'Statement'
+        )}
+      </strong>
+
+      <span>
+        ${rows.length} transaction${rows.length===1?'':'s'} found
+        · ${incoming.length} incoming
+        · ${uncertain.length} needing attention
+      </span>
+
+      ${
+        data.periodStart || data.periodEnd
+          ? `<span>
+               ${paymentStatementEsc(data.periodStart)}
+               ${
+                 data.periodStart && data.periodEnd
+                   ? ' – '
+                   : ''
+               }
+               ${paymentStatementEsc(data.periodEnd)}
+             </span>`
+          : ''
+      }
+
+    </div>
+
+    <div class="vf-statement-table-wrap">
+
+      <table class="vf-statement-table">
+
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Date</th>
+            <th>Payer</th>
+            <th>Description / memo</th>
+            <th>Method</th>
+            <th class="right">Amount</th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          ${
+            rows.length
+              ? rows.map(tx=>{
+
+                  const status=
+                    tx.direction==='incoming'
+                      ? (
+                          tx.needsReview
+                            ? 'Review'
+                            : 'Incoming'
+                        )
+                      : (
+                          tx.direction==='outgoing'
+                            ? 'Outgoing'
+                            : 'Uncertain'
+                        );
+
+
+                  return `
+                    <tr class="${
+                      tx.direction==='incoming' &&
+                      !tx.needsReview
+                        ? 'vf-statement-incoming'
+                        : (
+                            tx.direction==='outgoing'
+                              ? 'vf-statement-outgoing'
+                              : 'vf-statement-review'
+                          )
+                    }">
+
+                      <td>
+                        <strong>
+                          ${paymentStatementEsc(status)}
+                        </strong>
+                      </td>
+
+                      <td>
+                        ${paymentStatementEsc(tx.date)}
+                      </td>
+
+                      <td>
+                        ${paymentStatementEsc(tx.payer)}
+                      </td>
+
+                      <td>
+                        ${paymentStatementEsc(
+                          tx.memo ||
+                          tx.description
+                        )}
+                      </td>
+
+                      <td>
+                        ${paymentStatementEsc(tx.method)}
+                      </td>
+
+                      <td class="right">
+                        ${money(tx.amount)}
+                      </td>
+
+                    </tr>
+                  `;
+                }).join('')
+              : `
+                  <tr>
+                    <td colspan="6">
+                      No transactions were extracted.
+                    </td>
+                  </tr>
+                `
+          }
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+    <div class="vf-statement-safety-note">
+      Nothing on this statement has been imported yet.
+    </div>
+  `;
+}
+
+
+async function readPaymentStatement(){
+
+  const fileInput=
+    $('#paymentStatementFile');
+
+  const status=
+    $('#paymentStatementStatus');
+
+
+  if(
+    !fileInput ||
+    !fileInput.files ||
+    !fileInput.files[0]
+  ){
+
+    toast(
+      'Choose a statement PDF first.'
+    );
+
+    return;
+  }
+
+
+  const file=
+    fileInput.files[0];
+
+
+  if(
+    file.type &&
+    file.type!=='application/pdf'
+  ){
+
+    toast(
+      'Please choose a PDF statement.'
+    );
+
+    return;
+  }
+
+
+  const user=
+    auth.currentUser;
+
+
+  if(!user){
+
+    toast(
+      'Please sign in again.'
+    );
+
+    return;
+  }
+
+
+  const button=
+    $('#readPaymentStatement');
+
+
+  if(button){
+    button.disabled=true;
+    button.textContent='Reading…';
+  }
+
+
+  if(status){
+    status.textContent=
+      'Reading statement…';
+  }
+
+
+  paymentStatementResult=null;
+  renderPaymentStatementResults();
+
+
+  try{
+
+    const token=
+      await user.getIdToken();
+
+
+    const form=
+      new FormData();
+
+    form.append(
+      'file',
+      file,
+      file.name
+    );
+
+
+    const response=
+      await fetch(
+        `${VENDORFLOW_API}/payment-statement/extract`,
+        {
+          method:'POST',
+
+          headers:{
+            Authorization:
+              `Bearer ${token}`
+          },
+
+          body:
+            form
+        }
+      );
+
+
+    let data={};
+
+
+    try{
+      data=
+        await response.json();
+    }catch{}
+
+
+    if(!response.ok){
+
+      throw new Error(
+        data?.detail ||
+        data?.error ||
+        `Statement reader returned ${response.status}.`
+      );
+    }
+
+
+    paymentStatementResult=
+      data;
+
+
+    renderPaymentStatementResults();
+
+
+    if(status){
+
+      status.textContent=
+        `Finished reading ${file.name}.`;
+    }
+
+
+    toast(
+      'Statement read. Nothing has been imported.'
+    );
+
+
+  }catch(error){
+
+    console.error(
+      'Payment statement read failed:',
+      error
+    );
+
+
+    if(status){
+
+      status.textContent=
+        `Could not read statement: ${error.message}`;
+    }
+
+
+    toast(
+      'VendorFlow could not read that statement.'
+    );
+
+
+  }finally{
+
+    if(button){
+      button.disabled=false;
+      button.textContent='Read statement';
+    }
+  }
+}
+
+
+const paymentStatementButton=
+  $('#readPaymentStatement');
+
+if(paymentStatementButton){
+
+  paymentStatementButton.onclick=
+    readPaymentStatement;
+}
+
+

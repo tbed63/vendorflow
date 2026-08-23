@@ -1053,7 +1053,54 @@ Thank you,
 </section>
 
 
-<section id="paymentsView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Manual control</div><h2>Payments/Charges</h2><p>Forwarded payment emails will automate this later.</p></div><div class="row">
+<section id="paymentsView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Manual control</div><h2>Payments/Charges</h2>
+
+<div class="card vf-statement-card">
+
+  <div class="section-title">
+    Import payments from statement
+  </div>
+
+  <p class="muted">
+    Upload a Venmo statement or bank statement PDF.
+    VendorFlow will find likely incoming payments before anything is recorded.
+  </p>
+
+  <div class="form-grid">
+
+    <label>
+      Statement PDF
+      <input
+        id="paymentStatementFile"
+        type="file"
+        accept="application/pdf,.pdf">
+    </label>
+
+  </div>
+
+  <div class="actions">
+    <button
+      id="readPaymentStatement"
+      type="button"
+      class="primary">
+      Read statement
+    </button>
+  </div>
+
+  <div
+    id="paymentStatementStatus"
+    class="muted"
+    style="margin-top:10px">
+  </div>
+
+  <div
+    id="paymentStatementResults"
+    style="margin-top:14px">
+  </div>
+
+</div>
+
+<p>Forwarded payment emails will automate this later.</p></div><div class="row">
 <button id="addRefund" class="vf-refund-button">Refund</button>
 <button id="addCharge" class="primary">Add charge</button>
 <button id="addPayment">Add family payment</button>
@@ -2486,5 +2533,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=numbering-popup-close-20260823-1"></script>
+<script type="module" src="app.js?v=payment-statement-review-20260823-1"></script>
 </body></html>

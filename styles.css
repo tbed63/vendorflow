@@ -5878,3 +5878,62 @@ button.history.vf-history-evidence:focus-visible{
 }
 
 
+
+
+/* ==========================================================
+   PAYMENT STATEMENT REVIEW
+   ========================================================== */
+
+.vf-statement-card{
+  margin-bottom:20px;
+}
+
+.vf-statement-summary{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px 18px;
+  align-items:center;
+  margin-bottom:12px;
+}
+
+.vf-statement-table-wrap{
+  overflow-x:auto;
+}
+
+.vf-statement-table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:760px;
+}
+
+.vf-statement-table th,
+.vf-statement-table td{
+  padding:10px 9px;
+  border-bottom:1px solid var(--border, #ddd);
+  text-align:left;
+  vertical-align:top;
+}
+
+.vf-statement-table .right{
+  text-align:right;
+  white-space:nowrap;
+}
+
+.vf-statement-incoming{
+  background:#f6fbf7;
+}
+
+.vf-statement-review{
+  background:#fff8ee;
+}
+
+.vf-statement-outgoing{
+  opacity:.65;
+}
+
+.vf-statement-safety-note{
+  margin-top:12px;
+  font-weight:600;
+}
+
+
