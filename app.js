@@ -895,6 +895,7 @@ function renderAll(){
   renderStudentsServices();
   renderRefundStudentSelect();
   renderRecords();
+  renderChargeRecords();
 
   renderCertificateReviewPreference();
   renderInvoices();
@@ -2925,9 +2926,63 @@ function formatVendorDate(value){
 }
 
 
+function uniqueTutoringClassForStudent(
+  studentId
+){
+
+  if(!studentId){
+    return null;
+  }
+
+
+  const tutoringServices=
+    services.filter(
+      service=>
+        service.studentId===studentId &&
+        service.status!=='Dropped' &&
+        service.status!=='Removed' &&
+        service.classId
+    );
+
+
+  const ids=[
+    ...new Set(
+      tutoringServices
+        .map(
+          service=>service.classId
+        )
+        .filter(Boolean)
+    )
+  ];
+
+
+  const tutoringClasses=
+    ids
+      .map(
+        id=>
+          classes.find(
+            c=>
+              c.id===id &&
+              c.classType==='Tutoring' &&
+              !c.archived
+          )
+      )
+      .filter(Boolean);
+
+
+  /*
+   * Never guess between multiple tutoring classes.
+   */
+  return tutoringClasses.length===1
+    ? tutoringClasses[0]
+    : null;
+}
+
+
 function certificateInvoiceSchedule(
   serviceStartDate,
-  charter
+  charter,
+  studentId=''
 ){
 
   const start=
@@ -2936,18 +2991,47 @@ function certificateInvoiceSchedule(
     );
 
   if(!start){
+
     return {
       readyDate:'',
       days:null,
-      valid:false
+      valid:false,
+      source:''
     };
   }
 
 
-  const rawDays=
+  const tutoringClass=
+    uniqueTutoringClassForStudent(
+      studentId
+    );
+
+
+  const tutoringDays=
+    Number(
+      tutoringClass?.invoiceDaysAfterStart
+    );
+
+
+  const charterDays=
     Number(
       charter?.invoiceDaysAfterStart
     );
+
+
+  /*
+   * Tutoring certificates use the vendor's tutoring-class
+   * setting. Other certificates keep the proven existing
+   * charter-record setting.
+   */
+  const rawDays=
+    tutoringClass &&
+    Number.isFinite(tutoringDays)
+
+      ? tutoringDays
+
+      : charterDays;
+
 
   const days=
     Number.isFinite(rawDays)
@@ -2972,6 +3056,7 @@ function certificateInvoiceSchedule(
       0
     );
 
+
   ready.setDate(
     ready.getDate()+days
   );
@@ -2983,7 +3068,18 @@ function certificateInvoiceSchedule(
 
     days,
 
-    valid:true
+    valid:true,
+
+    source:
+      tutoringClass
+        ? 'Tutoring class'
+        : 'Charter school settings',
+
+    tutoringClassId:
+      tutoringClass?.id || '',
+
+    tutoringClassName:
+      tutoringClass?.name || ''
   };
 }
 
@@ -6860,6 +6956,17 @@ function editSavedClass(
   }
 
 
+  if($('#classInvoiceDaysAfterStart')){
+
+    $('#classInvoiceDaysAfterStart').value=
+      Number.isFinite(
+        Number(c.invoiceDaysAfterStart)
+      )
+        ? Number(c.invoiceDaysAfterStart)
+        : 14;
+  }
+
+
   $('#classTerm').value=
     c.term||'';
 
@@ -8069,6 +8176,22 @@ $('#saveClass').onclick=async()=>{
       : null;
 
 
+  const invoiceDaysAfterStart=
+    tutoring
+      ? Math.max(
+          0,
+          Math.min(
+            365,
+            Math.round(
+              Number(
+                $('#classInvoiceDaysAfterStart')?.value || 0
+              )
+            )
+          )
+        )
+      : null;
+
+
   if(
     tutoring &&
     !(ratePerSession>0)
@@ -8133,6 +8256,8 @@ $('#saveClass').onclick=async()=>{
     sessionLengthMinutes,
 
     ratePerSession,
+
+    invoiceDaysAfterStart,
 
     term:$('#classTerm').value.trim(),
 
@@ -8288,12 +8413,16 @@ $('#saveClass').onclick=async()=>{
 
   await refreshAll();
 
-  $('#classSelect').value=
-    savedClassId;
+  /*
+   * Saving is complete. Return the left-side class form
+   * to a clean new-entry state instead of leaving the
+   * saved class selected.
+   */
+  $('#classSelect').value='';
 
-  await loadRoster();
+  roster=[];
+
   renderRoster();
-
   renderSelectedClassDetails();
 
   $('#className').value='';
@@ -8308,6 +8437,10 @@ $('#saveClass').onclick=async()=>{
 
   if($('#classSessionRate')){
     $('#classSessionRate').value='';
+  }
+
+  if($('#classInvoiceDaysAfterStart')){
+    $('#classInvoiceDaysAfterStart').value='14';
   }
 
   $('#classTerm').value='';
@@ -11074,38 +11207,6 @@ function renderStudentsServices(){
                   ${serviceObligationHTML(service)}
 
 
-                  ${
-                    tutoringClassForService(service)
-                      ? `
-                        <div class="vf-tutoring-service-actions">
-
-                          <button
-                            type="button"
-                            class="primary"
-                            data-record-tutoring-session="${service.id}">
-                            Add session / charge
-                          </button>
-
-                          <span>
-                            ${
-                              Number(
-                                tutoringClassForService(service)
-                                  ?.sessionLengthMinutes || 60
-                              )
-                            } min normal session
-                            ·
-                            ${
-                              money(
-                                tutoringClassForService(service)
-                                  ?.ratePerSession || 0
-                              )
-                            }
-                          </span>
-
-                        </div>
-                      `
-                      : ''
-                  }
 
                 </div>
 
@@ -11407,16 +11508,7 @@ function renderStudentsServices(){
     });
 
 
-  $$('[data-record-tutoring-session]')
-    .forEach(button=>{
-
-      button.onclick=()=>{
-
-        recordTutoringSessionCharge(
-          button.dataset.recordTutoringSession
-        );
-      };
-    });
+  
 
 }
 
@@ -14187,6 +14279,12 @@ if($('#payStudent')){
 
 $('#addRefund').onclick=()=>{
 
+  if($('#chargeForm')){
+    hide($('#chargeForm'));
+  }
+
+
+
   hide(
     $('#paymentForm')
   );
@@ -14389,6 +14487,10 @@ $('#saveRefund').onclick=async()=>{
 
 
 $('#addPayment').onclick=()=>{
+
+  if($('#chargeForm')){
+    hide($('#chargeForm'));
+  }
 
   hide(
     $('#refundForm')
@@ -15757,7 +15859,8 @@ $('#saveCertificate').onclick=async()=>{
     const invoiceSchedule=
       certificateInvoiceSchedule(
         serviceStartDate,
-        savedCharter
+        savedCharter,
+        studentMatch?.id || ''
       );
 
 
@@ -15850,9 +15953,13 @@ $('#saveCertificate').onclick=async()=>{
         ),
 
       invoiceScheduleSource:
-        savedCharter
-          ? 'Charter school settings'
-          : '',
+        invoiceSchedule.source || '',
+
+      tutoringClassId:
+        invoiceSchedule.tutoringClassId || '',
+
+      tutoringClassName:
+        invoiceSchedule.tutoringClassName || '',
 
       serviceEndDate:
         $('#certServiceEnd')?.value.trim() || '',
@@ -19529,7 +19636,8 @@ async function importReadyBulkCertificates(
       const invoiceSchedule=
         certificateInvoiceSchedule(
           serviceStartDate,
-          charter
+          charter,
+          student?.id || ''
         );
 
 
@@ -19689,7 +19797,13 @@ async function importReadyBulkCertificates(
           ),
 
         invoiceScheduleSource:
-          'Charter school settings',
+          invoiceSchedule.source || '',
+
+        tutoringClassId:
+          invoiceSchedule.tutoringClassId || '',
+
+        tutoringClassName:
+          invoiceSchedule.tutoringClassName || '',
 
 
         notes:'',
@@ -23727,4 +23841,679 @@ async function recordTutoringSessionCharge(
     `${money(amount)} tutoring charge recorded.`
   );
 }
+
+
+
+/* ==========================================================
+   PAYMENTS / CHARGES — MANUAL CHARGE ENTRY
+   ========================================================== */
+
+let selectedChargeStudentId=null;
+
+
+function selectedChargeStudent(){
+
+  return students.find(
+    student=>
+      student.id===selectedChargeStudentId
+  ) || null;
+}
+
+
+function chargeStudentMatches(){
+
+  const typed=
+    String(
+      $('#chargeStudent')?.value || ''
+    ).trim();
+
+  if(!typed){
+    return [];
+  }
+
+
+  return paymentStudentMatches(
+    typed
+  )
+    .map(
+      match=>match.student
+    )
+    .filter(Boolean);
+}
+
+
+function refreshChargeServiceOptions(){
+
+  const select=
+    $('#chargeService');
+
+  const student=
+    selectedChargeStudent();
+
+  if(!select){
+    return;
+  }
+
+
+  if(!student){
+
+    select.innerHTML=
+      '<option value="">Choose service / class</option>';
+
+    updateChargeSessionUI();
+
+    return;
+  }
+
+
+  const list=
+    studentServices(
+      student.id
+    )
+      .filter(
+        service=>
+          service.status!=='Dropped' &&
+          service.status!=='Removed'
+      );
+
+
+  select.innerHTML=
+    '<option value="">Choose service / class</option>'+
+    list.map(
+      service=>`
+        <option value="${esc(service.id)}">
+          ${esc(service.name||service.className||service.serviceType||'Service')}
+        </option>
+      `
+    ).join('');
+
+
+  updateChargeSessionUI();
+}
+
+
+function selectChargeStudent(
+  studentId
+){
+
+  const student=
+    students.find(
+      item=>item.id===studentId
+    );
+
+  if(!student){
+    return;
+  }
+
+
+  selectedChargeStudentId=
+    student.id;
+
+  $('#chargeStudent').value=
+    student.studentName||'';
+
+
+  const box=
+    $('#chargeStudentMatches');
+
+  if(box){
+
+    box.innerHTML='';
+    hide(box);
+  }
+
+
+  refreshChargeServiceOptions();
+}
+
+
+function renderChargeStudentMatches(){
+
+  const box=
+    $('#chargeStudentMatches');
+
+  if(!box){
+    return;
+  }
+
+
+  const typed=
+    $('#chargeStudent')?.value.trim() || '';
+
+  if(!typed){
+
+    box.innerHTML='';
+    hide(box);
+    return;
+  }
+
+
+  const matches=
+    chargeStudentMatches();
+
+
+  if(!matches.length){
+
+    box.innerHTML=`
+      <div class="vf-cert-student-no-match">
+        <strong>No student found.</strong>
+      </div>
+    `;
+
+    show(box);
+    return;
+  }
+
+
+  box.innerHTML=
+    matches.map(
+      student=>`
+        <button
+          type="button"
+          class="vf-charge-student-match"
+          data-charge-student="${student.id}">
+
+          <strong>
+            ${esc(student.studentName||'Unnamed student')}
+          </strong>
+
+          <span>
+            ${esc(student.parentName||'')}
+            ${
+              student.parentEmail
+                ? ' · '+esc(student.parentEmail)
+                : ''
+            }
+          </span>
+
+        </button>
+      `
+    ).join('');
+
+
+  $$('[data-charge-student]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        selectChargeStudent(
+          button.dataset.chargeStudent
+        );
+      };
+    });
+
+
+  show(box);
+}
+
+
+function selectedChargeService(){
+
+  const id=
+    $('#chargeService')?.value || '';
+
+  return services.find(
+    service=>service.id===id
+  ) || null;
+}
+
+
+function updateChargeSessionUI(){
+
+  const wrap=
+    $('#chargeSessionWrap');
+
+  const hint=
+    $('#chargeSessionHint');
+
+  if(!wrap || !hint){
+    return;
+  }
+
+
+  const service=
+    selectedChargeService();
+
+  const tutoringClass=
+    service
+      ? tutoringClassForService(service)
+      : null;
+
+
+  if(
+    !tutoringClass ||
+    !(Number(tutoringClass.ratePerSession)>0)
+  ){
+
+    hide(wrap);
+
+    $('#chargeSessions').value='';
+
+    hint.textContent='';
+
+    return;
+  }
+
+
+  show(wrap);
+
+
+  const rate=
+    Number(
+      tutoringClass.ratePerSession
+    );
+
+
+  hint.textContent=
+    `${money(rate)} per normal `+
+    `${Number(tutoringClass.sessionLengthMinutes||60)} minute session`;
+}
+
+
+function calculateChargeFromSessions(){
+
+  const service=
+    selectedChargeService();
+
+  const tutoringClass=
+    service
+      ? tutoringClassForService(service)
+      : null;
+
+  const sessions=
+    Number(
+      $('#chargeSessions')?.value || 0
+    );
+
+  const rate=
+    Number(
+      tutoringClass?.ratePerSession || 0
+    );
+
+
+  if(
+    sessions>0 &&
+    rate>0
+  ){
+
+    $('#chargeAmount').value=
+      (
+        sessions*rate
+      ).toFixed(2);
+  }
+}
+
+
+function resetChargeForm(){
+
+  selectedChargeStudentId=null;
+
+  $('#chargeStudent').value='';
+
+  $('#chargeDate').value=
+    new Date()
+      .toISOString()
+      .slice(0,10);
+
+  $('#chargeService').innerHTML=
+    '<option value="">Choose service / class</option>';
+
+  $('#chargeSessions').value='';
+  $('#chargeAmount').value='';
+  $('#chargeNote').value='';
+
+  hide(
+    $('#chargeStudentMatches')
+  );
+
+  hide(
+    $('#chargeSessionWrap')
+  );
+}
+
+
+function renderChargeRecords(){
+
+  const list=
+    $('#chargeList');
+
+  if(!list){
+    return;
+  }
+
+
+  const charges=
+    obligations
+      .filter(
+        obligation=>
+          !obligation.deleted &&
+          (
+            obligation.obligationType==='Manual charge' ||
+            obligation.source==='Manual charge'
+          )
+      )
+      .sort(
+        (a,b)=>
+          String(b.serviceDate||b.dueDate||'')
+            .localeCompare(
+              String(a.serviceDate||a.dueDate||'')
+            )
+      );
+
+
+  list.innerHTML=
+    charges.length
+      ? charges.map(
+          charge=>`
+            <div class="record vf-charge-record">
+
+              <strong>
+                ${money(charge.amount)} — ${esc(charge.studentName||'Student')}
+              </strong>
+
+              <div class="meta">
+                ${esc(charge.serviceDate||charge.dueDate||'')}
+                ·
+                ${esc(charge.serviceName||charge.className||'Service')}
+                ${
+                  charge.note
+                    ? ' · '+esc(charge.note)
+                    : ''
+                }
+              </div>
+
+            </div>
+          `
+        ).join('')
+
+      : '<div class="empty">No manual charges yet.</div>';
+}
+
+
+if($('#chargeStudent')){
+
+  $('#chargeStudent')
+    .addEventListener(
+      'input',
+      ()=>{
+
+        selectedChargeStudentId=null;
+
+        refreshChargeServiceOptions();
+
+        renderChargeStudentMatches();
+      }
+    );
+
+
+  $('#chargeStudent')
+    .addEventListener(
+      'focus',
+      renderChargeStudentMatches
+    );
+}
+
+
+if($('#chargeService')){
+
+  $('#chargeService')
+    .addEventListener(
+      'change',
+      updateChargeSessionUI
+    );
+}
+
+
+if($('#chargeSessions')){
+
+  $('#chargeSessions')
+    .addEventListener(
+      'input',
+      calculateChargeFromSessions
+    );
+}
+
+
+if($('#addCharge')){
+
+  $('#addCharge').onclick=()=>{
+
+    hide(
+      $('#paymentForm')
+    );
+
+    hide(
+      $('#refundForm')
+    );
+
+    resetChargeForm();
+
+    show(
+      $('#chargeForm')
+    );
+
+    $('#chargeStudent').focus();
+  };
+}
+
+
+if($('#cancelCharge')){
+
+  $('#cancelCharge').onclick=()=>{
+
+    resetChargeForm();
+
+    hide(
+      $('#chargeForm')
+    );
+  };
+}
+
+
+if($('#saveCharge')){
+
+  $('#saveCharge').onclick=async()=>{
+
+    const student=
+      selectedChargeStudent();
+
+
+    if(!student){
+
+      renderChargeStudentMatches();
+
+      return toast(
+        'Choose the student from the matching list.'
+      );
+    }
+
+
+    const service=
+      selectedChargeService();
+
+
+    if(!service){
+
+      return toast(
+        'Choose the service or class for this charge.'
+      );
+    }
+
+
+    const amount=
+      Number(
+        $('#chargeAmount').value
+      );
+
+
+    if(!(amount>0)){
+
+      return toast(
+        'Enter a charge amount.'
+      );
+    }
+
+
+    const date=
+      $('#chargeDate').value ||
+      new Date()
+        .toISOString()
+        .slice(0,10);
+
+
+    const note=
+      $('#chargeNote').value.trim();
+
+
+    const classRecord=
+      service.classId
+        ? classes.find(
+            item=>item.id===service.classId
+          )
+        : null;
+
+
+    const oldTotal=
+      Number(
+        service.totalPrice||0
+      );
+
+
+    const newTotal=
+      Number(
+        (
+          oldTotal+amount
+        ).toFixed(2)
+      );
+
+
+    const obligationRef=
+      doc(
+        sub('obligations')
+      );
+
+
+    const batch=
+      writeBatch(db);
+
+
+    batch.set(
+      obligationRef,
+      {
+        studentId:
+          student.id,
+
+        studentName:
+          student.studentName||'',
+
+        serviceId:
+          service.id,
+
+        serviceName:
+          service.name ||
+          service.className ||
+          classRecord?.name ||
+          'Service',
+
+        classId:
+          service.classId || '',
+
+        className:
+          classRecord?.name ||
+          service.className ||
+          '',
+
+        obligationType:
+          'Manual charge',
+
+        amount,
+
+        originalAmount:
+          amount,
+
+        dueDate:
+          date,
+
+        serviceDate:
+          date,
+
+        note,
+
+        parentCreditedAmount:
+          0,
+
+        certificateCreditedAmount:
+          0,
+
+        creditedAmount:
+          0,
+
+        remainingAmount:
+          amount,
+
+        status:
+          'Scheduled',
+
+        source:
+          'Manual charge',
+
+        createdAt:
+          serverTimestamp(),
+
+        updatedAt:
+          serverTimestamp()
+      }
+    );
+
+
+    batch.set(
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'services',
+        service.id
+      ),
+      {
+        totalPrice:
+          newTotal,
+
+        updatedAt:
+          serverTimestamp()
+      },
+      {
+        merge:true
+      }
+    );
+
+
+    await batch.commit();
+
+
+    await log(
+      'Charge recorded',
+      `${student.studentName} — `+
+      `${money(amount)} — `+
+      `${service.name||service.className||classRecord?.name||'Service'}`+
+      `${note?' — '+note:''}.`,
+      'Manual'
+    );
+
+
+    resetChargeForm();
+
+    hide(
+      $('#chargeForm')
+    );
+
+
+    await refreshAll();
+
+
+    toast(
+      `${money(amount)} charge recorded.`
+    );
+  };
+}
+
 

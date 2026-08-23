@@ -41,7 +41,7 @@
   Charter Schools
 </button>
       <button data-view="students">Students & Services</button>
-      <button data-view="payments">Payments</button>
+      <button data-view="payments">Payments/Charges</button>
       <button data-view="certificates">Certificates</button>
       <button data-view="invoices">Invoices</button>
       <button data-view="compliance">Compliance</button>
@@ -241,6 +241,25 @@
                     min="0"
                     step=".01"
                     placeholder="80">
+
+                </div>
+              </label>
+
+              <label class="vf-field-label vf-tutoring-invoice-field">
+                <span>Generate charter invoice</span>
+
+                <div class="vf-number-suffix">
+
+                  <input
+                    id="classInvoiceDaysAfterStart"
+                    class="input"
+                    type="number"
+                    min="0"
+                    max="365"
+                    step="1"
+                    value="14">
+
+                  <span>days after certificate start</span>
 
                 </div>
               </label>
@@ -1034,9 +1053,10 @@ Thank you,
 </section>
 
 
-<section id="paymentsView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Manual control</div><h2>Payments</h2><p>Forwarded payment emails will automate this later.</p></div><div class="row">
+<section id="paymentsView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Manual control</div><h2>Payments/Charges</h2><p>Forwarded payment emails will automate this later.</p></div><div class="row">
 <button id="addRefund" class="vf-refund-button">Refund</button>
-<button id="addPayment" class="primary">Add payment</button>
+<button id="addCharge" class="primary">Add charge</button>
+<button id="addPayment">Add family payment</button>
 </div></div><div id="paymentForm" class="formgrid hidden"><input id="payDate" class="input" type="date"><input id="payPayer" class="input" placeholder="Payer / parent"><div class="vf-student-search-wrap">
   <input
     id="payStudent"
@@ -1046,7 +1066,111 @@ Thank you,
   <div
     id="payStudentMatches"
     class="vf-student-matches hidden"></div>
+
 </div><input id="payClass" class="input" placeholder="Class"><input id="payAmount" class="input" type="number" step=".01" placeholder="Amount"><select id="payMethod" class="input"><option>Venmo</option><option>Zelle</option><option>Cash</option><option>Check</option><option>Charter payment</option><option>Other</option></select><button id="savePayment" class="primary">Save payment</button></div>
+
+<div
+  id="chargeForm"
+  class="vf-charge-form hidden">
+
+  <div class="vf-charge-heading">
+
+    <div class="eyebrow">
+      Service rendered / additional charge
+    </div>
+
+    <h3>Record a charge</h3>
+
+    <p>
+      Add tutoring, an extra class session, or another amount
+      this student owes.
+    </p>
+
+  </div>
+
+
+  <div class="formgrid">
+
+    <input
+      id="chargeDate"
+      class="input"
+      type="date">
+
+    <div class="vf-student-search-wrap">
+
+      <input
+        id="chargeStudent"
+        class="input"
+        autocomplete="off"
+        placeholder="Start typing student or parent name">
+
+      <div
+        id="chargeStudentMatches"
+        class="vf-student-matches hidden">
+      </div>
+
+    </div>
+
+    <select
+      id="chargeService"
+      class="input">
+      <option value="">Choose service / class</option>
+    </select>
+
+    <div
+      id="chargeSessionWrap"
+      class="vf-charge-session-wrap hidden">
+
+      <input
+        id="chargeSessions"
+        class="input"
+        type="number"
+        min="0"
+        step=".25"
+        placeholder="Sessions, e.g. 1 or 0.5">
+
+      <div
+        id="chargeSessionHint"
+        class="vf-charge-session-hint">
+      </div>
+
+    </div>
+
+    <input
+      id="chargeAmount"
+      class="input"
+      type="number"
+      min="0"
+      step=".01"
+      placeholder="Charge amount">
+
+    <input
+      id="chargeNote"
+      class="input"
+      placeholder="Description / note">
+
+  </div>
+
+
+  <div class="row">
+
+    <button
+      id="saveCharge"
+      class="primary"
+      type="button">
+      Save charge
+    </button>
+
+    <button
+      id="cancelCharge"
+      type="button">
+      Cancel
+    </button>
+
+  </div>
+
+</div>
+
 <div
   id="refundForm"
   class="vf-refund-form hidden">
@@ -1139,7 +1263,17 @@ Thank you,
 
 </div>
 
-<div id="paymentList"></div></div></section>
+<div class="vf-payments-charges-section">
+  <div class="eyebrow">Payments</div>
+  <div id="paymentList"></div>
+</div>
+
+<div class="vf-payments-charges-section">
+  <div class="eyebrow">Charges</div>
+  <div id="chargeList"></div>
+</div>
+
+</div></section>
 
     
     <section id="certificatesView" class="view">
@@ -2352,5 +2486,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=tutoring-classes-20260823-1"></script>
+<script type="module" src="app.js?v=payments-charges-20260823-1"></script>
 </body></html>

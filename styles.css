@@ -5789,3 +5789,71 @@ button.history.vf-history-evidence:focus-visible{
   }
 }
 
+
+
+/* ==========================================================
+   PAYMENTS / CHARGES
+   ========================================================== */
+
+.vf-charge-form{
+  margin:18px 0;
+  padding:18px;
+  border:1px solid #d7e1e7;
+  border-radius:12px;
+  background:#f8fafb;
+}
+
+.vf-charge-heading{
+  margin-bottom:14px;
+}
+
+.vf-charge-heading h3{
+  margin:4px 0;
+}
+
+.vf-charge-heading p{
+  margin:0;
+  color:#60747d;
+}
+
+.vf-charge-session-wrap{
+  display:grid;
+  gap:6px;
+}
+
+.vf-charge-session-hint{
+  font-size:12px;
+  color:#60747d;
+}
+
+.vf-charge-student-match{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  width:100%;
+  gap:3px;
+  text-align:left;
+}
+
+.vf-charge-student-match span{
+  font-size:12px;
+  color:#667980;
+}
+
+.vf-payments-charges-section{
+  margin-top:24px;
+}
+
+.vf-payments-charges-section > .eyebrow{
+  margin-bottom:8px;
+}
+
+.vf-charge-record{
+  border-left:3px solid #8aa4b1;
+}
+
+.vf-tutoring-invoice-field{
+  grid-column:1 / -1;
+}
+
+
