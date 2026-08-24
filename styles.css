@@ -6968,3 +6968,36 @@ button.history.vf-history-evidence:focus-visible{
     grid-row:1;
   }
 }
+
+
+/* VENDORFLOW CROSS-INTAKE DUPLICATES */
+.vf-review-ledger-duplicate{
+  width:max-content;
+  max-width:100%;
+  margin-top:3px;
+  padding:6px 9px;
+  border:1px solid #c87519;
+  border-radius:7px;
+  background:#fff;
+  color:#8b4300;
+  font-size:.7rem;
+  font-weight:900;
+}
+.vf-review-ledger-duplicate:hover{
+  background:#fff0db;
+}
+.vf-delete-ledger-payment{
+  width:max-content;
+  max-width:100%;
+  margin-top:3px;
+  padding:6px 9px;
+  border:1px solid #bb4d45;
+  border-radius:7px;
+  background:#fff;
+  color:#8f302a;
+  font-size:.7rem;
+  font-weight:900;
+}
+.vf-delete-ledger-payment:hover{
+  background:#fff0ef;
+}

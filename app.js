@@ -11603,7 +11603,8 @@ function studentFinancialActivity(student){
         payment.sourceFilename ||
         '',
       statementRow:payment.statementRow||payment.rowNumber||'',
-      recordId:payment.id||''
+      recordId:payment.id||'',
+      rawPayment:payment
     });
   });
 
@@ -11640,38 +11641,171 @@ function studentFinancialActivity(student){
       });
     });
 
-  const paymentGroups=new Map();
+  const paymentEntries=
+    entries.filter(entry=>entry.kind==='payment' && entry.rawPayment);
 
-  entries
-    .filter(entry=>entry.kind==='payment')
-    .forEach(entry=>{
-      const key=[
-        entry.date,
-        Number(entry.amount||0).toFixed(2),
-        normalizedName(entry.primary||'')
-      ].join('|');
+  for(let firstIndex=0;firstIndex<paymentEntries.length;firstIndex++){
+    for(let secondIndex=firstIndex+1;secondIndex<paymentEntries.length;secondIndex++){
+      const first=paymentEntries[firstIndex];
+      const second=paymentEntries[secondIndex];
 
-      if(entry.date && entry.amount && entry.primary){
-        paymentGroups.set(key,(paymentGroups.get(key)||0)+1);
+      if(paymentsLikelySameCrossIntake(first.rawPayment,second.rawPayment)){
+        first.possibleDuplicate=true;
+        second.possibleDuplicate=true;
+
+        if(!first.duplicatePartnerId && !second.duplicatePartnerId){
+          first.duplicatePartnerId=second.recordId;
+          first.showDuplicateAction=true;
+          second.duplicatePartnerId=first.recordId;
+        }
       }
-    });
-
-  entries.forEach(entry=>{
-    const key=[
-      entry.date,
-      Number(entry.amount||0).toFixed(2),
-      normalizedName(entry.primary||'')
-    ].join('|');
-    entry.possibleDuplicate=
-      entry.kind==='payment' &&
-      (paymentGroups.get(key)||0)>1;
-  });
+    }
+  }
 
   return entries.sort((a,b)=>{
     const dateCompare=String(b.date||'').localeCompare(String(a.date||''));
     if(dateCompare)return dateCompare;
     return String(a.label||'').localeCompare(String(b.label||''));
   });
+}
+
+
+function preferredCrossIntakePayment(first,second){
+
+  const score=payment=>{
+    let value=0;
+    if(paymentExternalTransactionId(payment))value+=100;
+    if(paymentDuplicateSourceKind(payment)==='statement')value+=20;
+    if(payment.statementFileName)value+=10;
+    if(payment.statementRowNumber)value+=5;
+    return value;
+  };
+
+  return score(first)>=score(second)
+    ? {keep:first,remove:second}
+    : {keep:second,remove:first};
+}
+
+
+async function deleteStudentPaymentFromLedger(paymentId){
+
+  const payment=payments.find(item=>item.id===paymentId);
+
+  if(!payment){
+    return toast('That payment record could not be found.');
+  }
+
+  const confirmed=window.confirm(
+    `Delete this payment?\n\n`+
+    `Payer: ${payment.payer||'Not available'}\n`+
+    `Date: ${payment.date||payment.paymentDate||'Not available'}\n`+
+    `Amount: ${money(payment.amount)}\n`+
+    `Method: ${payment.method||'Not available'}\n`+
+    `Memo: ${payment.memo||payment.note||'Not available'}\n`+
+    `Record ID: ${payment.id}\n\n`+
+    `This removes the payment credit and recalculates the student's balance. `+
+    `The deletion will be recorded in Actions.`
+  );
+
+  if(!confirmed){
+    return;
+  }
+
+  await deleteDoc(
+    doc(db,'vendors',user.uid,'payments',payment.id)
+  );
+
+  await log(
+    'Payment deleted from student account',
+    `${payment.student||'Student'} — ${money(payment.amount)} `+
+    `from ${payment.payer||'unknown payer'} on ${payment.date||'unknown date'}. `+
+    `Method: ${payment.method||'unknown'}. `+
+    `Memo: ${payment.memo||payment.note||'none'}. `+
+    `Source: ${payment.source||'unknown'}. `+
+    `Transaction ID: ${paymentExternalTransactionId(payment)||'none'}. `+
+    `Deleted payment record ID: ${payment.id}.`,
+    'Manual'
+  );
+
+  await refreshAll();
+
+  showCenteredActionConfirmation(
+    'Payment deleted. The student balance has been recalculated.'
+  );
+}
+
+
+async function resolveCrossIntakeDuplicate(firstId,secondId){
+
+  const first=payments.find(payment=>payment.id===firstId);
+  const second=payments.find(payment=>payment.id===secondId);
+
+  if(!first || !second){
+    return toast('One of those payment records could not be found.');
+  }
+
+  if(!paymentsLikelySameCrossIntake(first,second)){
+    return toast('VendorFlow no longer sees these as the same payment.');
+  }
+
+  const {keep,remove}=preferredCrossIntakePayment(first,second);
+
+  const confirmed=window.confirm(
+    `Confirm these are the SAME payment.\n\n`+
+    `${keep.payer||keep.student||'Payment'} — ${money(keep.amount)}\n`+
+    `${first.date||'No date'} (${first.source||'Unknown source'})\n`+
+    `${second.date||'No date'} (${second.source||'Unknown source'})\n\n`+
+    `VendorFlow will keep the record with the strongest statement evidence `+
+    `and remove one duplicate credit. This action will be recorded in Actions.`
+  );
+
+  if(!confirmed){
+    return;
+  }
+
+  const metadataUpdate={
+    duplicateResolvedAt:serverTimestamp(),
+    duplicateRemovedRecordId:remove.id,
+    duplicateResolution:'Confirmed same payment from email and statement',
+    updatedAt:serverTimestamp()
+  };
+
+  const metadataFields=[
+    'statementTransactionId',
+    'statementFileName',
+    'statementRowNumber',
+    'externalTransactionId',
+    'memo'
+  ];
+
+  metadataFields.forEach(field=>{
+    if(!keep[field] && remove[field]){
+      metadataUpdate[field]=remove[field];
+    }
+  });
+
+  await updateDoc(
+    doc(db,'vendors',user.uid,'payments',keep.id),
+    metadataUpdate
+  );
+
+  await deleteDoc(
+    doc(db,'vendors',user.uid,'payments',remove.id)
+  );
+
+  await log(
+    'Cross-intake duplicate payment resolved',
+    `${keep.payer||keep.student||'Payment'} — ${money(keep.amount)}. `+
+    `Kept payment ${keep.id}; removed duplicate ${remove.id}. `+
+    `Sources: ${first.source||'Unknown'} and ${second.source||'Unknown'}.`,
+    'Manual'
+  );
+
+  await refreshAll();
+
+  showCenteredActionConfirmation(
+    'Duplicate resolved. One payment remains and the student balance was corrected.'
+  );
 }
 
 
@@ -11695,6 +11829,23 @@ function studentFinancialActivityHTML(student){
         </span>
         ${entry.possibleDuplicate
           ? '<span class="vf-financial-duplicate">Possible duplicate</span>'
+          : ''}
+        ${entry.kind==='payment' && entry.recordId
+          ? `<button
+              type="button"
+              class="vf-delete-ledger-payment"
+              data-delete-student-payment="${esc(entry.recordId)}">
+              Delete payment
+            </button>`
+          : ''}
+        ${entry.showDuplicateAction && entry.duplicatePartnerId
+          ? `<button
+              type="button"
+              class="vf-review-ledger-duplicate"
+              data-resolve-student-duplicate="${esc(entry.recordId)}"
+              data-duplicate-partner="${esc(entry.duplicatePartnerId)}">
+              Review duplicate
+            </button>`
           : ''}
       </div>
 
@@ -11847,6 +11998,31 @@ function upgradeStudentDirectoryRows(){
 
   if(list.dataset.editStudentHandler!=='true'){
     list.addEventListener('click',event=>{
+      const deletePaymentButton=
+        event.target.closest('[data-delete-student-payment]');
+
+      if(deletePaymentButton){
+        event.preventDefault();
+        event.stopPropagation();
+        deleteStudentPaymentFromLedger(
+          deletePaymentButton.dataset.deleteStudentPayment
+        );
+        return;
+      }
+
+      const duplicateButton=
+        event.target.closest('[data-resolve-student-duplicate]');
+
+      if(duplicateButton){
+        event.preventDefault();
+        event.stopPropagation();
+        resolveCrossIntakeDuplicate(
+          duplicateButton.dataset.resolveStudentDuplicate,
+          duplicateButton.dataset.duplicatePartner
+        );
+        return;
+      }
+
       const button=event.target.closest('[data-edit-directory-student]');
       if(!button){
         return;
@@ -14454,6 +14630,102 @@ function paymentsShareTransactionId(
 }
 
 
+function paymentDuplicateDateNumber(value){
+
+  const text=String(value||'').trim().slice(0,10);
+  const parsed=Date.parse(`${text}T12:00:00Z`);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+
+function paymentDuplicateMemoKey(payment){
+
+  return normalizeDuplicateKey(
+    payment?.memo || payment?.note || payment?.description || ''
+  );
+}
+
+
+function paymentDuplicateSourceKind(payment){
+
+  const source=String(
+    payment?.source || payment?.importSource || ''
+  ).trim().toLowerCase();
+
+  if(source.includes('statement')){
+    return 'statement';
+  }
+
+  if(source.includes('email')){
+    return 'email';
+  }
+
+  return source;
+}
+
+
+function paymentsLikelySameCrossIntake(first,second){
+
+  if(!first || !second || first.id===second.id){
+    return false;
+  }
+
+  if(paymentsShareTransactionId(first,second)){
+    return true;
+  }
+
+  const firstMethod=String(first.method||'').trim().toLowerCase();
+  const secondMethod=String(second.method||'').trim().toLowerCase();
+
+  if(
+    !['venmo','zelle','cash'].includes(firstMethod) ||
+    firstMethod!==secondMethod ||
+    duplicateMoney(first.amount)!==duplicateMoney(second.amount)
+  ){
+    return false;
+  }
+
+  const firstParty=paymentPartyKey(first);
+  const secondParty=paymentPartyKey(second);
+
+  if(!firstParty || !secondParty || firstParty!==secondParty){
+    return false;
+  }
+
+  const firstDate=paymentDuplicateDateNumber(first.date||first.paymentDate);
+  const secondDate=paymentDuplicateDateNumber(second.date||second.paymentDate);
+
+  if(firstDate===null || secondDate===null){
+    return false;
+  }
+
+  const daysApart=Math.abs(firstDate-secondDate)/86400000;
+
+  if(daysApart===0){
+    return true;
+  }
+
+  if(daysApart>2){
+    return false;
+  }
+
+  const firstMemo=paymentDuplicateMemoKey(first);
+  const secondMemo=paymentDuplicateMemoKey(second);
+
+  if(!firstMemo || !secondMemo || firstMemo!==secondMemo){
+    return false;
+  }
+
+  const firstSource=paymentDuplicateSourceKind(first);
+  const secondSource=paymentDuplicateSourceKind(second);
+
+  return (
+    (firstSource==='statement' && secondSource==='email') ||
+    (firstSource==='email' && secondSource==='statement')
+  );
+}
+
+
 function findDuplicatePayment(candidate){
 
   const transactionId=
@@ -14479,6 +14751,16 @@ function findDuplicatePayment(candidate){
     if(exactTransaction){
       return exactTransaction;
     }
+  }
+
+
+  const crossIntakeDuplicate=
+    payments.find(existing=>
+      paymentsLikelySameCrossIntake(candidate,existing)
+    );
+
+  if(crossIntakeDuplicate){
+    return crossIntakeDuplicate;
   }
 
 
