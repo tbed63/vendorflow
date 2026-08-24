@@ -6503,3 +6503,19 @@ button.history.vf-history-evidence:focus-visible{
     padding-top:3px;
   }
 }
+
+
+/* CLICKABLE INBOX REVIEW BADGE */
+
+.vf-inbox-tag-button{
+  border:0;
+  font-family:inherit;
+  cursor:pointer;
+}
+
+.vf-inbox-tag-button:hover,
+.vf-inbox-tag-button:focus-visible{
+  background:#ceddf2;
+  color:#0b316b;
+  text-decoration:underline;
+}

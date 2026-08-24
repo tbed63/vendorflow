@@ -18873,12 +18873,29 @@ function renderInboundInbox(){
                 )} confidence
               </span>
 
-              <span class="vf-inbox-tag vf-inbox-status">
-                ${inboundInboxEscape(
-                  message.status ||
-                  'Classified'
-                )}
-              </span>
+              ${
+                message.reviewId
+                  ? `
+                    <button
+                      type="button"
+                      class="vf-inbox-tag vf-inbox-status vf-inbox-tag-button"
+                      data-inbox-view="review"
+                      title="Open this item in Needs Review">
+                      ${inboundInboxEscape(
+                        message.status ||
+                        'Needs Review'
+                      )}
+                    </button>
+                  `
+                  : `
+                    <span class="vf-inbox-tag vf-inbox-status">
+                      ${inboundInboxEscape(
+                        message.status ||
+                        'Classified'
+                      )}
+                    </span>
+                  `
+              }
 
               ${
                 message.needsAttention
