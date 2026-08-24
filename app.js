@@ -11798,7 +11798,7 @@ function upgradeStudentDirectoryRows(){
           <button
             type="button"
             data-edit-directory-student="${student.id}">
-            Edit student & contact information
+            Edit
           </button>
         </div>
       </div>
@@ -11844,12 +11844,19 @@ function upgradeStudentDirectoryRows(){
     card.dataset.directoryReady='true';
   });
 
-  $$('[data-edit-directory-student]').forEach(button=>{
-    button.onclick=event=>{
+
+  if(list.dataset.editStudentHandler!=='true'){
+    list.addEventListener('click',event=>{
+      const button=event.target.closest('[data-edit-directory-student]');
+      if(!button){
+        return;
+      }
+      event.preventDefault();
       event.stopPropagation();
       openCoreStudentEdit(button.dataset.editDirectoryStudent);
-    };
-  });
+    });
+    list.dataset.editStudentHandler='true';
+  }
 
   filterStudentDirectoryRows();
 }
