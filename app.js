@@ -18675,8 +18675,33 @@ function renderInboundInbox(){
           message.recipient
         );
 
+        addDetail(
+          'Source message ID',
+          message.sourceMessageId
+        );
+
+        addDetail(
+          'Email message',
+          message.bodyText
+        );
+
 
         const actionButtons=[];
+
+
+        if(message.pdfObjectKey){
+
+          actionButtons.push(`
+            <button
+              type="button"
+              class="primary"
+              data-inbox-pdf="${inboundInboxEscape(
+                message.pdfObjectKey
+              )}">
+              View Attached Certificate PDF
+            </button>
+          `);
+        }
 
 
         if(message.reviewId){
@@ -18842,6 +18867,19 @@ function renderInboundInbox(){
 
       switchView(
         button.dataset.inboxView
+      );
+    };
+  });
+
+
+  $$(
+    '#inboundInboxList [data-inbox-pdf]'
+  ).forEach(button=>{
+
+    button.onclick=()=>{
+
+      openCertificatePdf(
+        button.dataset.inboxPdf
       );
     };
   });
