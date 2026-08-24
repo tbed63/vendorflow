@@ -6405,3 +6405,101 @@ button.history.vf-history-evidence:focus-visible{
     white-space:normal;
   }
 }
+
+
+/* VENDORFLOW EXPANDED EMAIL DETAILS */
+
+.vf-inbox-status{
+  background:#e6eef9;
+  color:#173d77;
+}
+
+.vf-inbox-details{
+  margin-top:14px;
+  border-top:1px solid #dce4ed;
+  padding-top:12px;
+}
+
+.vf-inbox-details summary{
+  display:inline-flex;
+  align-items:center;
+  min-height:34px;
+  color:#173d77;
+  font-size:.86rem;
+  font-weight:800;
+  cursor:pointer;
+  user-select:none;
+}
+
+.vf-inbox-details summary:hover{
+  text-decoration:underline;
+}
+
+.vf-inbox-detail-grid{
+  display:grid;
+  grid-template-columns:
+    minmax(145px, 190px)
+    minmax(0, 1fr);
+  margin-top:12px;
+  border:1px solid #d7e0ea;
+  border-radius:10px;
+  overflow:hidden;
+  background:#fff;
+}
+
+.vf-inbox-detail-label,
+.vf-inbox-detail-value{
+  padding:9px 12px;
+  border-bottom:1px solid #e4e9ef;
+}
+
+.vf-inbox-detail-label{
+  background:#f3f6f9;
+  color:#4b5e72;
+  font-size:.75rem;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.025em;
+}
+
+.vf-inbox-detail-value{
+  color:#1d2c3d;
+  font-size:.86rem;
+  overflow-wrap:anywhere;
+}
+
+.vf-inbox-detail-grid > div:nth-last-child(-n+2){
+  border-bottom:0;
+}
+
+.vf-inbox-no-details{
+  margin-top:12px;
+  padding:13px;
+  border-radius:9px;
+  background:#f4f6f8;
+  color:#5e6d7c;
+  font-size:.84rem;
+}
+
+.vf-inbox-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:9px;
+  margin-top:14px;
+}
+
+@media(max-width:650px){
+
+  .vf-inbox-detail-grid{
+    display:block;
+  }
+
+  .vf-inbox-detail-label{
+    padding-bottom:4px;
+    border-bottom:0;
+  }
+
+  .vf-inbox-detail-value{
+    padding-top:3px;
+  }
+}

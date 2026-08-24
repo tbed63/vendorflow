@@ -18451,6 +18451,7 @@ function renderInboundInbox(){
 
 
   if(!list){
+
     return;
   }
 
@@ -18476,9 +18477,13 @@ function renderInboundInbox(){
     status.textContent=
       inboundInboxMessages.length
         ? `${inboundInboxMessages.length} received email${
-            inboundInboxMessages.length===1 ? '' : 's'
+            inboundInboxMessages.length===1
+              ? ''
+              : 's'
           }. ${attentionCount} need${
-            attentionCount===1 ? 's' : ''
+            attentionCount===1
+              ? 's'
+              : ''
           } attention.`
         : '';
   }
@@ -18519,14 +18524,206 @@ function renderInboundInbox(){
             ? ' needs-attention'
             : '';
 
-        const attachmentText=
+        const attachmentCount=
           Number(
             message.attachmentCount || 0
-          )
-            ? `${Number(message.attachmentCount)} attachment${
-                Number(message.attachmentCount)===1 ? '' : 's'
+          );
+
+        const attachmentText=
+          attachmentCount
+            ? `${attachmentCount} attachment${
+                attachmentCount===1
+                  ? ''
+                  : 's'
               }`
             : 'No attachments';
+
+        const amount=
+          Number(
+            message.amount || 0
+          );
+
+        const detailRows=[];
+
+
+        const addDetail=(
+          label,
+          value
+        )=>{
+
+          const cleanValue=
+            String(
+              value ?? ''
+            ).trim();
+
+
+          if(!cleanValue){
+            return;
+          }
+
+
+          detailRows.push(`
+            <div class="vf-inbox-detail-label">
+              ${inboundInboxEscape(label)}
+            </div>
+
+            <div class="vf-inbox-detail-value">
+              ${inboundInboxEscape(cleanValue)}
+            </div>
+          `);
+        };
+
+
+        addDetail(
+          'Outcome',
+          inboundInboxLabel(
+            message.outcome
+          )
+        );
+
+        addDetail(
+          'Student',
+          message.studentName
+        );
+
+        addDetail(
+          'Payer',
+          message.payer
+        );
+
+        if(amount>0){
+
+          addDetail(
+            'Amount',
+            new Intl.NumberFormat(
+              'en-US',
+              {
+                style:'currency',
+                currency:'USD'
+              }
+            ).format(amount)
+          );
+        }
+
+        addDetail(
+          'Payment method',
+          message.paymentMethod
+        );
+
+        addDetail(
+          'Payment date',
+          message.paymentDate
+        );
+
+        addDetail(
+          'Memo',
+          message.memo
+        );
+
+        addDetail(
+          'Service',
+          message.serviceName
+        );
+
+        addDetail(
+          'Charter school',
+          message.charterSchool
+        );
+
+        addDetail(
+          'Certificate number',
+          message.certificateNumber
+        );
+
+        addDetail(
+          'Service start',
+          message.serviceStartDate
+        );
+
+        addDetail(
+          'Service end',
+          message.serviceEndDate
+        );
+
+        addDetail(
+          'Service description',
+          message.serviceDescription
+        );
+
+        addDetail(
+          'Why VendorFlow stopped',
+          message.reasons
+        );
+
+        addDetail(
+          'Processing error',
+          message.detail
+        );
+
+        addDetail(
+          'Accounting record ID',
+          message.relatedRecordId
+        );
+
+        addDetail(
+          'Review record ID',
+          message.reviewId
+        );
+
+        addDetail(
+          'Sent to',
+          message.recipient
+        );
+
+
+        const actionButtons=[];
+
+
+        if(message.reviewId){
+
+          actionButtons.push(`
+            <button
+              type="button"
+              class="primary"
+              data-inbox-view="review">
+              Open Needs Review
+            </button>
+          `);
+        }
+
+
+        if(
+          message.classification===
+            'payment' ||
+          message.outcome===
+            'created' &&
+          message.payer
+        ){
+
+          actionButtons.push(`
+            <button
+              type="button"
+              data-inbox-view="payments">
+              Open Payments/Charges
+            </button>
+          `);
+        }
+
+
+        if(
+          message.classification===
+            'certificate'
+        ){
+
+          actionButtons.push(`
+            <button
+              type="button"
+              data-inbox-view="certificates">
+              Open Certificates
+            </button>
+          `);
+        }
+
 
         return `
           <article class="vf-inbox-message${attentionClass}">
@@ -18534,14 +18731,17 @@ function renderInboundInbox(){
               <div>
                 <div class="vf-inbox-subject">
                   ${inboundInboxEscape(
-                    message.subject || '(No subject)'
+                    message.subject ||
+                    '(No subject)'
                   )}
                 </div>
+
                 <div class="vf-inbox-sender">
                   From:
                   <strong>
                     ${inboundInboxEscape(
-                      message.sender || 'Unknown sender'
+                      message.sender ||
+                      'Unknown sender'
                     )}
                   </strong>
                 </div>
@@ -18558,16 +18758,21 @@ function renderInboundInbox(){
 
             <div class="vf-inbox-tags">
               <span class="vf-inbox-tag">
-                ${inboundInboxEscape(classification)}
-              </span>
-
-              <span class="vf-inbox-tag">
-                ${inboundInboxEscape(confidence)} confidence
+                ${inboundInboxEscape(
+                  classification
+                )}
               </span>
 
               <span class="vf-inbox-tag">
                 ${inboundInboxEscape(
-                  message.status || 'Classified'
+                  confidence
+                )} confidence
+              </span>
+
+              <span class="vf-inbox-tag vf-inbox-status">
+                ${inboundInboxEscape(
+                  message.status ||
+                  'Classified'
                 )}
               </span>
 
@@ -18579,7 +18784,10 @@ function renderInboundInbox(){
             </div>
 
             <div class="vf-inbox-attachments">
-              ${inboundInboxEscape(attachmentText)}
+              ${inboundInboxEscape(
+                attachmentText
+              )}
+
               ${
                 message.attachmentNames
                   ? ` — ${inboundInboxEscape(
@@ -18588,11 +18796,57 @@ function renderInboundInbox(){
                   : ''
               }
             </div>
+
+            <details class="vf-inbox-details">
+              <summary>
+                View everything VendorFlow knows
+              </summary>
+
+              ${
+                detailRows.length
+                  ? `
+                    <div class="vf-inbox-detail-grid">
+                      ${detailRows.join('')}
+                    </div>
+                  `
+                  : `
+                    <div class="vf-inbox-no-details">
+                      This earlier email has no additional
+                      extracted details. New processed emails
+                      will include them.
+                    </div>
+                  `
+              }
+
+              ${
+                actionButtons.length
+                  ? `
+                    <div class="vf-inbox-actions">
+                      ${actionButtons.join('')}
+                    </div>
+                  `
+                  : ''
+              }
+            </details>
           </article>
         `;
       })
       .join('');
+
+
+  $$(
+    '#inboundInboxList [data-inbox-view]'
+  ).forEach(button=>{
+
+    button.onclick=()=>{
+
+      switchView(
+        button.dataset.inboxView
+      );
+    };
+  });
 }
+
 
 
 async function loadInboundInbox(){
