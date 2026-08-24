@@ -25132,8 +25132,10 @@ function paymentStatementStudentOptions(
       Always Ignore This Payer
     </option>
 
-    <option value="">
-      Choose student…
+    <option
+      value=""
+      ${selectedId ? '' : 'selected'}>
+      Match with Student
     </option>
 
     ${
