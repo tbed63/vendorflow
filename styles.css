@@ -6670,3 +6670,27 @@ button.history.vf-history-evidence:focus-visible{
     margin-top:10px;
   }
 }
+
+
+/* VENDORFLOW CHARTER PAGE HIERARCHY */
+.vf-charter-affiliations{
+  margin:22px 0 28px;
+}
+.vf-charter-section-heading{
+  margin-bottom:12px;
+}
+.vf-charter-section-heading h3{
+  margin:3px 0 5px;
+  color:#18283b;
+  font-size:1.22rem;
+}
+.vf-charter-section-heading p{
+  margin:0;
+  color:#526477;
+}
+.vf-charter-affiliations .vf-charter-list{
+  margin-top:12px;
+}
+.vf-charter-bank{
+  margin-top:8px;
+}

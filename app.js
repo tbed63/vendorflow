@@ -1687,7 +1687,49 @@ async function loadSharedCharterSchoolBank(){
 }
 
 
+function organizeCharterSchoolPage(){
+
+  const view=$('#chartersView');
+  const list=$('#charterSchoolList');
+  const bank=$('#charterBankSearch')?.closest('.vf-charter-bank');
+  const form=$('#charterForm');
+
+  if(!view || !list || !bank || !form){
+    return;
+  }
+
+  let affiliations=$('#charterAffiliationsSection');
+
+  if(!affiliations){
+    affiliations=document.createElement('section');
+    affiliations.id='charterAffiliationsSection';
+    affiliations.className='vf-charter-affiliations';
+    affiliations.innerHTML=`
+      <div class="vf-charter-section-heading">
+        <div class="eyebrow">Your saved schools</div>
+        <h3>My Charter School Affiliations</h3>
+        <p>
+          These are the charter schools your business currently works with.
+        </p>
+      </div>
+    `;
+  }
+
+  const topHeading=view.querySelector(':scope > .row.between');
+
+  if(topHeading){
+    topHeading.insertAdjacentElement('afterend',affiliations);
+  }
+
+  affiliations.appendChild(list);
+  affiliations.insertAdjacentElement('afterend',bank);
+  bank.insertAdjacentElement('afterend',form);
+}
+
+
 function renderCharterSchools(){
+
+  organizeCharterSchoolPage();
 
   loadSharedCharterSchoolBank();
 
