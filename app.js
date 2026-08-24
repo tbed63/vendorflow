@@ -732,7 +732,9 @@ function todoNotificationItems(){
 
       if(
         status==='complete' ||
-        status==='approved'
+        status==='approved' ||
+        status==='archived' ||
+        task.archived===true
       ){
         return false;
       }
@@ -16940,28 +16942,258 @@ $('#saveCertificate').onclick=async()=>{
 };
 
 
-$('#addCompliance').onclick=()=>toggle('#complianceForm');
+let editingComplianceId=null;
+
+
+function clearTodoForm(){
+
+  editingComplianceId=null;
+  pendingInboundTodoReview=null;
+
+  $('#compTask').value='';
+  $('#compSchool').value='';
+  $('#compDue').value='';
+  $('#compReminder').value='';
+  $('#compStatus').value='Not started';
+  $('#compNotes').value='';
+  $('#saveCompliance').textContent='Save task';
+}
+
+
+function openTodoEditor(
+  todoId=''
+){
+
+  clearTodoForm();
+
+  const todo=
+    compliance.find(
+      item=>item.id===todoId
+    );
+
+  if(todo){
+    editingComplianceId=
+      todo.id;
+    $('#compTask').value=
+      todo.task || '';
+    $('#compSchool').value=
+      todo.school || '';
+    $('#compDue').value=
+      todo.due || '';
+    $('#compReminder').value=
+      todo.reminderDate || '';
+    $('#compStatus').value=
+      todo.status || 'Not started';
+    $('#compNotes').value=
+      todo.notes || '';
+    $('#saveCompliance').textContent=
+      'Save changes';
+  }
+
+  show(
+    $('#complianceForm')
+  );
+
+  $('#complianceForm')
+    .scrollIntoView({
+      behavior:'smooth',
+      block:'center'
+    });
+}
+
+
+async function setTodoComplete(
+  todoId
+){
+
+  const todo=
+    compliance.find(
+      item=>item.id===todoId
+    );
+
+  if(!todo){
+    return;
+  }
+
+  const complete=
+    String(todo.status||'')
+      .toLowerCase()!=='complete';
+
+  await updateDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'compliance',
+      todo.id
+    ),
+    {
+      status:
+        complete
+          ? 'Complete'
+          : 'Not started',
+      completedAt:
+        complete
+          ? serverTimestamp()
+          : null,
+      updatedAt:
+        serverTimestamp()
+    }
+  );
+
+  await log(
+    complete
+      ? 'To-do item completed'
+      : 'To-do item reopened',
+    todo.task || 'To-do item',
+    'Manual'
+  );
+
+  await refreshAll();
+
+  showCenteredActionConfirmation(
+    complete
+      ? 'To-do item marked complete.'
+      : 'To-do item reopened.'
+  );
+}
+
+
+async function archiveTodo(
+  todoId
+){
+
+  const todo=
+    compliance.find(
+      item=>item.id===todoId
+    );
+
+  if(!todo){
+    return;
+  }
+
+  const ok=
+    confirm(
+      `Archive this To-do item?\n\n${todo.task || 'To-do item'}\n\nIts history will remain recorded.`
+    );
+
+  if(!ok){
+    return;
+  }
+
+  await updateDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'compliance',
+      todo.id
+    ),
+    {
+      status:'Archived',
+      archived:true,
+      archivedAt:
+        serverTimestamp(),
+      updatedAt:
+        serverTimestamp()
+    }
+  );
+
+  await log(
+    'To-do item archived',
+    todo.task || 'To-do item',
+    'Manual'
+  );
+
+  await refreshAll();
+
+  showCenteredActionConfirmation(
+    'To-do item archived.'
+  );
+}
+
+
+$('#addCompliance').onclick=()=>{
+  openTodoEditor();
+};
+
+$('#cancelCompliance').onclick=()=>{
+  clearTodoForm();
+  hide($('#complianceForm'));
+};
 
 $('#saveCompliance').onclick=async()=>{
-  let d={
-    school:$('#compSchool').value.trim(),
-    task:$('#compTask').value.trim(),
-    due:$('#compDue').value,
-    status:$('#compStatus').value,
+
+  const existing=
+    editingComplianceId
+      ? compliance.find(
+          item=>
+            item.id===editingComplianceId
+        )
+      : null;
+
+  const d={
+    school:
+      $('#compSchool').value.trim(),
+    task:
+      $('#compTask').value.trim(),
+    due:
+      $('#compDue').value,
+    reminderDate:
+      $('#compReminder').value,
+    status:
+      $('#compStatus').value,
+    notes:
+      $('#compNotes').value.trim(),
     source:
       pendingInboundTodoReview
         ? 'VendorFlow Email'
-        : 'Manual',
-    createdAt:serverTimestamp()
+        : (
+            existing?.source ||
+            'Manual'
+          ),
+    updatedAt:
+      serverTimestamp()
   };
 
-  if(!d.task)
-    return toast('Enter the requirement.');
+  if(!d.task){
+    return toast(
+      'Enter the task.'
+    );
+  }
 
-  await addDoc(sub('compliance'),d);
+  if(editingComplianceId){
+
+    await setDoc(
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'compliance',
+        editingComplianceId
+      ),
+      d,
+      {
+        merge:true
+      }
+    );
+
+  }else{
+
+    await addDoc(
+      sub('compliance'),
+      {
+        ...d,
+        createdAt:
+          serverTimestamp()
+      }
+    );
+  }
 
   await log(
-    'To-do item added',
+    editingComplianceId
+      ? 'To-do item updated'
+      : 'To-do item added',
     `${d.task}${d.school?' — '+d.school:''}.`,
     pendingInboundTodoReview
       ? 'VendorFlow Email'
@@ -16972,8 +17204,6 @@ $('#saveCompliance').onclick=async()=>{
 
     const review=
       pendingInboundTodoReview;
-
-    pendingInboundTodoReview=null;
 
     await updateInboundEmailDecision(
       review,
@@ -16990,15 +17220,21 @@ $('#saveCompliance').onclick=async()=>{
         review.id
       )
     );
-
-    showCenteredActionConfirmation(
-      'To-do item created from the email.'
-    );
   }
 
+  const wasEditing=
+    Boolean(editingComplianceId);
+
+  clearTodoForm();
   hide($('#complianceForm'));
 
   await refreshAll();
+
+  showCenteredActionConfirmation(
+    wasEditing
+      ? 'To-do item updated.'
+      : 'To-do item created.'
+  );
 };
 
 
@@ -17606,8 +17842,26 @@ $('#certificateList').innerHTML=
     });
 
   const sortedCompliance=
-    [...compliance]
+    compliance
+      .filter(
+        task=>
+          !task.archived &&
+          String(task.status||'')
+            .toLowerCase()!=='archived'
+      )
       .sort((a,b)=>{
+
+        const aComplete=
+          String(a.status||'')
+            .toLowerCase()==='complete';
+
+        const bComplete=
+          String(b.status||'')
+            .toLowerCase()==='complete';
+
+        if(aComplete!==bComplete){
+          return aComplete ? 1 : -1;
+        }
 
         const aDue=
           String(a.due||'').trim();
@@ -17636,13 +17890,61 @@ $('#certificateList').innerHTML=
 
   $('#complianceList').innerHTML=
     sortedCompliance.length
-    ? sortedCompliance.map(d=>
-        `<div class="record">
-          <strong>${esc(d.task)}</strong>
-          <div class="meta">${esc(d.school)} · ${esc(d.status)} · ${esc(d.due)}</div>
-        </div>`
-      ).join('')
+    ? sortedCompliance.map(d=>{
+
+        const complete=
+          String(d.status||'')
+            .toLowerCase()==='complete';
+
+        return `
+          <div class="record vf-todo-record ${complete?'is-complete':''}" data-todo-record="${esc(d.id)}">
+            <div class="vf-todo-record-main">
+              <strong>${esc(d.task)}</strong>
+              <div class="meta">
+                ${[
+                  d.school || '',
+                  d.status || 'Not started',
+                  d.due ? `Due ${d.due}` : 'No due date',
+                  d.reminderDate ? `Reminder ${d.reminderDate}` : ''
+                ].filter(Boolean).map(esc).join(' · ')}
+              </div>
+              ${d.notes
+                ? `<div class="vf-todo-notes">${esc(d.notes)}</div>`
+                : ''}
+            </div>
+            <div class="vf-todo-actions">
+              <button type="button" class="primary" data-complete-todo="${esc(d.id)}">
+                ${complete ? 'Reopen' : 'Mark Complete'}
+              </button>
+              <button type="button" data-edit-todo="${esc(d.id)}">Edit</button>
+              <button type="button" data-archive-todo="${esc(d.id)}">Archive</button>
+            </div>
+          </div>
+        `;
+      }).join('')
     : '<div class="empty">No To-do items yet.</div>';
+
+
+  $$('[data-edit-todo]').forEach(button=>{
+    button.onclick=()=>
+      openTodoEditor(
+        button.dataset.editTodo
+      );
+  });
+
+  $$('[data-complete-todo]').forEach(button=>{
+    button.onclick=()=>
+      setTodoComplete(
+        button.dataset.completeTodo
+      );
+  });
+
+  $$('[data-archive-todo]').forEach(button=>{
+    button.onclick=()=>
+      archiveTodo(
+        button.dataset.archiveTodo
+      );
+  });
 }
 
 let pendingInboundTodoReview=null;
@@ -17847,6 +18149,11 @@ function openInboundTodoReview(
 
   $('#compStatus').value=
     'Not started';
+
+  $('#compReminder').value='';
+
+  $('#compNotes').value=
+    review.detail || '';
 
   $('#complianceForm')
     .scrollIntoView({
@@ -18093,6 +18400,16 @@ function renderReviews(){
   const displayReviews=
     allNeedsReviewItems();
 
+  const notificationBadge=
+    $('#reviewBadge');
+
+  if(notificationBadge){
+    notificationBadge.textContent=
+      displayReviews.length
+        ? String(displayReviews.length)
+        : '';
+  }
+
 
   if(!displayReviews.length){
 
@@ -18105,6 +18422,25 @@ function renderReviews(){
 
   list.innerHTML=
     displayReviews.map(review=>{
+
+
+      if(
+        review.reviewType===
+          'todo-reminder'
+      ){
+
+        return `
+          <div class="record vf-todo-notification">
+            <strong>${esc(review.title)}</strong>
+            <div class="meta">${esc(review.detail||'')}</div>
+            <div class="vf-review-actions">
+              <button type="button" class="primary" data-open-notification-todo="${esc(review.todoId)}">
+                Open To-do Item
+              </button>
+            </div>
+          </div>
+        `;
+      }
 
 
       if(
@@ -18369,6 +18705,17 @@ function renderReviews(){
         markInboundReviewed(
           button.dataset.markInboundReviewed
         );
+    });
+
+
+  $$('[data-open-notification-todo]')
+    .forEach(button=>{
+      button.onclick=()=>{
+        switchView('compliance');
+        openTodoEditor(
+          button.dataset.openNotificationTodo
+        );
+      };
     });
 
 

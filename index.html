@@ -2193,7 +2193,43 @@ Thank you,
 
     </section>
 
-<section id="complianceView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Tasks, deadlines & reminders</div><h2>To-Do List</h2><p>Track every task, requirement, renewal, deadline, and reminder in one place.</p></div><button id="addCompliance" class="primary">Add task</button></div><div id="complianceForm" class="formgrid hidden"><input id="compSchool" class="input" placeholder="School / organization"><input id="compTask" class="input" placeholder="Requirement"><input id="compDue" class="input" type="date"><select id="compStatus" class="input"><option>Not started</option><option>In progress</option><option>Submitted</option><option>Approved</option><option>Complete</option><option>Needs renewal</option></select><button id="saveCompliance" class="primary">Save task</button></div><div id="complianceList"></div></div></section>
+<section id="complianceView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Tasks, deadlines & reminders</div><h2>To-Do List</h2><p>Track every task, requirement, renewal, deadline, and reminder in one place.</p></div><button id="addCompliance" class="primary">Add task</button></div><div id="complianceForm" class="formgrid hidden vf-todo-form">
+  <label class="vf-field-label">
+    <span>Task</span>
+    <input id="compTask" class="input" placeholder="What needs to be done?">
+  </label>
+  <label class="vf-field-label">
+    <span>School / organization</span>
+    <input id="compSchool" class="input" placeholder="Optional">
+  </label>
+  <label class="vf-field-label">
+    <span>Due date</span>
+    <input id="compDue" class="input" type="date">
+  </label>
+  <label class="vf-field-label">
+    <span>Reminder date</span>
+    <input id="compReminder" class="input" type="date">
+  </label>
+  <label class="vf-field-label">
+    <span>Status</span>
+    <select id="compStatus" class="input">
+      <option>Not started</option>
+      <option>In progress</option>
+      <option>Submitted</option>
+      <option>Approved</option>
+      <option>Complete</option>
+      <option>Needs renewal</option>
+    </select>
+  </label>
+  <label class="vf-field-label vf-todo-notes-field">
+    <span>Notes and details</span>
+    <textarea id="compNotes" class="input" rows="4" placeholder="Instructions, links, contact information, or other details"></textarea>
+  </label>
+  <div class="vf-todo-form-actions">
+    <button id="saveCompliance" class="primary" type="button">Save task</button>
+    <button id="cancelCompliance" type="button">Cancel</button>
+  </div>
+</div><div id="complianceList"></div></div></section>
 
     <section id="inboxView" class="view">
       <div class="card">
@@ -2615,5 +2651,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=notifications-home-20260824-1"></script>
+<script type="module" src="app.js?v=complete-todo-list-20260824-1"></script>
 </body></html>

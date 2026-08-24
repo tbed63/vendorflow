@@ -6519,3 +6519,71 @@ button.history.vf-history-evidence:focus-visible{
   color:#0b316b;
   text-decoration:underline;
 }
+
+
+/* COMPLETE VENDORFLOW TO-DO LIST */
+
+.vf-todo-form{
+  margin-top:20px;
+}
+
+.vf-todo-notes-field{
+  grid-column:1 / -1;
+}
+
+.vf-todo-notes-field textarea{
+  resize:vertical;
+  min-height:96px;
+}
+
+.vf-todo-form-actions{
+  grid-column:1 / -1;
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+
+.vf-todo-record{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:22px;
+}
+
+.vf-todo-record.is-complete{
+  opacity:.7;
+  background:#f4f7f6;
+}
+
+.vf-todo-record.is-complete strong{
+  text-decoration:line-through;
+}
+
+.vf-todo-record-main{
+  min-width:0;
+  flex:1;
+}
+
+.vf-todo-notes{
+  margin-top:9px;
+  color:#46596d;
+  line-height:1.45;
+  white-space:pre-wrap;
+}
+
+.vf-todo-actions{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:8px;
+}
+
+@media(max-width:760px){
+  .vf-todo-record{
+    display:block;
+  }
+  .vf-todo-actions{
+    justify-content:flex-start;
+    margin-top:13px;
+  }
+}
