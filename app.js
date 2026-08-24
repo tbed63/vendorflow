@@ -11419,6 +11419,234 @@ if($('#globalStudentSearch')){
 
 
 
+function studentDirectoryServiceNames(student){
+
+  return [...new Set(
+    studentServices(student.id)
+      .filter(serviceKeepsStudentVisible)
+      .map(service=>{
+        const linkedClass=classes.find(item=>item.id===service.classId);
+        return linkedClass?.name || service.name || service.serviceType || '';
+      })
+      .filter(Boolean)
+  )];
+}
+
+
+function studentDirectoryPaymentHistory(student){
+
+  const linked=studentPayments(student)
+    .filter(payment=>
+      !['charge','service charge'].includes(
+        String(payment.recordType||payment.type||'').toLowerCase()
+      )
+    )
+    .sort((a,b)=>
+      String(b.date||b.paymentDate||b.createdAt||'')
+        .localeCompare(String(a.date||a.paymentDate||a.createdAt||''))
+    );
+
+  if(!linked.length){
+    return '<div class="vf-student-history-empty">No payments recorded.</div>';
+  }
+
+  return linked.map(payment=>`
+    <div class="vf-student-history-row">
+      <div>
+        <strong>${esc(payment.payer||payment.method||'Payment')}</strong>
+        <span>
+          ${esc(payment.date||payment.paymentDate||'Date unavailable')}
+          ${payment.method?' · '+esc(payment.method):''}
+          ${payment.memo?' · '+esc(payment.memo):''}
+        </span>
+      </div>
+      <strong>${money(payment.amount)}</strong>
+    </div>
+  `).join('');
+}
+
+
+function studentDirectoryCertificateHistory(student){
+
+  const linked=studentCertificates(student.studentName)
+    .filter(certificate=>
+      !certificate.deleted &&
+      !['cancelled','deleted'].includes(
+        String(certificate.status||'').toLowerCase()
+      )
+    )
+    .sort((a,b)=>
+      String(b.receivedAt||b.createdAt||b.startDate||'')
+        .localeCompare(String(a.receivedAt||a.createdAt||a.startDate||''))
+    );
+
+  if(!linked.length){
+    return '<div class="vf-student-history-empty">No certificates recorded.</div>';
+  }
+
+  return linked.map(certificate=>`
+    <div class="vf-student-history-row">
+      <div>
+        <strong>${esc(certificate.charterSchool||certificate.school||'Charter certificate')}</strong>
+        <span>
+          ${esc(certificate.certificateNumber||certificate.status||'Certificate')}
+          ${certificate.serviceName?' · '+esc(certificate.serviceName):''}
+          ${certificate.startDate?' · '+esc(certificate.startDate):''}
+        </span>
+      </div>
+      <strong>${money(certificate.amount)}</strong>
+    </div>
+  `).join('');
+}
+
+
+function filterStudentDirectoryRows(){
+
+  const input=$('#studentDirectorySearch');
+  const query=String(input?.value||'').trim().toLowerCase();
+  let visible=0;
+
+  $$('#studentsServicesList .vf-student-account').forEach(card=>{
+    const student=students.find(item=>item.id===card.dataset.studentAccountId);
+    const matches=!query || (student && studentSearchHaystack(student).includes(query));
+    card.classList.toggle('hidden',!matches);
+    if(matches)visible+=1;
+  });
+
+  const result=$('#studentDirectoryResultCount');
+  if(result){
+    result.textContent=`${visible} student${visible===1?'':'s'}`;
+  }
+}
+
+
+function upgradeStudentDirectoryRows(){
+
+  const list=$('#studentsServicesList');
+  if(!list){
+    return;
+  }
+
+  let controls=$('#studentDirectoryControls');
+
+  if(!controls){
+    controls=document.createElement('div');
+    controls.id='studentDirectoryControls';
+    controls.className='vf-student-directory-controls';
+    controls.innerHTML=`
+      <div>
+        <div class="eyebrow">Student directory</div>
+        <h3>All Students</h3>
+      </div>
+      <label class="vf-student-directory-search">
+        <span>Search students</span>
+        <input
+          id="studentDirectorySearch"
+          class="input"
+          type="search"
+          placeholder="Student, parent, email, phone, or grade">
+      </label>
+      <div id="studentDirectoryResultCount" class="muted"></div>
+    `;
+    list.insertAdjacentElement('beforebegin',controls);
+    $('#studentDirectorySearch').addEventListener('input',filterStudentDirectoryRows);
+  }
+
+  $$('#studentsServicesList .vf-student-account').forEach(card=>{
+    if(card.dataset.directoryReady==='true'){
+      return;
+    }
+
+    const student=students.find(item=>item.id===card.dataset.studentAccountId);
+    if(!student){
+      return;
+    }
+
+    const account=studentAccountTotals(student);
+    const balance=balanceStatus(account.parentBalance);
+    const serviceNames=studentDirectoryServiceNames(student);
+
+    const details=document.createElement('div');
+    details.className='vf-student-directory-details hidden';
+
+    while(card.firstChild){
+      details.appendChild(card.firstChild);
+    }
+
+    details.insertAdjacentHTML('beforeend',`
+      <div class="vf-student-complete-record">
+        <div class="vf-student-record-actions">
+          <button
+            type="button"
+            data-edit-directory-student="${student.id}">
+            Edit student & contact information
+          </button>
+        </div>
+
+        <div class="vf-student-history-grid">
+          <section>
+            <h4>Payment History</h4>
+            ${studentDirectoryPaymentHistory(student)}
+          </section>
+          <section>
+            <h4>Certificate History</h4>
+            ${studentDirectoryCertificateHistory(student)}
+          </section>
+        </div>
+      </div>
+    `);
+
+    const row=document.createElement('button');
+    row.type='button';
+    row.className='vf-student-directory-row';
+    row.setAttribute('aria-expanded','false');
+    row.innerHTML=`
+      <span class="vf-student-directory-name">
+        <strong>${esc(student.studentName||'Unnamed student')}</strong>
+        <small>
+          ${student.grade?'Grade '+esc(student.grade):'Grade not entered'}
+        </small>
+      </span>
+      <span class="vf-student-directory-parent">
+        <strong>${esc(student.parentName||'Parent not entered')}</strong>
+        <small>${esc(student.parentEmail||student.parentPhone||'Contact information not entered')}</small>
+      </span>
+      <span class="vf-student-directory-services">
+        <strong>${serviceNames.length?esc(serviceNames.join(' · ')):'No active service'}</strong>
+        <small>${studentServices(student.id).filter(serviceKeepsStudentVisible).length} service${studentServices(student.id).filter(serviceKeepsStudentVisible).length===1?'':'s'}</small>
+      </span>
+      <span class="vf-student-directory-balance">
+        <strong>${money(account.parentBalance)}</strong>
+        <small class="${balance.className}">${esc(balance.label)}</small>
+      </span>
+      <span class="vf-student-directory-open">View details</span>
+    `;
+
+    row.onclick=()=>{
+      const opening=details.classList.contains('hidden');
+      details.classList.toggle('hidden',!opening);
+      row.classList.toggle('open',opening);
+      row.setAttribute('aria-expanded',String(opening));
+      const label=row.querySelector('.vf-student-directory-open');
+      if(label)label.textContent=opening?'Close details':'View details';
+    };
+
+    card.appendChild(row);
+    card.appendChild(details);
+    card.dataset.directoryReady='true';
+  });
+
+  $$('[data-edit-directory-student]').forEach(button=>{
+    button.onclick=event=>{
+      event.stopPropagation();
+      openGlobalStudentEdit(button.dataset.editDirectoryStudent);
+    };
+  });
+
+  filterStudentDirectoryRows();
+}
+
+
 function renderStudentsServices(){
 
   refreshStudentServiceSelectors();
@@ -11727,6 +11955,9 @@ function renderStudentsServices(){
         `;
       })
       .join('');
+
+
+  upgradeStudentDirectoryRows();
 
 
   $$('[data-student-certificate]')
