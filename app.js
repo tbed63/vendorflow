@@ -25868,6 +25868,85 @@ function selectVendorFlowStatementPayments(){
 }
 
 
+function clearPaymentStatementReview(){
+
+  if(!paymentStatementResult){
+    return;
+  }
+
+
+  const transactions=
+    Array.isArray(
+      paymentStatementResult.transactions
+    )
+      ? paymentStatementResult.transactions
+      : [];
+
+
+  const unresolvedIncoming=
+    transactions.filter(tx=>
+
+      tx.direction==='incoming' &&
+      !tx._imported &&
+      !tx._duplicateQueued &&
+      !statementPayerIsIgnored(tx)
+    );
+
+
+  if(unresolvedIncoming.length){
+
+    const approved=
+      window.confirm(
+        `Clear this statement from the screen?\n\n`+
+        `${unresolvedIncoming.length} incoming payment${
+          unresolvedIncoming.length===1?'':'s'
+        } ${
+          unresolvedIncoming.length===1?'has':'have'
+        } not been imported or resolved.\n\n`+
+        `Payments already imported will remain recorded.`
+      );
+
+
+    if(!approved){
+      return;
+    }
+  }
+
+
+  paymentStatementResult=null;
+
+
+  const fileInput=
+    $('#paymentStatementFile');
+
+  const status=
+    $('#paymentStatementStatus');
+
+  const results=
+    $('#paymentStatementResults');
+
+
+  if(fileInput){
+    fileInput.value='';
+  }
+
+
+  if(status){
+    status.textContent='';
+  }
+
+
+  if(results){
+    results.innerHTML='';
+  }
+
+
+  showCenteredActionConfirmation(
+    'Statement cleared. Imported payments remain recorded.'
+  );
+}
+
+
 function installPaymentStatementReviewControls(){
 
   document
@@ -26057,6 +26136,16 @@ function installPaymentStatementReviewControls(){
 
     selectAllButton.onclick=
       selectVendorFlowStatementPayments;
+  }
+
+
+  const clearButton=
+    $('#clearPaymentStatement');
+
+  if(clearButton){
+
+    clearButton.onclick=
+      clearPaymentStatementReview;
   }
 
 
@@ -26510,6 +26599,13 @@ function renderPaymentStatementResults(){
           type="button"
           class="secondary">
           Select All VF-Identified Payments
+        </button>
+
+        <button
+          id="clearPaymentStatement"
+          type="button"
+          class="secondary">
+          Clear Statement
         </button>
 
         <button
