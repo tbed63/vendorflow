@@ -6221,3 +6221,75 @@ button.history.vf-history-evidence:focus-visible{
   color:#744500;
   font-weight:700;
 }
+
+
+/* ==========================================================
+   CENTERED ACTION CONFIRMATION
+   ========================================================== */
+
+.vf-centered-action-confirmation{
+  position:fixed;
+  left:50%;
+  top:50%;
+  z-index:100000;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  width:min(560px, calc(100vw - 36px));
+  padding:22px 26px;
+  border:2px solid #86c8ad;
+  border-radius:18px;
+  background:#173b34;
+  color:#fff;
+  box-shadow:
+    0 24px 70px rgba(11,31,27,.35),
+    0 8px 24px rgba(11,31,27,.22);
+  font-size:18px;
+  line-height:1.4;
+  opacity:0;
+  transform:
+    translate(-50%,-44%)
+    scale(.96);
+  transition:
+    opacity .25s ease,
+    transform .25s ease;
+  pointer-events:none;
+}
+
+.vf-centered-action-confirmation.show{
+  opacity:1;
+  transform:
+    translate(-50%,-50%)
+    scale(1);
+}
+
+.vf-centered-confirmation-check{
+  flex:0 0 auto;
+  display:grid;
+  place-items:center;
+  width:46px;
+  height:46px;
+  border-radius:50%;
+  background:#d9f5e8;
+  color:#176348;
+  font-size:28px;
+  font-weight:900;
+}
+
+.vf-centered-action-confirmation strong{
+  display:block;
+}
+
+@media (max-width:600px){
+
+  .vf-centered-action-confirmation{
+    padding:18px 20px;
+    font-size:16px;
+  }
+
+  .vf-centered-confirmation-check{
+    width:40px;
+    height:40px;
+    font-size:24px;
+  }
+}

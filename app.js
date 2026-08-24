@@ -14243,6 +14243,79 @@ async function queueDuplicateReview(
 }
 
 
+function showCenteredActionConfirmation(
+  message
+){
+
+  const existing=
+    document.querySelector(
+      '.vf-centered-action-confirmation'
+    );
+
+
+  if(existing){
+    existing.remove();
+  }
+
+
+  const confirmation=
+    document.createElement('div');
+
+
+  confirmation.className=
+    'vf-centered-action-confirmation';
+
+  confirmation.setAttribute(
+    'role',
+    'status'
+  );
+
+  confirmation.setAttribute(
+    'aria-live',
+    'polite'
+  );
+
+  confirmation.innerHTML=`
+    <div class="vf-centered-confirmation-check">
+      ✓
+    </div>
+
+    <strong>
+      ${esc(message)}
+    </strong>
+  `;
+
+
+  document.body.appendChild(
+    confirmation
+  );
+
+
+  requestAnimationFrame(()=>{
+
+    confirmation.classList.add(
+      'show'
+    );
+  });
+
+
+  window.setTimeout(()=>{
+
+    confirmation.classList.remove(
+      'show'
+    );
+
+
+    window.setTimeout(()=>{
+
+      confirmation.remove();
+
+    },300);
+
+  },3000);
+}
+
+
 async function rejectDuplicateReview(
   reviewId
 ){
@@ -14252,12 +14325,128 @@ async function rejectDuplicateReview(
       r=>r.id===reviewId
     );
 
+
   if(!review){
     return;
   }
 
 
+  let paymentMetadataUpdated=false;
+
+
+  /*
+   * When the vendor confirms that the incoming statement
+   * row and the older payment are the same payment, use
+   * that explicit decision to enrich the older record.
+   *
+   * Core accounting fields are never changed here.
+   */
+  if(
+    review.itemType==='payment' &&
+    review.existingId &&
+    review.incoming
+  ){
+
+    const incoming=
+      review.incoming || {};
+
+    const existing=
+      payments.find(
+        payment=>
+          payment.id===review.existingId
+      ) ||
+      review.existing ||
+      {};
+
+
+    const metadataUpdate={};
+
+
+    if(
+      incoming.statementTransactionId &&
+      !existing.statementTransactionId
+    ){
+
+      metadataUpdate.statementTransactionId=
+        String(
+          incoming.statementTransactionId
+        ).trim();
+    }
+
+
+    if(
+      incoming.statementFileName &&
+      !existing.statementFileName
+    ){
+
+      metadataUpdate.statementFileName=
+        String(
+          incoming.statementFileName
+        ).trim();
+    }
+
+
+    if(
+      incoming.statementRowNumber &&
+      !existing.statementRowNumber
+    ){
+
+      metadataUpdate.statementRowNumber=
+        Number(
+          incoming.statementRowNumber
+        );
+    }
+
+
+    if(
+      incoming.memo &&
+      !existing.memo
+    ){
+
+      metadataUpdate.memo=
+        String(
+          incoming.memo
+        ).trim();
+    }
+
+
+    if(
+      Object.keys(
+        metadataUpdate
+      ).length
+    ){
+
+      metadataUpdate.duplicateConfirmedAt=
+        serverTimestamp();
+
+      metadataUpdate.duplicateConfirmedFromReviewId=
+        review.id;
+
+      metadataUpdate.updatedAt=
+        serverTimestamp();
+
+
+      await updateDoc(
+
+        doc(
+          db,
+          'vendors',
+          user.uid,
+          'payments',
+          review.existingId
+        ),
+
+        metadataUpdate
+      );
+
+
+      paymentMetadataUpdated=true;
+    }
+  }
+
+
   await deleteDoc(
+
     doc(
       db,
       'vendors',
@@ -14270,16 +14459,26 @@ async function rejectDuplicateReview(
 
   await log(
     'Duplicate rejected',
-    review.detail ||
-    'Suspected duplicate was rejected.',
+    (
+      review.detail ||
+      'Suspected duplicate was rejected.'
+    )+
+    (
+      paymentMetadataUpdated
+        ? ' Existing payment was enriched with confirmed statement metadata.'
+        : ''
+    ),
     'Manual'
   );
 
 
   await refreshAll();
 
-  toast(
-    'Duplicate rejected.'
+
+  showCenteredActionConfirmation(
+    paymentMetadataUpdated
+      ? 'Duplicate rejected. Existing payment updated with the statement transaction ID.'
+      : 'Duplicate rejected. The payment was not imported again.'
   );
 }
 
