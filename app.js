@@ -16858,7 +16858,10 @@ $('#saveCompliance').onclick=async()=>{
     task:$('#compTask').value.trim(),
     due:$('#compDue').value,
     status:$('#compStatus').value,
-    source:'Manual',
+    source:
+      pendingInboundTodoReview
+        ? 'VendorFlow Email'
+        : 'Manual',
     createdAt:serverTimestamp()
   };
 
@@ -16868,10 +16871,40 @@ $('#saveCompliance').onclick=async()=>{
   await addDoc(sub('compliance'),d);
 
   await log(
-    'Compliance task added',
+    'To-do item added',
     `${d.task}${d.school?' — '+d.school:''}.`,
-    'Manual'
+    pendingInboundTodoReview
+      ? 'VendorFlow Email'
+      : 'Manual'
   );
+
+  if(pendingInboundTodoReview){
+
+    const review=
+      pendingInboundTodoReview;
+
+    pendingInboundTodoReview=null;
+
+    await updateInboundEmailDecision(
+      review,
+      'todo-created',
+      `To-do item created: ${d.task}`
+    );
+
+    await deleteDoc(
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'review',
+        review.id
+      )
+    );
+
+    showCenteredActionConfirmation(
+      'To-do item created from the email.'
+    );
+  }
 
   hide($('#complianceForm'));
 
@@ -17493,6 +17526,393 @@ $('#certificateList').innerHTML=
     : '<div class="empty">No compliance tasks yet.</div>';
 }
 
+let pendingInboundTodoReview=null;
+
+
+function inboundReviewDateValue(value){
+
+  const date=
+    new Date(value || '');
+
+  if(
+    Number.isNaN(
+      date.getTime()
+    )
+  ){
+    return '';
+  }
+
+  const year=
+    date.getFullYear();
+
+  const month=
+    String(
+      date.getMonth()+1
+    ).padStart(2,'0');
+
+  const day=
+    String(
+      date.getDate()
+    ).padStart(2,'0');
+
+  return `${year}-${month}-${day}`;
+}
+
+
+async function updateInboundEmailDecision(
+  review,
+  outcome,
+  detail=''
+){
+
+  if(!review?.inboundEmailId){
+    return;
+  }
+
+  const token=
+    await user.getIdToken();
+
+  const response=
+    await fetch(
+      `${VENDORFLOW_API}/inbound/inbox/decision`,
+      {
+        method:'POST',
+        headers:{
+          Authorization:
+            `Bearer ${token}`,
+          'Content-Type':
+            'application/json'
+        },
+        body:
+          JSON.stringify({
+            emailId:
+              review.inboundEmailId,
+            outcome,
+            detail
+          })
+      }
+    );
+
+  let data={};
+
+  try{
+    data=
+      await response.json();
+  }catch{}
+
+  if(!response.ok){
+    throw new Error(
+      data.detail ||
+      data.error ||
+      'VendorFlow could not save that email decision.'
+    );
+  }
+}
+
+
+async function finishInboundReview(
+  review,
+  outcome,
+  detail,
+  confirmation
+){
+
+  await updateInboundEmailDecision(
+    review,
+    outcome,
+    detail
+  );
+
+  await deleteDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'review',
+      review.id
+    )
+  );
+
+  await log(
+    'Inbound email reviewed',
+    detail,
+    'Manual'
+  );
+
+  await refreshAll();
+
+  inboundInboxMessages=[];
+
+  showCenteredActionConfirmation(
+    confirmation
+  );
+}
+
+
+async function ignoreInboundReview(
+  reviewId
+){
+
+  const review=
+    reviews.find(
+      item=>item.id===reviewId
+    );
+
+  if(!review){
+    return;
+  }
+
+  const ok=
+    confirm(
+      `Ignore this email?\n\n`+
+      `${review.subject || review.title || 'Inbound email'}\n\n`+
+      `No roster, To-do List, payment, certificate, or accounting record will be changed.`
+    );
+
+  if(!ok){
+    return;
+  }
+
+  try{
+    await finishInboundReview(
+      review,
+      'ignored',
+      `${review.subject || review.title || 'Inbound email'} was reviewed and ignored.`,
+      'Email ignored. No records were changed.'
+    );
+  }catch(error){
+    console.error(error);
+    toast(
+      error.message ||
+      'VendorFlow could not ignore that email.'
+    );
+  }
+}
+
+
+function openInboundTodoReview(
+  reviewId
+){
+
+  const review=
+    reviews.find(
+      item=>item.id===reviewId
+    );
+
+  if(!review){
+    return;
+  }
+
+  pendingInboundTodoReview=
+    review;
+
+  switchView(
+    'compliance'
+  );
+
+  show(
+    $('#complianceForm')
+  );
+
+  $('#compSchool').value='';
+
+  $('#compTask').value=
+    review.subject ||
+    review.title ||
+    '';
+
+  $('#compDue').value=
+    inboundReviewDateValue(
+      review.possibleDueDate
+    );
+
+  $('#compStatus').value=
+    'Not started';
+
+  $('#complianceForm')
+    .scrollIntoView({
+      behavior:'smooth',
+      block:'center'
+    });
+
+  showCenteredActionConfirmation(
+    'Review the prefilled To-do item, then click Save task.'
+  );
+}
+
+
+function openInboundStudentChange(
+  reviewId
+){
+
+  const review=
+    reviews.find(
+      item=>item.id===reviewId
+    );
+
+  if(!review){
+    return;
+  }
+
+  switchView(
+    'classes'
+  );
+
+  showCenteredActionConfirmation(
+    review.changeType==='drop'
+      ? 'Choose the class and use Edit student to complete the drop.'
+      : 'Choose the class and review the requested student change.'
+  );
+}
+
+
+async function completeInboundStudentChange(
+  reviewId
+){
+
+  const review=
+    reviews.find(
+      item=>item.id===reviewId
+    );
+
+  if(!review){
+    return;
+  }
+
+  const ok=
+    confirm(
+      `Mark this student change completed?\n\n`+
+      `Use this only after you made the correct roster change.`
+    );
+
+  if(!ok){
+    return;
+  }
+
+  try{
+    await finishInboundReview(
+      review,
+      'student-change-completed',
+      `${review.subject || review.title || 'Student change'} was completed manually.`,
+      'Student change marked completed.'
+    );
+  }catch(error){
+    console.error(error);
+    toast(
+      error.message ||
+      'VendorFlow could not complete that review.'
+    );
+  }
+}
+
+
+async function markInboundReviewed(
+  reviewId
+){
+
+  const review=
+    reviews.find(
+      item=>item.id===reviewId
+    );
+
+  if(!review){
+    return;
+  }
+
+  try{
+    await finishInboundReview(
+      review,
+      'reviewed',
+      `${review.subject || review.title || 'Inbound email'} was reviewed.`,
+      'Email marked reviewed.'
+    );
+  }catch(error){
+    console.error(error);
+    toast(
+      error.message ||
+      'VendorFlow could not complete that review.'
+    );
+  }
+}
+
+
+function inboundReviewActionsHTML(
+  review
+){
+
+  if(!review?.inboundEmailId){
+    return '';
+  }
+
+  const sourceButton=`
+    <button
+      type="button"
+      class="vf-secondary-button"
+      data-open-review-email="${esc(review.inboundEmailId)}">
+      Open Source Email
+    </button>
+  `;
+
+  const ignoreButton=`
+    <button
+      type="button"
+      class="vf-secondary-button"
+      data-ignore-inbound-review="${esc(review.id)}">
+      Ignore
+    </button>
+  `;
+
+  if(review.itemType==='compliance-task'){
+    return `
+      <div class="vf-review-actions">
+        <button
+          type="button"
+          class="primary"
+          data-create-todo-review="${esc(review.id)}">
+          Create To-do Item
+        </button>
+        ${sourceButton}
+        ${ignoreButton}
+      </div>
+    `;
+  }
+
+  if(review.itemType==='student-change'){
+    return `
+      <div class="vf-review-actions">
+        <button
+          type="button"
+          class="primary"
+          data-open-student-review="${esc(review.id)}">
+          Open Class Rosters
+        </button>
+        <button
+          type="button"
+          class="vf-secondary-button"
+          data-complete-student-review="${esc(review.id)}">
+          Mark Completed
+        </button>
+        ${sourceButton}
+        ${ignoreButton}
+      </div>
+    `;
+  }
+
+  return `
+    <div class="vf-review-actions">
+      ${sourceButton}
+      <button
+        type="button"
+        class="primary"
+        data-mark-inbound-reviewed="${esc(review.id)}">
+        Mark Reviewed
+      </button>
+      ${ignoreButton}
+    </div>
+  `;
+}
+
+
 async function openInboundEmailFromReview(
   inboundEmailId
 ){
@@ -17639,18 +18059,9 @@ function renderReviews(){
                     </button>
                   </div>
                 `
-                : review.inboundEmailId
-                  ? `
-                    <div class="vf-review-actions">
-                      <button
-                        type="button"
-                        class="primary"
-                        data-open-review-email="${esc(review.inboundEmailId)}">
-                        Open Source Email
-                      </button>
-                    </div>
-                  `
-                  : ''
+                : inboundReviewActionsHTML(
+                    review
+                  )
             }
 
           </div>
@@ -17799,6 +18210,47 @@ function renderReviews(){
         </div>
       `;
     }).join('');
+
+
+  $$('[data-create-todo-review]')
+    .forEach(button=>{
+      button.onclick=()=>
+        openInboundTodoReview(
+          button.dataset.createTodoReview
+        );
+    });
+
+  $$('[data-open-student-review]')
+    .forEach(button=>{
+      button.onclick=()=>
+        openInboundStudentChange(
+          button.dataset.openStudentReview
+        );
+    });
+
+  $$('[data-complete-student-review]')
+    .forEach(button=>{
+      button.onclick=()=>
+        completeInboundStudentChange(
+          button.dataset.completeStudentReview
+        );
+    });
+
+  $$('[data-ignore-inbound-review]')
+    .forEach(button=>{
+      button.onclick=()=>
+        ignoreInboundReview(
+          button.dataset.ignoreInboundReview
+        );
+    });
+
+  $$('[data-mark-inbound-reviewed]')
+    .forEach(button=>{
+      button.onclick=()=>
+        markInboundReviewed(
+          button.dataset.markInboundReviewed
+        );
+    });
 
 
   $$('[data-open-review-email]')
