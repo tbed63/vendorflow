@@ -6835,3 +6835,136 @@ button.history.vf-history-evidence:focus-visible{
     grid-row:1;
   }
 }
+
+
+/* VENDORFLOW STUDENT FINANCIAL ACTIVITY */
+.vf-student-directory-controls{
+  grid-template-columns:1fr auto;
+}
+.vf-student-financial-activity{
+  margin:16px 0;
+  border:1px solid #cbd8e7;
+  border-radius:12px;
+  overflow:hidden;
+  background:#fff;
+}
+.vf-student-financial-heading{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:20px;
+  padding:14px 16px;
+  border-bottom:1px solid #d8e1ec;
+  background:#f2f7fd;
+}
+.vf-student-financial-heading h4{
+  margin:3px 0 0;
+  color:#18283b;
+  font-size:1.05rem;
+}
+.vf-student-financial-heading>span{
+  color:#526477;
+  font-size:.75rem;
+}
+.vf-student-financial-list{
+  display:grid;
+}
+.vf-student-financial-entry{
+  display:grid;
+  grid-template-columns:145px minmax(150px,.8fr) minmax(260px,1.8fr) 105px;
+  align-items:start;
+  gap:14px;
+  padding:13px 16px;
+  border-top:1px solid #e3e9f0;
+}
+.vf-student-financial-entry:first-child{
+  border-top:0;
+}
+.vf-student-financial-entry.possible-duplicate{
+  background:#fff8ee;
+  box-shadow:inset 4px 0 #c87519;
+}
+.vf-student-financial-type,
+.vf-student-financial-main,
+.vf-student-financial-description{
+  display:grid;
+  gap:4px;
+}
+.vf-financial-kind,
+.vf-financial-duplicate{
+  width:max-content;
+  max-width:100%;
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:.68rem;
+  font-weight:900;
+}
+.vf-financial-kind.charge{
+  background:#eef1f5;
+  color:#3e4d5e;
+}
+.vf-financial-kind.payment{
+  background:#e1f3eb;
+  color:#176348;
+}
+.vf-financial-kind.certificate{
+  background:#e7effb;
+  color:#173b72;
+}
+.vf-financial-kind.refund{
+  background:#f4e9fb;
+  color:#71368a;
+}
+.vf-financial-duplicate{
+  background:#ffe4bd;
+  color:#8b4300;
+}
+.vf-student-financial-main span,
+.vf-student-financial-description span{
+  color:#5b6c7f;
+  font-size:.73rem;
+  overflow-wrap:anywhere;
+}
+.vf-student-financial-amount{
+  text-align:right;
+}
+.vf-student-financial-amount.payment,
+.vf-student-financial-amount.certificate{
+  color:#176348;
+}
+.vf-student-financial-amount.charge,
+.vf-student-financial-amount.refund{
+  color:#8f3d36;
+}
+.vf-student-financial-empty{
+  padding:18px;
+  color:#617185;
+}
+@media(max-width:900px){
+  .vf-student-financial-entry{
+    grid-template-columns:130px 1fr 100px;
+  }
+  .vf-student-financial-description{
+    grid-column:1/-1;
+  }
+}
+@media(max-width:650px){
+  .vf-student-financial-heading{
+    display:block;
+  }
+  .vf-student-financial-heading>span{
+    display:block;
+    margin-top:7px;
+  }
+  .vf-student-financial-entry{
+    grid-template-columns:1fr auto;
+  }
+  .vf-student-financial-main,
+  .vf-student-financial-description{
+    grid-column:1/-1;
+  }
+  .vf-student-financial-amount{
+    grid-column:2;
+    grid-row:1;
+  }
+}

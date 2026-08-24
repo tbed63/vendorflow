@@ -11520,6 +11520,207 @@ function filterStudentDirectoryRows(){
 }
 
 
+function studentFinancialDate(value){
+
+  if(!value){
+    return '';
+  }
+
+  if(typeof value==='string'){
+    return value.slice(0,10);
+  }
+
+  if(typeof value?.toDate==='function'){
+    return value.toDate().toISOString().slice(0,10);
+  }
+
+  if(Number(value?.seconds)){
+    return new Date(Number(value.seconds)*1000)
+      .toISOString()
+      .slice(0,10);
+  }
+
+  return '';
+}
+
+
+function studentFinancialActivity(student){
+
+  const entries=[];
+
+  studentServices(student.id)
+    .filter(serviceKeepsStudentVisible)
+    .forEach(service=>{
+      entries.push({
+        kind:'charge',
+        label:'Service charge',
+        date:studentFinancialDate(
+          service.startDate || service.start || service.createdAt
+        ),
+        amount:Number(service.totalPrice||0),
+        primary:service.name||service.serviceType||'Service',
+        method:service.schedule||'',
+        memo:[
+          service.serviceType||'',
+          service.status||'',
+          service.className||''
+        ].filter(Boolean).join(' · '),
+        source:service.source||'VendorFlow service',
+        transactionId:'',
+        statementFile:'',
+        recordId:service.id||''
+      });
+    });
+
+  studentPayments(student).forEach(payment=>{
+    const amount=Number(payment.amount||0);
+    const rawType=String(
+      payment.recordType || payment.type || ''
+    ).toLowerCase();
+    const isRefund=
+      amount<0 || rawType.includes('refund') ||
+      String(payment.method||'').toLowerCase().includes('refund');
+
+    entries.push({
+      kind:isRefund?'refund':'payment',
+      label:isRefund?'Refund / credit reversal':'Payment',
+      date:studentFinancialDate(
+        payment.date || payment.paymentDate || payment.createdAt
+      ),
+      amount:Math.abs(amount),
+      primary:payment.payer||payment.method||'Payment',
+      method:payment.method||'',
+      memo:payment.memo||payment.note||payment.description||'',
+      source:payment.source||payment.importSource||'VendorFlow payment',
+      transactionId:
+        payment.transactionId ||
+        payment.venmoTransactionId ||
+        payment.statementTransactionId ||
+        '',
+      statementFile:
+        payment.statementFile ||
+        payment.statementFilename ||
+        payment.sourceFilename ||
+        '',
+      statementRow:payment.statementRow||payment.rowNumber||'',
+      recordId:payment.id||''
+    });
+  });
+
+  studentCertificates(student.studentName)
+    .filter(certificate=>
+      !certificate.deleted &&
+      !['cancelled','deleted'].includes(
+        String(certificate.status||'').toLowerCase()
+      )
+    )
+    .forEach(certificate=>{
+      entries.push({
+        kind:'certificate',
+        label:'Certificate credit',
+        date:studentFinancialDate(
+          certificate.receivedAt ||
+          certificate.startDate ||
+          certificate.createdAt
+        ),
+        amount:Number(certificate.amount||0),
+        primary:
+          certificate.charterSchool ||
+          certificate.school ||
+          'Charter certificate',
+        method:'Charter certificate',
+        memo:[
+          certificate.serviceName||certificate.serviceDescription||'',
+          certificate.status||''
+        ].filter(Boolean).join(' · '),
+        source:certificate.source||'VendorFlow certificate',
+        transactionId:certificate.certificateNumber||'',
+        statementFile:certificate.filename||certificate.pdfFilename||'',
+        recordId:certificate.id||''
+      });
+    });
+
+  const paymentGroups=new Map();
+
+  entries
+    .filter(entry=>entry.kind==='payment')
+    .forEach(entry=>{
+      const key=[
+        entry.date,
+        Number(entry.amount||0).toFixed(2),
+        normalizedName(entry.primary||'')
+      ].join('|');
+
+      if(entry.date && entry.amount && entry.primary){
+        paymentGroups.set(key,(paymentGroups.get(key)||0)+1);
+      }
+    });
+
+  entries.forEach(entry=>{
+    const key=[
+      entry.date,
+      Number(entry.amount||0).toFixed(2),
+      normalizedName(entry.primary||'')
+    ].join('|');
+    entry.possibleDuplicate=
+      entry.kind==='payment' &&
+      (paymentGroups.get(key)||0)>1;
+  });
+
+  return entries.sort((a,b)=>{
+    const dateCompare=String(b.date||'').localeCompare(String(a.date||''));
+    if(dateCompare)return dateCompare;
+    return String(a.label||'').localeCompare(String(b.label||''));
+  });
+}
+
+
+function studentFinancialActivityHTML(student){
+
+  const entries=studentFinancialActivity(student);
+
+  if(!entries.length){
+    return `
+      <div class="vf-student-financial-empty">
+        No financial activity has been recorded for this student.
+      </div>
+    `;
+  }
+
+  return entries.map(entry=>`
+    <article class="vf-student-financial-entry ${entry.possibleDuplicate?'possible-duplicate':''}">
+      <div class="vf-student-financial-type">
+        <span class="vf-financial-kind ${esc(entry.kind)}">
+          ${esc(entry.label)}
+        </span>
+        ${entry.possibleDuplicate
+          ? '<span class="vf-financial-duplicate">Possible duplicate</span>'
+          : ''}
+      </div>
+
+      <div class="vf-student-financial-main">
+        <strong>${esc(entry.primary||entry.label)}</strong>
+        <span>${esc(entry.date||'Date unavailable')}</span>
+      </div>
+
+      <div class="vf-student-financial-description">
+        ${entry.method?`<span><b>Method:</b> ${esc(entry.method)}</span>`:''}
+        ${entry.memo?`<span><b>Memo:</b> ${esc(entry.memo)}</span>`:''}
+        ${entry.source?`<span><b>Source:</b> ${esc(entry.source)}</span>`:''}
+        ${entry.transactionId?`<span><b>Transaction / certificate ID:</b> ${esc(entry.transactionId)}</span>`:''}
+        ${entry.statementFile?`<span><b>Statement file:</b> ${esc(entry.statementFile)}</span>`:''}
+        ${entry.statementRow?`<span><b>Statement row:</b> ${esc(entry.statementRow)}</span>`:''}
+        ${entry.recordId?`<span><b>VendorFlow record ID:</b> ${esc(entry.recordId)}</span>`:''}
+      </div>
+
+      <strong class="vf-student-financial-amount ${esc(entry.kind)}">
+        ${entry.kind==='charge' || entry.kind==='refund' ? '+' : '−'}${money(entry.amount)}
+      </strong>
+    </article>
+  `).join('');
+}
+
+
 function upgradeStudentDirectoryRows(){
 
   const list=$('#studentsServicesList');
@@ -11538,18 +11739,14 @@ function upgradeStudentDirectoryRows(){
         <div class="eyebrow">Student directory</div>
         <h3>All Students</h3>
       </div>
-      <label class="vf-student-directory-search">
-        <span>Search students</span>
-        <input
-          id="studentDirectorySearch"
-          class="input"
-          type="search"
-          placeholder="Student, parent, email, phone, or grade">
-      </label>
       <div id="studentDirectoryResultCount" class="muted"></div>
     `;
     list.insertAdjacentElement('beforebegin',controls);
-    $('#studentDirectorySearch').addEventListener('input',filterStudentDirectoryRows);
+    const pageSearch=$('#globalStudentSearch');
+    if(pageSearch && pageSearch.dataset.directoryFilter!=='true'){
+      pageSearch.addEventListener('input',filterStudentDirectoryRows);
+      pageSearch.dataset.directoryFilter='true';
+    }
   }
 
   $$('#studentsServicesList .vf-student-account').forEach(card=>{
@@ -11573,6 +11770,28 @@ function upgradeStudentDirectoryRows(){
       details.appendChild(card.firstChild);
     }
 
+    const accountSummary=
+      details.querySelector('.vf-account-summary');
+
+    if(accountSummary){
+      accountSummary.insertAdjacentHTML('afterend',`
+        <section class="vf-student-financial-activity">
+          <div class="vf-student-financial-heading">
+            <div>
+              <div class="eyebrow">Complete accounting trail</div>
+              <h4>Financial Activity</h4>
+            </div>
+            <span>
+              Charges add to the balance. Payments and certificates reduce it.
+            </span>
+          </div>
+          <div class="vf-student-financial-list">
+            ${studentFinancialActivityHTML(student)}
+          </div>
+        </section>
+      `);
+    }
+
     details.insertAdjacentHTML('beforeend',`
       <div class="vf-student-complete-record">
         <div class="vf-student-record-actions">
@@ -11581,17 +11800,6 @@ function upgradeStudentDirectoryRows(){
             data-edit-directory-student="${student.id}">
             Edit student & contact information
           </button>
-        </div>
-
-        <div class="vf-student-history-grid">
-          <section>
-            <h4>Payment History</h4>
-            ${studentDirectoryPaymentHistory(student)}
-          </section>
-          <section>
-            <h4>Certificate History</h4>
-            ${studentDirectoryCertificateHistory(student)}
-          </section>
         </div>
       </div>
     `);
@@ -11639,7 +11847,7 @@ function upgradeStudentDirectoryRows(){
   $$('[data-edit-directory-student]').forEach(button=>{
     button.onclick=event=>{
       event.stopPropagation();
-      openGlobalStudentEdit(button.dataset.editDirectoryStudent);
+      openCoreStudentEdit(button.dataset.editDirectoryStudent);
     };
   });
 
