@@ -6587,3 +6587,86 @@ button.history.vf-history-evidence:focus-visible{
     margin-top:13px;
   }
 }
+
+
+/* VENDORFLOW SHARED CHARTER-SCHOOL BANK */
+.vf-charter-bank{
+  margin:18px 0;
+  border:1px solid #c8d8ed;
+  background:#f8fbff;
+}
+.vf-charter-bank-heading{
+  align-items:flex-start;
+  gap:18px;
+  margin-bottom:14px;
+}
+.vf-charter-bank-heading h3{
+  margin:3px 0 4px;
+}
+.vf-charter-bank-heading p{
+  margin:0;
+}
+.vf-charter-bank-verified{
+  flex:0 0 auto;
+  padding:7px 10px;
+  border-radius:999px;
+  background:#dff3e9;
+  color:#176348;
+  font-size:11px;
+  font-weight:900;
+}
+#charterBankStatus{
+  margin:9px 0;
+  font-size:11px;
+}
+.vf-charter-bank-results{
+  display:grid;
+  gap:8px;
+  max-height:390px;
+  overflow:auto;
+}
+.vf-charter-bank-result{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:16px;
+  padding:12px;
+  border:1px solid #dbe4ef;
+  border-radius:10px;
+  background:#fff;
+}
+.vf-charter-bank-result-copy{
+  display:grid;
+  gap:3px;
+}
+.vf-charter-bank-result-copy strong{
+  color:#18283b;
+}
+.vf-charter-bank-result-copy span,
+.vf-charter-bank-result-copy small{
+  color:#5b6b7b;
+  font-size:11px;
+}
+.vf-charter-bank-result button{
+  flex:0 0 auto;
+}
+.vf-charter-bank-result button:disabled{
+  opacity:.65;
+  cursor:default;
+}
+.vf-charter-bank-empty{
+  padding:18px;
+  text-align:center;
+  color:#607086;
+}
+@media(max-width:700px){
+  .vf-charter-bank-heading,
+  .vf-charter-bank-result{
+    display:block;
+  }
+  .vf-charter-bank-verified,
+  .vf-charter-bank-result button{
+    display:inline-block;
+    margin-top:10px;
+  }
+}

@@ -50,6 +50,9 @@ let invoiceAdvancedFilters={
 
 let inboundEmailPromise=null;
 let editingCharterSchoolId='';
+let sharedCharterSchoolBank=[];
+let sharedCharterBankPromise=null;
+let selectedSharedCharterBankRecord=null;
 let selectedPaymentStudentId=null;
 let pendingCertificatePdf=null;
 let editingRosterStudentId=null;
@@ -1447,6 +1450,7 @@ function charterDisplayAddress(charter){
 function resetCharterForm(){
 
   editingCharterSchoolId='';
+  selectedSharedCharterBankRecord=null;
 
   $('#charterFormTitle').textContent=
     'Add charter school';
@@ -1549,7 +1553,143 @@ function openCharterEditor(id=''){
 }
 
 
+function sharedCharterAlreadySaved(record){
+
+  return charterSchools.some(charter=>
+    !charter.archived &&
+    (
+      String(charter.sharedBankId||'')===String(record.id||'') ||
+      String(charter.name||'').trim().toLowerCase()===
+        String(record.name||'').trim().toLowerCase()
+    )
+  );
+}
+
+
+function renderSharedCharterSchoolBank(){
+
+  const list=$('#charterBankResults');
+  const status=$('#charterBankStatus');
+  const search=$('#charterBankSearch');
+
+  if(!list || !status || !search){
+    return;
+  }
+
+  const query=String(search.value||'').trim().toLowerCase();
+
+  const matches=sharedCharterSchoolBank
+    .filter(record=>{
+      if(!query)return true;
+      return [
+        record.name,
+        record.network,
+        record.county,
+        record.serviceCounties
+      ].some(value=>String(value||'').toLowerCase().includes(query));
+    })
+    .slice(0,12);
+
+  status.textContent=sharedCharterSchoolBank.length
+    ? `${sharedCharterSchoolBank.length} verified California school record${sharedCharterSchoolBank.length===1?'':'s'}.`
+    : 'Loading verified schools...';
+
+  if(!matches.length){
+    list.innerHTML='<div class="vf-charter-bank-empty">No verified school matches that search yet.</div>';
+    return;
+  }
+
+  list.innerHTML=matches.map(record=>{
+    const saved=sharedCharterAlreadySaved(record);
+    return `
+      <div class="vf-charter-bank-result">
+        <div class="vf-charter-bank-result-copy">
+          <strong>${esc(record.name)}</strong>
+          <span>${esc(record.network||record.authorizer||'California charter school')}</span>
+          <small>${esc(record.serviceCounties||record.county||'California')}</small>
+          <small>Verified ${esc(record.verifiedAt||'')} · CDS ${esc(record.cdsCode||'')}</small>
+        </div>
+        <button
+          type="button"
+          data-add-bank-charter="${esc(record.id)}"
+          ${saved?'disabled':''}>
+          ${saved?'Already Added':'Add to My Schools'}
+        </button>
+      </div>
+    `;
+  }).join('');
+
+  $$('[data-add-bank-charter]').forEach(button=>{
+    button.onclick=()=>{
+      const record=sharedCharterSchoolBank.find(item=>item.id===button.dataset.addBankCharter);
+      if(!record)return;
+
+      openCharterEditor();
+      selectedSharedCharterBankRecord=record;
+
+      $('#charterFormTitle').textContent='Review verified charter school';
+      $('#charterName').value=record.name||'';
+      $('#charterBillingEmail').value=record.accountsPayableEmail||'';
+      $('#charterPhone').value=record.vendorPhone||'';
+      $('#charterContactName').value=record.network||'';
+      $('#charterContactEmail').value=record.vendorEmail||'';
+      $('#charterAddress').value=record.address||'';
+      $('#charterCity').value=record.city||'';
+      $('#charterState').value=record.state||'CA';
+      $('#charterZip').value=record.zip||'';
+      $('#charterNotes').value=[
+        record.vendorProcess||'',
+        record.sourceUrl ? `Verified source: ${record.sourceUrl}` : ''
+      ].filter(Boolean).join('\n\n');
+
+      $('#charterForm').scrollIntoView({behavior:'smooth',block:'start'});
+    };
+  });
+}
+
+
+async function loadSharedCharterSchoolBank(){
+
+  if(sharedCharterSchoolBank.length){
+    renderSharedCharterSchoolBank();
+    return;
+  }
+
+  if(sharedCharterBankPromise){
+    return sharedCharterBankPromise;
+  }
+
+  sharedCharterBankPromise=(async()=>{
+    const status=$('#charterBankStatus');
+    if(status)status.textContent='Loading verified schools...';
+
+    try{
+      const token=await user.getIdToken();
+      const response=await fetch(
+        `${VENDORFLOW_API}/charter-schools/bank`,
+        {headers:{Authorization:`Bearer ${token}`}}
+      );
+      const data=await response.json();
+      if(!response.ok){
+        throw new Error(data.detail||data.error||'Charter bank could not be loaded.');
+      }
+      sharedCharterSchoolBank=Array.isArray(data.schools)?data.schools:[];
+      renderSharedCharterSchoolBank();
+    }catch(error){
+      console.error('Shared charter-school bank failed:',error);
+      if(status)status.textContent='The verified charter-school bank could not be loaded. Manual entry still works.';
+    }finally{
+      sharedCharterBankPromise=null;
+    }
+  })();
+
+  return sharedCharterBankPromise;
+}
+
+
 function renderCharterSchools(){
+
+  loadSharedCharterSchoolBank();
 
   const list=
     $('#charterSchoolList');
@@ -20263,6 +20403,11 @@ if($('#saveAccountInfo')){
    CHARTER SCHOOL CONTROLS
    ========================================================== */
 
+if($('#charterBankSearch')){
+  $('#charterBankSearch').oninput=()=>renderSharedCharterSchoolBank();
+}
+
+
 $('#addCharterSchool').onclick=()=>{
 
   openCharterEditor();
@@ -20326,9 +20471,49 @@ $('#saveCharterSchool').onclick=async()=>{
     );
 
 
+  const existingCharterForSave=
+    editingCharterSchoolId
+      ? charterSchools.find(charter=>charter.id===editingCharterSchoolId)
+      : null;
+
+  const selectedBankRecord=
+    selectedSharedCharterBankRecord || {};
+
+  const existingSharedRecord=
+    existingCharterForSave || {};
+
+
   const data={
 
     name,
+
+    sharedBankId:
+      String(
+        selectedBankRecord.id ||
+        existingSharedRecord.sharedBankId ||
+        ''
+      ),
+
+    cdsCode:
+      String(
+        selectedBankRecord.cdsCode ||
+        existingSharedRecord.cdsCode ||
+        ''
+      ),
+
+    sharedVerifiedAt:
+      String(
+        selectedBankRecord.verifiedAt ||
+        existingSharedRecord.sharedVerifiedAt ||
+        ''
+      ),
+
+    sharedSourceUrl:
+      String(
+        selectedBankRecord.sourceUrl ||
+        existingSharedRecord.sharedSourceUrl ||
+        ''
+      ),
 
     billingEmail:
       $('#charterBillingEmail')
