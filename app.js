@@ -17493,6 +17493,58 @@ $('#certificateList').innerHTML=
     : '<div class="empty">No compliance tasks yet.</div>';
 }
 
+async function openInboundEmailFromReview(
+  inboundEmailId
+){
+
+  switchView(
+    "inbox"
+  );
+
+  await loadInboundInbox();
+
+  const card=
+    [...document.querySelectorAll(
+      "[data-inbox-message-id]"
+    )]
+      .find(
+        item=>
+          item.dataset.inboxMessageId===
+          String(inboundEmailId || "")
+      );
+
+  if(!card){
+    toast(
+      "The source email could not be found in the current inbox."
+    );
+    return;
+  }
+
+  const details=
+    card.querySelector("details");
+
+  if(details){
+    details.open=true;
+  }
+
+  card.scrollIntoView({
+    behavior:"smooth",
+    block:"center"
+  });
+
+  card.classList.add(
+    "vf-inbox-source-highlight"
+  );
+
+  setTimeout(
+    ()=>card.classList.remove(
+      "vf-inbox-source-highlight"
+    ),
+    2400
+  );
+}
+
+
 function renderReviews(){
 
   const list=
@@ -17587,7 +17639,18 @@ function renderReviews(){
                     </button>
                   </div>
                 `
-                : ''
+                : review.inboundEmailId
+                  ? `
+                    <div class="vf-review-actions">
+                      <button
+                        type="button"
+                        class="primary"
+                        data-open-review-email="${esc(review.inboundEmailId)}">
+                        Open Source Email
+                      </button>
+                    </div>
+                  `
+                  : ''
             }
 
           </div>
@@ -17736,6 +17799,18 @@ function renderReviews(){
         </div>
       `;
     }).join('');
+
+
+  $$('[data-open-review-email]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        openInboundEmailFromReview(
+          button.dataset.openReviewEmail
+        );
+      };
+    });
 
 
   $$('[data-open-numbering-review]')
@@ -18751,7 +18826,11 @@ function renderInboundInbox(){
 
 
         return `
-          <article class="vf-inbox-message${attentionClass}">
+          <article
+            class="vf-inbox-message${attentionClass}"
+            data-inbox-message-id="${inboundInboxEscape(
+              message.id
+            )}">
             <div class="vf-inbox-message-top">
               <div>
                 <div class="vf-inbox-subject">
