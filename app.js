@@ -1588,7 +1588,7 @@ function renderSharedCharterSchoolBank(){
         record.serviceCounties
       ].some(value=>String(value||'').toLowerCase().includes(query));
     })
-    .slice(0,12);
+    .slice(0);
 
   status.textContent=sharedCharterSchoolBank.length
     ? `${sharedCharterSchoolBank.length} verified California school record${sharedCharterSchoolBank.length===1?'':'s'}.`
