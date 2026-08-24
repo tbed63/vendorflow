@@ -19086,7 +19086,7 @@ function switchView(v){
     payments:'Payments',
     certificates:'Certificates',
     invoices:'Invoices',
-    compliance:'Compliance',
+    compliance:'To-do List',
     inbox:'Email Inbox',
     review:'Needs Review',
     history:'History',
