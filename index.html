@@ -35,18 +35,16 @@
   <aside>
     <div class="logo">VF</div><h2>VendorFlow</h2><small>AI VENDOR ASSISTANT</small>
     <nav>
-      <button data-view="dashboard" class="active">Dashboard</button>
+      <button data-view="dashboard">Dashboard</button>
+      <button data-view="review" class="active">Notifications <span id="reviewBadge">0</span></button>
       <button data-view="classes">Class Rosters</button>
-<button data-view="charters">
-  Charter Schools
-</button>
-      <button data-view="students">Students & Services</button>
+      <button data-view="charters">Charter Schools</button>
+      <button data-view="students">Students</button>
       <button data-view="payments">Payments/Charges</button>
       <button data-view="certificates">Certificates</button>
       <button data-view="invoices">Invoices</button>
       <button data-view="compliance">To-do List</button>
       <button data-view="inbox">Email Inbox <span id="inboxBadge">0</span></button>
-      <button data-view="review">Needs Review <span id="reviewBadge">0</span></button>
       <button data-view="history">Actions</button>
       <button data-view="profile">Business Profile</button>
     </nav>
@@ -57,7 +55,7 @@
 
       <div class="vf-header-title">
         <div class="eyebrow">VendorFlow Beta</div>
-        <h1 id="title">Dashboard</h1>
+        <h1 id="title">Notifications</h1>
       </div>
 
       <div class="vf-header-brand">
@@ -100,7 +98,7 @@
 
     </header>
 
-    <section id="dashboardView" class="view active">
+    <section id="dashboardView" class="view">
       <div class="hero vf-attention-hero">
 
   <div class="vf-attention-copy">
@@ -2195,7 +2193,7 @@ Thank you,
 
     </section>
 
-<section id="complianceView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Vendor approval & compliance</div><h2>Requirements & renewals</h2><p>Track applications, TB tests, Live Scan, training, insurance, W-9s and more.</p></div><button id="addCompliance" class="primary">Add task</button></div><div id="complianceForm" class="formgrid hidden"><input id="compSchool" class="input" placeholder="School / organization"><input id="compTask" class="input" placeholder="Requirement"><input id="compDue" class="input" type="date"><select id="compStatus" class="input"><option>Not started</option><option>In progress</option><option>Submitted</option><option>Approved</option><option>Complete</option><option>Needs renewal</option></select><button id="saveCompliance" class="primary">Save task</button></div><div id="complianceList"></div></div></section>
+<section id="complianceView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Tasks, deadlines & reminders</div><h2>To-Do List</h2><p>Track every task, requirement, renewal, deadline, and reminder in one place.</p></div><button id="addCompliance" class="primary">Add task</button></div><div id="complianceForm" class="formgrid hidden"><input id="compSchool" class="input" placeholder="School / organization"><input id="compTask" class="input" placeholder="Requirement"><input id="compDue" class="input" type="date"><select id="compStatus" class="input"><option>Not started</option><option>In progress</option><option>Submitted</option><option>Approved</option><option>Complete</option><option>Needs renewal</option></select><button id="saveCompliance" class="primary">Save task</button></div><div id="complianceList"></div></div></section>
 
     <section id="inboxView" class="view">
       <div class="card">
@@ -2212,7 +2210,7 @@ Thank you,
       </div>
     </section>
 
-    <section id="reviewView" class="view"><div class="card"><div class="eyebrow">Safety net</div><h2>Needs Review</h2><p>VendorFlow should never quietly guess.</p><div id="reviewList"></div></div></section>
+    <section id="reviewView" class="view active"><div class="card"><div class="eyebrow">VendorFlow communication center</div><h2>Notifications</h2><p>Start here. VendorFlow collects decisions, reminders, warnings, and anything else that needs your attention.</p><div id="reviewList"></div></div></section>
     <section id="historyView" class="view"><div class="card"><div class="eyebrow">Permanent audit trail</div><h2>Actions</h2><p>See what happened, when, and whether it was manual, imported, or automated.</p><div id="historyList"></div></div></section>
 
 
@@ -2617,5 +2615,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=inbound-review-decisions-20260824-1"></script>
+<script type="module" src="app.js?v=notifications-home-20260824-1"></script>
 </body></html>

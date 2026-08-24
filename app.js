@@ -465,7 +465,7 @@ $('#nextBtn').onclick=async()=>{
    * A vendor finishing setup should always arrive at
    * the Dashboard, where VendorFlow gives next-step guidance.
    */
-  switchView('dashboard');
+  switchView('review');
 };
 
 async function enterApp(){
@@ -474,6 +474,7 @@ async function enterApp(){
   $('#userEmail').textContent=user.email||'';
   fillProfile();
   await refreshAll();
+  switchView('review');
 }
 
 async function log(
@@ -714,10 +715,99 @@ function invoiceNumberingReviewItems(){
 }
 
 
+function todoNotificationItems(){
+
+  const today=
+    new Date();
+
+  today.setHours(0,0,0,0);
+
+  return compliance
+    .filter(task=>{
+
+      const status=
+        String(
+          task.status || ''
+        ).toLowerCase();
+
+      if(
+        status==='complete' ||
+        status==='approved'
+      ){
+        return false;
+      }
+
+      const due=
+        task.due
+          ? new Date(`${task.due}T00:00:00`)
+          : null;
+
+      const reminder=
+        task.reminderDate
+          ? new Date(`${task.reminderDate}T00:00:00`)
+          : null;
+
+      const sevenDays=
+        new Date(today);
+
+      sevenDays.setDate(
+        sevenDays.getDate()+7
+      );
+
+      return (
+        reminder &&
+        !Number.isNaN(reminder.getTime()) &&
+        reminder<=today
+      ) || (
+        due &&
+        !Number.isNaN(due.getTime()) &&
+        due<=sevenDays
+      );
+    })
+    .map(task=>{
+
+      const due=
+        task.due
+          ? new Date(`${task.due}T00:00:00`)
+          : null;
+
+      const overdue=
+        due &&
+        !Number.isNaN(due.getTime()) &&
+        due<today;
+
+      return {
+        id:
+          `todo-notification-${task.id}`,
+        reviewType:
+          'todo-reminder',
+        itemType:
+          'todo',
+        todoId:
+          task.id,
+        title:
+          overdue
+            ? `Overdue: ${task.task || 'To-do item'}`
+            : `Reminder: ${task.task || 'To-do item'}`,
+        detail:[
+          task.school || '',
+          task.due
+            ? `Due ${task.due}`
+            : '',
+          task.notes || ''
+        ].filter(Boolean).join(' — '),
+        source:
+          'To-do List'
+      };
+    });
+}
+
+
 function allNeedsReviewItems(){
 
   return [
     ...reviews,
+    ...todoNotificationItems(),
     ...invoiceNumberingReviewItems()
   ];
 }
@@ -17515,15 +17605,44 @@ $('#certificateList').innerHTML=
       };
     });
 
+  const sortedCompliance=
+    [...compliance]
+      .sort((a,b)=>{
+
+        const aDue=
+          String(a.due||'').trim();
+
+        const bDue=
+          String(b.due||'').trim();
+
+        if(aDue && bDue){
+          return aDue.localeCompare(bDue);
+        }
+
+        if(aDue){
+          return -1;
+        }
+
+        if(bDue){
+          return 1;
+        }
+
+        return String(a.task||'')
+          .localeCompare(
+            String(b.task||'')
+          );
+      });
+
+
   $('#complianceList').innerHTML=
-    compliance.length
-    ? compliance.map(d=>
+    sortedCompliance.length
+    ? sortedCompliance.map(d=>
         `<div class="record">
           <strong>${esc(d.task)}</strong>
           <div class="meta">${esc(d.school)} · ${esc(d.status)} · ${esc(d.due)}</div>
         </div>`
       ).join('')
-    : '<div class="empty">No compliance tasks yet.</div>';
+    : '<div class="empty">No To-do items yet.</div>';
 }
 
 let pendingInboundTodoReview=null;
@@ -19551,13 +19670,13 @@ function switchView(v){
     dashboard:'Dashboard',
     classes:'Class Rosters',
     charters:'Charter Schools',
-    students:'Students & Services',
+    students:'Students',
     payments:'Payments',
     certificates:'Certificates',
     invoices:'Invoices',
     compliance:'To-do List',
     inbox:'Email Inbox',
-    review:'Needs Review',
+    review:'Notifications',
     history:'History',
     account:'Account',
     profile:'Business Profile'
