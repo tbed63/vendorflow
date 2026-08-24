@@ -18389,6 +18389,317 @@ $('#saveProfile').onclick=async()=>{
   toast('Business profile saved.');
 };
 
+
+let inboundInboxMessages=[];
+let inboundInboxLoading=false;
+
+
+function inboundInboxEscape(value){
+
+  return String(value ?? '')
+    .replaceAll('&','&amp;')
+    .replaceAll('<','&lt;')
+    .replaceAll('>','&gt;')
+    .replaceAll('"','&quot;')
+    .replaceAll("'",'&#039;');
+}
+
+
+function inboundInboxLabel(value){
+
+  const text=
+    String(value || 'unknown')
+      .trim()
+      .replaceAll('-',' ')
+      .replaceAll('_',' ');
+
+  return text
+    .replace(
+      /\b\w/g,
+      letter=>letter.toUpperCase()
+    );
+}
+
+
+function inboundInboxDate(value){
+
+  const date=
+    new Date(value);
+
+  if(
+    Number.isNaN(
+      date.getTime()
+    )
+  ){
+    return String(value || 'Date unavailable');
+  }
+
+  return date.toLocaleString();
+}
+
+
+function renderInboundInbox(){
+
+  const list=
+    $('#inboundInboxList');
+
+  const status=
+    $('#inboundInboxStatus');
+
+  const badge=
+    $('#inboxBadge');
+
+
+  if(!list){
+    return;
+  }
+
+
+  const attentionCount=
+    inboundInboxMessages.filter(
+      message=>
+        message.needsAttention
+    ).length;
+
+
+  if(badge){
+
+    badge.textContent=
+      attentionCount
+        ? String(attentionCount)
+        : '';
+  }
+
+
+  if(status){
+
+    status.textContent=
+      inboundInboxMessages.length
+        ? `${inboundInboxMessages.length} received email${
+            inboundInboxMessages.length===1 ? '' : 's'
+          }. ${attentionCount} need${
+            attentionCount===1 ? 's' : ''
+          } attention.`
+        : '';
+  }
+
+
+  if(!inboundInboxMessages.length){
+
+    list.innerHTML=`
+      <div class="vf-inbox-empty">
+        <strong>No emails have been recorded yet.</strong>
+        <p>
+          New trusted emails sent to your VendorFlow address
+          will appear here.
+        </p>
+      </div>
+    `;
+
+    return;
+  }
+
+
+  list.innerHTML=
+    inboundInboxMessages
+      .map(message=>{
+
+        const classification=
+          inboundInboxLabel(
+            message.classification
+          );
+
+        const confidence=
+          inboundInboxLabel(
+            message.confidence
+          );
+
+        const attentionClass=
+          message.needsAttention
+            ? ' needs-attention'
+            : '';
+
+        const attachmentText=
+          Number(
+            message.attachmentCount || 0
+          )
+            ? `${Number(message.attachmentCount)} attachment${
+                Number(message.attachmentCount)===1 ? '' : 's'
+              }`
+            : 'No attachments';
+
+        return `
+          <article class="vf-inbox-message${attentionClass}">
+            <div class="vf-inbox-message-top">
+              <div>
+                <div class="vf-inbox-subject">
+                  ${inboundInboxEscape(
+                    message.subject || '(No subject)'
+                  )}
+                </div>
+                <div class="vf-inbox-sender">
+                  From:
+                  <strong>
+                    ${inboundInboxEscape(
+                      message.sender || 'Unknown sender'
+                    )}
+                  </strong>
+                </div>
+              </div>
+
+              <div class="vf-inbox-time">
+                ${inboundInboxEscape(
+                  inboundInboxDate(
+                    message.receivedAt
+                  )
+                )}
+              </div>
+            </div>
+
+            <div class="vf-inbox-tags">
+              <span class="vf-inbox-tag">
+                ${inboundInboxEscape(classification)}
+              </span>
+
+              <span class="vf-inbox-tag">
+                ${inboundInboxEscape(confidence)} confidence
+              </span>
+
+              <span class="vf-inbox-tag">
+                ${inboundInboxEscape(
+                  message.status || 'Classified'
+                )}
+              </span>
+
+              ${
+                message.needsAttention
+                  ? '<span class="vf-inbox-tag attention">Needs attention</span>'
+                  : ''
+              }
+            </div>
+
+            <div class="vf-inbox-attachments">
+              ${inboundInboxEscape(attachmentText)}
+              ${
+                message.attachmentNames
+                  ? ` — ${inboundInboxEscape(
+                      message.attachmentNames
+                    )}`
+                  : ''
+              }
+            </div>
+          </article>
+        `;
+      })
+      .join('');
+}
+
+
+async function loadInboundInbox(){
+
+  if(
+    !user ||
+    inboundInboxLoading
+  ){
+    return;
+  }
+
+
+  inboundInboxLoading=true;
+
+
+  const status=
+    $('#inboundInboxStatus');
+
+  const refreshButton=
+    $('#refreshInboundInbox');
+
+
+  if(status){
+    status.textContent=
+      'Loading your VendorFlow emails…';
+  }
+
+
+  if(refreshButton){
+    refreshButton.disabled=true;
+  }
+
+
+  try{
+
+    const token=
+      await user.getIdToken();
+
+
+    const response=
+      await fetch(
+        `${VENDORFLOW_API}/inbound/inbox`,
+        {
+          method:'GET',
+
+          headers:{
+            Authorization:
+              `Bearer ${token}`
+          }
+        }
+      );
+
+
+    let data={};
+
+
+    try{
+      data=
+        await response.json();
+    }catch{}
+
+
+    if(!response.ok){
+
+      throw new Error(
+        data.detail ||
+        data.error ||
+        'Email Inbox could not be loaded.'
+      );
+    }
+
+
+    inboundInboxMessages=
+      Array.isArray(data.messages)
+        ? data.messages
+        : [];
+
+
+    renderInboundInbox();
+
+  }catch(error){
+
+    console.error(
+      'VendorFlow Email Inbox failed:',
+      error
+    );
+
+
+    if(status){
+
+      status.textContent=
+        error.message ||
+        'Email Inbox could not be loaded.';
+    }
+
+  }finally{
+
+    inboundInboxLoading=false;
+
+
+    if(refreshButton){
+      refreshButton.disabled=false;
+    }
+  }
+}
+
+
 function switchView(v){
   $$('.view').forEach(
     x=>x.classList.remove('active')
@@ -18405,6 +18716,7 @@ function switchView(v){
     certificates:'Certificates',
     invoices:'Invoices',
     compliance:'Compliance',
+    inbox:'Email Inbox',
     review:'Needs Review',
     history:'History',
     account:'Account',
@@ -18419,11 +18731,24 @@ function switchView(v){
       b.dataset.view===v
     )
   );
+
+
+  if(v==='inbox'){
+
+    loadInboundInbox();
+  }
 }
 
 $$('nav button').forEach(
   b=>b.onclick=()=>switchView(b.dataset.view)
 );
+
+
+if($('#refreshInboundInbox')){
+
+  $('#refreshInboundInbox').onclick=
+    ()=>loadInboundInbox();
+}
 
 $$('[data-go]').forEach(
   b=>b.onclick=()=>switchView(b.dataset.go)

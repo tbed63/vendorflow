@@ -45,6 +45,7 @@
       <button data-view="certificates">Certificates</button>
       <button data-view="invoices">Invoices</button>
       <button data-view="compliance">Compliance</button>
+      <button data-view="inbox">Email Inbox <span id="inboxBadge">0</span></button>
       <button data-view="review">Needs Review <span id="reviewBadge">0</span></button>
       <button data-view="history">Actions</button>
       <button data-view="profile">Business Profile</button>
@@ -2196,6 +2197,21 @@ Thank you,
 
 <section id="complianceView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Vendor approval & compliance</div><h2>Requirements & renewals</h2><p>Track applications, TB tests, Live Scan, training, insurance, W-9s and more.</p></div><button id="addCompliance" class="primary">Add task</button></div><div id="complianceForm" class="formgrid hidden"><input id="compSchool" class="input" placeholder="School / organization"><input id="compTask" class="input" placeholder="Requirement"><input id="compDue" class="input" type="date"><select id="compStatus" class="input"><option>Not started</option><option>In progress</option><option>Submitted</option><option>Approved</option><option>Complete</option><option>Needs renewal</option></select><button id="saveCompliance" class="primary">Save task</button></div><div id="complianceList"></div></div></section>
 
+    <section id="inboxView" class="view">
+      <div class="card">
+        <div class="row between vf-inbox-heading">
+          <div>
+            <div class="eyebrow">VendorFlow email intake</div>
+            <h2>Email Inbox</h2>
+            <p>See the emails VendorFlow received and how each one was classified.</p>
+          </div>
+          <button id="refreshInboundInbox" type="button">Refresh Inbox</button>
+        </div>
+        <div id="inboundInboxStatus" class="muted"></div>
+        <div id="inboundInboxList"></div>
+      </div>
+    </section>
+
     <section id="reviewView" class="view"><div class="card"><div class="eyebrow">Safety net</div><h2>Needs Review</h2><p>VendorFlow should never quietly guess.</p><div id="reviewList"></div></div></section>
     <section id="historyView" class="view"><div class="card"><div class="eyebrow">Permanent audit trail</div><h2>Actions</h2><p>See what happened, when, and whether it was manual, imported, or automated.</p><div id="historyList"></div></div></section>
 
@@ -2601,5 +2617,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=clear-statement-review-20260824-1"></script>
+<script type="module" src="app.js?v=durable-email-inbox-20260824-1"></script>
 </body></html>
