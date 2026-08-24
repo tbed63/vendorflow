@@ -13696,7 +13696,71 @@ function paymentPartyKey(payment){
 }
 
 
+function paymentExternalTransactionId(
+  payment
+){
+
+  return String(
+    payment?.statementTransactionId ||
+    payment?.externalTransactionId ||
+    ''
+  )
+    .trim()
+    .toUpperCase();
+}
+
+
+function paymentsShareTransactionId(
+  first,
+  second
+){
+
+  const firstId=
+    paymentExternalTransactionId(
+      first
+    );
+
+  const secondId=
+    paymentExternalTransactionId(
+      second
+    );
+
+
+  return Boolean(
+    firstId &&
+    secondId &&
+    firstId===secondId
+  );
+}
+
+
 function findDuplicatePayment(candidate){
+
+  const transactionId=
+    paymentExternalTransactionId(
+      candidate
+    );
+
+
+  /*
+   * A provider transaction ID is conclusive.
+   * It takes priority over date/amount/payer similarity.
+   */
+  if(transactionId){
+
+    const exactTransaction=
+      payments.find(existing=>
+        paymentExternalTransactionId(
+          existing
+        )===transactionId
+      );
+
+
+    if(exactTransaction){
+      return exactTransaction;
+    }
+  }
+
 
   const method=
     String(candidate.method||'')
@@ -13824,6 +13888,273 @@ function cleanReviewPayload(data){
 }
 
 
+function paymentDuplicateDisplayValue(
+  value,
+  fallback='Not available'
+){
+
+  const text=
+    String(value??'').trim();
+
+  return text || fallback;
+}
+
+
+function paymentDuplicateTimestamp(value){
+
+  if(value?.toDate){
+
+    return value
+      .toDate()
+      .toLocaleString();
+  }
+
+
+  if(value instanceof Date){
+
+    return value
+      .toLocaleString();
+  }
+
+
+  const text=
+    String(value||'').trim();
+
+
+  if(!text){
+    return 'Not available';
+  }
+
+
+  const parsed=
+    new Date(text);
+
+
+  return Number.isNaN(
+    parsed.getTime()
+  )
+    ? text
+    : parsed.toLocaleString();
+}
+
+
+function paymentDuplicateComparisonRows(
+  existing,
+  incoming
+){
+
+  return [
+
+    {
+      label:'Student',
+      existing:
+        paymentDuplicateDisplayValue(
+          existing.student
+        ),
+      incoming:
+        paymentDuplicateDisplayValue(
+          incoming.student
+        )
+    },
+
+    {
+      label:'Payer',
+      existing:
+        paymentDuplicateDisplayValue(
+          existing.payer ||
+          existing.parentName
+        ),
+      incoming:
+        paymentDuplicateDisplayValue(
+          incoming.payer ||
+          incoming.parentName
+        )
+    },
+
+    {
+      label:'Date',
+      existing:
+        paymentDuplicateDisplayValue(
+          existing.date
+        ),
+      incoming:
+        paymentDuplicateDisplayValue(
+          incoming.date
+        )
+    },
+
+    {
+      label:'Amount',
+      existing:
+        money(existing.amount),
+      incoming:
+        money(incoming.amount)
+    },
+
+    {
+      label:'Method',
+      existing:
+        paymentDuplicateDisplayValue(
+          existing.method
+        ),
+      incoming:
+        paymentDuplicateDisplayValue(
+          incoming.method
+        )
+    },
+
+    {
+      label:'Memo',
+      existing:
+        paymentDuplicateDisplayValue(
+          existing.memo
+        ),
+      incoming:
+        paymentDuplicateDisplayValue(
+          incoming.memo
+        )
+    },
+
+    {
+      label:'Source',
+      existing:
+        paymentDuplicateDisplayValue(
+          existing.source
+        ),
+      incoming:
+        paymentDuplicateDisplayValue(
+          incoming.source
+        )
+    },
+
+    {
+      label:'Statement file',
+      existing:
+        paymentDuplicateDisplayValue(
+          existing.statementFileName
+        ),
+      incoming:
+        paymentDuplicateDisplayValue(
+          incoming.statementFileName
+        )
+    },
+
+    {
+      label:'Transaction ID',
+      existing:
+        paymentDuplicateDisplayValue(
+          paymentExternalTransactionId(
+            existing
+          )
+        ),
+      incoming:
+        paymentDuplicateDisplayValue(
+          paymentExternalTransactionId(
+            incoming
+          )
+        )
+    },
+
+    {
+      label:'Statement row',
+      existing:
+        paymentDuplicateDisplayValue(
+          existing.statementRowNumber
+        ),
+      incoming:
+        paymentDuplicateDisplayValue(
+          incoming.statementRowNumber
+        )
+    },
+
+    {
+      label:'Recorded / attempted',
+      existing:
+        paymentDuplicateTimestamp(
+          existing.createdAt
+        ),
+      incoming:
+        paymentDuplicateTimestamp(
+          incoming.importAttemptedAt ||
+          incoming.createdAt
+        )
+    }
+  ];
+}
+
+
+function paymentDuplicateComparisonHTML(
+  existing,
+  incoming
+){
+
+  const rows=
+    paymentDuplicateComparisonRows(
+      existing,
+      incoming
+    );
+
+
+  return `
+    <div class="vf-payment-duplicate-table-wrap">
+
+      <table class="vf-payment-duplicate-table">
+
+        <thead>
+          <tr>
+            <th>Detail</th>
+            <th>Already recorded</th>
+            <th>Trying to import</th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          ${
+            rows.map(row=>{
+
+              const different=
+                paymentStatementMatchText(
+                  row.existing
+                )!==
+                paymentStatementMatchText(
+                  row.incoming
+                );
+
+
+              return `
+                <tr class="${
+                  different
+                    ? 'vf-payment-duplicate-different'
+                    : ''
+                }">
+
+                  <th>
+                    ${esc(row.label)}
+                  </th>
+
+                  <td>
+                    ${esc(row.existing)}
+                  </td>
+
+                  <td>
+                    ${esc(row.incoming)}
+                  </td>
+
+                </tr>
+              `;
+            }).join('')
+          }
+
+        </tbody>
+
+      </table>
+
+    </div>
+  `;
+}
+
+
 async function queueDuplicateReview(
   itemType,
   incoming,
@@ -13833,10 +14164,22 @@ async function queueDuplicateReview(
   const isCertificate=
     itemType==='certificate';
 
+  const exactTransactionDuplicate=
+    !isCertificate &&
+    paymentsShareTransactionId(
+      incoming,
+      existing
+    );
+
+
   const detail=
     isCertificate
       ? `Certificate ${incoming.number||'(no number)'} already exists for ${existing.student||'a student'}.`
-      : `${incoming.method} payment for ${money(incoming.amount)} on ${incoming.date} appears to already exist.`;
+      : (
+          exactTransactionDuplicate
+            ? `Exact duplicate: transaction ID ${paymentExternalTransactionId(incoming)} was already imported.`
+            : `${incoming.method} payment for ${money(incoming.amount)} on ${incoming.date} appears to already exist.`
+        );
 
 
   await addDoc(
@@ -13851,7 +14194,11 @@ async function queueDuplicateReview(
       title:
         isCertificate
           ? 'Possible duplicate certificate'
-          : 'Possible duplicate payment',
+          : (
+              exactTransactionDuplicate
+                ? 'Exact duplicate payment'
+                : 'Possible duplicate payment'
+            ),
 
       detail,
 
@@ -13865,6 +14212,13 @@ async function queueDuplicateReview(
 
       existingId:
         existing.id||'',
+
+      existing:
+        cleanReviewPayload(
+          existing
+        ),
+
+      exactTransactionDuplicate,
 
       existingSummary:
         isCertificate
@@ -17052,11 +17406,49 @@ function renderReviews(){
           : `${incoming.student||incoming.payer||''} · ${incoming.method||''} · ${incoming.date||''} · ${money(incoming.amount)}`;
 
 
+      const existingPayment=
+        review.itemType==='payment'
+          ? (
+              review.existing ||
+              payments.find(
+                payment=>
+                  payment.id===
+                  review.existingId
+              ) ||
+              {}
+            )
+          : {};
+
+
+      const exactTransactionDuplicate=
+        review.itemType==='payment' &&
+        (
+          review.exactTransactionDuplicate ||
+          paymentsShareTransactionId(
+            incoming,
+            existingPayment
+          )
+        );
+
+
+      const paymentComparison=
+        review.itemType==='payment'
+          ? paymentDuplicateComparisonHTML(
+              existingPayment,
+              incoming
+            )
+          : '';
+
+
       return `
         <div class="record vf-duplicate-review">
 
           <div class="vf-duplicate-label">
-            POSSIBLE DUPLICATE
+            ${
+              exactTransactionDuplicate
+                ? 'EXACT TRANSACTION ID MATCH'
+                : 'POSSIBLE DUPLICATE'
+            }
           </div>
 
           <strong>
@@ -17068,23 +17460,29 @@ function renderReviews(){
           </div>
 
 
-          <div class="vf-duplicate-compare">
+          ${
+            review.itemType==='payment'
+              ? paymentComparison
+              : `
+                  <div class="vf-duplicate-compare">
 
-            <div>
-              <small>Already recorded</small>
-              <strong>
-                ${esc(review.existingSummary||'Existing record')}
-              </strong>
-            </div>
+                    <div>
+                      <small>Already recorded</small>
+                      <strong>
+                        ${esc(review.existingSummary||'Existing record')}
+                      </strong>
+                    </div>
 
-            <div>
-              <small>New item</small>
-              <strong>
-                ${esc(incomingSummary)}
-              </strong>
-            </div>
+                    <div>
+                      <small>New item</small>
+                      <strong>
+                        ${esc(incomingSummary)}
+                      </strong>
+                    </div>
 
-          </div>
+                  </div>
+                `
+          }
 
 
           <div class="vf-review-actions">
@@ -17104,14 +17502,14 @@ function renderReviews(){
                     type="button"
                     class="primary"
                     data-reject-duplicate="${review.id}">
-                    Reject duplicate
+                    Reject—Same Payment
                   </button>
 
                   <button
                     type="button"
                     class="vf-secondary-button"
                     data-keep-duplicate="${review.id}">
-                    Keep anyway
+                    Keep—Two Separate Payments
                   </button>
                 `
             }
@@ -17127,7 +17525,11 @@ function renderReviews(){
               `
               : `
                 <div class="vf-default-note">
-                  Default: reject duplicate
+                  ${
+                    exactTransactionDuplicate
+                      ? 'The provider transaction ID proves this payment was already imported.'
+                      : 'Compare every known detail before deciding whether these are the same payment.'
+                  }
                 </div>
               `
           }
@@ -25632,6 +26034,28 @@ async function importSelectedStatementPayments(){
             ''
           ).trim(),
 
+        statementTransactionId:
+          String(
+            tx.externalTransactionId ||
+            tx.statementTransactionId ||
+            ''
+          ).trim(),
+
+        statementRowNumber:
+          Number(
+            tx.rowNumber || 0
+          ),
+
+        statementFileName:
+          String(
+            paymentStatementResult
+              ?.sourceFileName ||
+            ''
+          ).trim(),
+
+        importAttemptedAt:
+          new Date().toISOString(),
+
         source:
           'Payment statement',
 
@@ -26288,6 +26712,10 @@ async function readPaymentStatement(){
         `Statement reader returned ${response.status}.`
       );
     }
+
+
+    data.sourceFileName=
+      file.name;
 
 
     paymentStatementResult=

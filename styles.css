@@ -6164,3 +6164,60 @@ button.history.vf-history-evidence:focus-visible{
   opacity:.5;
   cursor:not-allowed;
 }
+
+
+/* ==========================================================
+   DETAILED PAYMENT DUPLICATE COMPARISON
+   ========================================================== */
+
+.vf-payment-duplicate-table-wrap{
+  margin-top:14px;
+  overflow-x:auto;
+  border:1px solid #d8e0e7;
+  border-radius:12px;
+}
+
+.vf-payment-duplicate-table{
+  width:100%;
+  min-width:680px;
+  border-collapse:collapse;
+  background:#fff;
+}
+
+.vf-payment-duplicate-table th,
+.vf-payment-duplicate-table td{
+  padding:10px 12px;
+  border-bottom:1px solid #e3e8ed;
+  text-align:left;
+  vertical-align:top;
+}
+
+.vf-payment-duplicate-table thead th{
+  background:#f2f6f8;
+  color:#334653;
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+
+.vf-payment-duplicate-table tbody th{
+  width:150px;
+  background:#f8fafb;
+  color:#53636f;
+  font-size:13px;
+}
+
+.vf-payment-duplicate-table tbody tr:last-child th,
+.vf-payment-duplicate-table tbody tr:last-child td{
+  border-bottom:0;
+}
+
+.vf-payment-duplicate-different th,
+.vf-payment-duplicate-different td{
+  background:#fff7e8 !important;
+}
+
+.vf-payment-duplicate-different td{
+  color:#744500;
+  font-weight:700;
+}
