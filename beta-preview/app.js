@@ -30446,46 +30446,123 @@ let vfTutorialStep=0;
 function vfTutorialSlides(){
   return [
     {
-      eyebrow:'Welcome to VendorFlow',
-      title:'You stay in control',
-      body:'VendorFlow organizes the work, but it never takes control away from you. You can review, edit, undo, delete, or replace records when needed.',
-      points:['Nothing important should happen quietly.','Notifications surface decisions and problems.','Actions keeps a permanent history of what happened.']
+      eyebrow:'What VendorFlow does',
+      title:'Turn hours of vendor paperwork into a few quick checks',
+      summary:'VendorFlow organizes your classes and students, records payments and charter certificates, prepares invoices, watches deadlines, and tells you what needs attention.',
+      task:'Your work becomes one connected system',
+      steps:[
+        'Set up each class and upload its student roster.',
+        'Add payments and certificates directly—or forward the emails you already receive.',
+        'Review Notifications, then let VendorFlow update balances, prepare invoices, and preserve the evidence.'
+      ],
+      result:'Instead of rebuilding the same information in spreadsheets, email, and invoices, you enter or forward it once and VendorFlow carries it through the system.',
+      actionView:'review',actionLabel:'See Notifications'
     },
     {
-      eyebrow:'Two ways to work',
-      title:'Use the website or send an email',
-      body:'Enter information directly in VendorFlow when you want hands-on control, or forward a trusted email to your private VendorFlow address.',
-      points:['Record payments directly or forward a payment email.','Upload certificates directly or forward the charter email.','Manage students and rosters directly; emailed changes go to review when confirmation is needed.']
+      eyebrow:'Set up once',
+      title:'Create classes and load each roster',
+      summary:'Start by giving VendorFlow the information you already maintain at your learning center.',
+      task:'Add a class and its students',
+      steps:[
+        'Open Class Rosters and create the class with its price, schedule, and payment terms.',
+        'At your learning center, choose Download CSV where you see that class roster.',
+        'Save the CSV somewhere easy to find, then upload that same file to the saved class in VendorFlow.',
+        'Repeat for every class. Add tutoring-only students manually when needed.'
+      ],
+      result:'VendorFlow creates the student directory and connects every student to the correct service and charges.',
+      actionView:'classes',actionLabel:'Open Class Rosters'
     },
     {
-      eyebrow:'Communication center',
-      title:'Start with Notifications',
-      body:'Notifications is your operational home. It collects reminders, warnings, possible duplicates, email requests, and anything that needs your decision.',
-      points:['Open the original email when available.','Approve, correct, complete, or ignore an item.','VendorFlow updates the source record after your decision.']
+      eyebrow:'Record payments',
+      title:'Stop entering the same payment in multiple places',
+      summary:'Record a payment on the website, import a statement, or forward a trusted payment email.',
+      task:'Turn payment evidence into an updated student balance',
+      steps:[
+        'Open Payments/Charges and enter a payment, or upload a Venmo or bank statement.',
+        'Alternatively, forward the payment email to your private VendorFlow email address.',
+        'Review any uncertain student match or possible duplicate in Notifications.'
+      ],
+      result:'VendorFlow records the payment, credits the student, updates the balance, prevents repeat processing, and keeps the transaction evidence.',
+      actionView:'payments',actionLabel:'Open Payments/Charges'
     },
     {
-      eyebrow:'Money and evidence',
-      title:'Know exactly what happened',
-      body:'Student accounts connect service charges, parent payments, charter certificates, refunds, and balances in one financial activity trail.',
-      points:['Possible duplicates are highlighted.','You decide whether a payment should be removed.','Corrections are recorded in Actions.']
+      eyebrow:'Process certificates',
+      title:'Turn charter PDFs into usable accounting records',
+      summary:'Upload saved certificate PDFs in bulk or forward the original charter email.',
+      task:'Connect charter funding to the correct student and service',
+      steps:[
+        'Open Certificates and choose up to 20 PDFs from your computer or cloud drive.',
+        'Let VendorFlow read the student, charter, amount, dates, service, and certificate number.',
+        'Review anything uncertain, then approve the verified certificates.'
+      ],
+      result:'VendorFlow stores the original PDF, credits the student obligation, and retains the certificate for charter invoicing.',
+      actionView:'certificates',actionLabel:'Open Certificates'
     },
     {
-      eyebrow:'Charter invoicing',
-      title:'You control every invoice',
-      body:'VendorFlow prepares invoices from verified student services and certificates. You control invoice timing, numbering, recipients, and the saved email template.',
-      points:['Review invoices before sending.','Choose when invoices are emailed.','Overdue invoices will appear in Notifications according to your grace-period and repeat settings.']
+      eyebrow:'Prepare charter invoices',
+      title:'Build invoices from work VendorFlow already knows about',
+      summary:'VendorFlow connects services, students, certificates, charter billing details, and your invoice rules.',
+      task:'Create and send a charter invoice',
+      steps:[
+        'Confirm the charter school and its billing instructions.',
+        'Review the services and certificates ready to invoice.',
+        'Create the invoice, check the PDF, and review the saved email before sending.',
+        'Choose your invoice timing, numbering, payment terms, and overdue grace period.'
+      ],
+      result:'VendorFlow prepares the invoice and email, tracks sent and due dates, and notifies you when payment is late according to your settings.',
+      actionView:'invoices',actionLabel:'Open Invoices'
     },
     {
-      eyebrow:'Private email intake',
-      title:'Only trusted senders can change financial data',
-      body:'VendorFlow checks the sender, prevents the same source email from being processed twice, and keeps the source information with the result.',
-      points:['Blocked or failed email intake remains visible.','Unreadable or uncertain messages go to Notifications.','The Email Inbox shows classification and processing outcome.']
+      eyebrow:'Use your VendorFlow email',
+      title:'Forward the email instead of retyping the information',
+      summary:'Your private VendorFlow address turns messages you already receive into organized intake.',
+      task:'Let an email start the work',
+      steps:[
+        'Forward a payment, certificate, student-change, or compliance email from a trusted address.',
+        'VendorFlow checks the sender and prevents the same source email from being processed twice.',
+        'Open Email Inbox to see exactly how the message was classified and what happened.'
+      ],
+      result:'Clear financial items are processed; uncertain requests go to Notifications so you decide what happens next.',
+      actionView:'inbox',actionLabel:'Open Email Inbox'
     },
     {
-      eyebrow:'You are ready',
-      title:'Review first, then automate',
-      body:'Begin by checking Notifications, student accounts, invoices, and Actions. As you gain confidence, VendorFlow can handle more routine work while keeping you informed.',
-      points:['Continue setup until every class and roster is present.','Import prior payments and certificates.','Return to this tutorial whenever you need it.']
+      eyebrow:'Start here every day',
+      title:'Use Notifications as your communication center',
+      summary:'Notifications gathers anything that needs a human decision instead of making you hunt through every page.',
+      task:'Clear the work that needs your attention',
+      steps:[
+        'Open Notifications when you sign in.',
+        'Review possible duplicates, student changes, reminders, failures, and overdue invoices.',
+        'Open the source email or related record, then approve, correct, complete, or ignore the item.'
+      ],
+      result:'You focus only on exceptions. VendorFlow handles the routine organization and keeps each decision connected to its source.',
+      actionView:'review',actionLabel:'Open Notifications'
+    },
+    {
+      eyebrow:'Answer questions quickly',
+      title:'Open one student to see the complete story',
+      summary:'Every student account brings contact information and financial activity together.',
+      task:'Find out why a balance looks wrong',
+      steps:[
+        'Open Students and select the student.',
+        'Review services, charges, parent payments, charter certificates, refunds, and the current balance.',
+        'Use transaction IDs, statement evidence, dates, and source records to pinpoint a mistake.'
+      ],
+      result:'You can correct or remove the wrong record with confirmation, and VendorFlow records the correction in Actions.',
+      actionView:'students',actionLabel:'Open Students'
+    },
+    {
+      eyebrow:'You have final authority',
+      title:'VendorFlow does the work—but you make the decisions',
+      summary:'Automation saves time only when you can see it, understand it, and correct it.',
+      task:'Verify anything VendorFlow does',
+      steps:[
+        'Use Email Inbox to see what arrived and how it was processed.',
+        'Use Notifications for decisions, warnings, deadlines, and reminders.',
+        'Use Actions to see what happened, when it happened, and whether it was manual, imported, or automated.'
+      ],
+      result:'You remain informed and can override, repair, delete, or reverse records when appropriate.',
+      actionView:'history',actionLabel:'Open Actions'
     }
   ];
 }
@@ -30499,12 +30576,25 @@ function vfRenderTutorial(){
   content.innerHTML=`
     <div class="eyebrow">${esc(slide.eyebrow)}</div>
     <h2>${esc(slide.title)}</h2>
-    <p class="vf-real-tutorial-body">${esc(slide.body)}</p>
-    <ul>${slide.points.map(point=>`<li>${esc(point)}</li>`).join('')}</ul>`;
+    <p class="vf-real-tutorial-body">${esc(slide.summary)}</p>
+    <section class="vf-tutorial-workflow">
+      <h3>${esc(slide.task)}</h3>
+      <ol>${slide.steps.map(step=>`<li>${esc(step)}</li>`).join('')}</ol>
+    </section>
+    <section class="vf-tutorial-result">
+      <strong>What VendorFlow does</strong>
+      <p>${esc(slide.result)}</p>
+    </section>
+    <button type="button" class="vf-tutorial-open-feature" data-tutorial-view="${esc(slide.actionView)}">${esc(slide.actionLabel)}</button>`;
   $('#vfTutorialProgress').style.width=`${((vfTutorialStep+1)/slides.length)*100}%`;
   $('#vfTutorialCount').textContent=`${vfTutorialStep+1} of ${slides.length}`;
   $('#vfTutorialBack').disabled=vfTutorialStep===0;
   $('#vfTutorialNext').textContent=vfTutorialStep===slides.length-1?'Finish Tutorial':'Next';
+  $('[data-tutorial-view]').onclick=()=>{
+    const view=$('[data-tutorial-view]').dataset.tutorialView;
+    vfCloseRealInteractiveTutorial();
+    switchView(view);
+  };
 }
 
 function vfCloseRealInteractiveTutorial(){
@@ -30722,3 +30812,6 @@ function vfMaybeShowSetupWelcome(){
 const vfSetupVisibilityObserver=new MutationObserver(vfMaybeShowSetupWelcome);
 if($('#app'))vfSetupVisibilityObserver.observe($('#app'),{attributes:true,attributeFilter:['class']});
 window.setTimeout(vfMaybeShowSetupWelcome,500);
+
+
+/* VENDORFLOW PREVIEW TASK BASED TUTORIAL */
