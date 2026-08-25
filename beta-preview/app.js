@@ -30541,3 +30541,184 @@ function vfOpenRealInteractiveTutorial(){
   vfRenderTutorial();
 }
 
+
+
+/* ==========================================================
+   VENDORFLOW PREVIEW SEQUENTIAL SETUP EXPERIENCE
+   ========================================================== */
+let vfSequentialSetupIndex=Math.max(0,Number(localStorage.getItem('vf-preview-setup-step')||0));
+let vfWelcomeShownThisPage=false;
+
+function vfSequentialSetupSteps(){
+  return [
+    {
+      id:'business',
+      title:'Set up your Business Profile',
+      purpose:'VendorFlow uses this information on invoices, emails, account records, and communications.',
+      instruction:'Enter your business name, contact information, mailing address, and payment details. Save the profile before continuing.',
+      action:'Open Business Profile'
+    },
+    {
+      id:'charters',
+      title:'Add your charter schools',
+      purpose:'Saved charter information speeds up invoices and keeps billing instructions in one place.',
+      instruction:'Search the Charter Directory and add every school you work with. If a school is missing, add it manually.',
+      action:'Open Charter Schools'
+    },
+    {
+      id:'classes',
+      title:'Create every class and service',
+      purpose:'Classes and services determine student charges, payment schedules, reminders, and invoice details.',
+      instruction:'Create each class, tutoring service, and other service separately. Use the complete VendorFlow form for every offering.',
+      action:'Open Classes & Services'
+    },
+    {
+      id:'rosters',
+      title:'Add a roster for every class',
+      purpose:'Each student must be connected to the correct class so charges, payments, certificates, and invoices stay accurate.',
+      instruction:'Choose one saved class, upload its CSV roster or add students manually, then repeat for every other class.',
+      action:'Open Class Rosters'
+    },
+    {
+      id:'payments',
+      title:'Add payments already received',
+      purpose:'Starting with complete payment history prevents incorrect family balances.',
+      instruction:'Enter earlier payments manually or import a Venmo or bank statement. Review every match before importing.',
+      action:'Open Payments'
+    },
+    {
+      id:'certificates',
+      title:'Add certificates already received',
+      purpose:'Existing charter certificates must be present so student balances and future charter invoices are correct.',
+      instruction:'Upload individual PDFs or select up to 20 certificates for bulk review and import.',
+      action:'Open Certificates'
+    },
+    {
+      id:'students',
+      title:'Review every student account',
+      purpose:'This final accounting check catches missing contacts, services, payments, certificates, and incorrect balances.',
+      instruction:'Open each student and confirm their contact information and complete financial activity.',
+      action:'Open Students'
+    },
+    {
+      id:'invoices',
+      title:'Review invoice settings',
+      purpose:'You control when invoices are created and sent, how they are numbered, and what the charter receives.',
+      instruction:'Review your invoice workflow and existing invoices. The saved invoice-email template will be added before beta release.',
+      action:'Open Invoices'
+    },
+    {
+      id:'tutorial',
+      title:'Learn how VendorFlow works',
+      purpose:'Knowing both direct entry and email intake lets VendorFlow save time without taking away your control.',
+      instruction:'Complete the interactive tutorial covering Notifications, email intake, accounting evidence, invoices, and Actions.',
+      action:'Start Tutorial'
+    }
+  ];
+}
+
+function vfCloseSequentialSetup(){
+  $('#vfSequentialSetup')?.remove();
+}
+
+function vfOpenSequentialSetupAction(stepId){
+  vfCloseSequentialSetup();
+  if(stepId==='tutorial'){
+    vfOpenRealInteractiveTutorial();
+    return;
+  }
+  const routes={
+    business:'profile',charters:'charters',classes:'classes',rosters:'classes',
+    payments:'payments',certificates:'certificates',students:'students',invoices:'invoices'
+  };
+  switchView(routes[stepId]||'review');
+  window.setTimeout(()=>{
+    const targets={
+      business:'#profileView',charters:'#charterBankSearch',classes:'#saveClass',
+      rosters:'#classSelect',payments:'#paymentStatementWorkspace',
+      certificates:'#bulkCertificateIntake',students:'#studentDirectorySearch',invoices:'#invoicesView'
+    };
+    document.querySelector(targets[stepId]||'')?.scrollIntoView({behavior:'smooth',block:'start'});
+  },150);
+}
+
+function vfOpenSequentialSetup(){
+  vfCloseFullSetupWorkspace();
+  vfCloseSequentialSetup();
+  const steps=vfSequentialSetupSteps();
+  vfSequentialSetupIndex=Math.min(Math.max(vfSequentialSetupIndex,0),steps.length-1);
+  const step=steps[vfSequentialSetupIndex];
+  const modal=document.createElement('div');
+  modal.id='vfSequentialSetup';
+  modal.className='vf-sequential-setup';
+  modal.innerHTML=`
+    <div class="vf-sequential-panel" role="dialog" aria-modal="true" aria-labelledby="vfSequentialTitle">
+      <div class="vf-sequential-top">
+        <div><div class="eyebrow">VendorFlow setup</div><strong>Step ${vfSequentialSetupIndex+1} of ${steps.length}</strong></div>
+        <button type="button" id="vfCloseSequentialSetup">Close for now</button>
+      </div>
+      <div class="vf-sequential-progress"><span style="width:${((vfSequentialSetupIndex+1)/steps.length)*100}%"></span></div>
+      <div class="vf-sequential-content">
+        <div class="vf-sequential-number">${vfSequentialSetupIndex+1}</div>
+        <h2 id="vfSequentialTitle">${esc(step.title)}</h2>
+        <section><strong>Why this matters</strong><p>${esc(step.purpose)}</p></section>
+        <section><strong>What to do</strong><p>${esc(step.instruction)}</p></section>
+        <button type="button" id="vfOpenSequentialAction" class="primary vf-sequential-action">${esc(step.action)}</button>
+      </div>
+      <div class="vf-sequential-bottom">
+        <button type="button" id="vfSequentialBack" ${vfSequentialSetupIndex===0?'disabled':''}>Back</button>
+        <button type="button" id="vfSequentialNext" class="primary">${vfSequentialSetupIndex===steps.length-1?'Finish this step':'I saved this — Next step'}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  $('#vfCloseSequentialSetup').onclick=vfCloseSequentialSetup;
+  $('#vfOpenSequentialAction').onclick=()=>vfOpenSequentialSetupAction(step.id);
+  $('#vfSequentialBack').onclick=()=>{
+    if(vfSequentialSetupIndex>0){vfSequentialSetupIndex-=1;localStorage.setItem('vf-preview-setup-step',vfSequentialSetupIndex);vfOpenSequentialSetup();}
+  };
+  $('#vfSequentialNext').onclick=()=>{
+    if(vfSequentialSetupIndex<steps.length-1){
+      vfSequentialSetupIndex+=1;
+      localStorage.setItem('vf-preview-setup-step',vfSequentialSetupIndex);
+      vfOpenSequentialSetup();
+      return;
+    }
+    vfCloseSequentialSetup();
+    showCenteredActionConfirmation('Setup walkthrough reached the final checkpoint. Full automatic completion checks are still being built in preview.');
+  };
+}
+
+vfOpenFullSetupWorkspace=vfOpenSequentialSetup;
+
+function vfCloseWelcome(){
+  $('#vfSetupWelcome')?.remove();
+}
+
+function vfShowSetupWelcome(){
+  if($('#vfSetupWelcome') || profile?.betaSetupComplete===true)return;
+  vfWelcomeShownThisPage=true;
+  const welcome=document.createElement('div');
+  welcome.id='vfSetupWelcome';
+  welcome.className='vf-setup-welcome';
+  welcome.innerHTML=`
+    <main class="vf-setup-welcome-card">
+      <img src="vendorflow-logo.png" alt="VendorFlow" class="vf-setup-welcome-logo">
+      <div class="eyebrow">Welcome to VendorFlow</div>
+      <h1>Spend less time managing paperwork.<br>Spend more time serving students.</h1>
+      <p>VendorFlow brings your classes, students, charter schools, payments, certificates, invoices, and reminders together—while keeping you informed and in control.</p>
+      <button type="button" id="vfBeginSequentialSetup" class="primary">Get Started Setting Up Your Vendor Business</button>
+      <small>Your progress is saved as you complete each real VendorFlow setup step.</small>
+    </main>`;
+  document.body.appendChild(welcome);
+  $('#vfBeginSequentialSetup').onclick=()=>{vfCloseWelcome();vfSequentialSetupIndex=0;localStorage.setItem('vf-preview-setup-step','0');vfOpenSequentialSetup();};
+}
+
+function vfMaybeShowSetupWelcome(){
+  const app=$('#app');
+  if(!app || app.classList.contains('hidden') || vfWelcomeShownThisPage)return;
+  vfShowSetupWelcome();
+}
+
+const vfSetupVisibilityObserver=new MutationObserver(vfMaybeShowSetupWelcome);
+if($('#app'))vfSetupVisibilityObserver.observe($('#app'),{attributes:true,attributeFilter:['class']});
+window.setTimeout(vfMaybeShowSetupWelcome,500);

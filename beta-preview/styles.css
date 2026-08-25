@@ -7124,3 +7124,19 @@ html,body{max-width:100%;overflow-x:hidden}
 .vf-real-tutorial-content{min-height:310px}.vf-real-tutorial-content h2{margin:5px 0 14px;font-size:1.8rem}.vf-real-tutorial-body{font-size:1.05rem;line-height:1.6}.vf-real-tutorial-content ul{display:grid;gap:10px;padding-left:22px;line-height:1.45}
 .vf-real-tutorial-nav{padding-top:18px;border-top:1px solid #d8e1ec}.vf-real-tutorial-nav>div{display:flex;gap:9px}
 @media(max-width:760px){#app.shell{grid-template-columns:170px minmax(0,1fr)!important}#app.shell>aside{width:170px!important;min-width:170px!important}.vf-header-brand-logo{width:min(360px,45vw)!important}.vf-real-tutorial-content{min-height:0}}
+
+
+/* PREVIEW WELCOME + SEQUENTIAL SETUP */
+.vf-setup-welcome{position:fixed;inset:0;z-index:140000;display:grid;place-items:center;padding:28px;background:linear-gradient(145deg,#f8fbff 0%,#eef3f9 55%,#e3ebf5 100%);overflow:auto}
+.vf-setup-welcome-card{display:grid;justify-items:center;width:min(900px,100%);padding:44px;text-align:center}
+.vf-setup-welcome-logo{display:block;width:min(620px,85vw);max-height:190px;object-fit:contain;margin-bottom:26px}
+.vf-setup-welcome-card h1{margin:8px 0 18px;color:#17283a;font-size:clamp(2rem,4.4vw,3.7rem);line-height:1.08}
+.vf-setup-welcome-card p{max-width:760px;margin:0 0 26px;color:#45596e;font-size:clamp(1rem,1.7vw,1.25rem);line-height:1.6}
+.vf-setup-welcome-card button{padding:16px 24px;border-radius:12px;font-size:1.05rem}.vf-setup-welcome-card small{margin-top:14px;color:#64758a}
+.vf-sequential-setup{position:fixed;inset:0;z-index:135000;display:grid;place-items:center;padding:22px;background:rgba(8,25,52,.72);overflow:auto}
+.vf-sequential-panel{width:min(780px,100%);max-height:calc(100vh - 44px);overflow:auto;padding:26px;border-radius:18px;background:#f8fafc;box-shadow:0 28px 90px rgba(0,0,0,.34)}
+.vf-sequential-top,.vf-sequential-bottom{display:flex;justify-content:space-between;align-items:center;gap:14px}.vf-sequential-progress{height:9px;margin:18px 0 28px;border-radius:999px;background:#dfe7f1;overflow:hidden}.vf-sequential-progress span{display:block;height:100%;background:#173e7a;transition:width .2s ease}
+.vf-sequential-content{text-align:center}.vf-sequential-number{display:grid;place-items:center;width:54px;height:54px;margin:0 auto 13px;border-radius:50%;background:#173e7a;color:#fff;font-size:1.4rem;font-weight:900}
+.vf-sequential-content h2{margin:0 0 20px;font-size:clamp(1.6rem,3vw,2.2rem)}.vf-sequential-content section{margin:12px 0;padding:15px 18px;border:1px solid #d5dfeb;border-radius:12px;background:#fff;text-align:left}.vf-sequential-content section p{margin:5px 0 0;color:#526477;line-height:1.5}
+.vf-sequential-action{min-width:min(360px,100%);margin:10px 0 26px;padding:14px 20px}.vf-sequential-bottom{padding-top:18px;border-top:1px solid #d5dfeb}
+@media(max-width:650px){.vf-setup-welcome-card{padding:25px 8px}.vf-sequential-panel{padding:20px}.vf-sequential-bottom{align-items:stretch;flex-direction:column-reverse}.vf-sequential-bottom button{width:100%}}
