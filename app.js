@@ -1671,13 +1671,13 @@ async function loadSharedCharterSchoolBank(){
       );
       const data=await response.json();
       if(!response.ok){
-        throw new Error(data.detail||data.error||'Charter bank could not be loaded.');
+        throw new Error(data.detail||data.error||'charter directory could not be loaded.');
       }
       sharedCharterSchoolBank=Array.isArray(data.schools)?data.schools:[];
       renderSharedCharterSchoolBank();
     }catch(error){
-      console.error('Shared charter-school bank failed:',error);
-      if(status)status.textContent='The verified charter-school bank could not be loaded. Manual entry still works.';
+      console.error('Shared charter-school directory failed:',error);
+      if(status)status.textContent='The verified charter-school directory could not be loaded. Manual entry still works.';
     }finally{
       sharedCharterBankPromise=null;
     }
@@ -2571,7 +2571,7 @@ function renderCertificateCharterMatches(){
 
       <span>
         ${typed
-          ? `Create “${esc(typed)}” in your charter bank`
+          ? `Create “${esc(typed)}” in your charter directory`
           : 'Add a charter school'
         }
       </span>
