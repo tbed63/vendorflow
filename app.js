@@ -20953,7 +20953,20 @@ function switchView(v){
     x=>x.classList.remove('active')
   );
 
-  $(`#${v}View`).classList.add('active');
+  const selectedView=
+    $(`#${v}View`);
+
+  selectedView.classList.add('active');
+
+  /* Keep the selected section visible even when the previous
+     section or tutorial left the document at another position. */
+  window.requestAnimationFrame(()=>{
+    selectedView.scrollIntoView({
+      behavior:'auto',
+      block:'start',
+      inline:'start'
+    });
+  });
 
   let names={
     dashboard:'Dashboard',
@@ -29926,7 +29939,7 @@ function showBetaTutorialStep(){
   window.setTimeout(()=>{
     vfBetaTutorialTarget=document.querySelector(step.target);
     vfBetaTutorialTarget?.classList.add('vf-tutorial-highlight');
-    vfBetaTutorialTarget?.scrollIntoView({behavior:'smooth',block:'center'});
+    /* Tutorial highlights without moving the entire application. */
     tour.querySelector('[data-tutorial-title]').textContent=step.title;
     tour.querySelector('[data-tutorial-text]').textContent=step.text;
     tour.querySelector('[data-tutorial-count]').textContent=`${vfBetaTutorialIndex+1} of ${vfBetaTutorialSteps.length}`;
