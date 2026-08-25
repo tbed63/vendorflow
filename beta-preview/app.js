@@ -3775,6 +3775,61 @@ function renderInvoiceNumberingSettings(){
 }
 
 
+function defaultInvoiceEmailTemplate(){
+
+  return {
+
+    subject:
+      'Invoice {{invoiceNumber}} \u2014 {{businessName}}',
+
+    body:
+      'Hello,\n\n'+
+      'Attached is invoice {{invoiceNumber}} from {{businessName}}.\n\n'+
+      'Student: {{studentName}}\n'+
+      'Certificate / PO: {{certificateNumber}}\n'+
+      'Service: {{serviceName}}\n'+
+      'Amount: {{amount}}\n\n'+
+      'Thank you,\n'+
+      '{{ownerName}}'
+  };
+}
+
+
+function renderInvoiceEmailTemplateSettings(){
+
+  const subjectField=
+    $('#invoiceEmailSubjectInput');
+
+  const bodyField=
+    $('#invoiceEmailBodyInput');
+
+
+  if(
+    !subjectField ||
+    !bodyField
+  ){
+    return;
+  }
+
+
+  const saved=
+    profile.invoiceEmailTemplate ||
+    {};
+
+  const defaults=
+    defaultInvoiceEmailTemplate();
+
+
+  subjectField.value=
+    saved.subject ||
+    defaults.subject;
+
+  bodyField.value=
+    saved.body ||
+    defaults.body;
+}
+
+
 function nextAutomaticInvoiceSequence(){
 
   const year=
@@ -5716,6 +5771,8 @@ function showInvoiceLedgerDetail(invoice){
 function renderInvoices(){
 
   renderInvoiceNumberingSettings();
+
+  renderInvoiceEmailTemplateSettings();
 
   installInvoiceNumberingPopup();
 
@@ -21671,6 +21728,81 @@ if($('#saveInvoiceNumbering')){
 
 
       renderInvoiceNumberingSettings();
+    };
+}
+
+
+
+if($('#saveInvoiceEmailTemplate')){
+
+  $('#saveInvoiceEmailTemplate').onclick=
+    async()=>{
+
+      const subject=
+        $('#invoiceEmailSubjectInput')
+          .value
+          .trim();
+
+      const body=
+        $('#invoiceEmailBodyInput')
+          .value
+          .trim();
+
+
+      if(
+        !subject ||
+        !body
+      ){
+
+        return toast(
+          'Enter a subject and message before saving.'
+        );
+      }
+
+
+      const data={
+
+        invoiceEmailTemplate:{
+          subject,
+          body
+        },
+
+        updatedAt:
+          serverTimestamp()
+      };
+
+
+      await setDoc(
+        vendorDoc(),
+        data,
+        {
+          merge:true
+        }
+      );
+
+
+      profile={
+        ...profile,
+        invoiceEmailTemplate:{
+          subject,
+          body
+        }
+      };
+
+
+      await log(
+        'Invoice email template updated',
+        'The invoice email subject and message were updated.',
+        'Manual'
+      );
+
+
+      toast(
+        'Invoice email template saved.'
+      );
+
+
+      renderInvoiceEmailTemplateSettings();
     };
 }
 
