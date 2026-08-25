@@ -30400,13 +30400,11 @@ function vfOpenFullSetupWorkspace(){
         <div>
           <div class="eyebrow">Complete VendorFlow setup</div>
           <h2 id="vfFullSetupTitle">Set up the entire account</h2>
-          <p>This is not a shortened setup. Each step opens the same complete workflow used in VendorFlow.</p>
+          
         </div>
         <button type="button" data-close-full-setup aria-label="Close setup">Close</button>
       </div>
-      <div class="vf-full-setup-notice">
-        Work through every class, roster, payment, and certificate. You can close this checklist and return without losing saved work.
-      </div>
+
       <div class="vf-full-setup-steps">
         ${vfSetupSteps().map((item,index)=>`
           <section class="vf-full-setup-step">
