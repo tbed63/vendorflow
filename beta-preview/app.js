@@ -718,6 +718,104 @@ function invoiceNumberingReviewItems(){
 }
 
 
+function overdueInvoiceNotificationItems(){
+
+  const settings=
+    profile.overdueInvoiceSettings ||
+    defaultOverdueInvoiceSettings();
+
+  const today=
+    new Date();
+
+  today.setHours(0,0,0,0);
+
+  return invoices
+    .filter(invoice=>
+      invoiceStatus(invoice)==='Sent'
+    )
+    .map(invoice=>{
+
+      const dueDateRaw=
+        invoice.dueDate ||
+        invoiceDueDateForTerms(
+          invoice.invoiceDate,
+          invoice.paymentTermsDays
+        );
+
+      const dueDate=
+        parseVendorDate(dueDateRaw);
+
+      if(!dueDate){
+        return null;
+      }
+
+      const graceDeadline=
+        new Date(
+          dueDate.getFullYear(),
+          dueDate.getMonth(),
+          dueDate.getDate() +
+            Number(settings.graceDays||0),
+          12,
+          0,
+          0
+        );
+
+      if(graceDeadline>today){
+        return null;
+      }
+
+      const dismissedUntil=
+        invoice.overdueReminder?.dismissedUntil
+          ? parseVendorDate(
+              invoice.overdueReminder.dismissedUntil
+            )
+          : null;
+
+      if(
+        dismissedUntil &&
+        dismissedUntil>today
+      ){
+        return null;
+      }
+
+      const daysOverdue=
+        Math.max(
+          0,
+          Math.round(
+            (today-dueDate) /
+            (1000*60*60*24)
+          )
+        );
+
+      return {
+
+        id:
+          `overdue-invoice-${invoice.id}`,
+
+        reviewType:
+          'overdue-invoice',
+
+        itemType:
+          'invoice',
+
+        invoiceId:
+          invoice.id,
+
+        title:
+          `Overdue: Invoice ${invoice.invoiceNumber||''}`,
+
+        detail:
+          `${invoice.charterSchoolName||'Charter school'} — ${money(invoice.amount)} — `+
+          `${daysOverdue} day${daysOverdue===1?'':'s'} past due (due ${invoiceLedgerDate(dueDateRaw)}).`,
+
+        source:
+          'VendorFlow'
+      };
+    })
+    .filter(Boolean);
+}
+
+
 function todoNotificationItems(){
 
   const today=
@@ -813,7 +911,8 @@ function allNeedsReviewItems(){
   return [
     ...reviews,
     ...todoNotificationItems(),
-    ...invoiceNumberingReviewItems()
+    ...invoiceNumberingReviewItems(),
+    ...overdueInvoiceNotificationItems()
   ];
 }
 
@@ -6195,6 +6294,92 @@ async function resetInvoiceToReadyForTesting(invoice){
   closeInvoiceLedgerDetail();
 
   await refreshAll();
+}
+
+
+async function dismissOverdueInvoiceReminder(invoiceId){
+
+  const invoice=
+    invoices.find(
+      item=>item.id===invoiceId
+    );
+
+  if(!invoice || !user){
+    return;
+  }
+
+
+  const settings=
+    profile.overdueInvoiceSettings ||
+    defaultOverdueInvoiceSettings();
+
+  const today=
+    new Date();
+
+  today.setHours(0,0,0,0);
+
+  let dismissedUntilDate=
+    new Date(today);
+
+  if(settings.repeatEnabled){
+
+    const intervalUnitDays=
+      settings.repeatUnit==='weeks'
+        ? 7
+        : 1;
+
+    const intervalDays=
+      Math.max(
+        1,
+        Number(settings.repeatInterval||1)
+      ) * intervalUnitDays;
+
+    dismissedUntilDate.setDate(
+      dismissedUntilDate.getDate()+intervalDays
+    );
+
+  } else {
+
+    dismissedUntilDate.setFullYear(
+      dismissedUntilDate.getFullYear()+50
+    );
+  }
+
+  const dismissedUntil=
+    dateToLocalISO(
+      dismissedUntilDate
+    );
+
+  await setDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'invoices',
+      invoice.id
+    ),
+    {
+      overdueReminder:{
+        dismissedUntil,
+        lastDismissedAt:
+          serverTimestamp()
+      }
+    },
+    {
+      merge:true
+    }
+  );
+
+  invoice.overdueReminder=
+    {dismissedUntil};
+
+  toast(
+    settings.repeatEnabled
+      ? "Reminder dismissed. VendorFlow will remind you again if it's still unpaid."
+      : 'Reminder dismissed.'
+  );
+
+  renderReviews();
 }
 
 
@@ -19910,6 +20095,44 @@ function renderReviews(){
       }
 
 
+      if(
+        review.reviewType===
+        'overdue-invoice'
+      ){
+
+        return `
+          <div class="record vf-overdue-invoice-review">
+
+            <strong>
+              ${esc(review.title)}
+            </strong>
+
+            <div class="meta">
+              ${esc(review.detail)}
+            </div>
+
+            <div class="vf-review-actions">
+
+              <button
+                type="button"
+                class="primary"
+                data-open-overdue-invoice="${esc(review.invoiceId)}">
+                Open Invoice
+              </button>
+
+              <button
+                type="button"
+                class="vf-secondary-button"
+                data-dismiss-overdue-invoice="${esc(review.invoiceId)}">
+                Dismiss
+              </button>
+
+            </div>
+
+          </div>
+        `;
+      }
+
 
 
       if(
@@ -20185,6 +20408,45 @@ function renderReviews(){
         if(open){
           open.click();
         }
+      };
+    });
+
+
+  $$('[data-open-overdue-invoice]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        const invoice=
+          invoices.find(
+            item=>
+              item.id===
+              button.dataset.openOverdueInvoice
+          );
+
+        if(!invoice){
+          return;
+        }
+
+        switchView(
+          'invoices'
+        );
+
+        showInvoiceLedgerDetail(
+          invoice
+        );
+      };
+    });
+
+
+  $$('[data-dismiss-overdue-invoice]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        dismissOverdueInvoiceReminder(
+          button.dataset.dismissOverdueInvoice
+        );
       };
     });
 

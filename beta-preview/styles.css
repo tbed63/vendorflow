@@ -5878,6 +5878,16 @@ button.history.vf-history-evidence:focus-visible{
 }
 
 
+.vf-overdue-invoice-review{
+  border-left:4px solid #c0392b;
+  background:#fdf2f1;
+}
+
+.vf-overdue-invoice-review .vf-review-actions{
+  margin-top:10px;
+}
+
+
 
 
 /* ==========================================================
