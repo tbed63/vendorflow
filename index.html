@@ -532,12 +532,6 @@ Thank you,
             role="alert">
           </div>
 
-          <div
-            id="classSaveError"
-            class="vf-form-error hidden"
-            role="alert">
-          </div>
-
           <button id="saveClass" class="primary full">Save class</button>
           <hr>
 
@@ -671,112 +665,101 @@ Thank you,
       </div>
 
 
-      <div id="serviceForm" class="card hidden">
+      <div id="serviceForm" class="card hidden vf-service-editor">
 
-        <div class="eyebrow">Service setup</div>
-        <h2>Add a service</h2>
+        <div class="row between vf-service-editor-heading">
+          <div>
+            <div class="eyebrow">Service setup</div>
+            <h2>Add Service</h2>
+          </div>
+          <button id="cancelServiceTop" type="button" aria-label="Close Add Service">Close</button>
+        </div>
 
-        <p class="vf-form-help">
-          Set what the student owes for the service. Payments and certificates
-          will reduce that balance later as VendorFlow receives them.
-        </p>
+        <div class="vf-service-editor-grid">
 
-        <div class="formgrid vf-form-2">
+          <label class="vf-field-label">
+            <span>Student <strong aria-hidden="true">*</strong></span>
+            <select id="serviceStudent" class="input">
+              <option value="">Choose student</option>
+            </select>
+          </label>
 
-          <select id="serviceStudent" class="input">
-            <option value="">Choose student</option>
-          </select>
+          <label class="vf-field-label">
+            <span>Service type</span>
+            <select id="serviceType" class="input">
+              <option value="Class">Class</option>
+              <option value="Tutoring">Tutoring</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
 
-          <select id="serviceType" class="input">
-            <option value="Class">Class</option>
-            <option value="Tutoring">Tutoring</option>
-            <option value="Other">Other</option>
-          </select>
+          <label class="vf-field-label vf-service-wide">
+            <span>Service name <strong aria-hidden="true">*</strong></span>
+            <input id="serviceName" class="input" placeholder="Example: Monday Math Jam">
+          </label>
 
-          <input
-            id="serviceName"
-            class="input"
-            placeholder="Service name">
+          <label id="serviceClassWrap" class="vf-field-label vf-service-wide">
+            <span>Link to a saved class <small>Optional</small></span>
+            <select id="serviceClass" class="input">
+              <option value="">Not linked to a roster class</option>
+            </select>
+          </label>
 
-          <select id="serviceClass" class="input">
-            <option value="">
-              Not linked to a roster class
-            </option>
-          </select>
+          <label class="vf-field-label">
+            <span>Start date</span>
+            <input id="serviceStart" class="input" type="date">
+          </label>
 
-          <input
-            id="serviceStart"
-            class="input"
-            type="date">
+          <label class="vf-field-label">
+            <span>End date</span>
+            <input id="serviceEnd" class="input" type="date">
+          </label>
 
-          <input
-            id="serviceEnd"
-            class="input"
-            type="date">
+          <label id="serviceTotalWrap" class="vf-field-label">
+            <span id="serviceTotalLabel">Total price</span>
+            <div class="vf-money-field"><span>$</span><input id="serviceTotal" class="input" type="number" min="0" step=".01" placeholder="0.00"></div>
+          </label>
 
-          <input
-            id="serviceTotal"
-            class="input"
-            type="number"
-            min="0"
-            step=".01"
-            placeholder="Total price">
+          <label id="serviceTutoringRateWrap" class="vf-field-label hidden">
+            <span>Rate per session</span>
+            <div class="vf-money-field"><span>$</span><input id="serviceTutoringRate" class="input" type="number" min="0" step=".01" placeholder="0.00"></div>
+          </label>
 
-          <input
-            id="serviceTutoringRate"
-            class="input"
-            type="number"
-            min="0"
-            step=".01"
-            placeholder="Tutoring rate, if applicable">
+          <label id="serviceScheduleWrap" class="vf-field-label">
+            <span>Payment plan</span>
+            <select id="serviceSchedule" class="input">
+              <option value="Full">Pay in full</option>
+              <option value="Monthly">Monthly payments</option>
+              <option value="Per Session">Per tutoring session</option>
+              <option value="Custom">Custom arrangement</option>
+            </select>
+          </label>
 
-          <select id="serviceSchedule" class="input">
-            <option value="Full">Pay in full</option>
-            <option value="Monthly">Monthly payments</option>
-            <option value="Per Session">Per tutoring session</option>
-            <option value="Custom">Custom arrangement</option>
-          </select>
+          <label id="serviceDueDayWrap" class="vf-field-label hidden">
+            <span>Monthly due day</span>
+            <input id="serviceDueDay" class="input" type="number" min="1" max="28" value="4">
+          </label>
 
-          <input
-            id="serviceDueDay"
-            class="input"
-            type="number"
-            min="1"
-            max="28"
-            value="4"
-            placeholder="Monthly due day">
+          <label id="serviceLateFeeWrap" class="vf-field-label">
+            <span>Late fee <small>Optional</small></span>
+            <div class="vf-money-field"><span>$</span><input id="serviceLateFee" class="input" type="number" min="0" step=".01" value="0"></div>
+          </label>
 
-          <input
-            id="serviceLateFee"
-            class="input"
-            type="number"
-            min="0"
-            step=".01"
-            value="0"
-            placeholder="Late fee">
+          <label class="vf-field-label vf-service-wide">
+            <span>Notes <small>Optional</small></span>
+            <textarea id="serviceNotes" class="input" rows="3" placeholder="Anything useful about this student’s service"></textarea>
+          </label>
 
         </div>
 
-        <textarea
-          id="serviceNotes"
-          class="input"
-          rows="3"
-          placeholder="Notes about this arrangement"></textarea>
+        <div id="serviceFormError" class="vf-form-error hidden" role="alert"></div>
 
-        <div class="row">
-          <button id="saveService" class="primary">
-            Save service
-          </button>
-
-          <button id="cancelService">
-            Cancel
-          </button>
+        <div class="row vf-service-editor-actions">
+          <button id="saveService" type="button" class="primary">Save Service</button>
+          <button id="cancelService" type="button">Cancel</button>
         </div>
 
       </div>
-
-
-      <div class="card">
 
 
         <div class="vf-global-student-search">
@@ -2674,5 +2657,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=charter-directory-20260825-1"></script>
+<script type="module" src="app.js?v=add-service-repair-20260825-1"></script>
 </body></html>

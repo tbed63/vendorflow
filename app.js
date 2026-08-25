@@ -12467,7 +12467,7 @@ function renderStudentsServices(){
         $('#serviceStudent').value=
           btn.dataset.addServiceStudent;
 
-        show($('#serviceForm'));
+        openServiceEditor(studentId);
 
         $('#serviceForm')
           .scrollIntoView({
@@ -13891,97 +13891,129 @@ function serviceObligationHTML(
    Service setup
    ---------------------------------------------------------- */
 
-$('#addService').onclick=()=>{
-
-  refreshStudentServiceSelectors();
-
-  show($('#serviceForm'));
-};
-
-
-$('#cancelService').onclick=()=>{
-
-  hide($('#serviceForm'));
-};
+function setServiceFormError(message=''){
+  const box=$('#serviceFormError');
+  if(!box)return;
+  box.textContent=String(message||'');
+  box.classList.toggle('hidden',!message);
+}
 
 
-$('#serviceType').onchange=()=>{
+function updateServiceScheduleUI(){
+  const monthly=$('#serviceSchedule')?.value==='Monthly';
+  const due=$('#serviceDueDayWrap');
+  if(due)monthly ? show(due) : hide(due);
+}
 
-  const type=$('#serviceType').value;
 
-  if(
-    type==='Tutoring' &&
-    !$('#serviceName').value.trim()
-  ){
-    $('#serviceName').value='Tutoring';
+function updateServiceTypeUI(){
+  const type=$('#serviceType')?.value||'Class';
+  const tutoring=type==='Tutoring';
+  const rate=$('#serviceTutoringRateWrap');
+  const totalLabel=$('#serviceTotalLabel');
+
+  if(rate)tutoring ? show(rate) : hide(rate);
+  if(totalLabel){
+    totalLabel.textContent=tutoring
+      ? 'Starting balance (usually $0)'
+      : 'Total price';
   }
 
-  if(
-    type==='Tutoring' &&
-    $('#serviceSchedule').value==='Full'
-  ){
+  if(tutoring && $('#serviceSchedule').value==='Full'){
     $('#serviceSchedule').value='Per Session';
   }
-};
+  if(tutoring && !$('#serviceName').value.trim()){
+    $('#serviceName').value='Tutoring';
+  }
+  updateServiceScheduleUI();
+}
+
+
+function resetServiceForm(preserveStudent=false){
+  const student=preserveStudent ? $('#serviceStudent').value : '';
+  $('#serviceStudent').value=student;
+  $('#serviceType').value='Class';
+  $('#serviceName').value='';
+  $('#serviceClass').value='';
+  $('#serviceStart').value='';
+  $('#serviceEnd').value='';
+  $('#serviceTotal').value='';
+  $('#serviceTutoringRate').value='';
+  $('#serviceSchedule').value='Full';
+  $('#serviceDueDay').value='4';
+  $('#serviceLateFee').value='0';
+  $('#serviceNotes').value='';
+  setServiceFormError('');
+  updateServiceTypeUI();
+}
+
+
+function openServiceEditor(studentId=''){
+  refreshStudentServiceSelectors();
+  resetServiceForm(false);
+  if(studentId && coreStudentById(studentId)){
+    $('#serviceStudent').value=studentId;
+  }
+  show($('#serviceForm'));
+  $('#serviceForm').scrollIntoView({behavior:'smooth',block:'start'});
+  window.setTimeout(()=>{
+    (studentId ? $('#serviceType') : $('#serviceStudent'))?.focus();
+  },250);
+}
+
+
+$('#addService').onclick=()=>openServiceEditor();
+
+
+function closeServiceEditor(){
+  hide($('#serviceForm'));
+  setServiceFormError('');
+}
+
+
+$('#cancelService').onclick=closeServiceEditor;
+$('#cancelServiceTop').onclick=closeServiceEditor;
+$('#serviceType').onchange=updateServiceTypeUI;
+$('#serviceSchedule').onchange=updateServiceScheduleUI;
 
 
 $('#serviceClass').onchange=()=>{
+  const classRecord=classes.find(c=>c.id===$('#serviceClass').value);
+  if(!classRecord)return;
 
-  const classId=
-    $('#serviceClass').value;
-
-  const classRecord=
-    classes.find(c=>c.id===classId);
-
-  if(!classRecord) return;
-
-
-  if(!$('#serviceName').value.trim()){
-    $('#serviceName').value=
-      classRecord.name||'';
-  }
-
-
-  if(
-    !$('#serviceTotal').value &&
-    Number(classRecord.tuition||0)>0
-  ){
-    $('#serviceTotal').value=
-      Number(classRecord.tuition);
-  }
-
-
-  /*
-   * Class payment rules are defaults only.
-   * The vendor may still override them for this individual service.
-   */
-  if(classRecord.paymentSchedule){
-    $('#serviceSchedule').value=
-      classRecord.paymentSchedule;
-  }
-
-  if(Number(classRecord.dueDay||0)>0){
-    $('#serviceDueDay').value=
-      Number(classRecord.dueDay);
-  }
-
-  if(classRecord.lateFee !== undefined){
-    $('#serviceLateFee').value=
-      Number(classRecord.lateFee||0);
-  }
-
-
+  $('#serviceType').value=
+    classRecord.classType==='Tutoring' ? 'Tutoring' : 'Class';
+  $('#serviceName').value=classRecord.name||'';
+  $('#serviceTotal').value=
+    classRecord.classType==='Tutoring'
+      ? ''
+      : (Number(classRecord.tuition||0)>0 ? Number(classRecord.tuition) : '');
+  $('#serviceTutoringRate').value=
+    Number(classRecord.ratePerSession||0)>0
+      ? Number(classRecord.ratePerSession)
+      : '';
+  $('#serviceSchedule').value=
+    classRecord.classType==='Tutoring'
+      ? 'Per Session'
+      : (classRecord.paymentSchedule||'Full');
+  $('#serviceDueDay').value=Number(classRecord.dueDay||4);
+  $('#serviceLateFee').value=Number(classRecord.lateFee||0);
+  updateServiceTypeUI();
 };
 
 
 $('#saveService').onclick=async()=>{
+
+  setServiceFormError('');
 
   const studentId=
     $('#serviceStudent').value;
 
 
   if(!studentId){
-    return toast('Choose a student.');
+    setServiceFormError('Choose a student.');
+    $('#serviceStudent').focus();
+    return;
   }
 
 
@@ -13990,7 +14022,8 @@ $('#saveService').onclick=async()=>{
 
 
   if(!student){
-    return toast('Student could not be found.');
+    setServiceFormError('That student could not be found. Refresh the page and try again.');
+    return;
   }
 
 
@@ -14063,7 +14096,6 @@ $('#saveService').onclick=async()=>{
         ),
 
       schedule:
-        classRecord?.paymentSchedule ||
         $('#serviceSchedule').value,
 
       dueDay:
