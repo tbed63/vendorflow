@@ -3958,6 +3958,9 @@ function buildInvoiceEmailPreview(invoice){
 }
 
 
+let invoiceUnderReview=null;
+
+
 function openInvoiceSendReview(invoice){
 
   const modal=
@@ -3966,6 +3969,9 @@ function openInvoiceSendReview(invoice){
   if(!modal){
     return;
   }
+
+  invoiceUnderReview=
+    invoice;
 
   const preview=
     buildInvoiceEmailPreview(
@@ -4965,7 +4971,8 @@ async function openInvoicePdf(
 
 
 async function sendInvoiceThroughVendorFlow(
-  invoice
+  invoice,
+  overrides
 ){
 
   if(!user || !invoice){
@@ -4981,7 +4988,13 @@ async function sendInvoiceThroughVendorFlow(
     ) || {};
 
 
+  const overrideTo=
+    String(
+      overrides?.to || ''
+    ).trim();
+
   const billingEmail=
+    overrideTo ||
     String(
       invoice.charterBillingEmail ||
       charter.billingEmail ||
@@ -5002,20 +5015,6 @@ async function sendInvoiceThroughVendorFlow(
       '.'
     );
 
-    return;
-  }
-
-
-  const ok=
-    confirm(
-      `Send invoice ${invoice.invoiceNumber}?\n\n` +
-      `To: ${billingEmail}\n` +
-      `Amount: ${money(invoice.amount)}\n\n` +
-      `VendorFlow will attach the invoice PDF and send it now.`
-    );
-
-
-  if(!ok){
     return;
   }
 
@@ -5151,7 +5150,13 @@ async function sendInvoiceThroughVendorFlow(
       '',
 
     notes:
-      invoice.notes||''
+      invoice.notes||'',
+
+    emailSubject:
+      overrides?.subject || '',
+
+    emailBody:
+      overrides?.body || ''
   };
 
 
@@ -5911,6 +5916,13 @@ function showInvoiceLedgerDetail(invoice){
               class="primary">
               Mark Paid
             </button>
+
+            <button
+              type="button"
+              id="ledgerResetToReady"
+              class="vf-secondary-button">
+              Reset to Ready to Send (testing only)
+            </button>
           `
           : ''
       }
@@ -5964,7 +5976,72 @@ function showInvoiceLedgerDetail(invoice){
   }
 
 
+  const resetToReady=
+    $('#ledgerResetToReady');
+
+  if(resetToReady){
+
+    resetToReady.onclick=
+      ()=>resetInvoiceToReadyForTesting(
+        invoice
+      );
+  }
+
+
   show(modal);
+}
+
+
+async function resetInvoiceToReadyForTesting(invoice){
+
+  const ok=
+    confirm(
+      `Reset ${invoice.invoiceNumber} back to "Ready to Send"?\n\n`+
+      `This only changes its status in VendorFlow for testing. `+
+      `It does not undo or recall any email that may have already gone out.`
+    );
+
+  if(!ok){
+    return;
+  }
+
+
+  await setDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'invoices',
+      invoice.id
+    ),
+    {
+      status:
+        'Ready to Send',
+
+      resetForTestingAt:
+        serverTimestamp()
+    },
+    {
+      merge:true
+    }
+  );
+
+
+  await log(
+    'Invoice reset for testing',
+    `${invoice.invoiceNumber} was reset to Ready to Send for testing.`,
+    'Manual'
+  );
+
+
+  toast(
+    'Invoice reset to Ready to Send.'
+  );
+
+
+  closeInvoiceLedgerDetail();
+
+  await refreshAll();
 }
 
 
@@ -22074,15 +22151,85 @@ if($('#cancelInvoiceSendReview')){
 if($('#confirmInvoiceSendReview')){
 
   $('#confirmInvoiceSendReview').onclick=
-    ()=>{
+    async()=>{
 
-      hide(
-        $('#invoiceSendReviewModal')
-      );
+      const button=
+        $('#confirmInvoiceSendReview');
 
-      toast(
-        'Preview looks right. Real sending is not turned on yet \u2014 nothing was sent.'
-      );
+      const to=
+        $('#invoiceSendReviewTo')
+          .value
+          .trim();
+
+      const subject=
+        $('#invoiceSendReviewSubject')
+          .value
+          .trim();
+
+      const body=
+        $('#invoiceSendReviewBody')
+          .value
+          .trim();
+
+
+      if(!to){
+        return toast('Enter a recipient email before sending.');
+      }
+
+      if(
+        !subject ||
+        !body
+      ){
+        return toast('Enter a subject and message before sending.');
+      }
+
+      if(!invoiceUnderReview){
+        return toast('VendorFlow could not find this invoice. Close this and try again.');
+      }
+
+
+      const originalLabel=
+        button.textContent;
+
+      button.disabled=true;
+      button.textContent='Sending...';
+
+
+      try{
+
+        await sendInvoiceThroughVendorFlow(
+          invoiceUnderReview,
+          {
+            to,
+            subject,
+            body
+          }
+        );
+
+        hide(
+          $('#invoiceSendReviewModal')
+        );
+
+        toast(
+          'Invoice email sent.'
+        );
+
+        closeInvoiceLedgerDetail();
+
+      }catch(error){
+
+        console.error(error);
+
+        alert(
+          error.message ||
+          'VendorFlow could not send this invoice.'
+        );
+
+      }finally{
+
+        button.disabled=false;
+        button.textContent=originalLabel;
+      }
     };
 }
 
