@@ -7044,3 +7044,28 @@ button.history.vf-history-evidence:focus-visible{
   .vf-service-editor-grid{grid-template-columns:1fr;}
   .vf-service-wide{grid-column:auto;}
 }
+
+
+/* VENDORFLOW BETA SETUP GUIDE + BEGINNER ROSTER HELP */
+.vf-roster-beginner-help{margin:18px 0;padding:20px;border:1px solid #cbd9e8;border-left:5px solid #173e7a;border-radius:12px;background:#f7faff}
+.vf-roster-beginner-help h3{margin:3px 0 12px}
+.vf-roster-beginner-help ol{margin:0 0 12px;padding-left:22px;line-height:1.7}
+.vf-roster-beginner-help p{margin:8px 0}
+.vf-roster-help-actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:14px}
+#vfRosterChosenFile{font-weight:700;color:#344b65}
+.vf-setup-guide{position:fixed;inset:0;z-index:100001;display:none}
+.vf-setup-guide.show{display:block}
+.vf-setup-guide-backdrop{position:absolute;inset:0;background:rgba(10,28,54,.58)}
+.vf-setup-guide-panel{position:relative;width:min(700px,calc(100vw - 32px));max-height:calc(100vh - 48px);overflow:auto;margin:24px auto;padding:26px;border-radius:18px;background:#fff;box-shadow:0 30px 90px rgba(0,0,0,.3)}
+.vf-setup-guide-steps{display:grid;gap:10px;margin-top:18px}
+.vf-setup-guide-steps button{display:grid;gap:4px;width:100%;padding:14px 16px;text-align:left;border:1px solid #ccd8e7;border-radius:10px;background:#f8fafc;color:#17345f}
+.vf-setup-guide-steps button:hover{border-color:#173e7a;background:#edf4ff}
+.vf-setup-guide-steps span{font-weight:400;color:#526477}
+.vf-beta-tutorial{position:fixed;right:24px;bottom:24px;z-index:100003;display:none;width:min(440px,calc(100vw - 32px));padding:22px;border:2px solid #7fa5da;border-radius:16px;background:#fff;box-shadow:0 24px 70px rgba(8,27,58,.34)}
+.vf-beta-tutorial.show{display:block}
+.vf-beta-tutorial h3{margin:5px 0 8px;color:#17345f}
+.vf-beta-tutorial p{line-height:1.55}
+.vf-tutorial-progress{float:right;color:#526477;font-size:.8rem;font-weight:800}
+.vf-tutorial-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.vf-tutorial-highlight{position:relative;z-index:100002!important;outline:5px solid #f2b84b!important;outline-offset:5px;border-radius:8px;box-shadow:0 0 0 9999px rgba(8,27,58,.42)}
+@media(max-width:600px){.vf-roster-beginner-help,.vf-setup-guide-panel{padding:18px}.vf-roster-help-actions{align-items:stretch;flex-direction:column}}

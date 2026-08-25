@@ -29874,3 +29874,212 @@ $$('[data-payment-choice]')
   });
 
 
+
+
+/* ==========================================================
+   VENDORFLOW BETA GETTING STARTED GUIDE
+   ========================================================== */
+
+function openBetaGettingStartedGuide(){
+  const guide=document.querySelector('#vfGettingStartedGuide');
+  if(!guide)return;
+  guide.classList.add('show');
+  guide.setAttribute('aria-hidden','false');
+  guide.querySelector('[data-close-setup-guide]')?.focus();
+}
+
+function closeBetaGettingStartedGuide(){
+  const guide=document.querySelector('#vfGettingStartedGuide');
+  if(!guide)return;
+  guide.classList.remove('show');
+  guide.setAttribute('aria-hidden','true');
+}
+
+const vfBetaTutorialSteps=[
+  {view:'dashboard',target:'#dashboardView',title:'Your VendorFlow Home',text:'Start with Notifications. VendorFlow puts decisions, warnings, reminders, and anything needing your attention there.'},
+  {view:'review',target:'[data-view="review"]',title:'You Stay In Control',text:'VendorFlow never quietly guesses. Review uncertain items here, correct them, ignore them, or open the original source information.'},
+  {view:'classes',target:'[data-view="classes"]',title:'Create Every Class and Service',text:'Create each class, tutoring service, or other service. Each one can have its own price, schedule, payment terms, and roster.'},
+  {view:'classes',target:'#classSelect',title:'One Roster Per Class',text:'Choose a class, upload or enter its students, then choose the next class and repeat until every roster is entered.'},
+  {view:'payments',target:'[data-view="payments"]',title:'Payments: Two Ways',text:'Enter payments directly here or import a statement. You can also forward a detailed payment email to your private VendorFlow address.'},
+  {view:'certificates',target:'[data-view="certificates"]',title:'Certificates: Two Ways',text:'Upload one certificate, bulk upload saved PDFs, or forward a certificate email to VendorFlow.'},
+  {view:'inbox',target:'[data-view="inbox"]',title:'Your VendorFlow Email',text:'VendorFlow reads trusted forwarded messages, processes clear information, and sends uncertain information to Notifications instead of guessing.'},
+  {view:'students',target:'[data-view="students"]',title:'Complete Student Accounts',text:'Open any student to see services, charges, payments, certificates, refunds, balances, and the complete financial trail.'},
+  {view:'invoices',target:'[data-view="invoices"]',title:'Charter Invoicing',text:'Review invoices, control invoice numbering and timing, and approve the recipient and email before it is sent.'},
+  {view:'history',target:'[data-view="history"]',title:'Everything Is Recorded',text:'Actions shows what happened, when it happened, and whether it was manual, imported, or automated. You can always investigate and correct your records.'},
+  {view:'dashboard',target:'#dashboardView',title:'VendorFlow Works With You',text:'Use the website when you want direct control, or send VendorFlow the information by email. Either way, you remain informed and have the final say.'}
+];
+let vfBetaTutorialIndex=0;
+let vfBetaTutorialTarget=null;
+
+function closeBetaTutorial(){
+  document.querySelector('#vfBetaTutorial')?.classList.remove('show');
+  vfBetaTutorialTarget?.classList.remove('vf-tutorial-highlight');
+  vfBetaTutorialTarget=null;
+}
+
+function showBetaTutorialStep(){
+  const tour=document.querySelector('#vfBetaTutorial');
+  const step=vfBetaTutorialSteps[vfBetaTutorialIndex];
+  if(!tour || !step)return;
+  vfBetaTutorialTarget?.classList.remove('vf-tutorial-highlight');
+  switchView(step.view);
+  window.setTimeout(()=>{
+    vfBetaTutorialTarget=document.querySelector(step.target);
+    vfBetaTutorialTarget?.classList.add('vf-tutorial-highlight');
+    vfBetaTutorialTarget?.scrollIntoView({behavior:'smooth',block:'center'});
+    tour.querySelector('[data-tutorial-title]').textContent=step.title;
+    tour.querySelector('[data-tutorial-text]').textContent=step.text;
+    tour.querySelector('[data-tutorial-count]').textContent=`${vfBetaTutorialIndex+1} of ${vfBetaTutorialSteps.length}`;
+    tour.querySelector('[data-tutorial-back]').disabled=vfBetaTutorialIndex===0;
+    tour.querySelector('[data-tutorial-next]').textContent=vfBetaTutorialIndex===vfBetaTutorialSteps.length-1?'Finish':'Next';
+  },120);
+}
+
+function openBetaTutorial(){
+  closeBetaGettingStartedGuide();
+  vfBetaTutorialIndex=0;
+  document.querySelector('#vfBetaTutorial')?.classList.add('show');
+  showBetaTutorialStep();
+}
+
+function installBetaGettingStartedGuide(){
+  if(document.querySelector('#vfGettingStartedGuide'))return;
+
+  const guide=document.createElement('div');
+  guide.id='vfGettingStartedGuide';
+  guide.className='vf-setup-guide';
+  guide.setAttribute('aria-hidden','true');
+  guide.innerHTML=`
+    <div class="vf-setup-guide-backdrop" data-close-setup-guide></div>
+    <section class="vf-setup-guide-panel" role="dialog" aria-modal="true" aria-labelledby="vfSetupGuideTitle">
+      <div class="row between">
+        <div>
+          <div class="eyebrow">Getting started</div>
+          <h2 id="vfSetupGuideTitle">Set Up VendorFlow</h2>
+        </div>
+        <button type="button" data-close-setup-guide>Close</button>
+      </div>
+      <p>Use this checklist to bring your existing business into VendorFlow. You can leave and return at any time.</p>
+      <div class="vf-setup-guide-steps">
+        <button type="button" data-setup-view="account"><strong>1. Business Profile</strong><span>Check your business name, address, contact information, and payment instructions.</span></button>
+        <button type="button" data-setup-view="charters"><strong>2. Charter Schools</strong><span>Add every charter school or organization your business works with.</span></button>
+        <button type="button" data-setup-view="classes"><strong>3. Create All Classes and Services</strong><span>Create each class, tutoring service, or other service you currently provide.</span></button>
+        <button type="button" data-setup-view="classes"><strong>4. Add Each Class Roster</strong><span>Choose one class, upload or enter its students, then repeat for every other class.</span></button>
+        <button type="button" data-setup-view="payments"><strong>5. Previous Payments</strong><span>Import a payment statement or record payments already received before using VendorFlow.</span></button>
+        <button type="button" data-setup-view="certificates"><strong>6. Existing Certificates</strong><span>Bulk upload certificate PDFs already saved on your computer or cloud drive.</span></button>
+        <button type="button" data-setup-view="students"><strong>7. Check Student Accounts</strong><span>Confirm each student's services, payments, certificates, and balance.</span></button>
+        <button type="button" data-setup-view="dashboard"><strong>8. Start Using VendorFlow</strong><span>Return to Notifications and begin regular work.</span></button>
+      </div>
+    </section>`;
+  document.body.appendChild(guide);
+
+  const tour=document.createElement('aside');
+  tour.id='vfBetaTutorial';
+  tour.className='vf-beta-tutorial';
+  tour.setAttribute('role','dialog');
+  tour.setAttribute('aria-label','VendorFlow tutorial');
+  tour.innerHTML=`
+    <div class="eyebrow">VendorFlow tutorial</div>
+    <div class="vf-tutorial-progress" data-tutorial-count></div>
+    <h3 data-tutorial-title></h3>
+    <p data-tutorial-text></p>
+    <div class="vf-tutorial-actions">
+      <button type="button" data-tutorial-close>Exit</button>
+      <button type="button" data-tutorial-back>Back</button>
+      <button type="button" class="primary" data-tutorial-next>Next</button>
+    </div>`;
+  document.body.appendChild(tour);
+  tour.querySelector('[data-tutorial-close]').addEventListener('click',closeBetaTutorial);
+  tour.querySelector('[data-tutorial-back]').addEventListener('click',()=>{
+    if(vfBetaTutorialIndex>0){vfBetaTutorialIndex-=1;showBetaTutorialStep();}
+  });
+  tour.querySelector('[data-tutorial-next]').addEventListener('click',()=>{
+    if(vfBetaTutorialIndex>=vfBetaTutorialSteps.length-1){closeBetaTutorial();switchView('dashboard');return;}
+    vfBetaTutorialIndex+=1;
+    showBetaTutorialStep();
+  });
+
+  guide.querySelectorAll('[data-close-setup-guide]').forEach(button=>{
+    button.addEventListener('click',closeBetaGettingStartedGuide);
+  });
+  guide.querySelectorAll('[data-setup-view]').forEach(button=>{
+    button.addEventListener('click',()=>{
+      closeBetaGettingStartedGuide();
+      switchView(button.dataset.setupView);
+    });
+  });
+
+  const tutorial=document.querySelector('#dashboardTutorialButton');
+  if(tutorial){
+    tutorial.textContent='Start Tutorial';
+    tutorial.addEventListener('click',event=>{
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      openBetaTutorial();
+    },true);
+
+    const always=document.createElement('button');
+    always.id='dashboardAlwaysTutorial';
+    always.type='button';
+    always.className='vf-hero-secondary';
+    always.textContent='Tutorial';
+    always.addEventListener('click',openBetaTutorial);
+    tutorial.insertAdjacentElement('afterend',always);
+
+    const checklist=document.createElement('button');
+    checklist.id='dashboardAlwaysSetupGuide';
+    checklist.type='button';
+    checklist.className='vf-hero-secondary';
+    checklist.textContent='Setup Checklist';
+    checklist.addEventListener('click',openBetaGettingStartedGuide);
+    always.insertAdjacentElement('afterend',checklist);
+  }
+
+  const csv=document.querySelector('#csv');
+  const drop=document.querySelector('#drop');
+  if(csv && drop){
+    const help=document.createElement('section');
+    help.className='vf-roster-beginner-help';
+    help.innerHTML=`
+      <div class="eyebrow">Bring in your student roster</div>
+      <h3>Upload the roster for the class you selected</h3>
+      <ol>
+        <li>Open your roster on your learning center's website.</li>
+        <li>Choose <strong>Download</strong>, <strong>Export</strong>, or <strong>Download CSV</strong>.</li>
+        <li>Save the file in <strong>Downloads</strong> so it is easy to find.</li>
+        <li>Choose that same file below. VendorFlow will show you the students before anything is saved.</li>
+      </ol>
+      <p><strong>More than one class?</strong> Finish this roster, choose the next class, and repeat these steps for that class.</p>
+      <p><strong>What is a CSV?</strong> It is a spreadsheet file. Its name usually ends in <strong>.csv</strong>.</p>
+      <div class="vf-roster-help-actions">
+        <button type="button" data-download-roster-template>Download a Sample CSV</button>
+        <span id="vfRosterChosenFile">No file chosen yet.</span>
+      </div>`;
+    drop.insertAdjacentElement('beforebegin',help);
+
+    csv.addEventListener('change',()=>{
+      const label=document.querySelector('#vfRosterChosenFile');
+      if(label){
+        label.textContent=csv.files?.[0]
+          ? `Chosen file: ${csv.files[0].name}`
+          : 'No file chosen yet.';
+      }
+    });
+
+    help.querySelector('[data-download-roster-template]')?.addEventListener('click',()=>{
+      const sample='Registrant First Name,Registrant Last Name,Primary First Name,Primary Last Name,Email Address,Phone,Grade Level\\nJamie,Student,Pat,Parent,parent@example.com,555-555-5555,6\\n';
+      const url=URL.createObjectURL(new Blob([sample],{type:'text/csv'}));
+      const link=document.createElement('a');
+      link.href=url;
+      link.download='VendorFlow-Sample-Roster.csv';
+      link.click();
+      URL.revokeObjectURL(url);
+    });
+  }
+
+  document.addEventListener('keydown',event=>{
+    if(event.key==='Escape')closeBetaGettingStartedGuide();
+  });
+}
+
+installBetaGettingStartedGuide();
