@@ -6467,6 +6467,14 @@ async function dismissOverdueInvoiceReminder(invoiceId){
   invoice.overdueReminder=
     {dismissedUntil};
 
+  await log(
+    'Overdue reminder dismissed',
+    settings.repeatEnabled
+      ? `${invoice.invoiceNumber} — reminder dismissed until ${invoiceLedgerDate(dismissedUntil)}.`
+      : `${invoice.invoiceNumber} — reminder dismissed.`,
+    'Manual'
+  );
+
   toast(
     settings.repeatEnabled
       ? "Reminder dismissed. VendorFlow will remind you again if it's still unpaid."
