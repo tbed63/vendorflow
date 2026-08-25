@@ -1,0 +1,7085 @@
+:root{--navy:#172337;--ink:#18202b;--muted:#667085;--line:#e5e7eb;--bg:#f5f6f8;--gold:#b7791f;--danger:#b42318}*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--ink)}button,input,select,textarea{font:inherit}.hidden{display:none!important}.center{min-height:100vh;display:grid;place-items:center;padding:24px}.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:22px;margin-bottom:20px;box-shadow:0 6px 20px rgba(0,0,0,.04)}.auth-card,.onboarding-card{width:min(560px,94vw)}.onboarding-card{width:min(760px,94vw)}h1,h2{margin-top:0}.input{width:100%;padding:12px;border:1px solid #d0d5dd;border-radius:10px;margin:7px 0;background:#fff}.primary{background:var(--navy);color:#fff;border:0;border-radius:11px;padding:11px 15px;font-weight:700;cursor:pointer}.full{width:100%}.linkbtn{width:100%;border:0;background:transparent;padding:14px;font-weight:700;cursor:pointer}.error,.warn{padding:12px;border-radius:10px;background:#fff1f0;color:var(--danger);margin:10px 0}.row{display:flex;gap:12px;align-items:center}.between{justify-content:space-between}.progress{height:8px;background:#eef1f5;border-radius:999px;margin:20px 0;overflow:hidden}.progress div{height:100%;background:var(--gold);width:0}.question{background:#f8f9fb;border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:18px}.shell{display:grid;grid-template-columns:250px 1fr;min-height:100vh}aside{background:var(--navy);color:#fff;padding:22px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}.logo{width:44px;height:44px;border-radius:14px;background:#fff;color:var(--navy);display:grid;place-items:center;font-weight:800}aside h2{margin:10px 0 0}aside small{color:#c9d2df}nav{display:grid;gap:6px;margin-top:24px}nav button{border:0;background:transparent;color:#d9e0ea;text-align:left;padding:11px;border-radius:10px;font-weight:700;cursor:pointer}nav button.active{background:#fff;color:var(--navy)}.account{margin-top:auto;background:rgba(255,255,255,.07);padding:12px;border-radius:12px;display:grid;gap:5px}.account span{font-size:11px;color:#c9d2df}.account button{background:transparent;border:0;color:#fff;text-align:left;padding:0;cursor:pointer}main{padding:28px;min-width:0}header{margin-bottom:20px}.eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;color:var(--gold)}.hero{background:var(--navy);color:#fff;border-radius:22px;padding:28px;display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:18px}.hero p{color:#d9e0ea}.gold{color:#f2cd8d}.white{background:#fff;color:var(--navy);border:0;border-radius:11px;padding:11px 15px;font-weight:700}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}.stat{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;display:grid;gap:8px}.stat span{color:var(--muted);font-size:13px;font-weight:700}.stat strong{font-size:30px}.view{display:none}.view.active{display:block}.grid2{display:grid;grid-template-columns:.8fr 1.2fr;gap:18px}.drop{min-height:170px;border:2px dashed #c9ced6;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;gap:5px}.drop span{color:var(--muted)}hr{border:0;border-top:1px solid var(--line);margin:18px 0}.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:12px}table{width:100%;border-collapse:collapse;min-width:700px}th,td{padding:11px;border-bottom:1px solid var(--line);text-align:left;font-size:13px}th{background:#f8f9fb;color:var(--muted);font-size:11px;text-transform:uppercase}.empty{padding:24px;border:1px dashed #d0d5dd;border-radius:12px;color:var(--muted);text-align:center}.formgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-items:end;background:#f8f9fb;padding:14px;border-radius:14px;margin:14px 0}.danger{background:#fff1f0;color:var(--danger);border:1px solid #fecdca;border-radius:10px;padding:9px 12px}.record,.history{border-bottom:1px solid var(--line);padding:12px 0}.record:last-child,.history:last-child{border-bottom:0}.meta{color:var(--muted);font-size:12px;margin-top:4px}.history{display:grid;grid-template-columns:150px 1fr;gap:12px}.history small{color:var(--gold);font-weight:800;text-transform:uppercase}.narrow{max-width:720px}#toast{position:fixed;right:20px;bottom:20px;background:var(--navy);color:#fff;padding:12px 16px;border-radius:10px;opacity:0;transition:.2s}#toast.show{opacity:1}@media(max-width:900px){.shell{grid-template-columns:1fr}aside{height:auto;position:static}.account{display:none}nav{grid-template-columns:1fr 1fr}.stats{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.formgrid{grid-template-columns:1fr 1fr}}@media(max-width:600px){main{padding:14px}.hero{flex-direction:column;align-items:flex-start}.formgrid{grid-template-columns:1fr}.history{grid-template-columns:1fr}}
+
+/* ==========================================================
+   VENDORFLOW BRAND SYSTEM
+   Logo palette:
+   Navy      #1A346F
+   Deep Gray #5D757D
+   Light Gray #9FA4A9
+   ========================================================== */
+
+:root{
+  --navy:#1A346F;
+  --ink:#26353B;
+  --muted:#5D757D;
+  --line:#D8DEE1;
+  --bg:#F4F6F7;
+  --gold:#5D757D;
+  --danger:#B42318;
+  --vf-navy:#1A346F;
+  --vf-deep-gray:#5D757D;
+  --vf-light-gray:#9FA4A9;
+}
+
+body{
+  background:#F4F6F7;
+}
+
+.primary{
+  background:#1A346F;
+}
+
+.progress div{
+  background:#1A346F;
+}
+
+aside{
+  background:linear-gradient(
+    180deg,
+    #132753 0%,
+    #1A346F 100%
+  );
+}
+
+nav button.active{
+  color:#1A346F;
+}
+
+.eyebrow{
+  color:#1A346F;
+}
+
+.hero{
+  background:linear-gradient(
+    135deg,
+    #132753 0%,
+    #1A346F 100%
+  );
+}
+
+.hero .eyebrow{
+  color:#DDE3E6;
+}
+
+.stat{
+  border-top:4px solid #1A346F;
+}
+
+.stat span{
+  color:#5D757D;
+}
+
+.stat strong{
+  color:#1A346F;
+}
+
+.drop:hover{
+  border-color:#1A346F;
+}
+
+.history small{
+  color:#1A346F;
+}
+
+#toast{
+  background:#1A346F;
+}
+
+/* Loading */
+
+.vf-loading-brand{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:14px;
+  color:#5D757D;
+  font-weight:700;
+}
+
+.vf-loading-brand img{
+  width:min(360px,76vw);
+  height:auto;
+}
+
+/* Authentication */
+
+.vf-auth-brand{
+  text-align:center;
+  margin-bottom:22px;
+}
+
+.vf-auth-logo{
+  display:block;
+  width:min(360px,88%);
+  height:auto;
+  margin:0 auto 8px;
+}
+
+.vf-auth-subtitle{
+  color:#5D757D;
+  font-size:14px;
+  font-weight:600;
+  letter-spacing:.02em;
+}
+
+.vf-password-wrap{
+  position:relative;
+  width:100%;
+}
+
+.vf-password-wrap #password{
+  padding-right:48px;
+}
+
+.vf-password-eye{
+  position:absolute;
+  right:10px;
+  top:50%;
+  transform:translateY(-50%);
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border:0;
+  background:transparent;
+  cursor:pointer;
+  padding:0;
+  font-size:18px;
+  opacity:.72;
+}
+
+.vf-password-eye:hover{
+  opacity:1;
+}
+
+.vf-auth-help{
+  text-align:center;
+  margin:8px 0 2px;
+  color:#9FA4A9;
+  font-size:12px;
+}
+
+.vf-help-link{
+  border:0;
+  background:transparent;
+  color:#5D757D;
+  padding:3px;
+  cursor:pointer;
+  font-size:12px;
+  text-decoration:underline;
+  text-underline-offset:2px;
+}
+
+.vf-help-link:hover{
+  color:#1A346F;
+}
+
+/* Onboarding */
+
+.vf-onboarding-brand{
+  text-align:center;
+  margin-bottom:18px;
+}
+
+.vf-onboarding-logo{
+  width:min(270px,65vw);
+  height:auto;
+}
+
+/* Sidebar */
+
+.vf-sidebar-brand{
+  text-align:center;
+}
+
+.vf-sidebar-logo{
+  display:block;
+  width:190px;
+  max-width:100%;
+  height:auto;
+  margin:0 auto 6px;
+}
+
+.vf-sidebar-subtitle{
+  color:#DCE2E5;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.13em;
+}
+
+/* App header */
+
+.vf-app-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:24px;
+}
+
+.vf-header-logo{
+  width:135px;
+  height:auto;
+}
+
+/* Inputs */
+
+.input:focus,
+input:focus,
+select:focus,
+textarea:focus{
+  outline:none;
+  border-color:#1A346F;
+  box-shadow:0 0 0 3px rgba(26,52,111,.12);
+}
+
+/* Responsive branding */
+
+@media(max-width:900px){
+  .vf-sidebar-brand{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    text-align:left;
+  }
+
+  .vf-sidebar-logo{
+    width:145px;
+    margin:0;
+  }
+}
+
+@media(max-width:600px){
+  .vf-header-logo{
+    width:95px;
+  }
+
+  .vf-onboarding-logo{
+    width:min(235px,72vw);
+  }
+
+  .vf-auth-logo{
+    width:min(300px,88%);
+  }
+}
+
+/* ==========================================================
+   VENDORFLOW POLISHED DASHBOARD — AUGUST 2026
+   ========================================================== */
+
+/* Login + loading backgrounds */
+
+#auth.center,
+#loading.center{
+  background:
+    radial-gradient(
+      circle at 50% 18%,
+      #24498E 0%,
+      #1A346F 38%,
+      #132753 100%
+    );
+}
+
+#auth .auth-card{
+  background:#FFFFFF;
+  border:0;
+  box-shadow:
+    0 24px 70px rgba(0,0,0,.26),
+    0 2px 8px rgba(0,0,0,.10);
+}
+
+#loading .vf-loading-brand{
+  color:#FFFFFF;
+}
+
+#loading .vf-loading-brand img{
+  width:min(430px,78vw);
+}
+
+.vf-hide-old-auth-copy{
+  display:none !important;
+}
+
+
+/* ----------------------------------------------------------
+   SIDEBAR
+   ---------------------------------------------------------- */
+
+.shell{
+  grid-template-columns:280px 1fr;
+}
+
+aside{
+  padding:28px 20px 20px;
+  background:
+    linear-gradient(
+      180deg,
+      #132753 0%,
+      #18346D 48%,
+      #102852 100%
+    );
+}
+
+.vf-sidebar-brand{
+  margin-bottom:4px;
+}
+
+.vf-sidebar-logo{
+  width:235px;
+  max-width:100%;
+  margin:0 auto 14px;
+  filter:
+    drop-shadow(0 4px 10px rgba(0,0,0,.18));
+}
+
+.vf-sidebar-subtitle{
+  font-size:11px;
+  letter-spacing:.14em;
+  color:#FFFFFF;
+  opacity:.92;
+  margin-bottom:8px;
+}
+
+
+/* Navigation */
+
+nav{
+  margin-top:18px;
+  gap:8px;
+}
+
+nav button{
+  min-height:48px;
+  padding:10px 13px;
+  border-radius:12px;
+  display:flex;
+  align-items:center;
+  gap:13px;
+  font-size:15px;
+  color:#F1F4F7;
+  transition:
+    background .15s ease,
+    color .15s ease,
+    transform .08s ease;
+}
+
+nav button:hover{
+  background:rgba(255,255,255,.09);
+}
+
+nav button:active{
+  transform:translateY(1px);
+}
+
+nav button.active{
+  background:#FFFFFF;
+  color:#1A346F;
+  box-shadow:0 5px 16px rgba(0,0,0,.10);
+}
+
+.vf-nav-icon{
+  width:24px;
+  height:24px;
+  flex:0 0 24px;
+  display:grid;
+  place-items:center;
+}
+
+.vf-nav-icon svg{
+  width:23px;
+  height:23px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+
+/* Account box */
+
+.account{
+  padding:15px;
+  border-radius:14px;
+  background:rgba(255,255,255,.10);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+.account strong{
+  font-size:15px;
+}
+
+.account span{
+  font-size:11px;
+  color:#DDE5EA;
+}
+
+
+/* ----------------------------------------------------------
+   MAIN APP HEADER
+   ---------------------------------------------------------- */
+
+main{
+  padding:30px 34px;
+}
+
+.vf-app-header{
+  min-height:88px;
+  align-items:flex-start;
+  margin-bottom:18px;
+}
+
+.vf-app-header h1,
+header h1{
+  font-size:34px;
+  letter-spacing:-.035em;
+}
+
+.vf-header-logo{
+  width:285px;
+  max-width:31vw;
+  height:auto;
+  margin-top:-8px;
+}
+
+
+/* ----------------------------------------------------------
+   HERO
+   ---------------------------------------------------------- */
+
+.hero{
+  min-height:188px;
+  border-radius:22px;
+  padding:32px 34px;
+  background:
+    linear-gradient(
+      110deg,
+      #132753 0%,
+      #1A346F 52%,
+      #214584 100%
+    );
+  box-shadow:
+    0 10px 26px rgba(26,52,111,.13);
+}
+
+.hero h2{
+  font-size:28px;
+  letter-spacing:-.025em;
+  margin-bottom:14px;
+}
+
+.hero p{
+  font-size:15px;
+}
+
+.hero .white{
+  min-width:180px;
+  min-height:44px;
+  font-size:14px;
+}
+
+
+/* ----------------------------------------------------------
+   DASHBOARD CARDS
+   ---------------------------------------------------------- */
+
+.stats{
+  gap:16px;
+  margin-top:20px;
+}
+
+.stat{
+  min-height:112px;
+  border-radius:16px;
+  padding:18px;
+  border:1px solid #D8DEE4;
+  border-top:4px solid #1A346F;
+  box-shadow:0 4px 12px rgba(29,52,81,.035);
+}
+
+.stat span{
+  font-size:12px;
+}
+
+.stat strong{
+  font-size:31px;
+  line-height:1;
+}
+
+.card{
+  border-color:#D8DEE4;
+  box-shadow:
+    0 5px 18px rgba(29,52,81,.045);
+}
+
+#dashboardView > .card{
+  padding:26px 24px;
+}
+
+
+/* ----------------------------------------------------------
+   LOGIN CARD POLISH
+   ---------------------------------------------------------- */
+
+#auth .auth-card{
+  padding:32px 28px 28px;
+}
+
+#auth .vf-auth-logo{
+  width:min(390px,90%);
+}
+
+#auth .vf-auth-subtitle{
+  color:#5D757D;
+  margin-top:6px;
+}
+
+#auth .primary{
+  min-height:42px;
+}
+
+#auth .vf-auth-help{
+  margin-top:11px;
+}
+
+
+/* ----------------------------------------------------------
+   RESPONSIVE
+   ---------------------------------------------------------- */
+
+@media(max-width:1050px){
+
+  .shell{
+    grid-template-columns:245px 1fr;
+  }
+
+  .vf-sidebar-logo{
+    width:205px;
+  }
+
+  .vf-header-logo{
+    width:235px;
+  }
+
+  main{
+    padding:26px;
+  }
+}
+
+@media(max-width:900px){
+
+  .shell{
+    grid-template-columns:1fr;
+  }
+
+  aside{
+    padding:18px;
+  }
+
+  .vf-sidebar-brand{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+
+  .vf-sidebar-logo{
+    width:210px;
+    margin:0 auto 8px;
+  }
+
+  nav{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .vf-header-logo{
+    width:210px;
+    max-width:42vw;
+  }
+}
+
+@media(max-width:600px){
+
+  main{
+    padding:16px;
+  }
+
+  .vf-app-header{
+    min-height:70px;
+  }
+
+  .vf-app-header h1,
+  header h1{
+    font-size:29px;
+  }
+
+  .vf-header-logo{
+    width:145px;
+    max-width:42vw;
+  }
+
+  nav button{
+    font-size:13px;
+    gap:8px;
+  }
+
+  .vf-nav-icon{
+    width:20px;
+    flex-basis:20px;
+  }
+
+  .vf-nav-icon svg{
+    width:20px;
+    height:20px;
+  }
+
+  .hero{
+    min-height:auto;
+    padding:24px;
+  }
+
+  .stats{
+    grid-template-columns:1fr 1fr;
+  }
+}
+
+/* =========================================================
+   VENDORFLOW HORIZONTAL HEADER LOGO
+   ========================================================= */
+
+main > header{
+  position:relative;
+  min-height:132px;
+  margin-bottom:0;
+}
+
+/* Keep the horizontal logo as the highest item on the page */
+main > header img{
+  content:url("vendorflow-logo-horizon.png");
+  position:absolute;
+  top:0;
+  right:0;
+  width:min(500px,45vw);
+  height:105px;
+  object-fit:contain;
+  object-position:right top;
+}
+
+/* Move VendorFlow Beta + page title down near the hero box */
+main > header .eyebrow{
+  position:absolute;
+  left:0;
+  bottom:44px;
+  margin:0;
+}
+
+main > header h1,
+main > header h2{
+  position:absolute;
+  left:0;
+  bottom:0;
+  margin:0;
+}
+
+/* Keep the important content snug below the header */
+main > header + .hero{
+  margin-top:10px;
+}
+
+/* Tablet */
+@media(max-width:1000px){
+  main > header{
+    min-height:122px;
+  }
+
+  main > header img{
+    width:min(390px,45vw);
+    height:92px;
+  }
+}
+
+/* Mobile */
+@media(max-width:700px){
+  main > header{
+    min-height:185px;
+    padding-top:110px;
+  }
+
+  main > header img{
+    left:0;
+    right:auto;
+    width:min(360px,92%);
+    height:100px;
+  }
+
+  main > header .eyebrow{
+    bottom:40px;
+  }
+
+  main > header h1,
+  main > header h2{
+    bottom:0;
+  }
+}
+
+/* =========================================================
+   VENDORFLOW FINAL HORIZONTAL HEADER LOGO
+   ========================================================= */
+
+/* Large, readable horizontal logo without adding height */
+main > header img,
+.vf-header-logo{
+  content:url("vendorflow-logo-horizon.png");
+  width:min(610px,52vw) !important;
+  height:118px !important;
+  object-fit:contain !important;
+  object-position:right top !important;
+  top:-6px !important;
+  right:0 !important;
+}
+
+/* Keep header compact so dashboard content stays high */
+main > header,
+.vf-app-header{
+  min-height:132px !important;
+}
+
+/* Keep title snug immediately above command-center panel */
+main > header .eyebrow{
+  bottom:43px !important;
+}
+
+main > header h1,
+main > header h2{
+  bottom:0 !important;
+}
+
+main > header + .hero{
+  margin-top:8px !important;
+}
+
+@media(max-width:1100px){
+  main > header img,
+  .vf-header-logo{
+    width:min(500px,50vw) !important;
+    height:105px !important;
+  }
+}
+
+@media(max-width:700px){
+  main > header img,
+  .vf-header-logo{
+    width:min(390px,92vw) !important;
+    height:96px !important;
+    left:0 !important;
+    right:auto !important;
+    top:0 !important;
+  }
+}
+
+/* =========================================================
+   FINAL HEADER SPACING
+   Keep horizontal logo in place while pulling content upward
+   ========================================================= */
+
+main{
+  padding-top:10px !important;
+}
+
+/* Shorter header pulls Dashboard and hero upward */
+main > header,
+.vf-app-header{
+  min-height:112px !important;
+  margin-bottom:0 !important;
+}
+
+/* Compensate for reduced main padding so logo stays
+   approximately where it already looked good */
+main > header img,
+.vf-header-logo{
+  top:14px !important;
+}
+
+/* Keep title tucked immediately above the blue panel */
+main > header .eyebrow{
+  bottom:43px !important;
+}
+
+main > header h1,
+main > header h2{
+  bottom:0 !important;
+}
+
+/* Small, deliberate gap between Dashboard and command center */
+main > header + .hero{
+  margin-top:8px !important;
+}
+
+/* Preserve comfortable side/bottom padding */
+main{
+  padding-right:34px !important;
+  padding-bottom:28px !important;
+  padding-left:34px !important;
+}
+
+@media(max-width:1050px){
+  main{
+    padding-top:10px !important;
+    padding-right:26px !important;
+    padding-left:26px !important;
+  }
+
+  main > header,
+  .vf-app-header{
+    min-height:108px !important;
+  }
+
+  main > header img,
+  .vf-header-logo{
+    top:12px !important;
+  }
+}
+
+@media(max-width:700px){
+  main{
+    padding:12px 16px 20px !important;
+  }
+
+  main > header,
+  .vf-app-header{
+    min-height:170px !important;
+  }
+
+  main > header img,
+  .vf-header-logo{
+    top:4px !important;
+  }
+}
+
+
+/* ==========================================================
+   STUDENTS, SERVICES & FUNDING
+   ========================================================== */
+
+.vf-info-strip{
+  margin-top:18px;
+  padding:13px 15px;
+  border-radius:12px;
+  background:#EEF3F8;
+  border-left:4px solid #1A346F;
+  color:#435A63;
+  line-height:1.5;
+  font-size:13px;
+}
+
+.vf-form-2{
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+}
+
+.vf-form-help{
+  color:#5D757D;
+  max-width:760px;
+}
+
+.vf-count-pill,
+.vf-status-pill{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:6px 10px;
+  border-radius:999px;
+  background:#EEF3F8;
+  color:#1A346F;
+  font-size:11px;
+  font-weight:800;
+  white-space:nowrap;
+}
+
+.vf-student-account{
+  border:1px solid #D8DEE4;
+  border-radius:16px;
+  overflow:hidden;
+  margin-top:14px;
+  background:#FFFFFF;
+}
+
+.vf-student-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  padding:16px 18px;
+  background:#F8FAFB;
+  border-bottom:1px solid #E2E6E9;
+}
+
+.vf-student-head h3{
+  margin:0 0 5px;
+  font-size:17px;
+}
+
+.vf-student-meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px 14px;
+  color:#5D757D;
+  font-size:12px;
+}
+
+.vf-small-button{
+  border:1px solid #C9D2D7;
+  background:#FFFFFF;
+  color:#1A346F;
+  border-radius:9px;
+  padding:8px 11px;
+  cursor:pointer;
+  font-weight:700;
+  font-size:12px;
+}
+
+.vf-services{
+  padding:0 18px;
+}
+
+.vf-service-row{
+  display:grid;
+  grid-template-columns:
+    minmax(0,1fr) auto;
+  gap:18px;
+  align-items:center;
+  padding:15px 0;
+  border-bottom:1px solid #E7EBED;
+}
+
+.vf-service-row:last-child{
+  border-bottom:0;
+}
+
+.vf-service-name{
+  font-weight:800;
+  margin-bottom:5px;
+}
+
+.vf-service-meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px 12px;
+  color:#68777D;
+  font-size:11px;
+}
+
+.vf-service-money{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:18px;
+}
+
+.vf-service-money > div{
+  display:grid;
+  gap:2px;
+  text-align:right;
+}
+
+.vf-service-money small{
+  color:#7A888E;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+
+.vf-service-money strong{
+  color:#1A346F;
+  font-size:14px;
+}
+
+.vf-service-empty{
+  padding:16px 0;
+  color:#7A888E;
+  font-size:12px;
+}
+
+.vf-funding-preview{
+  margin:12px 0 16px;
+  padding:14px;
+  border-radius:12px;
+  background:#F5F7F8;
+  border:1px solid #DCE2E5;
+  color:#4D6168;
+  line-height:1.6;
+  font-size:13px;
+}
+
+.vf-funding-good{
+  margin-top:7px;
+  color:#067647;
+  font-weight:700;
+}
+
+.vf-funding-warning{
+  margin-top:7px;
+  color:#B54708;
+  font-weight:700;
+}
+
+@media(max-width:900px){
+
+  .vf-service-row{
+    grid-template-columns:1fr;
+  }
+
+  .vf-service-money{
+    justify-content:flex-start;
+    flex-wrap:wrap;
+  }
+}
+
+@media(max-width:650px){
+
+  .vf-form-2{
+    grid-template-columns:1fr;
+  }
+
+  .vf-student-head{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+}
+
+
+/* ==========================================================
+   EVENT-DRIVEN STUDENT ACCOUNTING
+   ========================================================== */
+
+.vf-account-summary{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:14px 24px;
+  padding:14px 18px;
+  border-bottom:1px solid #E2E6E9;
+  background:#FFFFFF;
+}
+
+.vf-account-summary > div{
+  display:grid;
+  gap:3px;
+}
+
+.vf-account-summary small{
+  color:#7A888E;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+
+.vf-account-summary strong{
+  color:#26353B;
+  font-size:15px;
+}
+
+.vf-paid-pill,
+.vf-due-pill,
+.vf-credit-pill{
+  margin-left:auto;
+  display:inline-flex;
+  align-items:center;
+  padding:7px 11px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:800;
+  white-space:nowrap;
+}
+
+.vf-paid-pill{
+  background:#ECFDF3;
+  color:#067647;
+}
+
+.vf-due-pill{
+  background:#FFF4E5;
+  color:#B54708;
+}
+
+.vf-credit-pill{
+  background:#EEF4FF;
+  color:#1A346F;
+}
+
+.vf-charter-receivable{
+  padding:11px 18px;
+  background:#F3F7FB;
+  border-bottom:1px solid #DDE5EB;
+  color:#435A63;
+  font-size:12px;
+}
+
+.vf-charter-receivable strong{
+  color:#1A346F;
+}
+
+.vf-refund-alert{
+  padding:11px 18px;
+  background:#FFF7ED;
+  border-bottom:1px solid #FED7AA;
+  color:#9A3412;
+  font-size:12px;
+}
+
+@media(max-width:700px){
+
+  .vf-account-summary{
+    align-items:flex-start;
+  }
+
+  .vf-paid-pill,
+  .vf-due-pill,
+  .vf-credit-pill{
+    margin-left:0;
+  }
+}
+
+
+/* ==========================================================
+   SMART PAYMENT STUDENT MATCHING
+   ========================================================== */
+
+.vf-student-search-wrap{
+  position:relative;
+  width:100%;
+}
+
+.vf-student-matches{
+  position:absolute;
+  left:0;
+  right:0;
+  top:calc(100% + 2px);
+  z-index:100;
+  background:#FFFFFF;
+  border:1px solid #CBD5DA;
+  border-radius:12px;
+  box-shadow:
+    0 14px 34px rgba(20,40,70,.16);
+  overflow:hidden;
+  max-height:310px;
+  overflow-y:auto;
+}
+
+.vf-student-match{
+  width:100%;
+  display:grid;
+  gap:3px;
+  text-align:left;
+  padding:11px 13px;
+  border:0;
+  border-bottom:1px solid #E6EAEC;
+  background:#FFFFFF;
+  cursor:pointer;
+  color:#26353B;
+}
+
+.vf-student-match:last-child{
+  border-bottom:0;
+}
+
+.vf-student-match:hover{
+  background:#F2F6FA;
+}
+
+.vf-student-match strong{
+  font-size:13px;
+}
+
+.vf-student-match span{
+  font-size:11px;
+  color:#5D757D;
+}
+
+.vf-student-match small{
+  font-size:10px;
+  color:#7A888E;
+}
+
+.vf-match-empty{
+  padding:12px 13px;
+  color:#7A888E;
+  font-size:12px;
+}
+
+
+/* ==========================================================
+   CERTIFICATE PDF STORAGE
+   ========================================================== */
+
+.vf-certificate-form{
+  margin-top:18px;
+  padding-top:18px;
+  border-top:1px solid #E3E8EB;
+}
+
+.vf-certificate-upload{
+  display:grid;
+  grid-template-columns:
+    minmax(0,1fr) auto;
+  gap:10px 18px;
+  align-items:center;
+  padding:16px;
+  margin-bottom:14px;
+  border:1px solid #D8E0E5;
+  border-radius:14px;
+  background:#F7FAFC;
+}
+
+.vf-certificate-upload strong{
+  color:#26353B;
+}
+
+.vf-certificate-upload p{
+  margin:4px 0 0;
+  color:#68777D;
+  font-size:12px;
+  line-height:1.45;
+}
+
+.vf-file-button{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:10px 14px;
+  border-radius:10px;
+  background:#1A346F;
+  color:#FFFFFF;
+  font-size:12px;
+  font-weight:800;
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+.vf-file-button input{
+  position:absolute;
+  width:1px;
+  height:1px;
+  opacity:0;
+  overflow:hidden;
+}
+
+.vf-file-status{
+  grid-column:1 / -1;
+  padding-top:3px;
+  color:#5D757D;
+  font-size:11px;
+}
+
+.vf-cert-actions{
+  margin-top:9px;
+}
+
+#saveCertificate:disabled{
+  opacity:.65;
+  cursor:wait;
+}
+
+@media(max-width:650px){
+
+  .vf-certificate-upload{
+    grid-template-columns:1fr;
+  }
+
+  .vf-file-button{
+    justify-self:start;
+  }
+}
+
+
+/* ==========================================================
+   AI CERTIFICATE EXTRACTION
+   ========================================================== */
+
+.vf-extraction-review{
+  grid-column:1 / -1;
+  margin-top:4px;
+  padding:11px 13px;
+  border-radius:10px;
+  font-size:12px;
+  line-height:1.5;
+}
+
+.vf-extraction-good{
+  background:#ECFDF3;
+  color:#067647;
+  border:1px solid #ABEFC6;
+}
+
+.vf-extraction-warning{
+  background:#FFF7ED;
+  color:#9A3412;
+  border:1px solid #FED7AA;
+}
+
+.vf-extraction-review strong{
+  display:block;
+  margin-bottom:3px;
+}
+
+
+/* ==========================================================
+   DUPLICATE REVIEW
+   ========================================================== */
+
+.vf-duplicate-review{
+  border:1px solid #FED7AA;
+  background:#FFFBF5;
+  border-radius:14px;
+  padding:16px;
+  margin-bottom:14px;
+}
+
+.vf-duplicate-label{
+  display:inline-block;
+  margin-bottom:8px;
+  padding:4px 7px;
+  border-radius:999px;
+  background:#FFF0D5;
+  color:#B54708;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.08em;
+}
+
+.vf-duplicate-compare{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin:14px 0;
+}
+
+.vf-duplicate-compare > div{
+  padding:11px 12px;
+  border:1px solid #E3E8EB;
+  border-radius:10px;
+  background:#FFFFFF;
+}
+
+.vf-duplicate-compare small{
+  display:block;
+  margin-bottom:4px;
+  color:#68777D;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+
+.vf-duplicate-compare strong{
+  font-size:12px;
+  line-height:1.4;
+}
+
+.vf-review-actions{
+  display:flex;
+  gap:9px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+
+.vf-secondary-button{
+  border:1px solid #C9D2D7;
+  background:#FFFFFF;
+  color:#1A346F;
+  border-radius:10px;
+  padding:10px 13px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.vf-default-note{
+  margin-top:8px;
+  color:#7A888E;
+  font-size:10px;
+}
+
+@media(max-width:700px){
+
+  .vf-duplicate-compare{
+    grid-template-columns:1fr;
+  }
+}
+
+
+/* ==========================================================
+   ROSTER TARGET CLASS
+   ========================================================== */
+
+.vf-roster-target{
+  margin:12px 0;
+  padding:15px 17px;
+  border-radius:13px;
+  display:grid;
+  gap:4px;
+}
+
+.vf-roster-target-label{
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.12em;
+}
+
+.vf-roster-target strong{
+  font-size:19px;
+  line-height:1.25;
+}
+
+.vf-roster-target span{
+  font-size:12px;
+}
+
+.vf-roster-target-ready{
+  background:#EEF4FF;
+  border:2px solid #1A346F;
+  color:#1A346F;
+}
+
+.vf-roster-target-ready span{
+  color:#526A76;
+}
+
+.vf-roster-target-confirm{
+  margin-top:4px;
+  color:#435A63;
+  font-size:11px;
+}
+
+.vf-roster-target-empty{
+  background:#FFF7ED;
+  border:2px solid #FDB022;
+  color:#9A3412;
+}
+
+.vf-drop-disabled{
+  opacity:.45;
+  cursor:not-allowed !important;
+  pointer-events:none;
+}
+
+
+/* ==========================================================
+   MANUAL ROSTER MANAGEMENT
+   ========================================================== */
+
+.vf-roster-actions{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+.vf-roster-actions button{
+  white-space:nowrap;
+}
+
+.vf-roster-inactive{
+  display:inline-block;
+  padding:5px 9px;
+  border-radius:999px;
+  background:#F1F3F5;
+  color:#66757D;
+  font-size:11px;
+  font-weight:800;
+}
+
+@media(max-width:700px){
+  .vf-roster-actions{
+    align-items:stretch;
+    flex-direction:column;
+  }
+
+  .vf-roster-actions button{
+    width:100%;
+  }
+}
+
+
+/* ==========================================================
+   ARCHIVED CLASS ROSTERS
+   ========================================================== */
+
+.vf-archive-card{
+  margin-top:18px;
+}
+
+.vf-archived-class{
+  display:flex;
+  justify-content:space-between;
+  gap:18px;
+  align-items:center;
+  padding:14px 0;
+  border-bottom:1px solid var(--line);
+}
+
+.vf-archived-class:last-child{
+  border-bottom:0;
+}
+
+.vf-archived-class strong{
+  display:block;
+  margin-bottom:4px;
+}
+
+.vf-archived-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.vf-archived-roster-viewer{
+  margin-top:18px;
+  padding-top:18px;
+  border-top:1px solid var(--line);
+}
+
+@media(max-width:700px){
+
+  .vf-archived-class{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .vf-archived-actions{
+    width:100%;
+  }
+}
+
+
+/* Student editing */
+.vf-roster-actions [data-edit-student]{
+  font-weight:800;
+}
+
+#studentForm{
+  position:relative;
+}
+
+
+/* ==========================================================
+   STUDENT STATUS MEANING
+   ========================================================== */
+
+.vf-student-status-help{
+  grid-column:1 / -1;
+  padding:11px 13px;
+  border-radius:10px;
+  font-size:12px;
+  line-height:1.5;
+}
+
+.vf-status-normal{
+  background:#EEF4FF;
+  border:1px solid #B2CCFF;
+  color:#1A346F;
+}
+
+.vf-status-warning{
+  background:#FFF7ED;
+  border:1px solid #FED7AA;
+  color:#9A3412;
+}
+
+.vf-status-danger{
+  background:#FFF1F0;
+  border:1px solid #FDA29B;
+  color:#B42318;
+}
+
+.vf-roster-actions{
+  justify-content:flex-start;
+}
+
+
+/* ==========================================================
+   MANUAL REFUNDS
+   ========================================================== */
+
+.vf-refund-button{
+  border:1px solid #B42318;
+  background:#FFFFFF;
+  color:#B42318;
+  font-weight:900;
+}
+
+.vf-refund-form{
+  margin-top:18px;
+  padding:18px;
+  border:1px solid #FDA29B;
+  border-radius:14px;
+  background:#FFFBFA;
+}
+
+.vf-refund-heading{
+  margin-bottom:14px;
+}
+
+.vf-refund-heading h3{
+  margin:3px 0 5px;
+}
+
+.vf-refund-heading p{
+  margin:0;
+  color:#66757D;
+  font-size:12px;
+}
+
+.vf-refund-available{
+  margin:12px 0;
+  padding:11px 13px;
+  border-radius:10px;
+  background:#F4F6F7;
+  color:#526A76;
+  font-size:12px;
+}
+
+.vf-refund-positive{
+  border:1px solid #ABEFC6;
+  background:#ECFDF3;
+  color:#067647;
+}
+
+.vf-refund-zero{
+  border:1px solid #FED7AA;
+  background:#FFF7ED;
+  color:#9A3412;
+}
+
+.vf-refund-override{
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+  margin:10px 0 15px;
+  font-size:12px;
+  color:#66757D;
+}
+
+.vf-refund-label{
+  color:#B42318;
+  font-size:10px;
+  letter-spacing:.06em;
+}
+
+
+/* ==========================================================
+   GLOBAL STUDENT SEARCH
+   ========================================================== */
+
+.vf-global-student-search{
+  position:relative;
+  margin:18px 0;
+  padding:16px;
+  border:1px solid #D8E0E5;
+  border-radius:14px;
+  background:#F8FAFB;
+}
+
+.vf-global-student-search h3{
+  margin:3px 0 4px;
+}
+
+.vf-global-student-search p{
+  margin:0 0 12px;
+  color:#66757D;
+  font-size:12px;
+}
+
+.vf-global-student-results{
+  margin-top:8px;
+  border:1px solid #D8E0E5;
+  border-radius:12px;
+  overflow:hidden;
+  background:#FFFFFF;
+}
+
+.vf-global-student-result{
+  width:100%;
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:center;
+  padding:12px 14px;
+  border:0;
+  border-bottom:1px solid #E8ECEF;
+  border-radius:0;
+  background:#FFFFFF;
+  text-align:left;
+  cursor:pointer;
+}
+
+.vf-global-student-result:last-child{
+  border-bottom:0;
+}
+
+.vf-global-student-result:hover{
+  background:#F3F6FA;
+}
+
+.vf-global-student-main{
+  display:grid;
+  gap:3px;
+}
+
+.vf-global-student-main strong{
+  color:#24343B;
+}
+
+.vf-global-student-main span,
+.vf-global-student-main small{
+  color:#66757D;
+  font-size:11px;
+}
+
+.vf-global-edit-label{
+  color:#1A346F;
+  font-size:11px;
+  font-weight:900;
+}
+
+.vf-search-empty{
+  padding:12px 14px;
+  color:#66757D;
+  font-size:12px;
+}
+
+.vf-global-core-edit{
+  margin-bottom:18px;
+}
+
+
+/* ==========================================================
+   DASHBOARD ATTENTION CENTER
+   ========================================================== */
+
+.vf-attention-hero{
+  align-items:center;
+}
+
+.vf-attention-copy{
+  max-width:650px;
+}
+
+.vf-attention-panel{
+  display:flex;
+  align-items:center;
+  gap:16px;
+  flex-shrink:0;
+}
+
+.vf-attention-number{
+  min-width:92px;
+  text-align:center;
+}
+
+.vf-attention-number strong{
+  display:block;
+  font-size:38px;
+  line-height:1;
+  color:#FFFFFF;
+}
+
+.vf-attention-number span{
+  display:block;
+  margin-top:5px;
+  color:rgba(255,255,255,.82);
+  font-size:11px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+
+@media(max-width:700px){
+
+  .vf-attention-hero{
+    align-items:flex-start;
+  }
+
+  .vf-attention-panel{
+    width:100%;
+    justify-content:space-between;
+  }
+}
+
+
+/* ==========================================================
+   DASHBOARD SETUP GUIDANCE
+   ========================================================== */
+
+.vf-attention-actions{
+  display:flex;
+  gap:9px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+.vf-hero-secondary{
+  border:1px solid rgba(255,255,255,.55);
+  background:transparent;
+  color:#FFFFFF;
+  font-weight:800;
+}
+
+.vf-hero-secondary:hover{
+  background:rgba(255,255,255,.08);
+}
+
+@media(max-width:700px){
+
+  .vf-attention-actions{
+    width:100%;
+  }
+}
+
+/* ==========================================================
+   SIDEBAR VIEWPORT / LOGOUT ACCESS
+   Keep the full sidebar usable on shorter screens.
+   ========================================================== */
+
+.sidebar{
+  height:100vh;
+  height:100dvh;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+  box-sizing:border-box;
+}
+
+.sidebar::-webkit-scrollbar{
+  width:6px;
+}
+
+.sidebar::-webkit-scrollbar-thumb{
+  background:rgba(255,255,255,.22);
+  border-radius:999px;
+}
+
+/*
+ * Give the final account area enough breathing room that its
+ * controls can always be scrolled completely into view.
+ */
+.sidebar > :last-child{
+  margin-bottom:18px;
+}
+
+
+
+/* ==========================================================
+   ACCOUNT & SETTINGS
+   ========================================================== */
+
+.account{
+  cursor:pointer;
+}
+
+.vf-account-click{
+  display:grid;
+  gap:2px;
+  min-width:0;
+}
+
+.vf-account-click strong,
+.vf-account-click span,
+.vf-account-click small{
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.vf-account-click small{
+  margin-top:3px;
+  color:rgba(255,255,255,.68);
+  font-size:10px;
+  font-weight:700;
+}
+
+.account:hover{
+  background:rgba(255,255,255,.12);
+}
+
+.account #logout{
+  cursor:pointer;
+}
+
+
+.vf-account-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin:18px 0;
+}
+
+.vf-account-field{
+  padding:14px;
+  border:1px solid #D8E0E5;
+  border-radius:11px;
+  background:#F8FAFB;
+}
+
+.vf-account-field small{
+  display:block;
+  margin-bottom:5px;
+  color:#66757D;
+  font-size:10px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+
+.vf-account-field strong{
+  display:block;
+  color:#26383F;
+  line-height:1.4;
+}
+
+.vf-account-wide{
+  grid-column:1 / -1;
+}
+
+.vf-account-actions{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  padding:15px 0;
+}
+
+.vf-account-actions + .vf-account-actions{
+  border-top:1px solid #E3E8EB;
+}
+
+.vf-account-actions p{
+  max-width:520px;
+  margin:4px 0 0;
+  color:#66757D;
+  font-size:12px;
+  line-height:1.5;
+}
+
+
+@media(max-width:700px){
+
+  .vf-account-grid{
+    grid-template-columns:1fr;
+  }
+
+  .vf-account-wide{
+    grid-column:auto;
+  }
+
+  .vf-account-actions{
+    align-items:stretch;
+    flex-direction:column;
+  }
+}
+
+
+/* ==========================================================
+   EDITABLE ACCOUNT INFORMATION
+   ========================================================== */
+
+.vf-account-readonly-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin:18px 0;
+}
+
+.vf-account-edit-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin:18px 0;
+}
+
+.vf-account-edit-grid label{
+  display:grid;
+  gap:5px;
+}
+
+.vf-account-edit-grid label > span{
+  color:#66757D;
+  font-size:11px;
+  font-weight:800;
+}
+
+.vf-account-edit-grid .vf-account-wide{
+  grid-column:1 / -1;
+}
+
+@media(max-width:700px){
+
+  .vf-account-readonly-grid,
+  .vf-account-edit-grid{
+    grid-template-columns:1fr;
+  }
+
+  .vf-account-edit-grid .vf-account-wide{
+    grid-column:auto;
+  }
+}
+
+
+/* ==========================================================
+   CHARTER SCHOOLS
+   ========================================================== */
+
+.vf-charter-form{
+  margin:18px 0;
+}
+
+.vf-charter-grid{
+  margin:16px 0;
+}
+
+.vf-charter-grid label{
+  display:grid;
+  gap:5px;
+}
+
+.vf-charter-grid label > span{
+  color:#66757D;
+  font-size:11px;
+  font-weight:800;
+}
+
+.vf-charter-wide{
+  grid-column:1 / -1;
+}
+
+.vf-days-input{
+  display:flex;
+  align-items:center;
+  gap:9px;
+}
+
+.vf-days-input input{
+  max-width:90px;
+}
+
+.vf-days-input span{
+  color:#66757D;
+  font-size:11px;
+}
+
+.vf-charter-form-note{
+  margin:10px 0 15px;
+  padding:11px 13px;
+  border:1px solid #B2CCFF;
+  border-radius:10px;
+  background:#EEF4FF;
+  color:#1A346F;
+  font-size:12px;
+}
+
+.vf-charter-list{
+  display:grid;
+  gap:12px;
+  margin-top:18px;
+}
+
+.vf-charter-card{
+  margin:0;
+}
+
+.vf-charter-card-main{
+  display:flex;
+  justify-content:space-between;
+  gap:15px;
+}
+
+.vf-charter-card-main h3{
+  margin:3px 0 0;
+}
+
+.vf-charter-details{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin:15px 0;
+}
+
+.vf-charter-details > div{
+  padding:10px 12px;
+  border-radius:9px;
+  background:#F7F9FA;
+}
+
+.vf-charter-details small{
+  display:block;
+  margin-bottom:4px;
+  color:#66757D;
+  font-size:10px;
+  font-weight:800;
+  text-transform:uppercase;
+}
+
+.vf-charter-details strong{
+  font-size:12px;
+  line-height:1.45;
+}
+
+.vf-charter-card-actions{
+  display:flex;
+  justify-content:flex-end;
+}
+
+.vf-empty-charters{
+  text-align:center;
+}
+
+.vf-archived-charter{
+  display:flex;
+  justify-content:space-between;
+  gap:15px;
+  align-items:center;
+  padding:11px 0;
+  border-bottom:1px solid #E5EAED;
+}
+
+.vf-archived-charter div{
+  display:grid;
+  gap:3px;
+}
+
+.vf-archived-charter span{
+  color:#66757D;
+  font-size:11px;
+}
+
+@media(max-width:700px){
+
+  .vf-charter-details{
+    grid-template-columns:1fr;
+  }
+
+  .vf-charter-wide{
+    grid-column:auto;
+  }
+}
+
+
+/* ==========================================================
+   CERTIFICATE INVOICE SCHEDULING
+   ========================================================== */
+
+.vf-cert-charter-field{
+  display:grid;
+  gap:4px;
+}
+
+.vf-cert-charter-field small{
+  padding-left:2px;
+  color:#66757D;
+  font-size:10px;
+  font-weight:700;
+}
+
+.vf-invoice-schedule{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px 10px;
+  align-items:center;
+  margin-top:9px;
+  padding:8px 10px;
+  border:1px solid #D9E1E5;
+  border-radius:8px;
+  background:#F7F9FA;
+  font-size:11px;
+}
+
+.vf-invoice-schedule strong{
+  color:#33434B;
+}
+
+.vf-invoice-schedule span{
+  color:#66757D;
+}
+
+.vf-invoice-ready{
+  border-color:#A8D5B5;
+  background:#EEF8F1;
+}
+
+.vf-invoice-ready strong{
+  color:#236A3B;
+}
+
+.vf-invoice-unlinked{
+  border-color:#E7CF96;
+  background:#FFF8E8;
+}
+
+.vf-invoice-unlinked strong{
+  color:#775A13;
+}
+
+
+/* ==========================================================
+   CERTIFICATE CHARTER PICKER
+   ========================================================== */
+
+.vf-cert-charter-field{
+  position:relative;
+}
+
+.vf-cert-charter-matches{
+  position:absolute;
+  z-index:50;
+  left:0;
+  right:0;
+  top:100%;
+  margin-top:4px;
+  border:1px solid #D6DEE3;
+  border-radius:11px;
+  overflow:hidden;
+  background:#FFFFFF;
+  box-shadow:0 12px 30px rgba(20,40,55,.14);
+}
+
+.vf-cert-charter-match,
+.vf-cert-charter-add{
+  width:100%;
+  display:grid;
+  gap:3px;
+  padding:11px 13px;
+  border:0;
+  border-bottom:1px solid #E8ECEF;
+  border-radius:0;
+  background:#FFFFFF;
+  text-align:left;
+  cursor:pointer;
+}
+
+.vf-cert-charter-match:last-child,
+.vf-cert-charter-add:last-child{
+  border-bottom:0;
+}
+
+.vf-cert-charter-match:hover{
+  background:#F3F6FA;
+}
+
+.vf-cert-charter-match strong,
+.vf-cert-charter-add strong{
+  color:#22363F;
+  font-size:12px;
+}
+
+.vf-cert-charter-match span,
+.vf-cert-charter-add span{
+  color:#66757D;
+  font-size:10px;
+}
+
+.vf-cert-charter-add{
+  background:#F5F8FF;
+}
+
+.vf-cert-charter-add strong{
+  color:#1A346F;
+}
+
+.vf-cert-charter-linked{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-top:6px;
+  padding:9px 11px;
+  border:1px solid #A8D5B5;
+  border-radius:9px;
+  background:#EEF8F1;
+}
+
+.vf-cert-charter-linked > div{
+  display:grid;
+  gap:2px;
+}
+
+.vf-cert-charter-linked strong{
+  color:#236A3B;
+  font-size:11px;
+}
+
+.vf-cert-charter-linked span{
+  color:#52725D;
+  font-size:10px;
+}
+
+.vf-cert-charter-linked button{
+  flex-shrink:0;
+}
+
+
+/* ==========================================================
+   CERTIFICATE STUDENT PICKER
+   ========================================================== */
+
+.vf-cert-student-field{
+  position:relative;
+}
+
+.vf-cert-student-matches{
+  position:absolute;
+  z-index:50;
+  left:0;
+  right:0;
+  top:100%;
+  margin-top:4px;
+  border:1px solid #D6DEE3;
+  border-radius:11px;
+  overflow:hidden;
+  background:#FFFFFF;
+  box-shadow:0 12px 30px rgba(20,40,55,.14);
+}
+
+.vf-cert-student-match{
+  width:100%;
+  display:grid;
+  gap:3px;
+  padding:11px 13px;
+  border:0;
+  border-bottom:1px solid #E8ECEF;
+  border-radius:0;
+  background:#FFFFFF;
+  text-align:left;
+  cursor:pointer;
+}
+
+.vf-cert-student-match:last-child{
+  border-bottom:0;
+}
+
+.vf-cert-student-match:hover{
+  background:#F3F6FA;
+}
+
+.vf-cert-student-match strong{
+  color:#22363F;
+  font-size:12px;
+}
+
+.vf-cert-student-match span{
+  color:#66757D;
+  font-size:10px;
+}
+
+.vf-cert-student-no-match{
+  display:grid;
+  gap:3px;
+  padding:11px 13px;
+  background:#FFF8E8;
+}
+
+.vf-cert-student-no-match strong{
+  color:#775A13;
+  font-size:11px;
+}
+
+.vf-cert-student-no-match span{
+  color:#7A6B47;
+  font-size:10px;
+}
+
+.vf-cert-student-linked{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-top:6px;
+  padding:9px 11px;
+  border:1px solid #A8D5B5;
+  border-radius:9px;
+  background:#EEF8F1;
+}
+
+.vf-cert-student-linked > div{
+  display:grid;
+  gap:2px;
+}
+
+.vf-cert-student-linked strong{
+  color:#236A3B;
+  font-size:11px;
+}
+
+.vf-cert-student-linked span{
+  color:#52725D;
+  font-size:10px;
+}
+
+.vf-cert-delete-button{
+  border:1px solid #FDA29B;
+  background:#FFFFFF;
+  color:#B42318;
+  font-weight:800;
+}
+
+
+/* ==========================================================
+   VENDORFLOW INVOICES
+   ========================================================== */
+
+.vf-invoice-page-head{
+  margin-bottom:22px;
+}
+
+.vf-invoice-page-head h2{
+  margin:3px 0 7px;
+}
+
+.vf-invoice-page-head p{
+  max-width:760px;
+  margin:0;
+  color:#526773;
+}
+
+.vf-invoice-summary-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:14px;
+  margin-bottom:20px;
+}
+
+.vf-invoice-summary-card{
+  background:#fff;
+  border:1px solid #d8e0e6;
+  border-top:3px solid #173a77;
+  border-radius:14px;
+  padding:17px 18px;
+}
+
+.vf-invoice-summary-card small{
+  display:block;
+  color:#607482;
+  font-weight:800;
+  letter-spacing:.06em;
+  margin-bottom:7px;
+}
+
+.vf-invoice-summary-card strong{
+  font-size:28px;
+  color:#173a77;
+}
+
+.vf-invoice-list{
+  display:grid;
+  gap:22px;
+}
+
+.vf-invoice-card{
+  background:#fff;
+  border:1px solid #d8e0e6;
+  border-radius:18px;
+  overflow:hidden;
+}
+
+.vf-invoice-card-top{
+  display:flex;
+  justify-content:space-between;
+  gap:20px;
+  padding:20px 22px;
+  background:#f8fafc;
+  border-bottom:1px solid #e1e7eb;
+}
+
+.vf-invoice-card-top h3{
+  margin:3px 0;
+  font-size:21px;
+}
+
+.vf-invoice-charter{
+  color:#536874;
+}
+
+.vf-invoice-amount{
+  font-size:26px;
+  font-weight:900;
+  color:#173a77;
+  white-space:nowrap;
+}
+
+.vf-invoice-paper{
+  max-width:850px;
+  margin:24px auto;
+  padding:34px;
+  border:1px solid #d8e0e6;
+  border-radius:10px;
+  background:#fff;
+  box-shadow:0 4px 18px rgba(20,44,76,.06);
+}
+
+.vf-invoice-paper-header{
+  display:flex;
+  justify-content:space-between;
+  gap:30px;
+  padding-bottom:24px;
+  border-bottom:2px solid #173a77;
+}
+
+.vf-invoice-paper-header > div:first-child{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+
+.vf-invoice-title-block{
+  text-align:right;
+}
+
+.vf-invoice-title-block strong{
+  display:block;
+  font-size:28px;
+  letter-spacing:.06em;
+  color:#173a77;
+}
+
+.vf-invoice-title-block span{
+  color:#5e707b;
+}
+
+.vf-invoice-billto{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  margin:26px 0;
+}
+
+.vf-invoice-billto small,
+.vf-invoice-details-grid small{
+  color:#647986;
+  font-weight:800;
+  letter-spacing:.05em;
+}
+
+.vf-invoice-details-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:16px;
+  margin-bottom:28px;
+}
+
+.vf-invoice-details-grid > div{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+.vf-invoice-line{
+  display:flex;
+  justify-content:space-between;
+  gap:20px;
+  padding:15px 0;
+  border-top:1px solid #d8e0e6;
+  border-bottom:1px solid #d8e0e6;
+}
+
+.vf-invoice-total{
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:28px;
+  padding:18px 0;
+  font-size:19px;
+}
+
+.vf-invoice-total strong{
+  font-size:23px;
+  color:#173a77;
+}
+
+.vf-invoice-vf-footer{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  border-top:1px solid #e1e7eb;
+  margin-top:24px;
+  padding-top:18px;
+  color:#70818b;
+  font-size:12px;
+}
+
+.vf-invoice-vf-footer img{
+  width:82px;
+  max-height:32px;
+  object-fit:contain;
+}
+
+.vf-invoice-actions{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  flex-wrap:wrap;
+  padding:18px 22px;
+  border-top:1px solid #e1e7eb;
+  background:#f8fafc;
+}
+
+.vf-invoice-email{
+  color:#526773;
+  font-size:13px;
+}
+
+.vf-invoice-warning{
+  color:#9a5b17;
+  font-weight:700;
+}
+
+@media(max-width:760px){
+
+  .vf-invoice-summary-grid{
+    grid-template-columns:1fr;
+  }
+
+  .vf-invoice-paper{
+    margin:14px;
+    padding:22px;
+  }
+
+  .vf-invoice-paper-header,
+  .vf-invoice-card-top{
+    flex-direction:column;
+  }
+
+  .vf-invoice-title-block{
+    text-align:left;
+  }
+
+  .vf-invoice-details-grid{
+    grid-template-columns:1fr;
+  }
+
+}
+
+
+
+.vf-invoice-actions .vf-secondary-button{
+  background:#FFFFFF;
+  border:1px solid #B9C4CB;
+  color:#526773;
+}
+
+
+/* ==========================================================
+   INVOICE NUMBERING SETTINGS
+   ========================================================== */
+
+.vf-invoice-numbering-card{
+  margin:18px 0 24px;
+  padding:18px;
+  border:1px solid #D8E0E5;
+  border-radius:14px;
+  background:#F8FAFB;
+}
+
+.vf-invoice-numbering-card h3{
+  margin:4px 0 6px;
+}
+
+.vf-invoice-numbering-card > p{
+  max-width:690px;
+  margin:0 0 15px;
+  color:#66757D;
+  font-size:12px;
+  line-height:1.5;
+}
+
+.vf-numbering-choice{
+  display:flex;
+  align-items:flex-start;
+  gap:11px;
+  margin:9px 0;
+  padding:13px 14px;
+  border:1px solid #D8E0E5;
+  border-radius:11px;
+  background:#FFFFFF;
+  cursor:pointer;
+}
+
+.vf-numbering-choice input{
+  margin-top:3px;
+}
+
+.vf-numbering-choice > div{
+  display:grid;
+  gap:3px;
+}
+
+.vf-numbering-choice strong{
+  color:#26383F;
+}
+
+.vf-numbering-choice span{
+  color:#66757D;
+  font-size:11px;
+}
+
+.vf-numbering-custom{
+  max-width:500px;
+  margin:12px 0 16px 27px;
+  padding:13px;
+  border-left:3px solid #1A346F;
+  background:#FFFFFF;
+}
+
+.vf-numbering-custom label{
+  display:grid;
+  gap:5px;
+}
+
+.vf-numbering-custom label > span{
+  color:#526A76;
+  font-size:11px;
+  font-weight:800;
+}
+
+.vf-numbering-custom small{
+  display:block;
+  margin-top:6px;
+  color:#66757D;
+}
+
+.vf-numbering-preview{
+  margin-top:8px;
+  padding:9px 10px;
+  border-radius:8px;
+  background:#EEF4FF;
+  color:#1A346F;
+  font-size:11px;
+}
+
+.vf-numbering-preview span{
+  margin-left:6px;
+  color:#66757D;
+}
+
+@media(max-width:700px){
+
+  .vf-numbering-custom{
+    margin-left:0;
+  }
+}
+
+
+/* ==========================================================
+   GLOBAL HEADER ACCOUNT
+   ========================================================== */
+
+.vf-app-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:24px;
+}
+
+.vf-header-title{
+  min-width:0;
+}
+
+.vf-header-account{
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex:0 0 auto;
+  margin:0;
+  padding:0;
+  border:0;
+  background:transparent;
+}
+
+.vf-header-account .vf-account-click{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-width:0;
+  padding:7px 10px;
+  border:1px solid #D8E0E5;
+  border-radius:11px;
+  background:#FFFFFF;
+  color:#26383F;
+  cursor:pointer;
+  text-align:left;
+}
+
+.vf-header-account .vf-account-click:hover{
+  background:#F6F8FA;
+  border-color:#C4CFD6;
+}
+
+.vf-account-avatar{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:32px;
+  height:32px;
+  flex:0 0 32px;
+  border-radius:50%;
+  background:#173A77;
+  color:#FFFFFF;
+  font-size:13px;
+  font-weight:900;
+}
+
+.vf-account-header-copy{
+  display:grid;
+  gap:1px;
+  min-width:0;
+}
+
+.vf-account-header-copy strong{
+  max-width:170px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:12px;
+}
+
+.vf-account-header-copy small{
+  max-width:190px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#66757D;
+  font-size:9px;
+}
+
+.vf-account-chevron{
+  color:#66757D;
+  font-size:14px;
+}
+
+.vf-header-logout{
+  padding:8px 10px;
+  border:0;
+  background:transparent;
+  color:#66757D;
+  font-size:11px;
+  font-weight:700;
+}
+
+.vf-header-logout:hover{
+  color:#B42318;
+  background:#FFF1F0;
+}
+
+
+/* Sidebar no longer needs to reserve room for account controls */
+
+aside nav{
+  padding-bottom:18px;
+}
+
+
+/* ==========================================================
+   INVOICE NUMBERING PLACEMENT
+   ========================================================== */
+
+#invoicesView .vf-invoice-numbering-card{
+  margin-top:0;
+  margin-bottom:22px;
+}
+
+
+/* ==========================================================
+   RESPONSIVE HEADER
+   ========================================================== */
+
+@media(max-width:850px){
+
+  .vf-app-header{
+    align-items:flex-start;
+  }
+
+  .vf-account-header-copy small{
+    display:none;
+  }
+
+  .vf-header-logout{
+    padding-left:7px;
+    padding-right:7px;
+  }
+}
+
+@media(max-width:650px){
+
+  .vf-header-account .vf-account-click{
+    padding:6px;
+  }
+
+  .vf-account-header-copy{
+    display:none;
+  }
+
+  .vf-account-chevron{
+    display:none;
+  }
+
+  .vf-header-logout{
+    font-size:10px;
+  }
+}
+
+
+/* ==========================================================
+   VENDORFLOW APPLICATION HEADER — FINAL
+   AUTHORITATIVE HEADER RULES
+   ========================================================== */
+
+/*
+ * These rules deliberately use !important because older
+ * VendorFlow header styles remain earlier in the stylesheet.
+ * This one section is the source of truth.
+ */
+
+.vf-app-header{
+  position:relative !important;
+  display:block !important;
+
+  width:100% !important;
+
+  height:185px !important;
+  min-height:185px !important;
+  max-height:none !important;
+
+  margin:0 0 8px 0 !important;
+  padding:0 !important;
+
+  overflow:visible !important;
+}
+
+
+/* ----------------------------------------------------------
+   LEFT — CURRENT PAGE
+   ---------------------------------------------------------- */
+
+.vf-header-title{
+  position:absolute !important;
+
+  left:0 !important;
+  right:auto !important;
+
+  top:auto !important;
+  bottom:10px !important;
+
+  width:auto !important;
+  min-width:0 !important;
+
+  margin:0 !important;
+  padding:0 !important;
+
+  transform:none !important;
+}
+
+.vf-header-title .eyebrow{
+  margin:0 0 6px 0 !important;
+
+  color:#1A346F !important;
+
+  font-size:11px !important;
+  font-weight:800 !important;
+  line-height:1 !important;
+  letter-spacing:.15em !important;
+}
+
+.vf-header-title h1{
+  margin:0 !important;
+  padding:0 !important;
+
+  color:#26383F !important;
+
+  font-size:34px !important;
+  line-height:1 !important;
+  letter-spacing:-.035em !important;
+}
+
+
+/* ----------------------------------------------------------
+   CENTER — VENDORFLOW BRAND
+
+   Important:
+   top:42% intentionally places the large logo slightly above
+   mathematical center so its visual weight stays entirely
+   inside the white header and never touches the blue hero.
+   ---------------------------------------------------------- */
+
+.vf-header-brand{
+  position:absolute !important;
+
+  left:55% !important;
+  right:auto !important;
+
+  top:16% !important;
+  bottom:auto !important;
+
+  width:auto !important;
+  height:auto !important;
+
+  margin:0 !important;
+  padding:0 !important;
+
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+
+  transform:translate(-50%,-50%) !important;
+
+  pointer-events:none !important;
+
+  z-index:1 !important;
+}
+
+.vf-header-brand-logo{
+  display:block !important;
+
+  width:675px !important;
+  max-width:48vw !important;
+  max-height:125px !important;
+
+  height:auto !important;
+
+  margin:0 !important;
+  padding:0 !important;
+
+  object-fit:contain !important;
+
+  transform:none !important;
+}
+
+
+/* Retire any legacy dynamically-injected logo */
+.vf-app-header > .vf-header-logo{
+  display:none !important;
+}
+
+
+/* ----------------------------------------------------------
+   RIGHT — ACCOUNT
+   ---------------------------------------------------------- */
+
+.vf-header-account{
+  position:absolute !important;
+
+  right:0 !important;
+  left:auto !important;
+
+  top:auto !important;
+  bottom:10px !important;
+
+  width:auto !important;
+
+  margin:0 !important;
+  padding:0 !important;
+
+  display:flex !important;
+  align-items:center !important;
+  gap:10px !important;
+
+  transform:none !important;
+
+  background:transparent !important;
+  box-shadow:none !important;
+
+  z-index:5 !important;
+}
+
+
+.vf-header-account .vf-account-click{
+  display:flex !important;
+  align-items:center !important;
+  gap:11px !important;
+
+  min-width:255px !important;
+  max-width:310px !important;
+  min-height:64px !important;
+
+  margin:0 !important;
+  padding:10px 14px !important;
+
+  border:1px solid #D8E0E5 !important;
+  border-radius:12px !important;
+
+  background:#FFFFFF !important;
+  color:#26383F !important;
+
+  text-align:left !important;
+}
+
+
+.vf-header-account .vf-account-avatar{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+
+  width:40px !important;
+  height:40px !important;
+  min-width:40px !important;
+
+  border-radius:50% !important;
+
+  background:#173A77 !important;
+  color:#FFFFFF !important;
+
+  font-size:16px !important;
+  font-weight:900 !important;
+}
+
+
+.vf-header-account .vf-account-header-copy{
+  display:grid !important;
+  gap:4px !important;
+
+  min-width:0 !important;
+}
+
+
+.vf-header-account .vf-account-header-copy strong{
+  display:block !important;
+
+  max-width:180px !important;
+
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  white-space:nowrap !important;
+
+  color:#26383F !important;
+
+  font-size:16px !important;
+  font-weight:800 !important;
+  line-height:1.1 !important;
+}
+
+
+.vf-header-account .vf-account-header-copy small{
+  display:block !important;
+
+  max-width:185px !important;
+
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  white-space:nowrap !important;
+
+  color:#66757D !important;
+
+  font-size:12px !important;
+  font-weight:600 !important;
+  line-height:1.15 !important;
+}
+
+
+.vf-header-account .vf-account-chevron{
+  display:inline !important;
+
+  color:#66757D !important;
+  font-size:16px !important;
+}
+
+
+.vf-header-account .vf-header-logout{
+  display:block !important;
+
+  padding:9px 10px !important;
+
+  border:0 !important;
+  border-radius:8px !important;
+
+  background:transparent !important;
+  color:#526773 !important;
+
+  font-size:14px !important;
+  font-weight:700 !important;
+}
+
+
+/* ----------------------------------------------------------
+   CONTENT BELOW HEADER
+   ---------------------------------------------------------- */
+
+#dashboardView{
+  margin-top:0 !important;
+  padding-top:0 !important;
+}
+
+#dashboardView > .hero{
+  margin-top:0 !important;
+}
+
+
+/* ----------------------------------------------------------
+   MEDIUM DESKTOP
+   ---------------------------------------------------------- */
+
+@media(max-width:1200px){
+
+  .vf-app-header{
+    height:165px !important;
+    min-height:165px !important;
+  }
+
+  .vf-header-brand-logo{
+    width:525px !important;
+    max-width:42vw !important;
+    max-height:110px !important;
+  }
+
+  .vf-header-account .vf-account-click{
+    min-width:220px !important;
+    max-width:250px !important;
+  }
+
+  .vf-header-account .vf-account-header-copy strong{
+    max-width:145px !important;
+    font-size:14px !important;
+  }
+
+  .vf-header-account .vf-account-header-copy small{
+    display:block !important;
+
+    max-width:150px !important;
+    font-size:11px !important;
+  }
+}
+
+
+/* ----------------------------------------------------------
+   TABLET
+   ---------------------------------------------------------- */
+
+@media(max-width:950px){
+
+  .vf-app-header{
+    height:105px !important;
+    min-height:105px !important;
+  }
+
+  .vf-header-brand{
+    display:none !important;
+  }
+
+  .vf-header-title,
+  .vf-header-account{
+    bottom:8px !important;
+  }
+}
+
+
+/* ----------------------------------------------------------
+   PHONE
+   ---------------------------------------------------------- */
+
+@media(max-width:650px){
+
+  .vf-app-header{
+    height:90px !important;
+    min-height:90px !important;
+  }
+
+  .vf-header-title h1{
+    font-size:27px !important;
+  }
+
+  .vf-header-account .vf-account-click{
+    min-width:auto !important;
+    max-width:none !important;
+
+    padding:8px !important;
+  }
+
+  .vf-header-account .vf-account-header-copy,
+  .vf-header-account .vf-account-chevron{
+    display:none !important;
+  }
+
+  .vf-header-account .vf-header-logout{
+    font-size:11px !important;
+    padding:7px !important;
+  }
+}
+
+
+/* ==========================================================
+   HEADER PAGE TITLE — PREVENT MULTI-WORD TITLE COLLISIONS
+   ========================================================== */
+
+.vf-header-title{
+  width:250px !important;
+  min-width:250px !important;
+  max-width:250px !important;
+}
+
+.vf-header-title h1{
+  display:block !important;
+
+  width:100% !important;
+  max-width:none !important;
+
+  margin:0 !important;
+
+  font-size:30px !important;
+  line-height:1.05 !important;
+
+  white-space:nowrap !important;
+  word-break:normal !important;
+  overflow-wrap:normal !important;
+}
+
+.vf-header-title .eyebrow{
+  display:block !important;
+
+  width:100% !important;
+
+  margin:0 0 7px 0 !important;
+
+  white-space:nowrap !important;
+  word-break:normal !important;
+  overflow-wrap:normal !important;
+}
+
+
+/* ==========================================================
+   HEADER LEFT — EYEBROW ONLY
+   Keep logo and account geometry untouched.
+   ========================================================== */
+
+.vf-header-title{
+  position:absolute !important;
+
+  left:0 !important;
+  right:auto !important;
+
+  top:auto !important;
+  bottom:10px !important;
+
+  width:auto !important;
+  min-width:0 !important;
+  max-width:none !important;
+
+  margin:0 !important;
+  padding:0 !important;
+
+  transform:none !important;
+}
+
+.vf-header-title h1{
+  display:none !important;
+}
+
+.vf-header-title .eyebrow{
+  display:block !important;
+
+  width:auto !important;
+
+  margin:0 !important;
+  padding:0 !important;
+
+  color:#1A346F !important;
+
+  font-size:11px !important;
+  font-weight:800 !important;
+  line-height:1 !important;
+  letter-spacing:.15em !important;
+
+  white-space:nowrap !important;
+}
+
+
+
+/* ==========================================================
+   CLICKABLE INVOICE STATUS FILTERS
+   ========================================================== */
+
+.vf-invoice-filter-card{
+  cursor:pointer;
+  user-select:none;
+  transition:
+    transform .12s ease,
+    box-shadow .12s ease,
+    border-color .12s ease,
+    background .12s ease;
+}
+
+.vf-invoice-filter-card:hover{
+  transform:translateY(-2px);
+  border-color:#9BAAC0;
+  box-shadow:0 8px 18px rgba(29,52,81,.10);
+}
+
+.vf-invoice-filter-card:focus-visible{
+  outline:3px solid rgba(26,52,111,.22);
+  outline-offset:3px;
+}
+
+.vf-invoice-filter-card.active{
+  border-color:#1A346F;
+  background:#EEF4FF;
+  box-shadow:
+    inset 0 0 0 1px #1A346F,
+    0 6px 14px rgba(29,52,81,.08);
+}
+
+.vf-invoice-filter-card.active small,
+.vf-invoice-filter-card.active strong{
+  color:#1A346F;
+}
+
+
+/* ==========================================================
+   UNIQUE VENDORFLOW INBOUND EMAIL
+   ========================================================== */
+
+.vf-inbound-email-card{
+  margin:22px 0;
+  padding:20px;
+
+  border:1px solid #D8E0E5;
+  border-radius:16px;
+
+  background:#F7F9FC;
+}
+
+.vf-inbound-email-card h3{
+  margin:6px 0 8px;
+}
+
+.vf-inbound-email-card p{
+  margin:0 0 15px;
+
+  color:#526773;
+  line-height:1.5;
+}
+
+.vf-inbound-email-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+
+  margin-bottom:9px;
+  padding:12px 14px;
+
+  border:1px solid #CAD5E2;
+  border-radius:11px;
+
+  background:#FFFFFF;
+}
+
+.vf-inbound-email-row strong{
+  min-width:0;
+
+  overflow-wrap:anywhere;
+
+  color:#173A77;
+  font-size:16px;
+}
+
+.vf-inbound-email-card > small{
+  color:#66757D;
+}
+
+@media(max-width:650px){
+
+  .vf-inbound-email-row{
+    align-items:stretch;
+    flex-direction:column;
+  }
+
+  .vf-inbound-email-row button{
+    width:100%;
+  }
+}
+
+
+
+/* ==========================================================
+   CLICKABLE DASHBOARD STAT CARDS
+   ========================================================== */
+
+.vf-clickable-stat{
+  cursor:pointer;
+  user-select:none;
+
+  transition:
+    transform .12s ease,
+    box-shadow .12s ease,
+    border-color .12s ease,
+    background .12s ease;
+}
+
+.vf-clickable-stat:hover{
+  transform:translateY(-2px);
+
+  border-color:#9BAAC0;
+
+  box-shadow:
+    0 8px 18px rgba(29,52,81,.10);
+
+  background:#FAFCFF;
+}
+
+.vf-clickable-stat:focus-visible{
+  outline:
+    3px solid rgba(26,52,111,.22);
+
+  outline-offset:3px;
+}
+
+
+
+/* ==========================================================
+   PROFESSIONAL SEARCHABLE INVOICE LEDGER
+   ========================================================== */
+
+.vf-invoice-summary-grid{
+  display:none !important;
+}
+
+
+.vf-invoice-ledger-toolbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:24px;
+
+  margin:8px 0 18px;
+  padding-bottom:12px;
+
+  border-bottom:1px solid #DDE4E9;
+}
+
+
+.vf-invoice-ledger-nav{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+
+.vf-invoice-ledger-nav > span{
+  color:#C6CFD6;
+}
+
+
+.vf-invoice-ledger-tab{
+  margin:0;
+  padding:5px 1px;
+
+  border:0;
+  border-bottom:2px solid transparent;
+
+  background:transparent;
+  color:#67767E;
+
+  cursor:pointer;
+
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:.025em;
+}
+
+
+.vf-invoice-ledger-tab:hover{
+  color:#173A77;
+}
+
+
+.vf-invoice-ledger-tab.active{
+  border-bottom-color:#173A77;
+
+  color:#173A77;
+
+  font-weight:850;
+}
+
+
+.vf-text-link{
+  border:0;
+
+  background:transparent;
+  color:#173A77;
+
+  cursor:pointer;
+
+  font-size:13px;
+  font-weight:700;
+}
+
+
+.vf-text-link:hover{
+  text-decoration:underline;
+}
+
+
+.vf-invoice-search-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+
+  margin-bottom:14px;
+}
+
+
+.vf-invoice-search-row > .input{
+  flex:1;
+}
+
+
+.vf-invoice-advanced-filters{
+  display:grid;
+  grid-template-columns:
+    repeat(3,minmax(150px,1fr));
+
+  gap:12px;
+
+  margin-bottom:18px;
+  padding:16px;
+
+  border:1px solid #DCE3E8;
+  border-radius:12px;
+
+  background:#F8FAFC;
+}
+
+
+.vf-invoice-advanced-filters label{
+  display:grid;
+  gap:6px;
+
+  color:#607079;
+
+  font-size:12px;
+  font-weight:700;
+}
+
+
+.vf-invoice-ledger-header,
+.vf-invoice-ledger-row{
+  display:grid;
+
+  grid-template-columns:
+    1.2fr
+    1.7fr
+    1.35fr
+    1.55fr
+    1fr
+    .9fr
+    .85fr;
+
+  align-items:center;
+
+  gap:15px;
+}
+
+
+.vf-invoice-ledger-header{
+  padding:9px 14px;
+
+  border-bottom:1px solid #CFD8DF;
+
+  color:#78878F;
+
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.055em;
+  text-transform:uppercase;
+}
+
+
+.vf-invoice-ledger-row{
+  width:100%;
+
+  padding:14px;
+
+  border:0;
+  border-bottom:1px solid #E3E9ED;
+
+  background:#FFFFFF;
+  color:#293A42;
+
+  cursor:pointer;
+
+  font:inherit;
+  text-align:left;
+
+  transition:
+    background .1s ease,
+    box-shadow .1s ease;
+}
+
+
+.vf-invoice-ledger-row:hover{
+  background:#F6F9FD;
+
+  box-shadow:
+    inset 3px 0 0 #173A77;
+}
+
+
+.vf-invoice-ledger-row:focus-visible{
+  outline:3px solid rgba(23,58,119,.16);
+  outline-offset:-3px;
+}
+
+
+.vf-ledger-number{
+  color:#173A77;
+  font-weight:800;
+}
+
+
+.vf-invoice-ledger-header .right,
+.vf-invoice-ledger-row .right{
+  text-align:right;
+}
+
+
+.vf-ledger-status{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+
+  min-width:62px;
+
+  padding:5px 8px;
+
+  border-radius:999px;
+
+  font-size:10px;
+  font-weight:850;
+  letter-spacing:.045em;
+}
+
+
+.vf-ledger-status.ready{
+  background:#FFF3D6;
+  color:#785414;
+}
+
+
+.vf-ledger-status.sent{
+  background:#E7F0FB;
+  color:#28588E;
+}
+
+
+.vf-ledger-status.paid{
+  background:#E5F4EB;
+  color:#2D7048;
+}
+
+
+.vf-invoice-ledger-empty{
+  padding:42px 18px;
+
+  color:#73838B;
+
+  text-align:center;
+}
+
+
+.vf-modal-overlay{
+  position:fixed;
+  inset:0;
+
+  z-index:6000;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  padding:24px;
+
+  background:rgba(25,38,50,.48);
+}
+
+
+.vf-modal-overlay.hidden{
+  display:none !important;
+}
+
+
+.vf-modal-card{
+  position:relative;
+
+  width:min(760px,100%);
+  max-height:90vh;
+
+  overflow:auto;
+
+  padding:28px;
+
+  border-radius:16px;
+
+  background:#FFFFFF;
+
+  box-shadow:
+    0 24px 70px rgba(20,34,49,.24);
+}
+
+
+.vf-modal-close{
+  position:absolute;
+
+  top:12px;
+  right:14px;
+
+  width:34px;
+  height:34px;
+
+  border:0;
+  border-radius:50%;
+
+  background:#EEF2F5;
+  color:#52636B;
+
+  cursor:pointer;
+
+  font-size:22px;
+}
+
+
+.vf-invoice-detail-heading{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:20px;
+
+  margin-bottom:22px;
+}
+
+
+.vf-invoice-detail-grid{
+  display:grid;
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+
+  gap:18px;
+
+  padding:20px 0;
+
+  border-top:1px solid #E0E6EA;
+  border-bottom:1px solid #E0E6EA;
+}
+
+
+.vf-invoice-detail-grid > div{
+  display:grid;
+  gap:5px;
+}
+
+
+.vf-invoice-detail-grid small{
+  color:#78878F;
+
+  font-size:11px;
+  font-weight:750;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+
+
+.vf-invoice-detail-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+
+  margin-top:22px;
+}
+
+
+#invoiceNumberingModalBody #invoiceNumberingSettings{
+  margin:18px 0 0 !important;
+}
+
+
+@media(max-width:1050px){
+
+  .vf-invoice-ledger-header,
+  .vf-invoice-ledger-row{
+    grid-template-columns:
+      1.2fr
+      1.7fr
+      1.3fr
+      1fr
+      .85fr;
+  }
+
+
+  .vf-invoice-ledger-header > span:nth-child(4),
+  .vf-invoice-ledger-row > span:nth-child(4),
+  .vf-invoice-ledger-header > span:nth-child(5),
+  .vf-invoice-ledger-row > span:nth-child(5){
+    display:none;
+  }
+}
+
+
+@media(max-width:720px){
+
+  .vf-invoice-ledger-toolbar{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+
+  .vf-invoice-ledger-nav{
+    flex-wrap:wrap;
+  }
+
+
+  .vf-invoice-search-row{
+    align-items:stretch;
+    flex-direction:column;
+  }
+
+
+  .vf-invoice-advanced-filters{
+    grid-template-columns:1fr;
+  }
+
+
+  .vf-invoice-ledger-header{
+    display:none;
+  }
+
+
+  .vf-invoice-ledger-row{
+    display:grid;
+
+    grid-template-columns:
+      1fr auto;
+
+    gap:7px 14px;
+  }
+
+
+  .vf-invoice-ledger-row > span{
+    display:block !important;
+  }
+
+
+  .vf-invoice-ledger-row > span:nth-child(2),
+  .vf-invoice-ledger-row > span:nth-child(3),
+  .vf-invoice-ledger-row > span:nth-child(4),
+  .vf-invoice-ledger-row > span:nth-child(5){
+    grid-column:1;
+  }
+
+
+  .vf-invoice-detail-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+
+
+/* ==========================================================
+   INVOICE TOOLBAR POLISH
+   ========================================================== */
+
+.vf-invoice-ledger-toolbar{
+  justify-content:flex-start !important;
+}
+
+
+.vf-invoice-search-row{
+  justify-content:flex-start !important;
+  flex-wrap:wrap;
+
+  max-width:980px;
+}
+
+
+.vf-invoice-search-row > .input{
+  flex:0 1 470px !important;
+
+  width:470px !important;
+  max-width:100% !important;
+}
+
+
+.vf-invoice-numbering-button{
+  min-height:42px;
+
+  padding:10px 16px !important;
+
+  border:1px solid #AEBBC5 !important;
+  border-radius:9px !important;
+
+  background:#FFFFFF !important;
+  color:#173A77 !important;
+
+  font-size:13px !important;
+  font-weight:750 !important;
+
+  white-space:nowrap;
+}
+
+
+.vf-invoice-numbering-button:hover{
+  border-color:#173A77 !important;
+
+  background:#F4F7FB !important;
+}
+
+
+#clearInvoiceFilters{
+  padding:8px 4px;
+
+  white-space:nowrap;
+}
+
+
+@media(max-width:760px){
+
+  .vf-invoice-search-row{
+    max-width:none;
+  }
+
+
+  .vf-invoice-search-row > .input{
+    width:100% !important;
+    flex:1 1 100% !important;
+  }
+
+
+  .vf-invoice-numbering-button{
+    width:100%;
+  }
+}
+
+
+
+/* ==========================================================
+   FINAL INVOICE TOOLBAR ALIGNMENT
+   ========================================================== */
+
+.vf-invoice-search-row{
+  display:flex !important;
+  align-items:center !important;
+  flex-wrap:nowrap !important;
+
+  width:100% !important;
+  max-width:none !important;
+
+  gap:10px !important;
+}
+
+
+.vf-invoice-search-row > .input{
+  flex:0 0 430px !important;
+
+  width:430px !important;
+  max-width:430px !important;
+}
+
+
+#toggleInvoiceFilters{
+  flex:0 0 auto !important;
+}
+
+
+#clearInvoiceFilters{
+  display:inline-flex !important;
+  align-items:center !important;
+
+  flex:0 0 auto !important;
+
+  margin:0 !important;
+  padding:8px 6px !important;
+
+  color:#173A77 !important;
+
+  font-size:13px !important;
+  font-weight:700 !important;
+
+  white-space:nowrap !important;
+}
+
+
+#clearInvoiceFilters:disabled{
+  opacity:.42 !important;
+
+  cursor:default !important;
+
+  text-decoration:none !important;
+}
+
+
+.vf-invoice-numbering-button{
+  flex:0 0 auto !important;
+
+  margin-left:auto !important;
+
+  min-height:42px !important;
+
+  padding:10px 16px !important;
+
+  white-space:nowrap !important;
+}
+
+
+@media(max-width:900px){
+
+  .vf-invoice-search-row{
+    flex-wrap:wrap !important;
+  }
+
+
+  .vf-invoice-search-row > .input{
+    flex:1 1 360px !important;
+
+    width:auto !important;
+    max-width:none !important;
+  }
+
+
+  .vf-invoice-numbering-button{
+    margin-left:0 !important;
+  }
+}
+
+
+/* ==========================================================
+   GLOBAL STUDENT SEARCH — ACCOUNT DESTINATION
+   ========================================================== */
+
+.vf-student-account.vf-student-search-target {
+  outline: 3px solid rgba(24, 58, 111, .32);
+  outline-offset: 3px;
+  box-shadow: 0 8px 28px rgba(24, 58, 111, .16);
+  transition:
+    outline-color .35s ease,
+    box-shadow .35s ease;
+}
+
+
+/* ==========================================================
+   STUDENT ACCOUNT — CERTIFICATE ACCESS
+   ========================================================== */
+
+.vf-student-certificate-link{
+  margin-left:auto;
+  border:1px solid #b9c8dc;
+  background:#fff;
+  color:#173d7a;
+  border-radius:7px;
+  padding:7px 11px;
+  font:inherit;
+  font-size:12px;
+  font-weight:700;
+  white-space:nowrap;
+  cursor:pointer;
+}
+
+.vf-student-certificate-link:hover{
+  background:#f4f7fb;
+  border-color:#173d7a;
+}
+
+.vf-charter-receivable-link{
+  width:100%;
+  text-align:left;
+  font:inherit;
+  color:inherit;
+  cursor:pointer;
+  border-left:0;
+  border-right:0;
+  border-bottom:0;
+}
+
+.vf-charter-receivable-link:hover{
+  background:#e8f0f9;
+}
+
+.vf-receivable-view{
+  float:right;
+  color:#173d7a;
+  font-weight:700;
+  margin-left:18px;
+}
+
+@media (max-width:800px){
+  .vf-student-certificate-link{
+    margin-left:0;
+  }
+
+  .vf-receivable-view{
+    float:none;
+    display:block;
+    margin:4px 0 0;
+  }
+}
+
+/* ==========================================================
+   CERTIFICATE ACTION / REVIEW WORKFLOW
+   ========================================================== */
+
+button.vf-certificate-problem{
+  width:100%;
+  appearance:none;
+  font:inherit;
+  text-align:left;
+  cursor:pointer;
+  box-shadow:none;
+}
+
+button.vf-certificate-problem:hover{
+  border-color:#c8a54d;
+  background:#fff3d4;
+}
+
+button.vf-certificate-problem:focus-visible{
+  outline:2px solid #1a346f;
+  outline-offset:2px;
+}
+
+.vf-certificate-review{
+  border-left:4px solid #d2a33d;
+}
+
+.vf-certificate-review .vf-review-actions{
+  margin-top:10px;
+}
+
+
+/* ==========================================================
+   CERTIFICATE REQUIRED FIELD ATTENTION
+   ========================================================== */
+
+.vf-required-attention{
+  border-color:#d49b20 !important;
+  background:#fff8e8 !important;
+  box-shadow:0 0 0 2px rgba(212,155,32,.14);
+}
+
+.vf-required-attention:focus{
+  border-color:#b67b00 !important;
+  box-shadow:0 0 0 3px rgba(212,155,32,.20);
+}
+
+
+
+/* ==========================================================
+   SIMPLE CLASS SETUP
+   ========================================================== */
+
+.vf-class-section{
+  margin-top:18px;
+}
+
+.vf-class-section h3{
+  margin:0 0 10px;
+  font-size:16px;
+}
+
+.vf-class-fields{
+  display:grid;
+  gap:10px;
+}
+
+.vf-class-fields-3{
+  grid-template-columns:
+    repeat(3,minmax(0,1fr));
+}
+
+.vf-class-fields-2{
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+}
+
+.vf-field-label{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  min-width:0;
+}
+
+.vf-field-label > span{
+  font-size:12px;
+  font-weight:700;
+  color:#465761;
+}
+
+.vf-field-label .input{
+  margin:0;
+}
+
+.vf-class-options{
+  margin:14px 0 16px;
+  border:1px solid #d7dfe5;
+  border-radius:10px;
+  background:#f8fafb;
+}
+
+.vf-class-options > summary,
+.vf-email-customize > summary{
+  cursor:pointer;
+  font-weight:700;
+  padding:12px 14px;
+}
+
+.vf-class-options-body{
+  padding:2px 14px 14px;
+}
+
+.vf-parent-reminder-setting{
+  margin-top:14px;
+  padding-top:12px;
+  border-top:1px solid #dce3e8;
+}
+
+.vf-parent-reminder-setting
+.vf-check-row{
+  margin:0;
+}
+
+#classParentReminderOptions{
+  margin-top:12px;
+}
+
+.vf-email-customize{
+  margin-top:10px;
+}
+
+.vf-email-customize > summary{
+  padding-left:0;
+  padding-right:0;
+}
+
+.vf-email-customize
+.vf-field-label{
+  margin-bottom:10px;
+}
+
+.vf-number-suffix,
+.vf-money-field{
+  display:flex;
+  align-items:center;
+  gap:7px;
+}
+
+.vf-number-suffix .input,
+.vf-money-field .input{
+  min-width:0;
+}
+
+.vf-number-suffix > span,
+.vf-money-field > span{
+  white-space:nowrap;
+  font-size:13px;
+  color:#5f6f78;
+}
+
+
+@media(max-width:760px){
+
+  .vf-class-fields-3,
+  .vf-class-fields-2{
+    grid-template-columns:
+      repeat(2,minmax(0,1fr));
+  }
+
+}
+
+
+@media(max-width:480px){
+
+  .vf-class-fields-3,
+  .vf-class-fields-2{
+    grid-template-columns:1fr;
+  }
+
+}
+
+
+
+/* ==========================================================
+   CUSTOM CLASS INSTALLMENTS
+   ========================================================== */
+
+.vf-custom-installments{
+  margin-top:14px;
+  padding:14px;
+  border:1px solid #d7dfe5;
+  border-radius:10px;
+  background:#f8fafb;
+}
+
+.vf-custom-installments-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:14px;
+  margin-bottom:12px;
+}
+
+.vf-custom-installments-head > div{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+
+.vf-custom-installments-head strong{
+  font-size:14px;
+}
+
+.vf-custom-installments-head span{
+  font-size:12px;
+  color:#5f6f78;
+}
+
+.vf-custom-installment-row{
+  display:grid;
+  grid-template-columns:
+    minmax(0,1fr)
+    minmax(0,1fr)
+    auto;
+  gap:10px;
+  align-items:end;
+  margin-top:10px;
+}
+
+.vf-remove-installment{
+  min-height:42px;
+}
+
+.vf-custom-installment-total{
+  margin-top:12px;
+  padding-top:10px;
+  border-top:1px solid #dce3e8;
+  font-size:13px;
+  font-weight:700;
+  color:#5f6f78;
+}
+
+.vf-installment-total-good{
+  color:#237447;
+}
+
+.vf-installment-total-bad{
+  color:#a14c31;
+}
+
+
+@media(max-width:600px){
+
+  .vf-custom-installments-head{
+    flex-direction:column;
+  }
+
+  .vf-custom-installment-row{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .vf-remove-installment{
+    grid-column:1 / -1;
+  }
+}
+
+
+@media(max-width:420px){
+
+  .vf-custom-installment-row{
+    grid-template-columns:1fr;
+  }
+
+  .vf-remove-installment{
+    grid-column:auto;
+  }
+}
+
+
+/* ==========================================================
+   SAVED CLASS DETAILS / EDITING
+   ========================================================== */
+
+.vf-class-saved-details{
+  margin-top:14px;
+  padding:16px;
+  border:1px solid #d7dfe5;
+  border-radius:12px;
+  background:#f8fafb;
+}
+
+.vf-class-details-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:14px;
+}
+
+.vf-class-details-head h3{
+  margin:3px 0;
+}
+
+.vf-class-details-sub{
+  font-size:13px;
+  color:#5f6f78;
+}
+
+.vf-class-detail-grid{
+  display:grid;
+  grid-template-columns:
+    repeat(3,minmax(0,1fr));
+  gap:10px;
+  margin-top:16px;
+}
+
+.vf-class-detail-grid > div{
+  padding:10px;
+  border:1px solid #dde4e9;
+  border-radius:8px;
+  background:white;
+}
+
+.vf-class-detail-grid small{
+  display:block;
+  margin-bottom:4px;
+  color:#66757d;
+}
+
+.vf-class-detail-grid strong{
+  display:block;
+}
+
+.vf-class-payment-summary{
+  margin-top:14px;
+  padding-top:12px;
+  border-top:1px solid #dce3e8;
+}
+
+.vf-class-payment-summary > strong{
+  display:block;
+  margin-bottom:8px;
+}
+
+.vf-saved-installments{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.vf-saved-installments > div{
+  display:grid;
+  grid-template-columns:
+    90px 90px 1fr;
+  gap:10px;
+  align-items:center;
+}
+
+.vf-auto-late-notice{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  margin-top:14px;
+  padding:11px 12px;
+  border:1px solid #e4cf99;
+  border-radius:8px;
+  background:#fff8e7;
+  font-size:13px;
+}
+
+.vf-saved-reminder{
+  margin-top:12px;
+}
+
+.vf-saved-reminder summary{
+  cursor:pointer;
+  font-weight:700;
+}
+
+.vf-saved-reminder > div{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  margin-top:10px;
+}
+
+.vf-reminder-message{
+  white-space:pre-wrap;
+}
+
+
+@media(max-width:700px){
+
+  .vf-class-detail-grid{
+    grid-template-columns:
+      repeat(2,minmax(0,1fr));
+  }
+
+}
+
+
+@media(max-width:470px){
+
+  .vf-class-details-head{
+    flex-direction:column;
+  }
+
+  .vf-class-detail-grid{
+    grid-template-columns:1fr;
+  }
+
+  .vf-saved-installments > div{
+    grid-template-columns:
+      75px 80px 1fr;
+  }
+
+}
+
+
+/* ==========================================================
+   INLINE FORM VALIDATION
+   ========================================================== */
+
+.vf-form-error{
+  margin:12px 0 8px;
+  padding:11px 13px;
+  border:1px solid #d49a87;
+  border-left:4px solid #b45437;
+  border-radius:8px;
+  background:#fff3ef;
+  color:#7a321f;
+  font-size:13px;
+  font-weight:700;
+  line-height:1.4;
+}
+
+
+
+/* ==========================================================
+   MONTHLY CLASS PAYMENT SETUP
+   ========================================================== */
+
+.vf-monthly-setup{
+  grid-column:span 2;
+  display:grid;
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+
+
+@media(max-width:600px){
+
+  .vf-monthly-setup{
+    grid-column:1 / -1;
+  }
+
+}
+
+
+@media(max-width:420px){
+
+  .vf-monthly-setup{
+    grid-template-columns:1fr;
+  }
+
+}
+
+
+/* ==========================================================
+   STUDENT PAYMENT OBLIGATIONS
+   ========================================================== */
+
+.vf-service-obligations{
+  grid-column:1 / -1;
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px solid #e1e7eb;
+}
+
+.vf-service-obligations-title{
+  margin-bottom:6px;
+  font-size:12px;
+  font-weight:800;
+  color:#556872;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+
+.vf-obligation-row{
+  display:grid;
+  grid-template-columns:
+    90px
+    90px
+    minmax(130px,1fr)
+    auto;
+  gap:10px;
+  align-items:center;
+  padding:6px 0;
+  font-size:13px;
+}
+
+.vf-obligation-status{
+  font-size:11px;
+  font-weight:700;
+  color:#61727b;
+}
+
+.vf-obligation-warning{
+  grid-column:1 / -1;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  margin-top:10px;
+  padding:10px 12px;
+  border:1px solid #e1c07d;
+  border-radius:8px;
+  background:#fff8e8;
+  font-size:13px;
+}
+
+.vf-obligation-warning strong{
+  color:#7b5619;
+}
+
+
+@media(max-width:600px){
+
+  .vf-obligation-row{
+    grid-template-columns:
+      80px
+      80px
+      1fr;
+  }
+
+  .vf-obligation-status{
+    grid-column:1 / -1;
+  }
+
+}
+
+
+/* ==========================================================
+   OBLIGATION FUNDING STATUS
+   ========================================================== */
+
+.vf-obligation-remaining{
+  font-size:11px;
+  font-weight:700;
+  color:#9a5a20;
+}
+
+.vf-obligation-funded{
+  font-size:11px;
+  font-weight:800;
+  color:#237447;
+}
+
+
+@media(min-width:601px){
+
+  .vf-obligation-row{
+    grid-template-columns:
+      90px
+      90px
+      minmax(130px,1fr)
+      110px
+      auto;
+  }
+
+}
+
+
+/* ==========================================================
+   BULK CERTIFICATE INTAKE
+   ========================================================== */
+
+.vf-bulk-intake-card{
+  margin:0 0 18px;
+  padding:16px;
+  border:1px solid #dce3e8;
+  border-radius:12px;
+  background:#fff;
+}
+
+.vf-bulk-intake-heading{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+}
+
+.vf-bulk-intake-heading .muted{
+  margin-top:3px;
+  font-size:13px;
+}
+
+.vf-bulk-workspace{
+  margin-top:16px;
+}
+
+.vf-bulk-summary{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+  margin-bottom:12px;
+}
+
+.vf-bulk-summary > div{
+  padding:9px 10px;
+  border:1px solid #e2e7ea;
+  border-radius:8px;
+  text-align:center;
+}
+
+.vf-bulk-summary strong{
+  display:block;
+  font-size:19px;
+}
+
+.vf-bulk-summary span{
+  display:block;
+  margin-top:1px;
+  font-size:11px;
+  color:#68777f;
+}
+
+.vf-bulk-status{
+  margin-bottom:10px;
+  font-size:13px;
+  color:#53636c;
+}
+
+.vf-bulk-list{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+}
+
+.vf-bulk-item{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:8px 14px;
+  padding:10px 12px;
+  border:1px solid #e1e6e9;
+  border-radius:8px;
+}
+
+.vf-bulk-file-name{
+  overflow:hidden;
+  font-weight:600;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.vf-bulk-item-details{
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px 12px;
+  margin-top:3px;
+  font-size:12px;
+  color:#65747c;
+}
+
+.vf-bulk-item-state{
+  align-self:center;
+  font-size:12px;
+  font-weight:600;
+}
+
+.vf-bulk-item-message{
+  grid-column:1 / -1;
+  font-size:12px;
+  color:#65747c;
+}
+
+.vf-bulk-actions{
+  display:flex;
+  gap:8px;
+  margin-top:12px;
+}
+
+@media(max-width:650px){
+
+  .vf-bulk-intake-heading{
+    align-items:stretch;
+    flex-direction:column;
+  }
+
+  .vf-bulk-summary{
+    grid-template-columns:repeat(2,1fr);
+  }
+
+  .vf-bulk-item{
+    grid-template-columns:1fr;
+  }
+
+  .vf-bulk-actions{
+    flex-direction:column;
+  }
+
+  .vf-bulk-actions button{
+    width:100%;
+  }
+}
+
+
+
+/* ==========================================================
+   BULK CERTIFICATE REVIEW
+   ========================================================== */
+
+.vf-bulk-item{
+  cursor:pointer;
+}
+
+.vf-bulk-item:hover{
+  box-shadow:0 2px 10px rgba(25,45,60,.08);
+}
+
+.vf-bulk-item:focus{
+  outline:2px solid currentColor;
+  outline-offset:2px;
+}
+
+.vf-bulk-review-hint{
+  margin-top:5px;
+  font-size:11px;
+  font-weight:600;
+  color:#64747c;
+}
+
+.vf-bulk-cert-review-card{
+  width:min(720px,calc(100vw - 32px));
+  max-height:88vh;
+  overflow:auto;
+}
+
+.vf-bulk-review-status{
+  margin:8px 0 16px;
+  padding:12px;
+  border:1px solid #e0e6e9;
+  border-radius:9px;
+}
+
+.vf-bulk-review-status > strong{
+  display:block;
+  margin-bottom:4px;
+}
+
+.vf-bulk-review-warning{
+  margin-top:8px;
+  font-size:13px;
+}
+
+.vf-bulk-review-note{
+  margin-top:8px;
+  font-size:13px;
+  color:#617078;
+}
+
+.vf-bulk-review-fields{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+}
+
+.vf-bulk-review-fields > div{
+  min-width:0;
+  padding:10px 11px;
+  border:1px solid #e1e6e9;
+  border-radius:8px;
+}
+
+.vf-bulk-review-fields span{
+  display:block;
+  margin-bottom:3px;
+  font-size:11px;
+  color:#68777f;
+}
+
+.vf-bulk-review-fields strong{
+  display:block;
+  overflow-wrap:anywhere;
+}
+
+.vf-bulk-review-wide{
+  grid-column:1 / -1;
+}
+
+.vf-bulk-review-actions{
+  display:flex;
+  gap:9px;
+  margin-top:16px;
+}
+
+@media(max-width:620px){
+
+  .vf-bulk-review-fields{
+    grid-template-columns:1fr;
+  }
+
+  .vf-bulk-review-wide{
+    grid-column:auto;
+  }
+
+  .vf-bulk-review-actions{
+    flex-direction:column;
+  }
+
+  .vf-bulk-review-actions button{
+    width:100%;
+  }
+}
+
+
+
+/* ==========================================================
+   SIDE-BY-SIDE CERTIFICATE VERIFICATION
+   ========================================================== */
+
+.vf-bulk-cert-review-card{
+  width:min(1500px,calc(100vw - 36px));
+  height:min(900px,calc(100vh - 36px));
+  max-height:none;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+
+.vf-bulk-review-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding-right:38px;
+  margin-bottom:12px;
+}
+
+.vf-bulk-review-header h3{
+  margin-bottom:0;
+}
+
+.vf-bulk-review-split{
+  min-height:0;
+  flex:1;
+  display:grid;
+  grid-template-columns:minmax(0,1.08fr) minmax(360px,.92fr);
+  gap:14px;
+}
+
+.vf-bulk-review-pdf-side,
+.vf-bulk-review-data-side{
+  min-height:0;
+  border:1px solid #dfe5e8;
+  border-radius:10px;
+  background:#fff;
+  overflow:hidden;
+}
+
+.vf-bulk-review-pdf-side{
+  display:flex;
+  flex-direction:column;
+}
+
+.vf-bulk-review-data-side{
+  overflow:auto;
+  padding-bottom:14px;
+}
+
+.vf-bulk-review-column-title{
+  padding:10px 12px;
+  border-bottom:1px solid #e2e7ea;
+  font-size:12px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+
+.vf-bulk-pdf-status{
+  padding:8px 12px;
+  font-size:12px;
+  color:#64747c;
+}
+
+.vf-bulk-pdf-status:empty{
+  display:none;
+}
+
+.vf-bulk-pdf-frame{
+  width:100%;
+  min-height:0;
+  flex:1;
+  border:0;
+  background:#f3f5f6;
+}
+
+.vf-bulk-review-data-side .vf-bulk-review-status{
+  margin:12px;
+}
+
+.vf-bulk-review-data-side .vf-bulk-review-fields{
+  padding:0 12px;
+}
+
+@media(max-width:900px){
+
+  .vf-bulk-cert-review-card{
+    height:calc(100vh - 24px);
+    width:calc(100vw - 24px);
+    overflow:auto;
+  }
+
+  .vf-bulk-review-split{
+    display:flex;
+    flex-direction:column;
+    overflow:visible;
+  }
+
+  .vf-bulk-review-pdf-side{
+    min-height:520px;
+  }
+
+  .vf-bulk-review-data-side{
+    overflow:visible;
+  }
+
+}
+
+
+
+/* ==========================================================
+   CERTIFICATE VERIFICATION WORKSPACE
+   ========================================================== */
+
+.vf-bulk-pdf-toolbar{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:7px 10px;
+  border-bottom:1px solid #dfe5e8;
+  background:#f6f8f9;
+}
+
+.vf-bulk-pdf-toolbar button{
+  min-width:34px;
+  height:30px;
+  padding:3px 9px;
+}
+
+.vf-bulk-pdf-zoom-label{
+  min-width:46px;
+  text-align:center;
+  font-size:12px;
+  font-weight:700;
+}
+
+.vf-bulk-pdf-viewport{
+  min-height:0;
+  flex:1;
+  overflow:auto;
+  overscroll-behavior:contain;
+  background:#303234;
+}
+
+.vf-bulk-pdf-pages{
+  width:max-content;
+  min-width:100%;
+  min-height:100%;
+  padding:14px;
+  box-sizing:border-box;
+}
+
+.vf-bulk-pdf-page{
+  width:max-content;
+  margin:0 auto 14px;
+  background:#fff;
+  box-shadow:0 2px 8px rgba(0,0,0,.2);
+}
+
+.vf-bulk-pdf-page:last-child{
+  margin-bottom:0;
+}
+
+.vf-bulk-pdf-page canvas{
+  display:block;
+}
+
+.vf-bulk-review-data-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  border-bottom:1px solid #e2e7ea;
+}
+
+.vf-bulk-review-data-header
+.vf-bulk-review-column-title{
+  border-bottom:0;
+}
+
+.vf-bulk-edit-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  padding:6px 10px 6px 0;
+}
+
+.vf-bulk-edit-actions button{
+  white-space:nowrap;
+}
+
+.vf-bulk-vendor-edit-notice{
+  margin:0 12px 10px;
+  padding:7px 9px;
+  border:1px solid #d7e2d9;
+  border-radius:7px;
+  font-size:12px;
+  font-weight:700;
+}
+
+.vf-bulk-review-fields label{
+  display:block;
+  min-width:0;
+  padding:10px 11px;
+  border:1px solid #e1e6e9;
+  border-radius:8px;
+}
+
+.vf-bulk-review-fields label > span{
+  display:block;
+  margin-bottom:5px;
+  font-size:12px;
+  font-weight:700;
+}
+
+.vf-bulk-review-fields label .input{
+  width:100%;
+  margin:0;
+  box-sizing:border-box;
+}
+
+@media(max-width:900px){
+
+  .vf-bulk-review-data-header{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .vf-bulk-edit-actions{
+    padding:0 10px 10px;
+  }
+}
+
+
+/* ==========================================================
+   CERTIFICATE REVIEW PREFERENCE
+   ========================================================== */
+
+.vf-certificate-review-preference{
+  width:100%;
+  margin:14px 0 6px;
+  padding:14px 16px;
+  border:1px solid rgba(0,0,0,.10);
+  border-radius:12px;
+  background:rgba(255,255,255,.72);
+}
+
+.vf-toggle-setting{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  cursor:pointer;
+}
+
+.vf-toggle-setting > input{
+  position:absolute;
+  opacity:0;
+  pointer-events:none;
+}
+
+.vf-toggle-control{
+  position:relative;
+  flex:0 0 42px;
+  width:42px;
+  height:24px;
+  margin-top:2px;
+  border-radius:999px;
+  background:#c9cfd4;
+  transition:.18s ease;
+}
+
+.vf-toggle-control::after{
+  content:"";
+  position:absolute;
+  top:3px;
+  left:3px;
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  background:#fff;
+  box-shadow:0 1px 4px rgba(0,0,0,.22);
+  transition:.18s ease;
+}
+
+.vf-toggle-setting > input:checked + .vf-toggle-control{
+  background:#1a346f;
+}
+
+.vf-toggle-setting > input:checked + .vf-toggle-control::after{
+  transform:translateX(18px);
+}
+
+.vf-toggle-copy{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  min-width:0;
+}
+
+.vf-toggle-copy strong{
+  font-size:14px;
+}
+
+.vf-toggle-copy small{
+  line-height:1.35;
+  opacity:.72;
+}
+
+
+/* ==========================================================
+   CERTIFICATE IMPORT UX
+   ========================================================== */
+
+.vf-certificate-import-preference-row{
+  margin:10px 0 12px;
+}
+
+.vf-certificate-import-preference-row
+.vf-certificate-review-preference{
+  margin:0;
+}
+
+.vf-certificate-import-confirmation{
+  margin-top:10px;
+  padding:10px 14px;
+  border:1px solid rgba(31,120,70,.24);
+  border-radius:9px;
+  background:rgba(230,247,237,.88);
+  font-weight:700;
+}
+
+.vf-bulk-review-footer{
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  padding:14px 18px 16px;
+  border-top:1px solid rgba(0,0,0,.10);
+  background:#fff;
+}
+
+.vf-bulk-review-footer
+#approveBulkCertificateReview{
+  min-width:210px;
+}
+
+
+/* ==========================================================
+   CERTIFICATE CHARTER MATCHING
+   ========================================================== */
+
+.vf-bulk-charter-suggestions{
+  grid-column:1 / -1;
+  padding:12px;
+  border:1px solid rgba(26,52,111,.22);
+  border-radius:10px;
+  background:rgba(238,243,252,.80);
+}
+
+.vf-bulk-charter-suggestions > strong{
+  display:block;
+  margin-bottom:4px;
+}
+
+.vf-bulk-charter-suggestion-help{
+  margin-bottom:10px;
+  line-height:1.35;
+}
+
+.vf-bulk-charter-suggestion-buttons{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+.vf-bulk-charter-suggestion{
+  padding:8px 12px;
+  border:1px solid #1a346f;
+  border-radius:8px;
+  background:#fff;
+  color:#1a346f;
+  font-weight:700;
+  cursor:pointer;
+}
+
+.vf-bulk-charter-suggestion:hover{
+  background:#f3f6fc;
+}
+
+
+.vf-certificate-import-confirmation-clickable{
+  cursor:pointer;
+  text-decoration:underline;
+  text-underline-offset:2px;
+}
+
+.vf-certificate-import-confirmation-clickable:hover{
+  filter:brightness(.98);
+}
+
+
+/* ==========================================================
+   SAVED CERTIFICATE + ACTION EVIDENCE
+   ========================================================== */
+
+.vf-saved-certificate-record{
+  cursor:pointer;
+}
+
+.vf-saved-certificate-record:hover,
+.vf-saved-certificate-record:focus-visible{
+  border-color:rgba(26,52,111,.48);
+  background:rgba(244,247,252,.75);
+  outline:none;
+}
+
+button.history.vf-history-evidence{
+  width:100%;
+  color:inherit;
+  font:inherit;
+  text-align:left;
+  cursor:pointer;
+}
+
+button.history.vf-history-evidence:hover,
+button.history.vf-history-evidence:focus-visible{
+  background:rgba(244,247,252,.85);
+}
+
+
+/* ==========================================================
+   DUPLICATE CERTIFICATE — TWO ORIGINAL PDF COMPARISON
+   ========================================================== */
+
+.vf-duplicate-certificate-compare-card{
+  width:min(1500px,98vw);
+  height:min(900px,96vh);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+
+.vf-duplicate-compare-header{
+  padding:18px 22px 12px;
+  border-bottom:1px solid #d8dee1;
+}
+
+.vf-duplicate-compare-header h3{
+  margin:4px 0;
+}
+
+.vf-duplicate-pdf-grid{
+  flex:1;
+  min-height:0;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  padding:12px;
+  background:#f4f6f7;
+}
+
+.vf-duplicate-pdf-panel{
+  min-width:0;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  border:1px solid #d8dee1;
+  border-radius:10px;
+  background:#fff;
+}
+
+.vf-duplicate-pdf-heading{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:10px;
+  padding:10px 12px;
+  border-bottom:1px solid #d8dee1;
+}
+
+.vf-duplicate-pdf-heading small{
+  display:block;
+  margin-bottom:4px;
+  color:#5d757d;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.06em;
+}
+
+.vf-duplicate-pdf-heading strong{
+  display:block;
+  font-size:12px;
+}
+
+.vf-duplicate-pdf-controls{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  white-space:nowrap;
+}
+
+.vf-duplicate-pdf-controls button{
+  min-width:32px;
+}
+
+.vf-duplicate-pdf-controls span{
+  min-width:42px;
+  text-align:center;
+  font-size:11px;
+  font-weight:700;
+}
+
+.vf-duplicate-pdf-viewport{
+  flex:1;
+  min-height:0;
+  overflow:auto;
+  padding:12px;
+  background:#292b2d;
+}
+
+.vf-duplicate-pdf-pages{
+  width:max-content;
+  min-width:100%;
+}
+
+.vf-duplicate-pdf-page{
+  display:flex;
+  justify-content:center;
+  margin:0 auto 12px;
+}
+
+.vf-duplicate-pdf-page canvas{
+  display:block;
+  background:#fff;
+  box-shadow:0 2px 8px rgba(0,0,0,.28);
+}
+
+.vf-duplicate-compare-footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  padding:14px 18px;
+  border-top:1px solid #d8dee1;
+  background:#fff;
+}
+
+.vf-duplicate-decision-help{
+  font-weight:700;
+}
+
+.vf-duplicate-decision-actions{
+  display:flex;
+  gap:10px;
+}
+
+@media(max-width:850px){
+
+  .vf-duplicate-certificate-compare-card{
+    height:96vh;
+  }
+
+  .vf-duplicate-pdf-grid{
+    grid-template-columns:1fr;
+    overflow:auto;
+  }
+
+  .vf-duplicate-pdf-panel{
+    min-height:520px;
+  }
+
+  .vf-duplicate-compare-footer{
+    align-items:stretch;
+    flex-direction:column;
+  }
+
+  .vf-duplicate-decision-actions{
+    flex-direction:column;
+  }
+}
+
+
+/* ==========================================================
+   PAYMENT DETAIL / EVIDENCE
+   ========================================================== */
+
+.vf-payment-detail-card{
+  width:min(720px,94vw);
+  max-height:90vh;
+  overflow:auto;
+}
+
+.vf-payment-detail-heading{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:18px;
+  padding-bottom:18px;
+  border-bottom:1px solid #d8dee1;
+}
+
+.vf-payment-detail-heading h2{
+  margin:4px 0;
+}
+
+.vf-payment-detail-type{
+  display:inline-flex;
+  align-items:center;
+  padding:7px 10px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:800;
+}
+
+.vf-payment-detail-type.payment{
+  background:#ecfdf3;
+  color:#067647;
+}
+
+.vf-payment-detail-type.refund{
+  background:#fff4e5;
+  color:#b54708;
+}
+
+.vf-payment-detail-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+  padding:20px 0;
+}
+
+.vf-payment-detail-grid > div{
+  display:grid;
+  gap:4px;
+}
+
+.vf-payment-detail-grid small,
+.vf-payment-detail-note small{
+  color:#5d757d;
+  font-size:10px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+
+.vf-payment-refund-detail{
+  border-top:1px solid #d8dee1;
+  padding-top:18px;
+}
+
+.vf-payment-detail-note{
+  display:grid;
+  gap:5px;
+  padding-top:6px;
+}
+
+.vf-payment-evidence-note{
+  margin-top:18px;
+  padding:12px 14px;
+  border-radius:9px;
+  background:#f4f7fb;
+  color:#435a63;
+  font-size:12px;
+}
+
+.vf-payment-record{
+  cursor:pointer;
+}
+
+.vf-payment-record:hover,
+.vf-payment-record:focus-visible{
+  background:#f4f7fb;
+  outline:none;
+}
+
+@media(max-width:650px){
+
+  .vf-payment-detail-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+
+/* ==========================================================
+   TUTORING CLASSES + SESSION CHARGES
+   ========================================================== */
+
+.vf-tutoring-class-settings{
+  margin:14px 0;
+  padding:16px;
+  border:1px solid #d6e1e8;
+  border-radius:12px;
+  background:#f7fafc;
+}
+
+.vf-tutoring-class-settings p{
+  margin:5px 0 14px;
+  color:#5d757d;
+  font-size:13px;
+}
+
+.vf-tutoring-class-fields{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+}
+
+.vf-tutoring-class-summary{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  margin:14px 0;
+  padding:14px;
+  border:1px solid #d6e1e8;
+  border-radius:10px;
+  background:#f7fafc;
+}
+
+.vf-tutoring-class-summary > div{
+  display:grid;
+  gap:4px;
+}
+
+.vf-tutoring-class-summary small{
+  color:#64777f;
+  font-size:10px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+
+.vf-tutoring-service-actions{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-top:12px;
+  padding-top:12px;
+  border-top:1px solid #e1e7ea;
+}
+
+.vf-tutoring-service-actions span{
+  color:#5d757d;
+  font-size:12px;
+}
+
+@media(max-width:760px){
+
+  .vf-tutoring-class-fields,
+  .vf-tutoring-class-summary{
+    grid-template-columns:1fr;
+  }
+}
+
+
+
+/* ==========================================================
+   PAYMENTS / CHARGES
+   ========================================================== */
+
+.vf-charge-form{
+  margin:18px 0;
+  padding:18px;
+  border:1px solid #d7e1e7;
+  border-radius:12px;
+  background:#f8fafb;
+}
+
+.vf-charge-heading{
+  margin-bottom:14px;
+}
+
+.vf-charge-heading h3{
+  margin:4px 0;
+}
+
+.vf-charge-heading p{
+  margin:0;
+  color:#60747d;
+}
+
+.vf-charge-session-wrap{
+  display:grid;
+  gap:6px;
+}
+
+.vf-charge-session-hint{
+  font-size:12px;
+  color:#60747d;
+}
+
+.vf-charge-student-match{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  width:100%;
+  gap:3px;
+  text-align:left;
+}
+
+.vf-charge-student-match span{
+  font-size:12px;
+  color:#667980;
+}
+
+.vf-payments-charges-section{
+  margin-top:24px;
+}
+
+.vf-payments-charges-section > .eyebrow{
+  margin-bottom:8px;
+}
+
+.vf-charge-record{
+  border-left:3px solid #8aa4b1;
+}
+
+.vf-tutoring-invoice-field{
+  grid-column:1 / -1;
+}
+
+
+
+
+/* ==========================================================
+   INVOICE NUMBERING BLOCKER
+   ========================================================== */
+
+.vf-invoice-blocked{
+  border-color:#e6b56c;
+  background:#fff8ee;
+}
+
+.vf-invoice-blocked strong{
+  color:#a24f00;
+}
+
+.vf-numbering-review{
+  border-left:4px solid #d58b35;
+  background:#fffaf2;
+}
+
+
+
+
+/* ==========================================================
+   PAYMENT STATEMENT REVIEW
+   ========================================================== */
+
+.vf-statement-card{
+  margin-bottom:20px;
+}
+
+.vf-statement-summary{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px 18px;
+  align-items:center;
+  margin-bottom:12px;
+}
+
+.vf-statement-table-wrap{
+  overflow-x:auto;
+}
+
+.vf-statement-table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:760px;
+}
+
+.vf-statement-table th,
+.vf-statement-table td{
+  padding:10px 9px;
+  border-bottom:1px solid var(--border, #ddd);
+  text-align:left;
+  vertical-align:top;
+}
+
+.vf-statement-table .right{
+  text-align:right;
+  white-space:nowrap;
+}
+
+.vf-statement-incoming{
+  background:#f6fbf7;
+}
+
+.vf-statement-review{
+  background:#fff8ee;
+}
+
+.vf-statement-outgoing{
+  opacity:.65;
+}
+
+.vf-statement-safety-note{
+  margin-top:12px;
+  font-weight:600;
+}
+
+
+
+
+/* ==========================================================
+   CLEAN PAYMENTS / CHARGES ENTRY UX
+   ========================================================== */
+
+.vf-payment-heading-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:18px;
+  margin-bottom:14px;
+}
+
+.vf-payment-heading-row h2{
+  margin:0;
+}
+
+.vf-payment-action-chooser{
+  padding:18px;
+  margin-bottom:18px;
+  border:1px solid var(--border, #d6dde7);
+  border-radius:14px;
+  background:#fff;
+}
+
+.vf-payment-action-chooser[hidden],
+#paymentStatementWorkspace[hidden],
+.vf-hidden-legacy-payment-action{
+  display:none !important;
+}
+
+.vf-payment-choice-grid{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0,1fr));
+  gap:12px;
+  margin:14px 0;
+}
+
+.vf-payment-choice{
+  appearance:none;
+  width:100%;
+  min-height:88px;
+  padding:14px 16px;
+  border:1px solid var(--border, #d6dde7);
+  border-radius:12px;
+  background:#fff;
+  text-align:left;
+  cursor:pointer;
+  font:inherit;
+}
+
+.vf-payment-choice:hover{
+  border-color:#17386f;
+  background:#f7f9fc;
+}
+
+.vf-payment-choice strong{
+  display:block;
+  margin-bottom:5px;
+  color:#20303c;
+  font-size:15px;
+}
+
+.vf-payment-choice span{
+  display:block;
+  color:#607080;
+  font-size:13px;
+  line-height:1.35;
+}
+
+#paymentStatementWorkspace{
+  max-width:none;
+}
+
+#paymentStatementWorkspace input[type="file"]{
+  width:100%;
+}
+
+@media (max-width:760px){
+
+  .vf-payment-heading-row{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .vf-payment-choice-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+
+
+
+/* ==========================================================
+   PAYMENT STATEMENT SELECTION + IMPORT
+   ========================================================== */
+
+.vf-statement-review-toolbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:16px;
+  padding:14px 16px;
+  margin:12px 0;
+  border:1px solid #cfdbe8;
+  border-radius:12px;
+  background:#f7fafc;
+}
+
+.vf-statement-review-toolbar > div:first-child span{
+  display:block;
+  margin-top:4px;
+  color:#607080;
+  font-size:13px;
+  line-height:1.4;
+}
+
+.vf-statement-review-actions{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:10px;
+}
+
+.vf-statement-check-column{
+  width:68px;
+  text-align:center !important;
+}
+
+.vf-statement-select{
+  width:21px;
+  height:21px;
+  margin:0;
+  cursor:pointer;
+  accent-color:#236b5d;
+}
+
+.vf-statement-select:disabled{
+  cursor:not-allowed;
+}
+
+.vf-statement-student{
+  min-width:190px;
+  padding:8px 10px;
+  font-size:13px;
+}
+
+.vf-statement-match-note{
+  margin-top:5px;
+  color:#26735f;
+  font-size:12px;
+  font-weight:700;
+}
+
+.vf-statement-row-warning{
+  margin-top:5px;
+  color:#a05000;
+  font-size:12px;
+  font-weight:700;
+  line-height:1.3;
+}
+
+.vf-statement-imported{
+  background:#edf9f1;
+}
+
+.vf-statement-imported td{
+  color:#315c45;
+}
+
+.vf-statement-duplicate{
+  background:#fff5e8;
+}
+
+#importSelectedStatementPayments:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+
+@media (max-width:760px){
+
+  .vf-statement-review-toolbar{
+    align-items:stretch;
+    flex-direction:column;
+  }
+
+  .vf-statement-review-actions{
+    justify-content:stretch;
+  }
+
+  .vf-statement-review-actions button{
+    width:100%;
+  }
+}
+
+
+/* ==========================================================
+   IGNORED STATEMENT PAYERS
+   ========================================================== */
+
+.vf-statement-ignored{
+  background:#f3f5f7;
+  opacity:.78;
+}
+
+.vf-statement-ignored td{
+  color:#66727d;
+}
+
+.vf-stop-ignoring-payer{
+  display:block;
+  margin-top:6px;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:#236b5d;
+  font-size:12px;
+  font-weight:700;
+  text-decoration:underline;
+  cursor:pointer;
+}
+
+.vf-stop-ignoring-payer:disabled{
+  opacity:.5;
+  cursor:not-allowed;
+}
+
+
+/* ==========================================================
+   DETAILED PAYMENT DUPLICATE COMPARISON
+   ========================================================== */
+
+.vf-payment-duplicate-table-wrap{
+  margin-top:14px;
+  overflow-x:auto;
+  border:1px solid #d8e0e7;
+  border-radius:12px;
+}
+
+.vf-payment-duplicate-table{
+  width:100%;
+  min-width:680px;
+  border-collapse:collapse;
+  background:#fff;
+}
+
+.vf-payment-duplicate-table th,
+.vf-payment-duplicate-table td{
+  padding:10px 12px;
+  border-bottom:1px solid #e3e8ed;
+  text-align:left;
+  vertical-align:top;
+}
+
+.vf-payment-duplicate-table thead th{
+  background:#f2f6f8;
+  color:#334653;
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+
+.vf-payment-duplicate-table tbody th{
+  width:150px;
+  background:#f8fafb;
+  color:#53636f;
+  font-size:13px;
+}
+
+.vf-payment-duplicate-table tbody tr:last-child th,
+.vf-payment-duplicate-table tbody tr:last-child td{
+  border-bottom:0;
+}
+
+.vf-payment-duplicate-different th,
+.vf-payment-duplicate-different td{
+  background:#fff7e8 !important;
+}
+
+.vf-payment-duplicate-different td{
+  color:#744500;
+  font-weight:700;
+}
+
+
+/* ==========================================================
+   CENTERED ACTION CONFIRMATION
+   ========================================================== */
+
+.vf-centered-action-confirmation{
+  position:fixed;
+  left:50%;
+  top:50%;
+  z-index:100000;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  width:min(560px, calc(100vw - 36px));
+  padding:22px 26px;
+  border:2px solid #86c8ad;
+  border-radius:18px;
+  background:#173b34;
+  color:#fff;
+  box-shadow:
+    0 24px 70px rgba(11,31,27,.35),
+    0 8px 24px rgba(11,31,27,.22);
+  font-size:18px;
+  line-height:1.4;
+  opacity:0;
+  transform:
+    translate(-50%,-44%)
+    scale(.96);
+  transition:
+    opacity .25s ease,
+    transform .25s ease;
+  pointer-events:none;
+}
+
+.vf-centered-action-confirmation.show{
+  opacity:1;
+  transform:
+    translate(-50%,-50%)
+    scale(1);
+}
+
+.vf-centered-confirmation-check{
+  flex:0 0 auto;
+  display:grid;
+  place-items:center;
+  width:46px;
+  height:46px;
+  border-radius:50%;
+  background:#d9f5e8;
+  color:#176348;
+  font-size:28px;
+  font-weight:900;
+}
+
+.vf-centered-action-confirmation strong{
+  display:block;
+}
+
+@media (max-width:600px){
+
+  .vf-centered-action-confirmation{
+    padding:18px 20px;
+    font-size:16px;
+  }
+
+  .vf-centered-confirmation-check{
+    width:40px;
+    height:40px;
+    font-size:24px;
+  }
+}
+
+
+/* VENDORFLOW DURABLE EMAIL INBOX */
+
+.vf-inbox-heading{
+  align-items:flex-start;
+  gap:20px;
+  margin-bottom:18px;
+}
+
+#inboundInboxStatus{
+  margin:8px 0 16px;
+}
+
+#inboundInboxList{
+  display:grid;
+  gap:12px;
+}
+
+.vf-inbox-message{
+  border:1px solid #d8e1ec;
+  border-left:5px solid #1d6f5f;
+  border-radius:12px;
+  padding:16px;
+  background:#fff;
+}
+
+.vf-inbox-message.needs-attention{
+  border-left-color:#c87519;
+  background:#fffaf3;
+}
+
+.vf-inbox-message-top{
+  display:flex;
+  justify-content:space-between;
+  gap:20px;
+  align-items:flex-start;
+}
+
+.vf-inbox-subject{
+  color:#18283b;
+  font-size:1rem;
+  font-weight:800;
+  margin-bottom:5px;
+}
+
+.vf-inbox-sender,
+.vf-inbox-time,
+.vf-inbox-attachments{
+  color:#526477;
+  font-size:.84rem;
+}
+
+.vf-inbox-time{
+  text-align:right;
+  white-space:nowrap;
+}
+
+.vf-inbox-tags{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  margin:13px 0 10px;
+}
+
+.vf-inbox-tag{
+  display:inline-flex;
+  align-items:center;
+  min-height:25px;
+  padding:3px 9px;
+  border-radius:999px;
+  background:#eaf3f1;
+  color:#175c50;
+  font-size:.74rem;
+  font-weight:800;
+}
+
+.vf-inbox-tag.attention{
+  background:#fff0db;
+  color:#9a4d00;
+}
+
+.vf-inbox-empty{
+  border:1px dashed #bdc9d7;
+  border-radius:12px;
+  padding:26px;
+  text-align:center;
+  color:#526477;
+  background:#f8fafc;
+}
+
+.vf-inbox-empty p{
+  margin:7px 0 0;
+}
+
+@media(max-width:760px){
+
+  .vf-inbox-heading,
+  .vf-inbox-message-top{
+    display:block;
+  }
+
+  .vf-inbox-heading button{
+    margin-top:12px;
+  }
+
+  .vf-inbox-time{
+    margin-top:8px;
+    text-align:left;
+    white-space:normal;
+  }
+}
+
+
+/* VENDORFLOW EXPANDED EMAIL DETAILS */
+
+.vf-inbox-status{
+  background:#e6eef9;
+  color:#173d77;
+}
+
+.vf-inbox-details{
+  margin-top:14px;
+  border-top:1px solid #dce4ed;
+  padding-top:12px;
+}
+
+.vf-inbox-details summary{
+  display:inline-flex;
+  align-items:center;
+  min-height:34px;
+  color:#173d77;
+  font-size:.86rem;
+  font-weight:800;
+  cursor:pointer;
+  user-select:none;
+}
+
+.vf-inbox-details summary:hover{
+  text-decoration:underline;
+}
+
+.vf-inbox-detail-grid{
+  display:grid;
+  grid-template-columns:
+    minmax(145px, 190px)
+    minmax(0, 1fr);
+  margin-top:12px;
+  border:1px solid #d7e0ea;
+  border-radius:10px;
+  overflow:hidden;
+  background:#fff;
+}
+
+.vf-inbox-detail-label,
+.vf-inbox-detail-value{
+  padding:9px 12px;
+  border-bottom:1px solid #e4e9ef;
+}
+
+.vf-inbox-detail-label{
+  background:#f3f6f9;
+  color:#4b5e72;
+  font-size:.75rem;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.025em;
+}
+
+.vf-inbox-detail-value{
+  color:#1d2c3d;
+  font-size:.86rem;
+  overflow-wrap:anywhere;
+}
+
+.vf-inbox-detail-grid > div:nth-last-child(-n+2){
+  border-bottom:0;
+}
+
+.vf-inbox-no-details{
+  margin-top:12px;
+  padding:13px;
+  border-radius:9px;
+  background:#f4f6f8;
+  color:#5e6d7c;
+  font-size:.84rem;
+}
+
+.vf-inbox-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:9px;
+  margin-top:14px;
+}
+
+@media(max-width:650px){
+
+  .vf-inbox-detail-grid{
+    display:block;
+  }
+
+  .vf-inbox-detail-label{
+    padding-bottom:4px;
+    border-bottom:0;
+  }
+
+  .vf-inbox-detail-value{
+    padding-top:3px;
+  }
+}
+
+
+/* CLICKABLE INBOX REVIEW BADGE */
+
+.vf-inbox-tag-button{
+  border:0;
+  font-family:inherit;
+  cursor:pointer;
+}
+
+.vf-inbox-tag-button:hover,
+.vf-inbox-tag-button:focus-visible{
+  background:#ceddf2;
+  color:#0b316b;
+  text-decoration:underline;
+}
+
+
+/* COMPLETE VENDORFLOW TO-DO LIST */
+
+.vf-todo-form{
+  margin-top:20px;
+}
+
+.vf-todo-notes-field{
+  grid-column:1 / -1;
+}
+
+.vf-todo-notes-field textarea{
+  resize:vertical;
+  min-height:96px;
+}
+
+.vf-todo-form-actions{
+  grid-column:1 / -1;
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+
+.vf-todo-record{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:22px;
+}
+
+.vf-todo-record.is-complete{
+  opacity:.7;
+  background:#f4f7f6;
+}
+
+.vf-todo-record.is-complete strong{
+  text-decoration:line-through;
+}
+
+.vf-todo-record-main{
+  min-width:0;
+  flex:1;
+}
+
+.vf-todo-notes{
+  margin-top:9px;
+  color:#46596d;
+  line-height:1.45;
+  white-space:pre-wrap;
+}
+
+.vf-todo-actions{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:8px;
+}
+
+@media(max-width:760px){
+  .vf-todo-record{
+    display:block;
+  }
+  .vf-todo-actions{
+    justify-content:flex-start;
+    margin-top:13px;
+  }
+}
+
+
+/* VENDORFLOW SHARED CHARTER-SCHOOL BANK */
+.vf-charter-bank{
+  margin:18px 0;
+  border:1px solid #c8d8ed;
+  background:#f8fbff;
+}
+.vf-charter-bank-heading{
+  align-items:flex-start;
+  gap:18px;
+  margin-bottom:14px;
+}
+.vf-charter-bank-heading h3{
+  margin:3px 0 4px;
+}
+.vf-charter-bank-heading p{
+  margin:0;
+}
+.vf-charter-bank-verified{
+  flex:0 0 auto;
+  padding:7px 10px;
+  border-radius:999px;
+  background:#dff3e9;
+  color:#176348;
+  font-size:11px;
+  font-weight:900;
+}
+#charterBankStatus{
+  margin:9px 0;
+  font-size:11px;
+}
+.vf-charter-bank-results{
+  display:grid;
+  gap:8px;
+  max-height:390px;
+  overflow:auto;
+}
+.vf-charter-bank-result{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:16px;
+  padding:12px;
+  border:1px solid #dbe4ef;
+  border-radius:10px;
+  background:#fff;
+}
+.vf-charter-bank-result-copy{
+  display:grid;
+  gap:3px;
+}
+.vf-charter-bank-result-copy strong{
+  color:#18283b;
+}
+.vf-charter-bank-result-copy span,
+.vf-charter-bank-result-copy small{
+  color:#5b6b7b;
+  font-size:11px;
+}
+.vf-charter-bank-result button{
+  flex:0 0 auto;
+}
+.vf-charter-bank-result button:disabled{
+  opacity:.65;
+  cursor:default;
+}
+.vf-charter-bank-empty{
+  padding:18px;
+  text-align:center;
+  color:#607086;
+}
+@media(max-width:700px){
+  .vf-charter-bank-heading,
+  .vf-charter-bank-result{
+    display:block;
+  }
+  .vf-charter-bank-verified,
+  .vf-charter-bank-result button{
+    display:inline-block;
+    margin-top:10px;
+  }
+}
+
+
+/* VENDORFLOW CHARTER PAGE HIERARCHY */
+.vf-charter-affiliations{
+  margin:22px 0 28px;
+}
+.vf-charter-section-heading{
+  margin-bottom:12px;
+}
+.vf-charter-section-heading h3{
+  margin:3px 0 5px;
+  color:#18283b;
+  font-size:1.22rem;
+}
+.vf-charter-section-heading p{
+  margin:0;
+  color:#526477;
+}
+.vf-charter-affiliations .vf-charter-list{
+  margin-top:12px;
+}
+.vf-charter-bank{
+  margin-top:8px;
+}
+
+
+/* VENDORFLOW CLICKABLE STUDENT DIRECTORY */
+.vf-student-directory-controls{
+  display:grid;
+  grid-template-columns:minmax(170px,1fr) minmax(260px,420px) auto;
+  align-items:end;
+  gap:18px;
+  margin:22px 0 12px;
+}
+.vf-student-directory-controls h3{
+  margin:3px 0 0;
+}
+.vf-student-directory-search{
+  display:grid;
+  gap:5px;
+  color:#526477;
+  font-size:.78rem;
+  font-weight:800;
+}
+#studentsServicesList{
+  display:grid;
+  gap:8px;
+}
+#studentsServicesList .vf-student-account{
+  padding:0;
+  overflow:hidden;
+}
+.vf-student-directory-row{
+  display:grid;
+  grid-template-columns:minmax(170px,1.15fr) minmax(190px,1.2fr) minmax(180px,1.5fr) 120px 92px;
+  align-items:center;
+  gap:15px;
+  width:100%;
+  min-height:70px;
+  padding:12px 16px;
+  border:0;
+  border-radius:0;
+  background:#fff;
+  color:#18283b;
+  text-align:left;
+}
+.vf-student-directory-row:hover,
+.vf-student-directory-row.open{
+  background:#f2f7fd;
+}
+.vf-student-directory-row.open{
+  border-bottom:1px solid #d7e1ed;
+}
+.vf-student-directory-row span:not(.vf-student-directory-open){
+  display:grid;
+  gap:4px;
+  min-width:0;
+}
+.vf-student-directory-row strong,
+.vf-student-directory-row small{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.vf-student-directory-row small{
+  color:#617185;
+  font-size:.72rem;
+}
+.vf-student-directory-balance{
+  text-align:right;
+}
+.vf-student-directory-open{
+  color:#173b72;
+  font-size:.76rem;
+  font-weight:900;
+  text-align:right;
+}
+.vf-student-directory-details{
+  padding:18px;
+  background:#fbfcfe;
+}
+.vf-student-record-actions{
+  display:flex;
+  justify-content:flex-end;
+  margin:18px 0 12px;
+}
+.vf-student-history-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+}
+.vf-student-history-grid section{
+  border:1px solid #d8e1ec;
+  border-radius:10px;
+  padding:14px;
+  background:#fff;
+}
+.vf-student-history-grid h4{
+  margin:0 0 10px;
+  color:#18283b;
+}
+.vf-student-history-row{
+  display:flex;
+  justify-content:space-between;
+  gap:15px;
+  padding:9px 0;
+  border-top:1px solid #e5ebf2;
+}
+.vf-student-history-row:first-of-type{
+  border-top:0;
+}
+.vf-student-history-row div{
+  display:grid;
+  gap:3px;
+}
+.vf-student-history-row span,
+.vf-student-history-empty{
+  color:#617185;
+  font-size:.76rem;
+}
+@media(max-width:1000px){
+  .vf-student-directory-row{
+    grid-template-columns:1.1fr 1fr 1fr 100px;
+  }
+  .vf-student-directory-open{
+    display:none;
+  }
+}
+@media(max-width:760px){
+  .vf-student-directory-controls,
+  .vf-student-history-grid{
+    grid-template-columns:1fr;
+  }
+  .vf-student-directory-row{
+    grid-template-columns:1fr auto;
+  }
+  .vf-student-directory-parent,
+  .vf-student-directory-services{
+    grid-column:1/-1;
+  }
+  .vf-student-directory-balance{
+    grid-column:2;
+    grid-row:1;
+  }
+}
+
+
+/* VENDORFLOW STUDENT FINANCIAL ACTIVITY */
+.vf-student-directory-controls{
+  grid-template-columns:1fr auto;
+}
+.vf-student-financial-activity{
+  margin:16px 0;
+  border:1px solid #cbd8e7;
+  border-radius:12px;
+  overflow:hidden;
+  background:#fff;
+}
+.vf-student-financial-heading{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:20px;
+  padding:14px 16px;
+  border-bottom:1px solid #d8e1ec;
+  background:#f2f7fd;
+}
+.vf-student-financial-heading h4{
+  margin:3px 0 0;
+  color:#18283b;
+  font-size:1.05rem;
+}
+.vf-student-financial-heading>span{
+  color:#526477;
+  font-size:.75rem;
+}
+.vf-student-financial-list{
+  display:grid;
+}
+.vf-student-financial-entry{
+  display:grid;
+  grid-template-columns:145px minmax(150px,.8fr) minmax(260px,1.8fr) 105px;
+  align-items:start;
+  gap:14px;
+  padding:13px 16px;
+  border-top:1px solid #e3e9f0;
+}
+.vf-student-financial-entry:first-child{
+  border-top:0;
+}
+.vf-student-financial-entry.possible-duplicate{
+  background:#fff8ee;
+  box-shadow:inset 4px 0 #c87519;
+}
+.vf-student-financial-type,
+.vf-student-financial-main,
+.vf-student-financial-description{
+  display:grid;
+  gap:4px;
+}
+.vf-financial-kind,
+.vf-financial-duplicate{
+  width:max-content;
+  max-width:100%;
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:.68rem;
+  font-weight:900;
+}
+.vf-financial-kind.charge{
+  background:#eef1f5;
+  color:#3e4d5e;
+}
+.vf-financial-kind.payment{
+  background:#e1f3eb;
+  color:#176348;
+}
+.vf-financial-kind.certificate{
+  background:#e7effb;
+  color:#173b72;
+}
+.vf-financial-kind.refund{
+  background:#f4e9fb;
+  color:#71368a;
+}
+.vf-financial-duplicate{
+  background:#ffe4bd;
+  color:#8b4300;
+}
+.vf-student-financial-main span,
+.vf-student-financial-description span{
+  color:#5b6c7f;
+  font-size:.73rem;
+  overflow-wrap:anywhere;
+}
+.vf-student-financial-amount{
+  text-align:right;
+}
+.vf-student-financial-amount.payment,
+.vf-student-financial-amount.certificate{
+  color:#176348;
+}
+.vf-student-financial-amount.charge,
+.vf-student-financial-amount.refund{
+  color:#8f3d36;
+}
+.vf-student-financial-empty{
+  padding:18px;
+  color:#617185;
+}
+@media(max-width:900px){
+  .vf-student-financial-entry{
+    grid-template-columns:130px 1fr 100px;
+  }
+  .vf-student-financial-description{
+    grid-column:1/-1;
+  }
+}
+@media(max-width:650px){
+  .vf-student-financial-heading{
+    display:block;
+  }
+  .vf-student-financial-heading>span{
+    display:block;
+    margin-top:7px;
+  }
+  .vf-student-financial-entry{
+    grid-template-columns:1fr auto;
+  }
+  .vf-student-financial-main,
+  .vf-student-financial-description{
+    grid-column:1/-1;
+  }
+  .vf-student-financial-amount{
+    grid-column:2;
+    grid-row:1;
+  }
+}
+
+
+/* VENDORFLOW CROSS-INTAKE DUPLICATES */
+.vf-review-ledger-duplicate{
+  width:max-content;
+  max-width:100%;
+  margin-top:3px;
+  padding:6px 9px;
+  border:1px solid #c87519;
+  border-radius:7px;
+  background:#fff;
+  color:#8b4300;
+  font-size:.7rem;
+  font-weight:900;
+}
+.vf-review-ledger-duplicate:hover{
+  background:#fff0db;
+}
+.vf-delete-ledger-payment{
+  width:max-content;
+  max-width:100%;
+  margin-top:3px;
+  padding:6px 9px;
+  border:1px solid #bb4d45;
+  border-radius:7px;
+  background:#fff;
+  color:#8f302a;
+  font-size:.7rem;
+  font-weight:900;
+}
+.vf-delete-ledger-payment:hover{
+  background:#fff0ef;
+}
+
+
+/* VENDORFLOW BETA-READY ADD SERVICE EDITOR */
+.vf-service-editor{
+  margin:18px 0 24px;
+  border:2px solid #1b3f7a;
+}
+.vf-service-editor-heading{
+  align-items:flex-start;
+  margin-bottom:18px;
+}
+.vf-service-editor-heading h2{margin-bottom:0;}
+.vf-service-editor-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:16px;
+}
+.vf-service-editor-grid .vf-field-label{
+  display:grid;
+  align-content:start;
+  gap:7px;
+  margin:0;
+}
+.vf-service-editor-grid .vf-field-label>span{
+  color:#2d4056;
+  font-size:.82rem;
+  font-weight:800;
+}
+.vf-service-editor-grid .vf-field-label small{
+  color:#718096;
+  font-weight:600;
+}
+.vf-service-wide{grid-column:1/-1;}
+.vf-service-editor textarea{resize:vertical;}
+.vf-service-editor-actions{
+  gap:10px;
+  margin-top:18px;
+}
+#serviceFormError{margin-top:16px;}
+@media(max-width:720px){
+  .vf-service-editor-grid{grid-template-columns:1fr;}
+  .vf-service-wide{grid-column:auto;}
+}
+
+
+/* VENDORFLOW BETA SETUP GUIDE + BEGINNER ROSTER HELP */
+.vf-roster-beginner-help{margin:18px 0;padding:20px;border:1px solid #cbd9e8;border-left:5px solid #173e7a;border-radius:12px;background:#f7faff}
+.vf-roster-beginner-help h3{margin:3px 0 12px}
+.vf-roster-beginner-help ol{margin:0 0 12px;padding-left:22px;line-height:1.7}
+.vf-roster-beginner-help p{margin:8px 0}
+.vf-roster-help-actions{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:14px}
+#vfRosterChosenFile{font-weight:700;color:#344b65}
+.vf-setup-guide{position:fixed;inset:0;z-index:100001;display:none}
+.vf-setup-guide.show{display:block}
+.vf-setup-guide-backdrop{position:absolute;inset:0;background:rgba(10,28,54,.58)}
+.vf-setup-guide-panel{position:relative;width:min(700px,calc(100vw - 32px));max-height:calc(100vh - 48px);overflow:auto;margin:24px auto;padding:26px;border-radius:18px;background:#fff;box-shadow:0 30px 90px rgba(0,0,0,.3)}
+.vf-setup-guide-steps{display:grid;gap:10px;margin-top:18px}
+.vf-setup-guide-steps button{display:grid;gap:4px;width:100%;padding:14px 16px;text-align:left;border:1px solid #ccd8e7;border-radius:10px;background:#f8fafc;color:#17345f}
+.vf-setup-guide-steps button:hover{border-color:#173e7a;background:#edf4ff}
+.vf-setup-guide-steps span{font-weight:400;color:#526477}
+.vf-beta-tutorial{position:fixed;right:24px;bottom:24px;z-index:100003;display:none;width:min(440px,calc(100vw - 32px));padding:22px;border:2px solid #7fa5da;border-radius:16px;background:#fff;box-shadow:0 24px 70px rgba(8,27,58,.34)}
+.vf-beta-tutorial.show{display:block}
+.vf-beta-tutorial h3{margin:5px 0 8px;color:#17345f}
+.vf-beta-tutorial p{line-height:1.55}
+.vf-tutorial-progress{float:right;color:#526477;font-size:.8rem;font-weight:800}
+.vf-tutorial-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.vf-tutorial-highlight{position:relative;z-index:100002!important;outline:5px solid #f2b84b!important;outline-offset:5px;border-radius:8px;box-shadow:0 0 0 9999px rgba(8,27,58,.42)}
+@media(max-width:600px){.vf-roster-beginner-help,.vf-setup-guide-panel{padding:18px}.vf-roster-help-actions{align-items:stretch;flex-direction:column}}
+
+
+/* VENDORFLOW SCROLLABLE SIDEBAR */
+aside{
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+}
+
+aside nav{
+  flex:0 0 auto;
+  padding-bottom:28px;
+}

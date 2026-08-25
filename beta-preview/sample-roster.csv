@@ -1,0 +1,4 @@
+ID,Title,Primary Last Name,Primary First Name,Email Address,Phone,Date Signed Up,Registrant Last Name,Registrant First Name,Birthdate,Age,Grade Level,Status
+1001,Math Jam,Johnson,Jessica,jessica@example.com,555-111-2222,8/1/2026,Johnson,Emma,4/15/2015,11,6,Active
+1002,Math Jam,Garcia,Marco,marco@example.com,555-222-3333,8/2/2026,Garcia,Luis,9/4/2016,9,4,Active
+1003,Math Jam,Nguyen,Amy,amy@example.com,555-333-4444,8/3/2026,Nguyen,Maya,1/10/2014,12,7,Dropped
