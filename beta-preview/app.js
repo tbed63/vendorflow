@@ -31268,7 +31268,7 @@ function installBetaGettingStartedGuide(){
     tutorial.addEventListener('click',event=>{
       event.preventDefault();
       event.stopImmediatePropagation();
-      openBetaTutorial();
+      vfOpenRealInteractiveTutorial();
     },true);
 
     const always=document.createElement('button');
@@ -31276,7 +31276,7 @@ function installBetaGettingStartedGuide(){
     always.type='button';
     always.className='vf-hero-secondary';
     always.textContent='Tutorial';
-    always.addEventListener('click',openBetaTutorial);
+    always.addEventListener('click',()=>vfOpenRealInteractiveTutorial());
     tutorial.insertAdjacentElement('afterend',always);
 
     const checklist=document.createElement('button');
@@ -31284,7 +31284,7 @@ function installBetaGettingStartedGuide(){
     checklist.type='button';
     checklist.className='vf-hero-secondary';
     checklist.textContent='Setup Checklist';
-    checklist.addEventListener('click',openBetaGettingStartedGuide);
+    checklist.addEventListener('click',()=>vfOpenFullSetupWorkspace());
     always.insertAdjacentElement('afterend',checklist);
   }
 
@@ -31671,7 +31671,7 @@ function vfInstallContinueSetupButton(){
   button.type='button';
   button.className='vf-continue-full-setup';
   button.textContent='Continue Setup';
-  button.onclick=vfOpenFullSetupWorkspace;
+  button.onclick=()=>vfOpenFullSetupWorkspace();
   document.body.appendChild(button);
 }
 vfInstallContinueSetupButton();
@@ -32012,7 +32012,39 @@ function vfOpenSequentialSetup(){
       return;
     }
     vfCloseSequentialSetup();
-    showCenteredActionConfirmation('Setup walkthrough reached the final checkpoint. Full automatic completion checks are still being built in preview.');
+
+    (async()=>{
+
+      try{
+
+        await setDoc(
+          vendorDoc(),
+          {
+            betaSetupComplete:true,
+            betaSetupCompletedAt:serverTimestamp()
+          },
+          {merge:true}
+        );
+
+        profile.betaSetupComplete=true;
+
+        await log(
+          'Vendor setup completed',
+          `${profile.businessName||'This vendor'} finished the full VendorFlow setup walkthrough.`,
+          'Onboarding'
+        );
+
+        localStorage.removeItem('vf-preview-setup-step');
+
+        showCenteredActionConfirmation('Setup complete. VendorFlow will take you straight to your workspace from now on.');
+
+      }catch(error){
+
+        console.error('Could not save setup completion:',error);
+
+        showCenteredActionConfirmation('Setup walkthrough finished, but VendorFlow could not save that — check your connection and try again from Continue Setup.');
+      }
+    })();
   };
 }
 
