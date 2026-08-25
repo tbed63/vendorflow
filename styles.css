@@ -7069,3 +7069,17 @@ button.history.vf-history-evidence:focus-visible{
 .vf-tutorial-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
 .vf-tutorial-highlight{position:relative;z-index:100002!important;outline:5px solid #f2b84b!important;outline-offset:5px;border-radius:8px;box-shadow:0 0 0 9999px rgba(8,27,58,.42)}
 @media(max-width:600px){.vf-roster-beginner-help,.vf-setup-guide-panel{padding:18px}.vf-roster-help-actions{align-items:stretch;flex-direction:column}}
+
+
+/* VENDORFLOW SCROLLABLE SIDEBAR */
+aside{
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+}
+
+aside nav{
+  flex:0 0 auto;
+  padding-bottom:28px;
+}
