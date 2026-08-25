@@ -21738,6 +21738,9 @@ if($('#saveInvoiceEmailTemplate')){
   $('#saveInvoiceEmailTemplate').onclick=
     async()=>{
 
+      const button=
+        $('#saveInvoiceEmailTemplate');
+
       const subject=
         $('#invoiceEmailSubjectInput')
           .value
@@ -21760,49 +21763,87 @@ if($('#saveInvoiceEmailTemplate')){
       }
 
 
-      const data={
+      const originalLabel=
+        button.textContent;
 
-        invoiceEmailTemplate:{
-          subject,
-          body
-        },
-
-        updatedAt:
-          serverTimestamp()
-      };
+      button.disabled=true;
+      button.textContent='Saving...';
 
 
-      await setDoc(
-        vendorDoc(),
-        data,
-        {
-          merge:true
-        }
-      );
+      try{
+
+        const data={
+
+          invoiceEmailTemplate:{
+            subject,
+            body
+          },
+
+          updatedAt:
+            serverTimestamp()
+        };
 
 
-      profile={
-        ...profile,
-        invoiceEmailTemplate:{
-          subject,
-          body
-        }
-      };
+        await setDoc(
+          vendorDoc(),
+          data,
+          {
+            merge:true
+          }
+        );
 
 
-      await log(
-        'Invoice email template updated',
-        'The invoice email subject and message were updated.',
-        'Manual'
-      );
+        profile={
+          ...profile,
+          invoiceEmailTemplate:{
+            subject,
+            body
+          }
+        };
 
 
-      toast(
-        'Invoice email template saved.'
-      );
+        await log(
+          'Invoice email template updated',
+          'The invoice email subject and message were updated.',
+          'Manual'
+        );
 
 
-      renderInvoiceEmailTemplateSettings();
+        button.textContent='Saved \u2713';
+
+        toast(
+          'Invoice email template saved.'
+        );
+
+
+        renderInvoiceEmailTemplateSettings();
+
+
+        setTimeout(
+          ()=>{
+
+            button.textContent=
+              originalLabel;
+
+            button.disabled=false;
+          },
+          1500
+        );
+
+      }catch(error){
+
+        console.error(error);
+
+        button.disabled=false;
+
+        button.textContent=
+          originalLabel;
+
+        alert(
+          error.message ||
+          'VendorFlow could not save the invoice email template.'
+        );
+      }
     };
 }
 
