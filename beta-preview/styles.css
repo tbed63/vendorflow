@@ -7150,3 +7150,11 @@ html,body{max-width:100%;overflow-x:hidden}
 .vf-tutorial-workflow h3{margin:0 0 12px;color:#18283b}.vf-tutorial-workflow ol{display:grid;gap:11px;margin:0;padding-left:25px;line-height:1.5}.vf-tutorial-workflow li::marker{color:#173e7a;font-weight:900}
 .vf-tutorial-result{margin:16px 0;padding:17px 19px;border-left:5px solid #1d6f5f;border-radius:8px;background:#eaf5f2}.vf-tutorial-result strong{color:#175c50}.vf-tutorial-result p{margin:6px 0 0;line-height:1.5}
 .vf-tutorial-open-feature{margin:0 0 22px;padding:10px 14px;border:1px solid #173e7a;border-radius:9px;background:#fff;color:#173e7a;font-weight:800}
+
+
+/* VENDORFLOW PREVIEW INVOICE EMAIL TEMPLATE */
+.vf-invoice-email-settings{margin-top:18px}
+.vf-invoice-email-settings label,.vf-invoice-email-review label{display:grid;gap:6px;margin:14px 0;font-weight:800;color:#24364b}
+.vf-invoice-email-template-help{margin:8px 0 16px;color:#526477;font-size:.82rem;line-height:1.5}
+.vf-invoice-email-review{width:min(720px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto}
+.vf-invoice-email-review textarea{resize:vertical;min-height:220px}
