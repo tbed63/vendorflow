@@ -2248,6 +2248,77 @@ Thank you,
 </div>
 
 
+<div
+  id="invoiceSendReviewModal"
+  class="vf-modal-overlay hidden">
+
+  <div class="vf-modal-card">
+
+    <button
+      type="button"
+      id="closeInvoiceSendReview"
+      class="vf-modal-close">
+      ×
+    </button>
+
+    <div class="eyebrow">
+      Review before sending
+    </div>
+
+    <h2>
+      Send invoice email
+    </h2>
+
+    <label class="vf-field-label">
+      <span>To</span>
+      <input
+        id="invoiceSendReviewTo"
+        class="input"
+        type="email">
+    </label>
+
+    <label class="vf-field-label">
+      <span>Subject</span>
+      <input
+        id="invoiceSendReviewSubject"
+        class="input">
+    </label>
+
+    <label class="vf-field-label">
+      <span>Message</span>
+      <textarea
+        id="invoiceSendReviewBody"
+        class="input"
+        rows="10"></textarea>
+    </label>
+
+    <p class="vf-invoice-email">
+      VendorFlow will attach the invoice PDF automatically.
+    </p>
+
+    <div class="vf-invoice-detail-actions">
+
+      <button
+        type="button"
+        id="cancelInvoiceSendReview"
+        class="vf-secondary-button">
+        Cancel
+      </button>
+
+      <button
+        type="button"
+        id="confirmInvoiceSendReview"
+        class="primary">
+        Send Invoice
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+
 <div id="invoiceList" class="vf-invoice-list">
         <div class="empty">No invoices yet.</div>
       </div>

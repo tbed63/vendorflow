@@ -3830,6 +3830,161 @@ function renderInvoiceEmailTemplateSettings(){
 }
 
 
+function invoiceEmailPlaceholderValues(invoice){
+
+  const charter=
+    charterSchools.find(
+      item=>
+        item.id===
+        invoice.charterSchoolId
+    ) || {};
+
+  const dueDate=
+    invoice.dueDate ||
+    invoiceDueDateForTerms(
+      invoice.paymentTermsDays ??
+      charter.paymentTermsDays
+    );
+
+  return {
+
+    invoiceNumber:
+      invoice.invoiceNumber||'',
+
+    businessName:
+      invoice.vendorBusinessName ||
+      profile.businessName ||
+      '',
+
+    ownerName:
+      invoice.vendorOwnerName ||
+      profile.ownerName ||
+      '',
+
+    charterSchool:
+      invoice.charterSchoolName ||
+      charter.name ||
+      '',
+
+    studentName:
+      invoice.studentName||'',
+
+    certificateNumber:
+      invoice.certificateNumber||'',
+
+    serviceName:
+      invoice.serviceName ||
+      'Educational services',
+
+    amount:
+      money(
+        invoice.amount||0
+      ),
+
+    invoiceDate:
+      invoice.invoiceDate||'',
+
+    dueDate:
+      dueDate||''
+  };
+}
+
+
+function fillInvoiceEmailTemplate(text,values){
+
+  return String(text||'')
+    .replace(
+      /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g,
+      (match,key)=>
+        (
+          values[key] !== undefined &&
+          values[key] !== null &&
+          values[key] !== ''
+        )
+          ? String(values[key])
+          : ''
+    );
+}
+
+
+function buildInvoiceEmailPreview(invoice){
+
+  const charter=
+    charterSchools.find(
+      item=>
+        item.id===
+        invoice.charterSchoolId
+    ) || {};
+
+  const to=
+    String(
+      invoice.charterBillingEmail ||
+      charter.billingEmail ||
+      charter.contactEmail ||
+      ''
+    ).trim();
+
+  const saved=
+    profile.invoiceEmailTemplate ||
+    {};
+
+  const defaults=
+    defaultInvoiceEmailTemplate();
+
+  const values=
+    invoiceEmailPlaceholderValues(
+      invoice
+    );
+
+  const subject=
+    fillInvoiceEmailTemplate(
+      saved.subject ||
+      defaults.subject,
+      values
+    );
+
+  const body=
+    fillInvoiceEmailTemplate(
+      saved.body ||
+      defaults.body,
+      values
+    );
+
+  return {
+    to,
+    subject,
+    body
+  };
+}
+
+
+function openInvoiceSendReview(invoice){
+
+  const modal=
+    $('#invoiceSendReviewModal');
+
+  if(!modal){
+    return;
+  }
+
+  const preview=
+    buildInvoiceEmailPreview(
+      invoice
+    );
+
+  $('#invoiceSendReviewTo').value=
+    preview.to;
+
+  $('#invoiceSendReviewSubject').value=
+    preview.subject;
+
+  $('#invoiceSendReviewBody').value=
+    preview.body;
+
+  show(modal);
+}
+
+
 function nextAutomaticInvoiceSequence(){
 
   const year=
@@ -5706,36 +5861,11 @@ function showInvoiceLedgerDetail(invoice){
   if(send){
 
     send.onclick=
-      async()=>{
+      ()=>{
 
-        const original=
-          send.textContent;
-
-        try{
-
-          send.disabled=true;
-          send.textContent='Sending...';
-
-          await sendInvoiceThroughVendorFlow(
-            invoice
-          );
-
-          closeInvoiceLedgerDetail();
-
-        }catch(error){
-
-          console.error(error);
-
-          alert(
-            error.message ||
-            'VendorFlow could not send this invoice.'
-          );
-
-        }finally{
-
-          send.disabled=false;
-          send.textContent=original;
-        }
+        openInvoiceSendReview(
+          invoice
+        );
       };
   }
 
@@ -21844,6 +21974,43 @@ if($('#saveInvoiceEmailTemplate')){
           'VendorFlow could not save the invoice email template.'
         );
       }
+    };
+}
+
+
+
+if($('#closeInvoiceSendReview')){
+
+  $('#closeInvoiceSendReview').onclick=
+    ()=>
+      hide(
+        $('#invoiceSendReviewModal')
+      );
+}
+
+
+if($('#cancelInvoiceSendReview')){
+
+  $('#cancelInvoiceSendReview').onclick=
+    ()=>
+      hide(
+        $('#invoiceSendReviewModal')
+      );
+}
+
+
+if($('#confirmInvoiceSendReview')){
+
+  $('#confirmInvoiceSendReview').onclick=
+    ()=>{
+
+      hide(
+        $('#invoiceSendReviewModal')
+      );
+
+      toast(
+        'Preview looks right. Real sending is not turned on yet \u2014 nothing was sent.'
+      );
     };
 }
 
