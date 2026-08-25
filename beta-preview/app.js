@@ -4754,144 +4754,6 @@ async function openInvoicePdf(
 
 
 
-/* VENDORFLOW PREVIEW INVOICE EMAIL TEMPLATE */
-const VF_INVOICE_EMAIL_DEFAULT_SUBJECT=
-  'Invoice {{invoiceNumber}} from {{businessName}}';
-
-const VF_INVOICE_EMAIL_DEFAULT_BODY=`Hello,
-
-Attached is invoice {{invoiceNumber}} from {{businessName}}.
-
-Student: {{studentName}}
-Certificate / PO: {{certificateNumber}}
-Service: {{serviceName}}
-Amount: {{amount}}
-Due date: {{dueDate}}
-
-Thank you,
-{{ownerName}}`;
-
-function invoiceEmailTemplateValues(invoice,charter={}){
-  return {
-    invoiceNumber:invoice.invoiceNumber||'',
-    businessName:profile.businessName||profile.ownerName||'Vendor',
-    ownerName:profile.ownerName||profile.businessName||'Vendor',
-    charterSchool:invoice.charterSchoolName||charter.name||'',
-    studentName:invoice.studentName||'',
-    certificateNumber:invoice.certificateNumber||'',
-    serviceName:invoice.serviceName||'',
-    amount:money(invoice.amount),
-    dueDate:invoice.dueDate||'',
-    invoiceDate:invoice.invoiceDate||''
-  };
-}
-
-function applyInvoiceEmailTemplate(template,values){
-  return String(template||'').replace(
-    /\{\{([a-zA-Z]+)\}\}/g,
-    (match,key)=>Object.prototype.hasOwnProperty.call(values,key)
-      ? String(values[key]||'')
-      : match
-  ).replace(/^.*:\s*$/gm,'').replace(/\n{3,}/g,'\n\n').trim();
-}
-
-function renderInvoiceEmailSettings(){
-  const view=$('#invoicesView');
-  if(!view)return;
-  let card=$('#invoiceEmailTemplateSettings');
-  if(!card){
-    card=document.createElement('section');
-    card.id='invoiceEmailTemplateSettings';
-    card.className='card vf-invoice-email-settings';
-    card.innerHTML=`
-      <div class="eyebrow">Invoice email</div>
-      <h3>Email sent with every invoice</h3>
-      <p>Set the standard message once. You can review and edit it again before each invoice is sent.</p>
-      <label>Subject
-        <input id="invoiceEmailSubjectTemplate" class="input" maxlength="180">
-      </label>
-      <label>Message
-        <textarea id="invoiceEmailBodyTemplate" class="input" rows="11"></textarea>
-      </label>
-      <div class="vf-invoice-email-template-help">Available details: {{invoiceNumber}}, {{businessName}}, {{ownerName}}, {{charterSchool}}, {{studentName}}, {{certificateNumber}}, {{serviceName}}, {{amount}}, {{dueDate}}, {{invoiceDate}}</div>
-      <div class="row gap">
-        <button type="button" id="saveInvoiceEmailTemplate" class="primary">Save email template</button>
-        <button type="button" id="resetInvoiceEmailTemplate">Restore default</button>
-      </div>`;
-    view.appendChild(card);
-    $('#saveInvoiceEmailTemplate').onclick=async()=>{
-      const subject=$('#invoiceEmailSubjectTemplate').value.trim();
-      const body=$('#invoiceEmailBodyTemplate').value.trim();
-      if(!subject||!body){
-        alert('Add both an email subject and message.');
-        return;
-      }
-      const data={
-        invoiceEmailSubjectTemplate:subject,
-        invoiceEmailBodyTemplate:body,
-        invoiceEmailTemplateUpdatedAt:serverTimestamp(),
-        updatedAt:serverTimestamp()
-      };
-      await setDoc(vendorDoc(),data,{merge:true});
-      profile={...profile,...data};
-      showCenteredActionConfirmation('Invoice email template saved.');
-    };
-    $('#resetInvoiceEmailTemplate').onclick=()=>{
-      $('#invoiceEmailSubjectTemplate').value=VF_INVOICE_EMAIL_DEFAULT_SUBJECT;
-      $('#invoiceEmailBodyTemplate').value=VF_INVOICE_EMAIL_DEFAULT_BODY;
-    };
-  }
-  $('#invoiceEmailSubjectTemplate').value=
-    profile.invoiceEmailSubjectTemplate||VF_INVOICE_EMAIL_DEFAULT_SUBJECT;
-  $('#invoiceEmailBodyTemplate').value=
-    profile.invoiceEmailBodyTemplate||VF_INVOICE_EMAIL_DEFAULT_BODY;
-}
-
-function reviewInvoiceEmail(invoice,charter,billingEmail){
-  const values=invoiceEmailTemplateValues(invoice,charter);
-  const subject=applyInvoiceEmailTemplate(
-    profile.invoiceEmailSubjectTemplate||VF_INVOICE_EMAIL_DEFAULT_SUBJECT,
-    values
-  );
-  const body=applyInvoiceEmailTemplate(
-    profile.invoiceEmailBodyTemplate||VF_INVOICE_EMAIL_DEFAULT_BODY,
-    values
-  );
-  return new Promise(resolve=>{
-    const overlay=document.createElement('div');
-    overlay.className='vf-modal-overlay';
-    overlay.innerHTML=`
-      <div class="vf-modal-card vf-invoice-email-review" role="dialog" aria-modal="true" aria-labelledby="invoiceEmailReviewTitle">
-        <div class="eyebrow">Review before sending</div>
-        <h2 id="invoiceEmailReviewTitle">Invoice email</h2>
-        <label>To<input class="input" data-invoice-email-to type="email" value="${esc(billingEmail)}"></label>
-        <label>Subject<input class="input" data-invoice-email-subject maxlength="180" value="${esc(subject)}"></label>
-        <label>Message<textarea class="input" data-invoice-email-body rows="12">${esc(body)}</textarea></label>
-        <p>The invoice PDF will be attached automatically.</p>
-        <div class="row gap">
-          <button type="button" class="primary" data-send-reviewed-invoice>Send invoice</button>
-          <button type="button" data-cancel-reviewed-invoice>Cancel</button>
-        </div>
-      </div>`;
-    const finish=value=>{overlay.remove();resolve(value);};
-    overlay.querySelector('[data-cancel-reviewed-invoice]').onclick=()=>finish(null);
-    overlay.onclick=event=>{if(event.target===overlay)finish(null);};
-    overlay.querySelector('[data-send-reviewed-invoice]').onclick=()=>{
-      const to=overlay.querySelector('[data-invoice-email-to]').value.trim();
-      const reviewedSubject=overlay.querySelector('[data-invoice-email-subject]').value.trim();
-      const reviewedBody=overlay.querySelector('[data-invoice-email-body]').value.trim();
-      if(!to||!reviewedSubject||!reviewedBody){
-        alert('Recipient, subject, and message are required.');
-        return;
-      }
-      finish({to,subject:reviewedSubject,body:reviewedBody});
-    };
-    document.body.appendChild(overlay);
-    overlay.querySelector('[data-invoice-email-subject]').focus();
-  });
-}
-
-
 async function sendInvoiceThroughVendorFlow(
   invoice
 ){
@@ -4932,16 +4794,20 @@ async function sendInvoiceThroughVendorFlow(
 
     return;
   }
-  const reviewedEmail=
-+    await reviewInvoiceEmail(
-+      invoice,
-+      charter,
-+      billingEmail
-+    );
-+
-+  if(!reviewedEmail){
-+    return;
-+  }
+
+
+  const ok=
+    confirm(
+      `Send invoice ${invoice.invoiceNumber}?\n\n` +
+      `To: ${billingEmail}\n` +
+      `Amount: ${money(invoice.amount)}\n\n` +
+      `VendorFlow will attach the invoice PDF and send it now.`
+    );
+
+
+  if(!ok){
+    return;
+  }
 
 
   const paymentTermsDays=
@@ -4952,15 +4818,6 @@ async function sendInvoiceThroughVendorFlow(
 
 
   const payload={
-
-    emailSubject:
-      reviewedEmail.subject,
-
-    emailBody:
-      reviewedEmail.body,
-
-    charterBillingEmail:
-      reviewedEmail.to,
 
     invoiceId:
       invoice.id,
@@ -5039,6 +4896,9 @@ async function sendInvoiceThroughVendorFlow(
       invoice.charterBillingContact ||
       charter.contactName ||
       '',
+
+    charterBillingEmail:
+      billingEmail,
 
     vendorBusinessName:
       invoice.vendorBusinessName ||
@@ -5854,7 +5714,6 @@ function showInvoiceLedgerDetail(invoice){
 
 
 function renderInvoices(){
-  renderInvoiceEmailSettings();
 
   renderInvoiceNumberingSettings();
 
