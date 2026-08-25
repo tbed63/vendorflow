@@ -30096,3 +30096,344 @@ function installBetaGettingStartedGuide(){
 }
 
 installBetaGettingStartedGuide();
+
+
+/* ==========================================================
+   VENDORFLOW PREVIEW ACTUAL CHARTER ONBOARDING
+   ========================================================== */
+let vfOnboardingDirectory=[];
+let vfOnboardingSelectedCharters=[];
+let vfOnboardingDirectoryLoading=false;
+
+function vfOnboardingCharterKey(record){
+  return String(record?.id||record?.name||'').trim().toLowerCase();
+}
+
+function vfRenderOnboardingCharters(){
+  const results=$('#vfOnboardingCharterResults');
+  const selected=$('#vfOnboardingSelectedCharters');
+  const search=$('#vfOnboardingCharterSearch');
+  if(!results || !selected || !search)return;
+
+  const query=String(search.value||'').trim().toLowerCase();
+  const matches=vfOnboardingDirectory.filter(record=>[
+    record.name,record.network,record.county,record.serviceCounties
+  ].some(value=>String(value||'').toLowerCase().includes(query)));
+
+  selected.innerHTML=vfOnboardingSelectedCharters.length
+    ? vfOnboardingSelectedCharters.map(record=>`
+        <div class="vf-onboarding-selected-charter">
+          <span><strong>${esc(record.name)}</strong>${record.county?`<small>${esc(record.county)}</small>`:''}</span>
+          <button type="button" data-remove-onboarding-charter="${esc(vfOnboardingCharterKey(record))}">Remove</button>
+        </div>`).join('')
+    : '<div class="muted">No charter schools added yet.</div>';
+
+  results.innerHTML=matches.length
+    ? matches.map(record=>{
+        const added=vfOnboardingSelectedCharters.some(item=>vfOnboardingCharterKey(item)===vfOnboardingCharterKey(record));
+        return `<div class="vf-onboarding-charter-result">
+          <span><strong>${esc(record.name)}</strong><small>${esc(record.network||record.county||'California charter school')}</small></span>
+          <button type="button" data-add-onboarding-charter="${esc(vfOnboardingCharterKey(record))}" ${added?'disabled':''}>${added?'Added':'Add'}</button>
+        </div>`;
+      }).join('')
+    : `<div class="vf-onboarding-no-charter">
+        <strong>No matching charter found.</strong>
+        <span>Use “Add a charter manually” below.</span>
+      </div>`;
+
+  $$('[data-add-onboarding-charter]').forEach(button=>{
+    button.onclick=()=>{
+      const record=vfOnboardingDirectory.find(item=>vfOnboardingCharterKey(item)===button.dataset.addOnboardingCharter);
+      if(record && !vfOnboardingSelectedCharters.some(item=>vfOnboardingCharterKey(item)===vfOnboardingCharterKey(record))){
+        vfOnboardingSelectedCharters.push({...record,onboardingSource:'directory'});
+        vfRenderOnboardingCharters();
+      }
+    };
+  });
+  $$('[data-remove-onboarding-charter]').forEach(button=>{
+    button.onclick=()=>{
+      vfOnboardingSelectedCharters=vfOnboardingSelectedCharters.filter(item=>vfOnboardingCharterKey(item)!==button.dataset.removeOnboardingCharter);
+      vfRenderOnboardingCharters();
+    };
+  });
+}
+
+async function vfLoadOnboardingCharterDirectory(){
+  if(vfOnboardingDirectory.length || vfOnboardingDirectoryLoading){
+    vfRenderOnboardingCharters();
+    return;
+  }
+  vfOnboardingDirectoryLoading=true;
+  const status=$('#vfOnboardingCharterStatus');
+  try{
+    const token=await user.getIdToken();
+    const response=await fetch(`${VENDORFLOW_API}/charter-schools/bank`,{headers:{Authorization:`Bearer ${token}`}});
+    const data=await response.json();
+    if(!response.ok)throw new Error(data.detail||data.error||'Directory could not be loaded.');
+    vfOnboardingDirectory=Array.isArray(data.schools)?data.schools:[];
+    if(status)status.textContent=`${vfOnboardingDirectory.length} verified California schools available.`;
+    vfRenderOnboardingCharters();
+  }catch(error){
+    if(status)status.textContent='The directory could not be loaded. You can still add a charter manually.';
+  }finally{
+    vfOnboardingDirectoryLoading=false;
+  }
+}
+
+function vfRenderActualCharterOnboarding(){
+  $('#progressBar').style.width=`${(step+1)/questions.length*100}%`;
+  $('#backBtn').disabled=step===0;
+  $('#nextBtn').textContent='Save schools and continue setup';
+  $('#questionBox').innerHTML=`
+    <div class="eyebrow">Step ${step+1} of ${questions.length}</div>
+    <h2>Add the charter schools you work with</h2>
+    <p>Search the verified Charter Directory and add every school you currently work with. You can add more later.</p>
+    <label class="vf-field-label"><span>Find a charter school</span>
+      <input id="vfOnboardingCharterSearch" class="input" placeholder="Search school, network, or county">
+    </label>
+    <div id="vfOnboardingCharterStatus" class="muted">Loading verified schools…</div>
+    <div id="vfOnboardingCharterResults" class="vf-onboarding-charter-results"></div>
+    <div class="vf-onboarding-selected-box"><h3>My Charter School Affiliations</h3><div id="vfOnboardingSelectedCharters"></div></div>
+    <details class="vf-onboarding-manual-charter">
+      <summary>Add a charter manually</summary>
+      <div class="vf-onboarding-manual-grid">
+        <input id="vfManualCharterName" class="input" placeholder="Charter school name">
+        <input id="vfManualCharterBilling" class="input" type="email" placeholder="Billing email, if known">
+        <input id="vfManualCharterContact" class="input" type="email" placeholder="Vendor contact email, if known">
+        <input id="vfManualCharterPhone" class="input" placeholder="Phone, if known">
+      </div>
+      <button id="vfAddManualOnboardingCharter" type="button">Add to My Schools</button>
+    </details>`;
+
+  $('#vfOnboardingCharterSearch').oninput=vfRenderOnboardingCharters;
+  $('#vfAddManualOnboardingCharter').onclick=()=>{
+    const name=$('#vfManualCharterName').value.trim();
+    if(!name){toast('Enter the charter school name first.');return;}
+    if(!vfOnboardingSelectedCharters.some(item=>String(item.name||'').trim().toLowerCase()===name.toLowerCase())){
+      vfOnboardingSelectedCharters.push({
+        id:`manual-${Date.now()}`,name,
+        accountsPayableEmail:$('#vfManualCharterBilling').value.trim(),
+        vendorEmail:$('#vfManualCharterContact').value.trim(),
+        vendorPhone:$('#vfManualCharterPhone').value.trim(),
+        onboardingSource:'manual'
+      });
+    }
+    $('#vfManualCharterName').value='';
+    $('#vfManualCharterBilling').value='';
+    $('#vfManualCharterContact').value='';
+    $('#vfManualCharterPhone').value='';
+    vfRenderOnboardingCharters();
+  };
+  vfLoadOnboardingCharterDirectory();
+}
+
+async function vfSaveOnboardingCharters(){
+  const existing=await getDocs(sub('charterSchools'));
+  const existingKeys=new Set(existing.docs.flatMap(snapshot=>{
+    const data=snapshot.data()||{};
+    return [String(data.sharedBankId||'').toLowerCase(),String(data.name||'').trim().toLowerCase()].filter(Boolean);
+  }));
+  for(const record of vfOnboardingSelectedCharters){
+    const keys=[String(record.id||'').toLowerCase(),String(record.name||'').trim().toLowerCase()].filter(Boolean);
+    if(keys.some(key=>existingKeys.has(key)))continue;
+    await addDoc(sub('charterSchools'),{
+      name:String(record.name||'').trim(),
+      sharedBankId:record.onboardingSource==='directory'?String(record.id||''):'',
+      billingEmail:String(record.accountsPayableEmail||'').trim(),
+      contactName:String(record.network||'').trim(),
+      contactEmail:String(record.vendorEmail||'').trim(),
+      phone:String(record.vendorPhone||'').trim(),
+      address:String(record.address||'').trim(),city:String(record.city||'').trim(),
+      state:String(record.state||'CA').trim(),zip:String(record.zip||'').trim(),
+      notes:[record.vendorProcess||'',record.sourceUrl?`Verified source: ${record.sourceUrl}`:''].filter(Boolean).join('\n\n'),
+      paymentTermsDays:30,archived:false,source:record.onboardingSource==='directory'?'Charter Directory':'Manual onboarding',
+      createdAt:serverTimestamp(),updatedAt:serverTimestamp()
+    });
+    keys.forEach(key=>existingKeys.add(key));
+  }
+}
+
+questions[questions.length-1]=['schools','Which charter schools do you work with?','Search the Charter Directory or add one manually.'];
+const vfOriginalRenderQuestion=renderQuestion;
+renderQuestion=function(){
+  if(questions[step]?.[0]==='schools'){vfRenderActualCharterOnboarding();return;}
+  vfOriginalRenderQuestion();
+};
+
+$('#backBtn').onclick=()=>{
+  if(!step)return;
+  const key=questions[step][0];
+  if(key!=='schools' && $('#answer'))answers[key]=$('#answer').value.trim();
+  step-=1;
+  renderQuestion();
+};
+
+const vfOriginalNextQuestion=$('#nextBtn').onclick;
+$('#nextBtn').onclick=async()=>{
+  if(questions[step]?.[0]!=='schools'){
+    await vfOriginalNextQuestion();
+    return;
+  }
+  $('#nextBtn').disabled=true;
+  try{
+    answers.schools=vfOnboardingSelectedCharters.map(item=>item.name).join(' | ');
+    await vfSaveOnboardingCharters();
+    profile={
+      ...answers,
+      email:user.email,
+      onboardingComplete:true,
+      betaSetupComplete:false,
+      updatedAt:serverTimestamp()
+    };
+    await setDoc(vendorDoc(),profile,{merge:true});
+    await log('Business setup completed',`${profile.businessName} workspace created with ${vfOnboardingSelectedCharters.length} charter affiliation${vfOnboardingSelectedCharters.length===1?'':'s'}.`,'Onboarding');
+    hide($('#onboarding'));
+    await enterApp();
+    window.setTimeout(()=>vfOpenFullSetupWorkspace(),350);
+  }catch(error){
+    console.error('Preview charter onboarding failed:',error);
+    toast(error.message||'VendorFlow could not finish setup. Please try again.');
+  }finally{
+    $('#nextBtn').disabled=false;
+  }
+};
+
+function vfInstallManualCharterDirectoryOption(){
+  const bank=$('#charterBankSearch')?.closest('.vf-charter-bank');
+  if(!bank || $('#vfManualCharterDirectoryOption'))return;
+  const option=document.createElement('div');
+  option.id='vfManualCharterDirectoryOption';
+  option.className='vf-manual-charter-directory-option';
+  option.innerHTML=`<div><strong>Can’t find your charter?</strong><span>Add it manually and VendorFlow will save it with your affiliations.</span></div><button type="button">Add Charter Manually</button>`;
+  option.querySelector('button').onclick=()=>openCharterEditor();
+  bank.appendChild(option);
+}
+vfInstallManualCharterDirectoryOption();
+
+function vfSetupSteps(){
+  return [
+    {
+      id:'charters',
+      title:'Charter schools',
+      detail:'Search the Charter Directory or add a charter manually, then review its billing information.',
+      action:'Open Charter Schools'
+    },
+    {
+      id:'classes',
+      title:'Classes and services',
+      detail:'Create every class and service using the same complete forms used in VendorFlow.',
+      action:'Open Classes & Services'
+    },
+    {
+      id:'rosters',
+      title:'Students and class rosters',
+      detail:'For each class, upload its roster CSV or add students manually. Repeat for every class.',
+      action:'Open Class Rosters'
+    },
+    {
+      id:'payments',
+      title:'Payments already received',
+      detail:'Enter payments manually or import an existing Venmo or bank statement.',
+      action:'Open Payments'
+    },
+    {
+      id:'certificates',
+      title:'Certificates already received',
+      detail:'Upload one certificate or select up to 20 PDFs for the proven bulk-review workflow.',
+      action:'Open Certificates'
+    },
+    {
+      id:'students',
+      title:'Review student accounts',
+      detail:'Open every student and confirm contact details, services, payments, certificates, and balances.',
+      action:'Open Students'
+    },
+    {
+      id:'tutorial',
+      title:'Learn VendorFlow',
+      detail:'Learn direct entry, email intake, Notifications, invoicing, the Actions trail, and your ability to correct anything.',
+      action:'Open Tutorial'
+    }
+  ];
+}
+
+function vfCloseFullSetupWorkspace(){
+  $('#vfFullSetupWorkspace')?.remove();
+}
+
+function vfOpenFullSetupStep(stepId){
+  vfCloseFullSetupWorkspace();
+  const routes={
+    charters:'charters',
+    classes:'classes',
+    rosters:'classes',
+    payments:'payments',
+    certificates:'certificates',
+    students:'students'
+  };
+  if(stepId==='tutorial'){
+    openBetaGettingStartedGuide();
+    return;
+  }
+  switchView(routes[stepId]||'review');
+  window.setTimeout(()=>{
+    const targets={
+      charters:'#charterBankSearch',
+      classes:'#saveClass',
+      rosters:'#classSelect',
+      payments:'#paymentStatementWorkspace',
+      certificates:'#bulkCertificateIntake',
+      students:'#studentDirectorySearch'
+    };
+    document.querySelector(targets[stepId]||'')?.scrollIntoView({behavior:'smooth',block:'start'});
+  },120);
+}
+
+function vfOpenFullSetupWorkspace(){
+  vfCloseFullSetupWorkspace();
+  const workspace=document.createElement('div');
+  workspace.id='vfFullSetupWorkspace';
+  workspace.className='vf-full-setup-workspace';
+  workspace.innerHTML=`
+    <div class="vf-full-setup-panel" role="dialog" aria-modal="true" aria-labelledby="vfFullSetupTitle">
+      <div class="vf-full-setup-heading">
+        <div>
+          <div class="eyebrow">Complete VendorFlow setup</div>
+          <h2 id="vfFullSetupTitle">Set up the entire account</h2>
+          <p>This is not a shortened setup. Each step opens the same complete workflow used in VendorFlow.</p>
+        </div>
+        <button type="button" data-close-full-setup aria-label="Close setup">Close</button>
+      </div>
+      <div class="vf-full-setup-notice">
+        Work through every class, roster, payment, and certificate. You can close this checklist and return without losing saved work.
+      </div>
+      <div class="vf-full-setup-steps">
+        ${vfSetupSteps().map((item,index)=>`
+          <section class="vf-full-setup-step">
+            <span class="vf-full-setup-number">${index+1}</span>
+            <div><strong>${esc(item.title)}</strong><p>${esc(item.detail)}</p></div>
+            <button type="button" class="primary" data-open-full-setup-step="${esc(item.id)}">${esc(item.action)}</button>
+          </section>`).join('')}
+      </div>
+      <div class="vf-full-setup-footer">
+        <strong>Preview checkpoint:</strong> Setup stays in progress until every real workflow is completed and reviewed.
+      </div>
+    </div>`;
+  document.body.appendChild(workspace);
+  $$('[data-open-full-setup-step]').forEach(button=>{
+    button.onclick=()=>vfOpenFullSetupStep(button.dataset.openFullSetupStep);
+  });
+  $('[data-close-full-setup]').onclick=vfCloseFullSetupWorkspace;
+}
+
+function vfInstallContinueSetupButton(){
+  if($('#vfContinueFullSetup'))return;
+  const button=document.createElement('button');
+  button.id='vfContinueFullSetup';
+  button.type='button';
+  button.className='vf-continue-full-setup';
+  button.textContent='Continue Setup';
+  button.onclick=vfOpenFullSetupWorkspace;
+  document.body.appendChild(button);
+}
+vfInstallContinueSetupButton();
