@@ -2008,6 +2008,52 @@ Thank you,
         </div>
 
 
+      <div
+        id="invoiceEmailTemplateCard"
+        class="vf-invoice-numbering-card">
+
+        <div class="eyebrow">
+          Invoice email
+        </div>
+
+        <h3>
+          Invoice email template
+        </h3>
+
+        <p>
+          This is the subject and message VendorFlow sends with every
+          invoice email today. Soon you will be able to edit it here.
+        </p>
+
+        <div class="vf-numbering-preview">
+          <strong>Subject</strong><br>
+          Invoice {{invoiceNumber}} — {{businessName}}
+        </div>
+
+        <div class="vf-numbering-preview">
+          <strong>Message</strong><br>
+          Hello,<br>
+          <br>
+          Attached is invoice {{invoiceNumber}} from {{businessName}}.<br>
+          <br>
+          Student: {{studentName}}<br>
+          Certificate / PO: {{certificateNumber}}<br>
+          Service: {{serviceName}}<br>
+          Amount: {{amount}}<br>
+          <br>
+          Thank you,<br>
+          {{ownerName}}
+        </div>
+
+        <small>
+          Available placeholders: invoice number, business name, owner
+          name, charter school, student, certificate/PO number, service,
+          amount, invoice date, due date.
+        </small>
+
+      </div>
+
+
       
 <div class="vf-invoice-ledger-toolbar">
 
