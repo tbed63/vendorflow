@@ -2057,6 +2057,83 @@ Thank you,
       </div>
 
 
+      <div
+        id="overdueInvoiceSettingsCard"
+        class="vf-invoice-numbering-card hidden">
+
+        <div class="eyebrow">
+          Overdue reminders
+        </div>
+
+        <h3>
+          Overdue charter invoice reminders
+        </h3>
+
+        <p>
+          VendorFlow can remind you inside Notifications when a sent
+          invoice is still unpaid this many days after its due date.
+          This never emails the charter school automatically.
+        </p>
+
+        <label class="vf-field-label">
+          <span>Remind me this many days after the due date</span>
+          <input
+            id="overdueGraceDays"
+            class="input"
+            type="number"
+            min="0"
+            max="365"
+            step="1">
+        </label>
+
+        <label class="vf-numbering-choice">
+
+          <input
+            type="checkbox"
+            id="overdueRepeatEnabled">
+
+          <div>
+            <strong>
+              Keep reminding me until it's resolved
+            </strong>
+
+            <span>
+              Repeat the reminder on the schedule below.
+            </span>
+          </div>
+
+        </label>
+
+        <label class="vf-field-label">
+          <span>Repeat every</span>
+          <input
+            id="overdueRepeatInterval"
+            class="input"
+            type="number"
+            min="1"
+            max="365"
+            step="1">
+        </label>
+
+        <label class="vf-field-label">
+          <span>Repeat unit</span>
+          <select
+            id="overdueRepeatUnit"
+            class="input">
+            <option value="days">Days</option>
+            <option value="weeks">Weeks</option>
+          </select>
+        </label>
+
+        <button
+          id="saveOverdueInvoiceSettings"
+          class="primary">
+          Save overdue reminder settings
+        </button>
+
+      </div>
+
+
       
 <div class="vf-invoice-ledger-toolbar">
 
@@ -2138,6 +2215,13 @@ Thank you,
     id="openInvoiceEmailTemplateSettings"
     class="vf-secondary-button vf-invoice-numbering-button">
     Invoice email settings
+  </button>
+
+  <button
+    type="button"
+    id="openOverdueInvoiceSettings"
+    class="vf-secondary-button vf-invoice-numbering-button">
+    Overdue reminder settings
   </button>
 
 </div>
@@ -2348,6 +2432,34 @@ Thank you,
     </h2>
 
     <div id="invoiceEmailTemplateModalBody"></div>
+
+  </div>
+
+</div>
+
+
+<div
+  id="overdueInvoiceSettingsModal"
+  class="vf-modal-overlay hidden">
+
+  <div class="vf-modal-card">
+
+    <button
+      type="button"
+      id="closeOverdueInvoiceSettings"
+      class="vf-modal-close">
+      ×
+    </button>
+
+    <div class="eyebrow">
+      Invoice settings
+    </div>
+
+    <h2>
+      Overdue reminders
+    </h2>
+
+    <div id="overdueInvoiceSettingsModalBody"></div>
 
   </div>
 

@@ -3775,6 +3775,89 @@ function renderInvoiceNumberingSettings(){
 }
 
 
+function defaultOverdueInvoiceSettings(){
+
+  return {
+
+    graceDays:
+      10,
+
+    repeatEnabled:
+      false,
+
+    repeatInterval:
+      7,
+
+    repeatUnit:
+      'days'
+  };
+}
+
+
+function renderOverdueInvoiceSettings(){
+
+  const graceField=
+    $('#overdueGraceDays');
+
+  const repeatEnabledField=
+    $('#overdueRepeatEnabled');
+
+  const intervalField=
+    $('#overdueRepeatInterval');
+
+  const unitField=
+    $('#overdueRepeatUnit');
+
+
+  if(
+    !graceField ||
+    !repeatEnabledField ||
+    !intervalField ||
+    !unitField
+  ){
+    return;
+  }
+
+
+  const saved=
+    profile.overdueInvoiceSettings ||
+    {};
+
+  const defaults=
+    defaultOverdueInvoiceSettings();
+
+
+  graceField.value=
+    Number.isFinite(
+      Number(saved.graceDays)
+    )
+      ? Number(saved.graceDays)
+      : defaults.graceDays;
+
+  repeatEnabledField.checked=
+    saved.repeatEnabled ??
+    defaults.repeatEnabled;
+
+  intervalField.value=
+    Number.isFinite(
+      Number(saved.repeatInterval)
+    )
+      ? Number(saved.repeatInterval)
+      : defaults.repeatInterval;
+
+  unitField.value=
+    saved.repeatUnit ||
+    defaults.repeatUnit;
+
+
+  intervalField.disabled=
+    !repeatEnabledField.checked;
+
+  unitField.disabled=
+    !repeatEnabledField.checked;
+}
+
+
 function defaultInvoiceEmailTemplate(){
 
   return {
@@ -5494,6 +5577,76 @@ function populateInvoiceLedgerFilters(){
 }
 
 
+function installOverdueInvoiceSettingsPopup(){
+
+  const settings=
+    $('#overdueInvoiceSettingsCard');
+
+  const body=
+    $('#overdueInvoiceSettingsModalBody');
+
+  const open=
+    $('#openOverdueInvoiceSettings');
+
+  const modal=
+    $('#overdueInvoiceSettingsModal');
+
+  const close=
+    $('#closeOverdueInvoiceSettings');
+
+
+  if(
+    !settings ||
+    !body ||
+    !open ||
+    !modal
+  ){
+    return;
+  }
+
+
+  if(settings.parentElement!==body){
+
+    const oldParent=
+      settings.parentElement;
+
+    body.appendChild(settings);
+
+    settings.classList.remove(
+      'hidden'
+    );
+
+
+    if(
+      oldParent &&
+      !oldParent.textContent.trim()
+    ){
+      oldParent.style.display='none';
+    }
+  }
+
+
+  open.onclick=()=>{
+
+    show(modal);
+
+    renderOverdueInvoiceSettings();
+  };
+
+
+  const closeModal=()=>{
+
+    hide(modal);
+  };
+
+
+  if(close){
+    close.onclick=
+      closeModal;
+  }
+}
+
+
 function installInvoiceEmailTemplatePopup(){
 
   const settings=
@@ -6051,9 +6204,13 @@ function renderInvoices(){
 
   renderInvoiceEmailTemplateSettings();
 
+  renderOverdueInvoiceSettings();
+
   installInvoiceNumberingPopup();
 
   installInvoiceEmailTemplatePopup();
+
+  installOverdueInvoiceSettingsPopup();
 
   populateInvoiceLedgerFilters();
 
@@ -22229,6 +22386,166 @@ if($('#confirmInvoiceSendReview')){
 
         button.disabled=false;
         button.textContent=originalLabel;
+      }
+    };
+}
+
+
+
+if($('#overdueRepeatEnabled')){
+
+  $('#overdueRepeatEnabled')
+    .addEventListener(
+      'change',
+      ()=>{
+
+        const enabled=
+          $('#overdueRepeatEnabled').checked;
+
+        $('#overdueRepeatInterval').disabled=
+          !enabled;
+
+        $('#overdueRepeatUnit').disabled=
+          !enabled;
+      }
+    );
+}
+
+
+if($('#saveOverdueInvoiceSettings')){
+
+  $('#saveOverdueInvoiceSettings').onclick=
+    async()=>{
+
+      const button=
+        $('#saveOverdueInvoiceSettings');
+
+      const graceDays=
+        Number(
+          $('#overdueGraceDays').value
+        );
+
+      const repeatEnabled=
+        $('#overdueRepeatEnabled').checked;
+
+      const repeatInterval=
+        Number(
+          $('#overdueRepeatInterval').value
+        );
+
+      const repeatUnit=
+        $('#overdueRepeatUnit').value ===
+          'weeks'
+          ? 'weeks'
+          : 'days';
+
+
+      if(
+        !Number.isFinite(graceDays) ||
+        graceDays<0
+      ){
+        return toast(
+          'Enter how many days after the due date to remind you.'
+        );
+      }
+
+      if(
+        repeatEnabled &&
+        (
+          !Number.isFinite(repeatInterval) ||
+          repeatInterval<1
+        )
+      ){
+        return toast(
+          'Enter a repeat interval of at least 1.'
+        );
+      }
+
+
+      const originalLabel=
+        button.textContent;
+
+      button.disabled=true;
+      button.textContent='Saving...';
+
+
+      try{
+
+        const data={
+
+          overdueInvoiceSettings:{
+            graceDays,
+            repeatEnabled,
+            repeatInterval,
+            repeatUnit
+          },
+
+          updatedAt:
+            serverTimestamp()
+        };
+
+
+        await setDoc(
+          vendorDoc(),
+          data,
+          {
+            merge:true
+          }
+        );
+
+
+        profile={
+          ...profile,
+          overdueInvoiceSettings:
+            data.overdueInvoiceSettings
+        };
+
+
+        await log(
+          'Overdue reminder settings updated',
+          repeatEnabled
+            ? `VendorFlow will remind you ${graceDays} day(s) after an invoice`+
+              ` is due, repeating every ${repeatInterval} ${repeatUnit} until resolved.`
+            : `VendorFlow will remind you ${graceDays} day(s) after an invoice is due.`,
+          'Manual'
+        );
+
+
+        button.textContent='Saved \u2713';
+
+        toast(
+          'Overdue reminder settings saved.'
+        );
+
+        if(typeof renderReviews==='function'){
+          renderReviews();
+        }
+
+
+        setTimeout(
+          ()=>{
+
+            button.textContent=
+              originalLabel;
+
+            button.disabled=false;
+          },
+          1500
+        );
+
+      }catch(error){
+
+        console.error(error);
+
+        button.disabled=false;
+
+        button.textContent=
+          originalLabel;
+
+        alert(
+          error.message ||
+          'VendorFlow could not save these settings.'
+        );
       }
     };
 }
