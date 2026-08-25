@@ -5489,6 +5489,76 @@ function populateInvoiceLedgerFilters(){
 }
 
 
+function installInvoiceEmailTemplatePopup(){
+
+  const settings=
+    $('#invoiceEmailTemplateCard');
+
+  const body=
+    $('#invoiceEmailTemplateModalBody');
+
+  const open=
+    $('#openInvoiceEmailTemplateSettings');
+
+  const modal=
+    $('#invoiceEmailTemplateModal');
+
+  const close=
+    $('#closeInvoiceEmailTemplateSettings');
+
+
+  if(
+    !settings ||
+    !body ||
+    !open ||
+    !modal
+  ){
+    return;
+  }
+
+
+  if(settings.parentElement!==body){
+
+    const oldParent=
+      settings.parentElement;
+
+    body.appendChild(settings);
+
+    settings.classList.remove(
+      'hidden'
+    );
+
+
+    if(
+      oldParent &&
+      !oldParent.textContent.trim()
+    ){
+      oldParent.style.display='none';
+    }
+  }
+
+
+  open.onclick=()=>{
+
+    show(modal);
+
+    renderInvoiceEmailTemplateSettings();
+  };
+
+
+  const closeModal=()=>{
+
+    hide(modal);
+  };
+
+
+  if(close){
+    close.onclick=
+      closeModal;
+  }
+}
+
+
 function installInvoiceNumberingPopup(){
 
   const settings=
@@ -5906,6 +5976,8 @@ function renderInvoices(){
 
   installInvoiceNumberingPopup();
 
+  installInvoiceEmailTemplatePopup();
+
   populateInvoiceLedgerFilters();
 
 
@@ -6161,7 +6233,7 @@ function renderInvoices(){
       <span>Charter</span>
       <span>Student</span>
       <span>Service</span>
-      <span>Date</span>
+      <span>Invoice Date</span>
       <span class="right">Amount</span>
       <span>Status</span>
 
