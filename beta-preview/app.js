@@ -6175,6 +6175,13 @@ function showInvoiceLedgerDetail(invoice){
               class="vf-secondary-button">
               Reset to Ready to Send (testing only)
             </button>
+
+            <button
+              type="button"
+              id="ledgerSimulateOverdue"
+              class="vf-secondary-button">
+              Simulate overdue reminder (testing only)
+            </button>
           `
           : ''
       }
@@ -6240,7 +6247,94 @@ function showInvoiceLedgerDetail(invoice){
   }
 
 
+  const simulateOverdue=
+    $('#ledgerSimulateOverdue');
+
+  if(simulateOverdue){
+
+    simulateOverdue.onclick=
+      ()=>simulateOverdueInvoiceForTesting(
+        invoice
+      );
+  }
+
+
   show(modal);
+}
+
+
+async function simulateOverdueInvoiceForTesting(invoice){
+
+  const ok=
+    confirm(
+      `Backdate ${invoice.invoiceNumber}'s due date so VendorFlow treats it as overdue?\n\n`+
+      `This is for testing only. It will not notify the charter school. `+
+      `It changes this invoice's due date — use it on a test invoice, not a real one.`
+    );
+
+  if(!ok){
+    return;
+  }
+
+
+  const settings=
+    profile.overdueInvoiceSettings ||
+    defaultOverdueInvoiceSettings();
+
+  const today=
+    new Date();
+
+  today.setHours(0,0,0,0);
+
+  const testDueDate=
+    new Date(today);
+
+  testDueDate.setDate(
+    testDueDate.getDate() -
+      Number(settings.graceDays||0) -
+      5
+  );
+
+  await setDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'invoices',
+      invoice.id
+    ),
+    {
+      dueDate:
+        dateToLocalISO(testDueDate),
+
+      overdueReminder:{
+        dismissedUntil:''
+      },
+
+      testOverdueSimulatedAt:
+        serverTimestamp()
+    },
+    {
+      merge:true
+    }
+  );
+
+
+  await log(
+    'Overdue reminder simulated for testing',
+    `${invoice.invoiceNumber}'s due date was backdated for testing so it shows up in Notifications.`,
+    'Manual'
+  );
+
+
+  toast(
+    'Due date backdated. Check Notifications to see the reminder.'
+  );
+
+
+  closeInvoiceLedgerDetail();
+
+  await refreshAll();
 }
 
 
