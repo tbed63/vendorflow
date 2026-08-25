@@ -30372,7 +30372,7 @@ function vfOpenFullSetupStep(stepId){
     students:'students'
   };
   if(stepId==='tutorial'){
-    openBetaGettingStartedGuide();
+    vfOpenRealInteractiveTutorial();
     return;
   }
   switchView(routes[stepId]||'review');
@@ -30437,3 +30437,107 @@ function vfInstallContinueSetupButton(){
   document.body.appendChild(button);
 }
 vfInstallContinueSetupButton();
+
+/* ==========================================================
+   VENDORFLOW PREVIEW REAL INTERACTIVE TUTORIAL
+   ========================================================== */
+let vfTutorialStep=0;
+
+function vfTutorialSlides(){
+  return [
+    {
+      eyebrow:'Welcome to VendorFlow',
+      title:'You stay in control',
+      body:'VendorFlow organizes the work, but it never takes control away from you. You can review, edit, undo, delete, or replace records when needed.',
+      points:['Nothing important should happen quietly.','Notifications surface decisions and problems.','Actions keeps a permanent history of what happened.']
+    },
+    {
+      eyebrow:'Two ways to work',
+      title:'Use the website or send an email',
+      body:'Enter information directly in VendorFlow when you want hands-on control, or forward a trusted email to your private VendorFlow address.',
+      points:['Record payments directly or forward a payment email.','Upload certificates directly or forward the charter email.','Manage students and rosters directly; emailed changes go to review when confirmation is needed.']
+    },
+    {
+      eyebrow:'Communication center',
+      title:'Start with Notifications',
+      body:'Notifications is your operational home. It collects reminders, warnings, possible duplicates, email requests, and anything that needs your decision.',
+      points:['Open the original email when available.','Approve, correct, complete, or ignore an item.','VendorFlow updates the source record after your decision.']
+    },
+    {
+      eyebrow:'Money and evidence',
+      title:'Know exactly what happened',
+      body:'Student accounts connect service charges, parent payments, charter certificates, refunds, and balances in one financial activity trail.',
+      points:['Possible duplicates are highlighted.','You decide whether a payment should be removed.','Corrections are recorded in Actions.']
+    },
+    {
+      eyebrow:'Charter invoicing',
+      title:'You control every invoice',
+      body:'VendorFlow prepares invoices from verified student services and certificates. You control invoice timing, numbering, recipients, and the saved email template.',
+      points:['Review invoices before sending.','Choose when invoices are emailed.','Overdue invoices will appear in Notifications according to your grace-period and repeat settings.']
+    },
+    {
+      eyebrow:'Private email intake',
+      title:'Only trusted senders can change financial data',
+      body:'VendorFlow checks the sender, prevents the same source email from being processed twice, and keeps the source information with the result.',
+      points:['Blocked or failed email intake remains visible.','Unreadable or uncertain messages go to Notifications.','The Email Inbox shows classification and processing outcome.']
+    },
+    {
+      eyebrow:'You are ready',
+      title:'Review first, then automate',
+      body:'Begin by checking Notifications, student accounts, invoices, and Actions. As you gain confidence, VendorFlow can handle more routine work while keeping you informed.',
+      points:['Continue setup until every class and roster is present.','Import prior payments and certificates.','Return to this tutorial whenever you need it.']
+    }
+  ];
+}
+
+function vfRenderTutorial(){
+  const modal=$('#vfRealTutorial');
+  if(!modal)return;
+  const slides=vfTutorialSlides();
+  const slide=slides[vfTutorialStep];
+  const content=$('#vfRealTutorialContent');
+  content.innerHTML=`
+    <div class="eyebrow">${esc(slide.eyebrow)}</div>
+    <h2>${esc(slide.title)}</h2>
+    <p class="vf-real-tutorial-body">${esc(slide.body)}</p>
+    <ul>${slide.points.map(point=>`<li>${esc(point)}</li>`).join('')}</ul>`;
+  $('#vfTutorialProgress').style.width=`${((vfTutorialStep+1)/slides.length)*100}%`;
+  $('#vfTutorialCount').textContent=`${vfTutorialStep+1} of ${slides.length}`;
+  $('#vfTutorialBack').disabled=vfTutorialStep===0;
+  $('#vfTutorialNext').textContent=vfTutorialStep===slides.length-1?'Finish Tutorial':'Next';
+}
+
+function vfCloseRealInteractiveTutorial(){
+  $('#vfRealTutorial')?.remove();
+}
+
+function vfOpenRealInteractiveTutorial(){
+  vfCloseRealInteractiveTutorial();
+  vfTutorialStep=0;
+  const modal=document.createElement('div');
+  modal.id='vfRealTutorial';
+  modal.className='vf-real-tutorial';
+  modal.innerHTML=`
+    <div class="vf-real-tutorial-panel" role="dialog" aria-modal="true" aria-labelledby="vfRealTutorialTitle">
+      <div class="vf-real-tutorial-top">
+        <div><div class="eyebrow">Interactive Tutorial</div><strong id="vfRealTutorialTitle">How VendorFlow works</strong></div>
+        <button id="vfCloseRealTutorial" type="button">Close</button>
+      </div>
+      <div class="vf-real-tutorial-progress"><span id="vfTutorialProgress"></span></div>
+      <div id="vfRealTutorialContent" class="vf-real-tutorial-content"></div>
+      <div class="vf-real-tutorial-nav">
+        <span id="vfTutorialCount"></span>
+        <div><button id="vfTutorialBack" type="button">Back</button><button id="vfTutorialNext" type="button" class="primary">Next</button></div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  $('#vfCloseRealTutorial').onclick=vfCloseRealInteractiveTutorial;
+  $('#vfTutorialBack').onclick=()=>{if(vfTutorialStep>0){vfTutorialStep-=1;vfRenderTutorial();}};
+  $('#vfTutorialNext').onclick=()=>{
+    if(vfTutorialStep<vfTutorialSlides().length-1){vfTutorialStep+=1;vfRenderTutorial();return;}
+    vfCloseRealInteractiveTutorial();
+    showCenteredActionConfirmation('Tutorial complete. You remain in control of everything VendorFlow does.');
+  };
+  vfRenderTutorial();
+}
+
