@@ -5881,10 +5881,12 @@ button.history.vf-history-evidence:focus-visible{
 .vf-overdue-invoice-review{
   border-left:4px solid #c0392b;
   background:#fdf2f1;
+  padding:14px 16px;
+  border-radius:0 12px 12px 0;
 }
 
 .vf-overdue-invoice-review .vf-review-actions{
-  margin-top:10px;
+  margin-top:12px;
 }
 
 
