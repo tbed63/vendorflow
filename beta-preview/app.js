@@ -492,6 +492,21 @@ async function enterApp(){
   fillProfile();
   await refreshAll();
   switchView('review');
+
+  /*
+   * A vendor with in-progress setup should land back on their actual
+   * step's page, not the default Notifications view. This has to run
+   * AFTER the switchView('review') above -- otherwise that unconditional
+   * default silently overwrites wherever the resume logic had already
+   * navigated to.
+   */
+  if(
+    profile?.betaSetupComplete!==true &&
+    localStorage.getItem('vf-preview-setup-step')!==null &&
+    typeof vfGoToSetupStep==='function'
+  ){
+    vfGoToSetupStep(vfSequentialSetupIndex);
+  }
 }
 
 async function log(
