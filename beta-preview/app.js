@@ -32158,7 +32158,12 @@ function vfRenderSetupBar(){
   $('#vfSetupBarSkip').onclick=()=>vfAdvanceSequentialSetup(true);
 }
 
+let vfSetupAdvanceInProgress=false;
+
 function vfAdvanceSequentialSetup(skipped){
+  if(vfSetupAdvanceInProgress)return;
+  vfSetupAdvanceInProgress=true;
+
   const steps=vfSequentialSetupSteps();
   const step=steps[vfSequentialSetupIndex];
 
@@ -32171,9 +32176,25 @@ function vfAdvanceSequentialSetup(skipped){
   if(vfSequentialSetupIndex<steps.length-1){
     vfSequentialSetupIndex+=1;
     localStorage.setItem('vf-preview-setup-step',vfSequentialSetupIndex);
+
+    const nextStep=steps[vfSequentialSetupIndex];
+
     vfRenderSetupBar();
+
+    if(!skipped){
+      /*
+       * Finishing a step should take the vendor straight into the
+       * next one's real page, not leave them on whatever page
+       * happened to be showing.
+       */
+      vfOpenSequentialSetupAction(nextStep.id);
+    }
+
+    vfSetupAdvanceInProgress=false;
     return;
   }
+
+  vfSetupAdvanceInProgress=false;
 
   (async()=>{
 
@@ -32218,15 +32239,37 @@ function vfCloseWelcome(){
   $('#vfSetupWelcome')?.remove();
 }
 
+/*
+ * Marks this VENDOR ACCOUNT (not just this browser) as having seen
+ * the one-time welcome screen. Stored in Firestore so it never
+ * reappears on a different device, browser, or private window —
+ * only local browser storage was tracking this before, which is
+ * exactly why it could resurface.
+ */
+function vfMarkSetupWelcomeSeen(){
+  profile.betaSetupWelcomeSeen=true;
+  setDoc(
+    vendorDoc(),
+    {betaSetupWelcomeSeen:true},
+    {merge:true}
+  ).catch(error=>{
+    console.error('Could not save setup welcome state:',error);
+  });
+}
+
 function vfShowSetupWelcome(){
-  if($('#vfSetupWelcome') || profile?.betaSetupComplete===true)return;
+  if($('#vfSetupWelcome') || profile?.betaSetupComplete===true || profile?.betaSetupWelcomeSeen===true)return;
 
   vfWelcomeShownThisPage=true;
 
-  const hasStarted=
-    localStorage.getItem('vf-preview-setup-step')!==null;
-
-  if(hasStarted){
+  /*
+   * A vendor who already has local wizard progress from an earlier
+   * visit has clearly seen this screen before, even though their
+   * account predates the Firestore-tracked flag above. Backfill it
+   * silently instead of showing the welcome again.
+   */
+  if(localStorage.getItem('vf-preview-setup-step')!==null){
+    vfMarkSetupWelcomeSeen();
     vfRenderSetupBar();
     return;
   }
@@ -32244,7 +32287,13 @@ function vfShowSetupWelcome(){
       <small>Your progress is saved as you complete each real VendorFlow setup step.</small>
     </main>`;
   document.body.appendChild(welcome);
-  $('#vfBeginSequentialSetup').onclick=()=>{vfCloseWelcome();vfSequentialSetupIndex=0;localStorage.setItem('vf-preview-setup-step','0');vfOpenSequentialSetup();};
+  $('#vfBeginSequentialSetup').onclick=()=>{
+    vfMarkSetupWelcomeSeen();
+    vfCloseWelcome();
+    vfSequentialSetupIndex=0;
+    localStorage.setItem('vf-preview-setup-step','0');
+    vfOpenSequentialSetup();
+  };
 }
 
 function vfMaybeShowSetupWelcome(){
