@@ -7123,9 +7123,9 @@ aside nav{
 
 /* PREVIEW LAYOUT CONTAINMENT + REAL TUTORIAL */
 html,body{max-width:100%;overflow-x:hidden}
-#app.shell{display:grid!important;grid-template-columns:240px minmax(0,1fr)!important;width:100%!important;max-width:100vw!important;min-height:100vh!important;align-items:start!important}
-#app.shell>aside{position:sticky!important;top:0!important;left:auto!important;width:240px!important;min-width:240px!important;height:100vh!important;overflow-y:auto!important;overflow-x:hidden!important}
-#app.shell>main{grid-column:2!important;min-width:0!important;width:100%!important;max-width:100%!important;margin:0!important;overflow-x:hidden!important}
+#app.shell:not(.hidden){display:grid!important;grid-template-columns:240px minmax(0,1fr)!important;width:100%!important;max-width:100vw!important;min-height:100vh!important;align-items:start!important}
+#app.shell:not(.hidden)>aside{position:sticky!important;top:0!important;left:auto!important;width:240px!important;min-width:240px!important;height:100vh!important;overflow-y:auto!important;overflow-x:hidden!important}
+#app.shell:not(.hidden)>main{grid-column:2!important;min-width:0!important;width:100%!important;max-width:100%!important;margin:0!important;overflow-x:hidden!important}
 .vf-app-header{max-width:100%!important;overflow:hidden!important}
 .vf-header-brand{min-width:0!important;overflow:hidden!important}
 .vf-header-brand-logo{display:block!important;width:min(510px,42vw)!important;max-width:100%!important;height:auto!important;object-fit:contain!important}
@@ -7135,7 +7135,7 @@ html,body{max-width:100%;overflow-x:hidden}
 .vf-real-tutorial-progress{height:8px;margin:18px 0 25px;border-radius:999px;background:#e4eaf2;overflow:hidden}.vf-real-tutorial-progress span{display:block;height:100%;width:0;background:#173e7a;transition:width .2s ease}
 .vf-real-tutorial-content{min-height:310px}.vf-real-tutorial-content h2{margin:5px 0 14px;font-size:1.8rem}.vf-real-tutorial-body{font-size:1.05rem;line-height:1.6}.vf-real-tutorial-content ul{display:grid;gap:10px;padding-left:22px;line-height:1.45}
 .vf-real-tutorial-nav{padding-top:18px;border-top:1px solid #d8e1ec}.vf-real-tutorial-nav>div{display:flex;gap:9px}
-@media(max-width:760px){#app.shell{grid-template-columns:170px minmax(0,1fr)!important}#app.shell>aside{width:170px!important;min-width:170px!important}.vf-header-brand-logo{width:min(360px,45vw)!important}.vf-real-tutorial-content{min-height:0}}
+@media(max-width:760px){#app.shell:not(.hidden){grid-template-columns:170px minmax(0,1fr)!important}#app.shell:not(.hidden)>aside{width:170px!important;min-width:170px!important}.vf-header-brand-logo{width:min(360px,45vw)!important}.vf-real-tutorial-content{min-height:0}}
 
 
 /* PREVIEW WELCOME + SEQUENTIAL SETUP */
