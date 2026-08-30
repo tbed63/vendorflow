@@ -21933,6 +21933,8 @@ function switchView(v){
 
     loadInboundInbox();
   }
+
+  if(typeof vfRenderSetupPanel==='function')vfRenderSetupPanel();
 }
 
 $$('nav button').forEach(
@@ -31607,9 +31609,7 @@ $('#nextBtn').onclick=async()=>{
     await log('Business setup completed',`${profile.businessName} workspace created with ${vfOnboardingSelectedCharters.length} charter affiliation${vfOnboardingSelectedCharters.length===1?'':'s'}.`,'Onboarding');
     hide($('#onboarding'));
     await enterApp();
-    vfSequentialSetupIndex=0;
-    localStorage.setItem('vf-preview-setup-step','0');
-    window.setTimeout(()=>vfOpenFullSetupWorkspace(),350);
+    window.setTimeout(()=>vfGoToSetupStep(0),350);
   }catch(error){
     console.error('Preview charter onboarding failed:',error);
     toast(error.message||'VendorFlow could not finish setup. Please try again.');
@@ -31630,134 +31630,11 @@ function vfInstallManualCharterDirectoryOption(){
 }
 vfInstallManualCharterDirectoryOption();
 
-function vfSetupSteps(){
-  return [
-    {
-      id:'charters',
-      title:'Charter schools',
-      detail:'Search the Charter Directory or add a charter manually, then review its billing information.',
-      action:'Open Charter Schools'
-    },
-    {
-      id:'classes',
-      title:'Classes and services',
-      detail:'Create every class and service using the same complete forms used in VendorFlow.',
-      action:'Open Classes & Services'
-    },
-    {
-      id:'rosters',
-      title:'Students and class rosters',
-      detail:'For each class, upload its roster CSV or add students manually. Repeat for every class.',
-      action:'Open Class Rosters'
-    },
-    {
-      id:'payments',
-      title:'Payments already received',
-      detail:'Enter payments manually or import an existing Venmo or bank statement.',
-      action:'Open Payments'
-    },
-    {
-      id:'certificates',
-      title:'Certificates already received',
-      detail:'Upload one certificate or select up to 20 PDFs for the proven bulk-review workflow.',
-      action:'Open Certificates'
-    },
-    {
-      id:'students',
-      title:'Review student accounts',
-      detail:'Open every student and confirm contact details, services, payments, certificates, and balances.',
-      action:'Open Students'
-    },
-    {
-      id:'tutorial',
-      title:'Learn VendorFlow',
-      detail:'Learn direct entry, email intake, Notifications, invoicing, the Actions trail, and your ability to correct anything.',
-      action:'Open Tutorial'
-    }
-  ];
-}
-
-function vfCloseFullSetupWorkspace(){
-  $('#vfFullSetupWorkspace')?.remove();
-}
-
-function vfOpenFullSetupStep(stepId){
-  vfCloseFullSetupWorkspace();
-  const routes={
-    charters:'charters',
-    classes:'classes',
-    rosters:'classes',
-    payments:'payments',
-    certificates:'certificates',
-    students:'students'
-  };
-  if(stepId==='tutorial'){
-    vfOpenRealInteractiveTutorial();
-    return;
-  }
-  switchView(routes[stepId]||'review');
-  window.setTimeout(()=>{
-    const targets={
-      charters:'#charterBankSearch',
-      classes:'#saveClass',
-      rosters:'#classSelect',
-      payments:'#paymentStatementWorkspace',
-      certificates:'#bulkCertificateIntake',
-      students:'#studentDirectorySearch'
-    };
-    document.querySelector(targets[stepId]||'')?.scrollIntoView({behavior:'smooth',block:'start'});
-  },120);
-}
-
-function vfOpenFullSetupWorkspace(){
-  vfCloseFullSetupWorkspace();
-  const workspace=document.createElement('div');
-  workspace.id='vfFullSetupWorkspace';
-  workspace.className='vf-full-setup-workspace';
-  workspace.innerHTML=`
-    <div class="vf-full-setup-panel" role="dialog" aria-modal="true" aria-labelledby="vfFullSetupTitle">
-      <div class="vf-full-setup-heading">
-        <div>
-          <div class="eyebrow">Complete VendorFlow setup</div>
-          <h2 id="vfFullSetupTitle">Set up the entire account</h2>
-          
-        </div>
-        <button type="button" data-close-full-setup aria-label="Close setup">Close</button>
-      </div>
-
-      <div class="vf-full-setup-steps">
-        ${vfSetupSteps().map((item,index)=>`
-          <section class="vf-full-setup-step">
-            <span class="vf-full-setup-number">${index+1}</span>
-            <div><strong>${esc(item.title)}</strong><p>${esc(item.detail)}</p></div>
-            <button type="button" class="primary" data-open-full-setup-step="${esc(item.id)}">${esc(item.action)}</button>
-          </section>`).join('')}
-      </div>
-      <div class="vf-full-setup-footer">
-        <strong>Preview checkpoint:</strong> Setup stays in progress until every real workflow is completed and reviewed.
-      </div>
-    </div>`;
-  document.body.appendChild(workspace);
-  $$('[data-open-full-setup-step]').forEach(button=>{
-    button.onclick=()=>vfOpenFullSetupStep(button.dataset.openFullSetupStep);
-  });
-  $('[data-close-full-setup]').onclick=vfCloseFullSetupWorkspace;
-}
-
-function vfInstallContinueSetupButton(){
-  if($('#vfContinueFullSetup'))return;
-  const button=document.createElement('button');
-  button.id='vfContinueFullSetup';
-  button.type='button';
-  button.className='vf-continue-full-setup';
-  button.textContent='Continue Setup';
-  button.onclick=()=>vfOpenFullSetupWorkspace();
-  document.body.appendChild(button);
-}
 /*
- * Superseded by the persistent setup bar (vfRenderSetupBar), which
- * always shows the vendor's current step and a clear "Do this later"
- * option instead of an unlabeled floating button. Not auto-installed.
+ * The first-generation setup-workspace code that used to live here
+ * (vfSetupSteps / vfOpenFullSetupStep / vfInstallContinueSetupButton)
+ * was deleted -- it hadn't actually run in a long time, and its
+ * presence made the real setup flow below harder to follow.
  */
 
 /* ==========================================================
@@ -32029,74 +31906,6 @@ function vfSequentialSetupSteps(){
   ];
 }
 
-function vfCloseSequentialSetup(){
-  $('#vfSequentialSetup')?.remove();
-}
-
-function vfOpenSequentialSetupAction(stepId){
-  vfCloseSequentialSetup();
-  if(stepId==='tutorial'){
-    vfOpenRealInteractiveTutorial();
-    return;
-  }
-  const routes={
-    business:'profile',charters:'charters',classes:'classes',rosters:'classes',
-    payments:'payments',certificates:'certificates',students:'students',invoices:'invoices'
-  };
-  switchView(routes[stepId]||'review');
-  window.setTimeout(()=>{
-    const targets={
-      business:'#profileView',charters:'#charterBankSearch',classes:'#saveClass',
-      rosters:'#classSelect',payments:'#paymentStatementWorkspace',
-      certificates:'#bulkCertificateIntake',students:'#studentDirectorySearch',invoices:'#invoicesView'
-    };
-    document.querySelector(targets[stepId]||'')?.scrollIntoView({behavior:'smooth',block:'start'});
-  },150);
-}
-
-function vfOpenSequentialSetup(){
-  vfCloseFullSetupWorkspace();
-  vfCloseSequentialSetup();
-  const steps=vfSequentialSetupSteps();
-  vfSequentialSetupIndex=Math.min(Math.max(vfSequentialSetupIndex,0),steps.length-1);
-  const step=steps[vfSequentialSetupIndex];
-  const modal=document.createElement('div');
-  modal.id='vfSequentialSetup';
-  modal.className='vf-sequential-setup';
-  modal.innerHTML=`
-    <div class="vf-sequential-panel" role="dialog" aria-modal="true" aria-labelledby="vfSequentialTitle">
-      <div class="vf-sequential-top">
-        <div><div class="eyebrow">VendorFlow setup</div><strong>Step ${vfSequentialSetupIndex+1} of ${steps.length}</strong></div>
-        <button type="button" id="vfCloseSequentialSetup">Close for now</button>
-      </div>
-      <div class="vf-sequential-progress"><span style="width:${((vfSequentialSetupIndex+1)/steps.length)*100}%"></span></div>
-      <div class="vf-sequential-content">
-        <div class="vf-sequential-number">${vfSequentialSetupIndex+1}</div>
-        <h2 id="vfSequentialTitle">${esc(step.title)}</h2>
-        <section><strong>Why this matters</strong><p>${esc(step.purpose)}</p></section>
-        <section><strong>What to do</strong><p>${esc(step.instruction)}</p></section>
-        <button type="button" id="vfOpenSequentialAction" class="primary vf-sequential-action">${esc(step.action)}</button>
-      </div>
-      <div class="vf-sequential-bottom">
-        <button type="button" id="vfSequentialBack" ${vfSequentialSetupIndex===0?'disabled':''}>Back</button>
-        <button type="button" id="vfSequentialSkip">Do this later</button>
-        <button type="button" id="vfSequentialNext" class="primary">${vfSequentialSetupIndex===steps.length-1?'Finish setup':"I'm done — Next step"}</button>
-      </div>
-    </div>`;
-  document.body.appendChild(modal);
-  vfRemoveSetupBar();
-  $('#vfCloseSequentialSetup').onclick=()=>{
-    vfCloseSequentialSetup();
-    vfRenderSetupBar();
-  };
-  $('#vfOpenSequentialAction').onclick=()=>vfOpenSequentialSetupAction(step.id);
-  $('#vfSequentialBack').onclick=()=>{
-    if(vfSequentialSetupIndex>0){vfSequentialSetupIndex-=1;localStorage.setItem('vf-preview-setup-step',vfSequentialSetupIndex);vfOpenSequentialSetup();}
-  };
-  $('#vfSequentialSkip').onclick=()=>vfAdvanceSequentialSetup(true);
-  $('#vfSequentialNext').onclick=()=>vfAdvanceSequentialSetup(false);
-}
-
 function vfSetupSkippedSteps(){
   try{
     return JSON.parse(localStorage.getItem('vf-preview-setup-skipped')||'[]');
@@ -32113,22 +31922,24 @@ function vfMarkStepSkipped(stepId){
   }
 }
 
-function vfRemoveSetupBar(){
-  $('#vfSetupBar')?.remove();
+function vfCloseSetupPanel(){
+  $('#vfSetupPanel')?.remove();
   document.body.classList.remove('vf-has-setup-bar');
 }
 
 /*
- * The persistent setup bar. Unlike the old floating "Continue Setup"
- * button, this always names the exact step the vendor is on and gives
- * a single, clear way to defer it — so there's never a guessing game
- * about when or why to click something.
+ * The persistent setup panel. This is the ONLY setup UI now -- it
+ * never closes itself and reopens as the vendor moves through steps.
+ * It stays fixed on screen the whole time VendorFlow navigates them
+ * from step to step's real page underneath it, so they always know
+ * exactly where they are in setup and never have to go looking for a
+ * way back in.
  */
-function vfRenderSetupBar(){
-  vfRemoveSetupBar();
+function vfRenderSetupPanel(){
+  vfCloseSetupPanel();
 
   if(profile?.betaSetupComplete===true)return;
-  if($('#vfSequentialSetup') || $('#vfSetupWelcome'))return;
+  if($('#vfSetupWelcome'))return;
 
   const app=$('#app');
   if(!app || app.classList.contains('hidden'))return;
@@ -32136,104 +31947,126 @@ function vfRenderSetupBar(){
   const steps=vfSequentialSetupSteps();
   vfSequentialSetupIndex=Math.min(Math.max(vfSequentialSetupIndex,0),steps.length-1);
   const step=steps[vfSequentialSetupIndex];
+  const isLast=vfSequentialSetupIndex===steps.length-1;
 
-  const bar=document.createElement('div');
-  bar.id='vfSetupBar';
-  bar.className='vf-setup-bar';
-  bar.innerHTML=`
-    <div class="vf-setup-bar-inner">
+  const panel=document.createElement('div');
+  panel.id='vfSetupPanel';
+  panel.className='vf-setup-bar vf-setup-panel-expanded';
+  panel.innerHTML=`
+    <div class="vf-setup-bar-inner vf-setup-panel-inner">
+      <div class="vf-setup-panel-progress"><span style="width:${((vfSequentialSetupIndex+1)/steps.length)*100}%"></span></div>
       <div class="vf-setup-bar-info">
-        <span class="vf-setup-bar-step">Setup — Step ${vfSequentialSetupIndex+1} of ${steps.length}</span>
+        <span class="vf-setup-bar-step">VendorFlow setup — Step ${vfSequentialSetupIndex+1} of ${steps.length}</span>
         <strong>${esc(step.title)}</strong>
+        <span class="vf-setup-panel-instruction">${esc(step.instruction)}</span>
       </div>
       <div class="vf-setup-bar-actions">
-        <button type="button" id="vfSetupBarSkip">Do this later</button>
-        <button type="button" id="vfSetupBarOpen" class="primary">Continue Setup</button>
+        <button type="button" id="vfSetupPanelBack" ${vfSequentialSetupIndex===0?'disabled':''}>Back</button>
+        <button type="button" id="vfSetupPanelSkip">Do this later</button>
+        <button type="button" id="vfSetupPanelNext" class="primary">${isLast?'Finish setup':'Next step'}</button>
       </div>
     </div>`;
-  document.body.appendChild(bar);
+  document.body.appendChild(panel);
   document.body.classList.add('vf-has-setup-bar');
 
-  $('#vfSetupBarOpen').onclick=()=>vfOpenSequentialSetup();
-  $('#vfSetupBarSkip').onclick=()=>vfAdvanceSequentialSetup(true);
+  $('#vfSetupPanelBack').onclick=()=>vfGoToSetupStep(vfSequentialSetupIndex-1);
+  $('#vfSetupPanelSkip').onclick=()=>{
+    vfMarkStepSkipped(step.id);
+    vfGoToSetupStep(vfSequentialSetupIndex+1);
+  };
+  $('#vfSetupPanelNext').onclick=()=>vfGoToSetupStep(vfSequentialSetupIndex+1);
 }
 
-let vfSetupAdvanceInProgress=false;
+let vfSetupNavInProgress=false;
 
-function vfAdvanceSequentialSetup(skipped){
-  if(vfSetupAdvanceInProgress)return;
-  vfSetupAdvanceInProgress=true;
+/*
+ * The one function anything that wants to move setup forward or
+ * backward should call. It updates the saved step position, takes
+ * the vendor straight to that step's real page (or opens the
+ * tutorial, for that step), and re-shows the persistent panel for the
+ * new step -- page and panel move together, always, so they can never
+ * fall out of sync the way "close a modal, hope a bar shows up"
+ * used to.
+ */
+function vfGoToSetupStep(index){
+  if(vfSetupNavInProgress)return;
+  vfSetupNavInProgress=true;
 
   const steps=vfSequentialSetupSteps();
-  const step=steps[vfSequentialSetupIndex];
 
-  if(skipped && step){
-    vfMarkStepSkipped(step.id);
-  }
+  if(index>=steps.length){
+    vfCloseSetupPanel();
+    vfSetupNavInProgress=false;
 
-  vfCloseSequentialSetup();
+    (async()=>{
 
-  if(vfSequentialSetupIndex<steps.length-1){
-    vfSequentialSetupIndex+=1;
-    localStorage.setItem('vf-preview-setup-step',vfSequentialSetupIndex);
+      try{
 
-    const nextStep=steps[vfSequentialSetupIndex];
+        await setDoc(
+          vendorDoc(),
+          {
+            betaSetupComplete:true,
+            betaSetupCompletedAt:serverTimestamp()
+          },
+          {merge:true}
+        );
 
-    vfRenderSetupBar();
+        profile.betaSetupComplete=true;
 
-    if(!skipped){
-      /*
-       * Finishing a step should take the vendor straight into the
-       * next one's real page, not leave them on whatever page
-       * happened to be showing.
-       */
-      vfOpenSequentialSetupAction(nextStep.id);
-    }
+        await log(
+          'Vendor setup completed',
+          `${profile.businessName||'This vendor'} finished the full VendorFlow setup walkthrough.`,
+          'Onboarding'
+        );
 
-    vfSetupAdvanceInProgress=false;
+        localStorage.removeItem('vf-preview-setup-step');
+        localStorage.removeItem('vf-preview-setup-skipped');
+
+        showCenteredActionConfirmation('Setup complete. VendorFlow will take you straight to your workspace from now on.');
+
+      }catch(error){
+
+        console.error('Could not save setup completion:',error);
+
+        showCenteredActionConfirmation('Setup walkthrough finished, but VendorFlow could not save that — check your connection and try again from Continue Setup.');
+      }
+    })();
     return;
   }
 
-  vfSetupAdvanceInProgress=false;
+  vfSequentialSetupIndex=Math.max(0,index);
+  localStorage.setItem('vf-preview-setup-step',vfSequentialSetupIndex);
 
-  (async()=>{
+  const step=steps[vfSequentialSetupIndex];
 
-    try{
+  if(step.id==='tutorial'){
+    vfOpenRealInteractiveTutorial();
+    vfRenderSetupPanel();
+    vfSetupNavInProgress=false;
+    return;
+  }
 
-      await setDoc(
-        vendorDoc(),
-        {
-          betaSetupComplete:true,
-          betaSetupCompletedAt:serverTimestamp()
-        },
-        {merge:true}
-      );
+  const routes={
+    business:'profile',charters:'charters',classes:'classes',rosters:'classes',
+    payments:'payments',certificates:'certificates',students:'students',invoices:'invoices'
+  };
+  switchView(routes[step.id]||'review');
+  window.setTimeout(()=>{
+    const targets={
+      business:'#profileView',charters:'#charterBankSearch',classes:'#saveClass',
+      rosters:'#classSelect',payments:'#paymentStatementWorkspace',
+      certificates:'#bulkCertificateIntake',students:'#studentDirectorySearch',invoices:'#invoicesView'
+    };
+    document.querySelector(targets[step.id]||'')?.scrollIntoView({behavior:'smooth',block:'start'});
+  },150);
 
-      profile.betaSetupComplete=true;
-
-      await log(
-        'Vendor setup completed',
-        `${profile.businessName||'This vendor'} finished the full VendorFlow setup walkthrough.`,
-        'Onboarding'
-      );
-
-      localStorage.removeItem('vf-preview-setup-step');
-      localStorage.removeItem('vf-preview-setup-skipped');
-
-      vfRemoveSetupBar();
-
-      showCenteredActionConfirmation('Setup complete. VendorFlow will take you straight to your workspace from now on.');
-
-    }catch(error){
-
-      console.error('Could not save setup completion:',error);
-
-      showCenteredActionConfirmation('Setup walkthrough finished, but VendorFlow could not save that — check your connection and try again from Continue Setup.');
-    }
-  })();
+  vfRenderSetupPanel();
+  vfSetupNavInProgress=false;
 }
 
-vfOpenFullSetupWorkspace=vfOpenSequentialSetup;
+function vfOpenFullSetupWorkspace(){
+  vfGoToSetupStep(vfSequentialSetupIndex);
+}
 
 function vfCloseWelcome(){
   $('#vfSetupWelcome')?.remove();
@@ -32270,7 +32103,7 @@ function vfShowSetupWelcome(){
    */
   if(localStorage.getItem('vf-preview-setup-step')!==null){
     vfMarkSetupWelcomeSeen();
-    vfRenderSetupBar();
+    vfGoToSetupStep(vfSequentialSetupIndex);
     return;
   }
 
@@ -32290,9 +32123,7 @@ function vfShowSetupWelcome(){
   $('#vfBeginSequentialSetup').onclick=()=>{
     vfMarkSetupWelcomeSeen();
     vfCloseWelcome();
-    vfSequentialSetupIndex=0;
-    localStorage.setItem('vf-preview-setup-step','0');
-    vfOpenSequentialSetup();
+    vfGoToSetupStep(0);
   };
 }
 
