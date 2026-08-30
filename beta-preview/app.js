@@ -8056,6 +8056,12 @@ function editSavedClass(
 
   clearClassSaveError();
 
+  show($('#classCreateFormWrap'));
+
+  if($('#classCreateFormTitle')){
+    $('#classCreateFormTitle').textContent='Edit class';
+  }
+
 
   $('#className').value=
     c.name||'';
@@ -9255,6 +9261,92 @@ if($('#classTuition')){
 }
 
 
+function resetClassCreateFormFields(){
+
+  $('#className').value='';
+
+  if($('#classType')){
+    $('#classType').value='Class';
+  }
+
+  if($('#classSessionLength')){
+    $('#classSessionLength').value='60';
+  }
+
+  if($('#classSessionRate')){
+    $('#classSessionRate').value='';
+  }
+
+  if($('#classInvoiceDaysAfterStart')){
+    $('#classInvoiceDaysAfterStart').value='14';
+  }
+
+  $('#classTerm').value='';
+  $('#classTuition').value='';
+  $('#classLocation').value='';
+
+  $('#classPaymentSchedule').value='Full';
+  $('#classPaymentDueDate').value='';
+
+  $('#classMonthlyFirstDueDate').value='';
+  $('#classMonthlyPaymentCount').value='4';
+
+  if($('#classMonthlyInstallments')){
+    $('#classMonthlyInstallments').innerHTML='';
+  }
+
+  resetClassCustomInstallments();
+  updateClassTypeUI();
+  updateClassPaymentUI();
+
+  $('#classLateFee').value='0';
+  $('#classLateFeeGraceDays').value='0';
+  $('#classVendorAlertDays').value='3';
+  $('#classParentReminderEnabled').checked=false;
+  $('#classParentReminderDays').value='3';
+  $('#classReminderSubject').value=
+    'Payment reminder for {{studentName}}';
+  $('#classReminderBody').value=
+`Hi {{parentName}},
+
+This is a reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}.
+
+Payment instructions:
+{{paymentInstructions}}
+
+Thank you,
+{{businessName}}`;
+
+  editingClassId='';
+
+  clearClassSaveError();
+
+  if($('#classCreateFormTitle')){
+    $('#classCreateFormTitle').textContent='Create a new class';
+  }
+
+  $('#saveClass').textContent='Save class';
+}
+
+
+$('#toggleClassCreateForm').onclick=()=>{
+
+  resetClassCreateFormFields();
+
+  show($('#classCreateFormWrap'));
+
+  $('#className').focus();
+};
+
+
+$('#cancelClassCreateForm').onclick=()=>{
+
+  resetClassCreateFormFields();
+
+  hide($('#classCreateFormWrap'));
+};
+
+
 $('#saveClass').onclick=async()=>{
 
   clearClassSaveError();
@@ -9494,135 +9586,105 @@ $('#saveClass').onclick=async()=>{
 
   let savedClassId='';
 
+  const saveClassButton=$('#saveClass');
+  const saveClassOriginalLabel=saveClassButton.textContent;
+  saveClassButton.disabled=true;
+  saveClassButton.textContent='Saving...';
 
-  if(existingClass){
+  try{
 
-    savedClassId=
-      existingClass.id;
+    if(existingClass){
 
-    await setDoc(
-      doc(
-        db,
-        'vendors',
-        user.uid,
-        'classes',
-        existingClass.id
-      ),
-      data,
-      {
-        merge:true
-      }
-    );
+      savedClassId=
+        existingClass.id;
 
-    await log(
-      'Class updated',
-      name,
-      'Manual'
-    );
-
-  }else{
-
-    const r=
-      await addDoc(
-        sub('classes'),
-        data
+      await setDoc(
+        doc(
+          db,
+          'vendors',
+          user.uid,
+          'classes',
+          existingClass.id
+        ),
+        data,
+        {
+          merge:true
+        }
       );
 
-    savedClassId=
-      r.id;
+      await log(
+        'Class updated',
+        name,
+        'Manual'
+      );
 
-    await log(
-      'Class created',
-      name,
-      'Manual'
+    }else{
+
+      const r=
+        await addDoc(
+          sub('classes'),
+          data
+        );
+
+      savedClassId=
+        r.id;
+
+      await log(
+        'Class created',
+        name,
+        'Manual'
+      );
+    }
+
+  }catch(error){
+
+    console.error('Class save failed:',error);
+
+    saveClassButton.disabled=false;
+    saveClassButton.textContent=saveClassOriginalLabel;
+
+    showClassSaveError(
+      error.message ||
+      'VendorFlow could not save this class. Please try again.'
     );
+
+    return;
   }
 
 
   await refreshAll();
 
-  /*
-   * Saving is complete. Return the left-side class form
-   * to a clean new-entry state instead of leaving the
-   * saved class selected.
-   */
-  $('#classSelect').value='';
+  const wasEditing=
+    Boolean(editingClassId);
 
-  roster=[];
+  /*
+   * Saving is complete. Select the class that was just
+   * saved so the vendor can go straight on to uploading
+   * its roster, and collapse the create/edit form.
+   */
+  $('#classSelect').value=savedClassId;
+
+  await loadRoster();
 
   renderRoster();
   renderSelectedClassDetails();
 
-  $('#className').value='';
+  resetClassCreateFormFields();
 
-  if($('#classType')){
-    $('#classType').value='Class';
-  }
+  hide($('#classCreateFormWrap'));
 
-  if($('#classSessionLength')){
-    $('#classSessionLength').value='60';
-  }
-
-  if($('#classSessionRate')){
-    $('#classSessionRate').value='';
-  }
-
-  if($('#classInvoiceDaysAfterStart')){
-    $('#classInvoiceDaysAfterStart').value='14';
-  }
-
-  $('#classTerm').value='';
-  $('#classTuition').value='';
-  $('#classLocation').value='';
-
-  $('#classPaymentSchedule').value='Full';
-  $('#classPaymentDueDate').value='';
-
-  $('#classMonthlyFirstDueDate').value='';
-  $('#classMonthlyPaymentCount').value='4';
-
-  if($('#classMonthlyInstallments')){
-    $('#classMonthlyInstallments').innerHTML='';
-  }
-
-  resetClassCustomInstallments();
-  updateClassTypeUI();
-  updateClassPaymentUI();
-
-  $('#classLateFee').value='0';
-  $('#classLateFeeGraceDays').value='0';
-  $('#classVendorAlertDays').value='3';
-  $('#classParentReminderEnabled').checked=false;
-  $('#classParentReminderDays').value='3';
-  $('#classReminderSubject').value=
-    'Payment reminder for {{studentName}}';
-  $('#classReminderBody').value=
-`Hi {{parentName}},
-
-This is a reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}.
-
-Payment instructions:
-{{paymentInstructions}}
-
-Thank you,
-{{businessName}}`;
-
-  const wasEditing=
-    Boolean(editingClassId);
-
-  editingClassId='';
-
-  $('#saveClass').textContent=
-    'Save class';
-
-
-  clearClassSaveError();
+  saveClassButton.textContent='Saved ✓';
 
   toast(
     wasEditing
       ? 'Class updated.'
       : 'Class saved.'
   );
+
+  setTimeout(()=>{
+    saveClassButton.disabled=false;
+    saveClassButton.textContent='Save class';
+  },1200);
 };
 
 $('#classSelect').onchange=async()=>{
@@ -9635,6 +9697,8 @@ $('#classSelect').onchange=async()=>{
 
   $('#saveClass').textContent=
     'Save class';
+
+  hide($('#classCreateFormWrap'));
 
   preview=[];
   hide($('#previewCard'));

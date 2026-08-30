@@ -181,10 +181,33 @@
     </section>
 
     <section id="classesView" class="view">
-      <div class="grid2">
-        <div class="card">
-          <div class="eyebrow">Manual control</div><h2>Create or choose a class</h2>
-          <input id="className" class="input" placeholder="Class name">
+
+      <div class="card">
+        <div class="eyebrow">Step 1</div><h2>Choose a class</h2>
+
+        <label class="vf-field-label">
+          <span>Saved class</span>
+          <select id="classSelect" class="input">
+            <option value="">Choose a class</option>
+          </select>
+        </label>
+
+        <div
+          id="classDetailsCard"
+          class="vf-class-saved-details hidden">
+        </div>
+
+        <button
+          id="toggleClassCreateForm"
+          type="button"
+          class="vf-secondary-button">
+          + Create a new class
+        </button>
+      </div>
+
+      <div id="classCreateFormWrap" class="card hidden">
+        <div class="eyebrow">Manual control</div><h2 id="classCreateFormTitle">Create a new class</h2>
+        <input id="className" class="input" placeholder="Class name">
 
           <label class="vf-field-label vf-class-type-field">
             <span>Class type</span>
@@ -536,26 +559,20 @@ Thank you,
           </div>
 
           <button id="saveClass" class="primary full">Save class</button>
-          <hr>
 
-          <label class="vf-field-label">
-            <span>Saved class</span>
-            <select id="classSelect" class="input">
-              <option value="">Choose a class</option>
-            </select>
-          </label>
+          <button
+            id="cancelClassCreateForm"
+            type="button"
+            class="vf-secondary-button">
+            Cancel
+          </button>
+        </div>
 
-          <div
-            id="classDetailsCard"
-            class="vf-class-saved-details hidden">
-          </div>
-        </div>
-        <div class="card">
-          <div class="eyebrow">Fast setup</div><h2>Upload roster CSV</h2>
-          <p>Download the roster CSV from your school or learning center and drop it here.</p>
-          <label class="drop"><input id="csv" type="file" accept=".csv" hidden><strong>Drop CSV here</strong><span>or click to choose</span></label>
-          <div id="csvStatus"></div>
-        </div>
+      <div class="card">
+        <div class="eyebrow">Step 2</div><h2>Upload roster CSV</h2>
+        <p>Download the roster CSV from your school or learning center and drop it here.</p>
+        <label class="drop"><input id="csv" type="file" accept=".csv" hidden><strong>Drop CSV here</strong><span>or click to choose</span></label>
+        <div id="csvStatus"></div>
       </div>
       <div id="previewCard" class="card hidden"><div class="row between"><div><div class="eyebrow">Preview</div><h2>What VendorFlow found</h2><p id="mapping"></p></div><button id="saveRoster" class="primary">Save roster</button></div><div id="warnings" class="warn hidden"></div><div class="tablewrap"><table><thead><tr><th>Student</th><th>Parent</th><th>Email</th><th>Phone</th><th>Status</th><th>Grade</th></tr></thead><tbody id="previewBody"></tbody></table></div></div>
       <div class="card"><div class="row between"><div><div class="eyebrow">Saved data</div><h2>Current roster</h2></div><div><button id="addStudent" class="hidden">Add student manually</button> <button id="archiveClass" class="danger hidden">Archive class</button></div></div><div id="studentForm" class="formgrid hidden"><input id="sf" class="input" placeholder="Student first name"><input id="sl" class="input" placeholder="Student last name"><input id="pn" class="input" placeholder="Parent / guardian"><input id="pe" class="input" type="email" placeholder="Parent email"><input id="pp" class="input" placeholder="Parent phone"><input id="sg" class="input" placeholder="Grade"><select id="ss" class="input">
