@@ -31593,6 +31593,8 @@ $('#nextBtn').onclick=async()=>{
     await log('Business setup completed',`${profile.businessName} workspace created with ${vfOnboardingSelectedCharters.length} charter affiliation${vfOnboardingSelectedCharters.length===1?'':'s'}.`,'Onboarding');
     hide($('#onboarding'));
     await enterApp();
+    vfSequentialSetupIndex=0;
+    localStorage.setItem('vf-preview-setup-step','0');
     window.setTimeout(()=>vfOpenFullSetupWorkspace(),350);
   }catch(error){
     console.error('Preview charter onboarding failed:',error);
@@ -31738,7 +31740,11 @@ function vfInstallContinueSetupButton(){
   button.onclick=()=>vfOpenFullSetupWorkspace();
   document.body.appendChild(button);
 }
-vfInstallContinueSetupButton();
+/*
+ * Superseded by the persistent setup bar (vfRenderSetupBar), which
+ * always shows the vendor's current step and a clear "Do this later"
+ * option instead of an unlabeled floating button. Not auto-installed.
+ */
 
 /* ==========================================================
    VENDORFLOW PREVIEW REAL INTERACTIVE TUTORIAL
@@ -32059,57 +32065,137 @@ function vfOpenSequentialSetup(){
       </div>
       <div class="vf-sequential-bottom">
         <button type="button" id="vfSequentialBack" ${vfSequentialSetupIndex===0?'disabled':''}>Back</button>
-        <button type="button" id="vfSequentialNext" class="primary">${vfSequentialSetupIndex===steps.length-1?'Finish this step':'I saved this — Next step'}</button>
+        <button type="button" id="vfSequentialSkip">Do this later</button>
+        <button type="button" id="vfSequentialNext" class="primary">${vfSequentialSetupIndex===steps.length-1?'Finish setup':"I'm done — Next step"}</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
-  $('#vfCloseSequentialSetup').onclick=vfCloseSequentialSetup;
+  vfRemoveSetupBar();
+  $('#vfCloseSequentialSetup').onclick=()=>{
+    vfCloseSequentialSetup();
+    vfRenderSetupBar();
+  };
   $('#vfOpenSequentialAction').onclick=()=>vfOpenSequentialSetupAction(step.id);
   $('#vfSequentialBack').onclick=()=>{
     if(vfSequentialSetupIndex>0){vfSequentialSetupIndex-=1;localStorage.setItem('vf-preview-setup-step',vfSequentialSetupIndex);vfOpenSequentialSetup();}
   };
-  $('#vfSequentialNext').onclick=()=>{
-    if(vfSequentialSetupIndex<steps.length-1){
-      vfSequentialSetupIndex+=1;
-      localStorage.setItem('vf-preview-setup-step',vfSequentialSetupIndex);
-      vfOpenSequentialSetup();
-      return;
+  $('#vfSequentialSkip').onclick=()=>vfAdvanceSequentialSetup(true);
+  $('#vfSequentialNext').onclick=()=>vfAdvanceSequentialSetup(false);
+}
+
+function vfSetupSkippedSteps(){
+  try{
+    return JSON.parse(localStorage.getItem('vf-preview-setup-skipped')||'[]');
+  }catch(error){
+    return [];
+  }
+}
+
+function vfMarkStepSkipped(stepId){
+  const skipped=vfSetupSkippedSteps();
+  if(!skipped.includes(stepId)){
+    skipped.push(stepId);
+    localStorage.setItem('vf-preview-setup-skipped',JSON.stringify(skipped));
+  }
+}
+
+function vfRemoveSetupBar(){
+  $('#vfSetupBar')?.remove();
+  document.body.classList.remove('vf-has-setup-bar');
+}
+
+/*
+ * The persistent setup bar. Unlike the old floating "Continue Setup"
+ * button, this always names the exact step the vendor is on and gives
+ * a single, clear way to defer it — so there's never a guessing game
+ * about when or why to click something.
+ */
+function vfRenderSetupBar(){
+  vfRemoveSetupBar();
+
+  if(profile?.betaSetupComplete===true)return;
+  if($('#vfSequentialSetup') || $('#vfSetupWelcome'))return;
+
+  const app=$('#app');
+  if(!app || app.classList.contains('hidden'))return;
+
+  const steps=vfSequentialSetupSteps();
+  vfSequentialSetupIndex=Math.min(Math.max(vfSequentialSetupIndex,0),steps.length-1);
+  const step=steps[vfSequentialSetupIndex];
+
+  const bar=document.createElement('div');
+  bar.id='vfSetupBar';
+  bar.className='vf-setup-bar';
+  bar.innerHTML=`
+    <div class="vf-setup-bar-inner">
+      <div class="vf-setup-bar-info">
+        <span class="vf-setup-bar-step">Setup — Step ${vfSequentialSetupIndex+1} of ${steps.length}</span>
+        <strong>${esc(step.title)}</strong>
+      </div>
+      <div class="vf-setup-bar-actions">
+        <button type="button" id="vfSetupBarSkip">Do this later</button>
+        <button type="button" id="vfSetupBarOpen" class="primary">Continue Setup</button>
+      </div>
+    </div>`;
+  document.body.appendChild(bar);
+  document.body.classList.add('vf-has-setup-bar');
+
+  $('#vfSetupBarOpen').onclick=()=>vfOpenSequentialSetup();
+  $('#vfSetupBarSkip').onclick=()=>vfAdvanceSequentialSetup(true);
+}
+
+function vfAdvanceSequentialSetup(skipped){
+  const steps=vfSequentialSetupSteps();
+  const step=steps[vfSequentialSetupIndex];
+
+  if(skipped && step){
+    vfMarkStepSkipped(step.id);
+  }
+
+  vfCloseSequentialSetup();
+
+  if(vfSequentialSetupIndex<steps.length-1){
+    vfSequentialSetupIndex+=1;
+    localStorage.setItem('vf-preview-setup-step',vfSequentialSetupIndex);
+    vfRenderSetupBar();
+    return;
+  }
+
+  (async()=>{
+
+    try{
+
+      await setDoc(
+        vendorDoc(),
+        {
+          betaSetupComplete:true,
+          betaSetupCompletedAt:serverTimestamp()
+        },
+        {merge:true}
+      );
+
+      profile.betaSetupComplete=true;
+
+      await log(
+        'Vendor setup completed',
+        `${profile.businessName||'This vendor'} finished the full VendorFlow setup walkthrough.`,
+        'Onboarding'
+      );
+
+      localStorage.removeItem('vf-preview-setup-step');
+      localStorage.removeItem('vf-preview-setup-skipped');
+
+      vfRemoveSetupBar();
+
+      showCenteredActionConfirmation('Setup complete. VendorFlow will take you straight to your workspace from now on.');
+
+    }catch(error){
+
+      console.error('Could not save setup completion:',error);
+
+      showCenteredActionConfirmation('Setup walkthrough finished, but VendorFlow could not save that — check your connection and try again from Continue Setup.');
     }
-    vfCloseSequentialSetup();
-
-    (async()=>{
-
-      try{
-
-        await setDoc(
-          vendorDoc(),
-          {
-            betaSetupComplete:true,
-            betaSetupCompletedAt:serverTimestamp()
-          },
-          {merge:true}
-        );
-
-        profile.betaSetupComplete=true;
-
-        await log(
-          'Vendor setup completed',
-          `${profile.businessName||'This vendor'} finished the full VendorFlow setup walkthrough.`,
-          'Onboarding'
-        );
-
-        localStorage.removeItem('vf-preview-setup-step');
-
-        showCenteredActionConfirmation('Setup complete. VendorFlow will take you straight to your workspace from now on.');
-
-      }catch(error){
-
-        console.error('Could not save setup completion:',error);
-
-        showCenteredActionConfirmation('Setup walkthrough finished, but VendorFlow could not save that — check your connection and try again from Continue Setup.');
-      }
-    })();
-  };
+  })();
 }
 
 vfOpenFullSetupWorkspace=vfOpenSequentialSetup;
@@ -32120,7 +32206,17 @@ function vfCloseWelcome(){
 
 function vfShowSetupWelcome(){
   if($('#vfSetupWelcome') || profile?.betaSetupComplete===true)return;
+
   vfWelcomeShownThisPage=true;
+
+  const hasStarted=
+    localStorage.getItem('vf-preview-setup-step')!==null;
+
+  if(hasStarted){
+    vfRenderSetupBar();
+    return;
+  }
+
   const welcome=document.createElement('div');
   welcome.id='vfSetupWelcome';
   welcome.className='vf-setup-welcome';
