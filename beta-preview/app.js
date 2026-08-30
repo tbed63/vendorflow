@@ -32091,21 +32091,24 @@ function vfMarkSetupWelcomeSeen(){
 }
 
 function vfShowSetupWelcome(){
-  if($('#vfSetupWelcome') || profile?.betaSetupComplete===true || profile?.betaSetupWelcomeSeen===true)return;
+  if($('#vfSetupWelcome') || profile?.betaSetupComplete===true)return;
 
   vfWelcomeShownThisPage=true;
 
   /*
-   * A vendor who already has local wizard progress from an earlier
-   * visit has clearly seen this screen before, even though their
-   * account predates the Firestore-tracked flag above. Backfill it
-   * silently instead of showing the welcome again.
+   * A vendor with in-progress setup should always be taken straight
+   * back to where they left off -- whether or not the one-time
+   * welcome screen has been seen before. The welcome-seen flag only
+   * decides whether the full-screen intro appears, never whether
+   * resuming happens.
    */
   if(localStorage.getItem('vf-preview-setup-step')!==null){
     vfMarkSetupWelcomeSeen();
     vfGoToSetupStep(vfSequentialSetupIndex);
     return;
   }
+
+  if(profile?.betaSetupWelcomeSeen===true)return;
 
   const welcome=document.createElement('div');
   welcome.id='vfSetupWelcome';
