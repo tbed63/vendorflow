@@ -382,7 +382,11 @@ $('#authSubmit').onclick=async()=>{
 
 $('#logout').onclick=$('#onboardLogout').onclick=()=>signOut(auth);
 
+let vfAuthStateGeneration=0;
+
 onAuthStateChanged(auth,async u=>{
+  const vfThisAuthGeneration=++vfAuthStateGeneration;
+
   hide($('#loading'));
   hide($('#auth'));
   hide($('#onboarding'));
@@ -397,14 +401,24 @@ onAuthStateChanged(auth,async u=>{
   user=u;
   let s=await getDoc(vendorDoc());
 
+  /*
+   * Auth state can fire more than once in quick succession (a token
+   * refresh right after sign-in, for example). If a newer event has
+   * already started, let it own the screen instead of this stale one
+   * showing onboarding and the app dashboard at the same time.
+   */
+  if(vfThisAuthGeneration!==vfAuthStateGeneration)return;
+
   if(!s.exists()||!s.data().onboardingComplete){
     profile=s.exists()?s.data():{};
     answers={...profile,ownerName:profile.ownerName||u.displayName||''};
     step=0;
     renderQuestion();
+    hide($('#app'));
     show($('#onboarding'));
   }else{
     profile=s.data();
+    hide($('#onboarding'));
     await enterApp();
   }
 });
