@@ -1836,9 +1836,6 @@ function organizeCharterSchoolPage(){
       <div class="vf-charter-section-heading">
         <div class="eyebrow">Your saved schools</div>
         <h3>My Charter School Affiliations</h3>
-        <p>
-          These are the charter schools your business currently works with.
-        </p>
       </div>
     `;
   }
@@ -1880,11 +1877,6 @@ function renderCharterSchools(){
     list.innerHTML=`
       <div class="card vf-empty-charters">
         <strong>No charter schools saved yet.</strong>
-        <p>
-          Add the first charter school you work with.
-          VendorFlow will reuse its billing and address
-          information when preparing invoices.
-        </p>
       </div>
     `;
 
