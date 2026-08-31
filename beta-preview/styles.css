@@ -7644,3 +7644,43 @@ body.vf-wizard-open .vf-modal-overlay{
   opacity:.4;
   cursor:not-allowed;
 }
+
+
+
+/* ==========================================================
+   PARENT EMAIL REVIEW CARDS
+   (certificate-received notices, payment reminders)
+   ========================================================== */
+
+.vf-parent-email-review{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.vf-parent-email-preview{
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:10px 12px;
+  background:#f9fafb;
+}
+
+.vf-parent-email-preview summary{
+  cursor:pointer;
+  font-weight:700;
+  font-size:13px;
+  color:var(--muted);
+}
+
+.vf-parent-email-preview-body{
+  margin-top:10px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  font-size:13px;
+  line-height:1.5;
+}
+
+.vf-parent-email-preview-body div strong{
+  margin-right:4px;
+}

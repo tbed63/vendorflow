@@ -57,6 +57,7 @@ let selectedPaymentStudentId=null;
 let pendingCertificatePdf=null;
 let editingRosterStudentId=null;
 let editingCertificateId='';
+let vfPendingCertificateReceivedEmail=null;
 const questions=[['businessName','What is the name of your business?','This will appear on invoices.'],['ownerName','What name should VendorFlow use for you?','Your name as vendor or owner.'],['address','What is your business mailing address?','Street address.'],['cityStateZip','What city, state, and ZIP go with that address?','Example: Encinitas, CA 92024'],['phone','What business phone number should VendorFlow use?','You can change this later.'],['locations','Where do you teach or conduct business?','Learning centers, campuses, tutoring locations, etc.'],['schools','Which charter schools or organizations do you work with?','List as many as you know now.']];
 const aliases={registrationId:['id','registration id'],status:['status','registration status'],classTitle:['title','class title','class'],studentFirst:['registrant first name','student first name','child first name'],studentLast:['registrant last name','student last name','child last name'],parentFirst:['primary first name','parent first name','guardian first name'],parentLast:['primary last name','parent last name','guardian last name'],parentEmail:['email address','parent email','guardian email'],parentPhone:['phone','parent phone','guardian phone'],grade:['grade level','grade']};
 const vendorDoc=()=>doc(db,'vendors',user.uid),sub=n=>collection(db,'vendors',user.uid,n),toast=m=>{let t=$('#toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)};
@@ -1082,6 +1083,14 @@ async function refreshAll(){
         'obligations',
         false
       );
+  }
+
+
+  const queuedPaymentReminders=
+    await queuePaymentReminderReviews();
+
+  if(queuedPaymentReminders>0){
+    reviews=await getList('review');
   }
 
 
@@ -5452,6 +5461,89 @@ async function sendInvoiceThroughVendorFlow(
   alert(
     `Invoice ${invoice.invoiceNumber} was sent successfully to ${billingEmail}.`
   );
+}
+
+
+/*
+ * Shared by every VendorFlow feature that emails a parent after
+ * the vendor approves it in Needs Review: certificate-received
+ * notices, payment reminders, and anything similar added later.
+ */
+async function sendParentEmailThroughVendorFlow(
+  kind,
+  emailId,
+  to,
+  subject,
+  body
+){
+
+  if(!user){
+    return;
+  }
+
+  const recipient=
+    String(to||'').trim();
+
+  if(!recipient){
+
+    throw new Error(
+      'No parent email address is on file.'
+    );
+  }
+
+
+  const token=
+    await user.getIdToken();
+
+
+  const response=
+    await fetch(
+      `${VENDORFLOW_API}/parent-email/send`,
+      {
+        method:'POST',
+
+        headers:{
+          Authorization:
+            `Bearer ${token}`,
+
+          'Content-Type':
+            'application/json'
+        },
+
+        body:
+          JSON.stringify({
+            to:recipient,
+            subject:subject||'',
+            body:body||'',
+            kind:kind||'notice',
+            emailId:emailId||''
+          })
+      }
+    );
+
+
+  let data={};
+
+
+  try{
+
+    data=
+      await response.json();
+
+  }catch{}
+
+
+  if(!response.ok){
+
+    throw new Error(
+      data.detail ||
+      data.error ||
+      'VendorFlow could not send this email.'
+    );
+  }
+
+
+  return data;
 }
 
 
@@ -16211,6 +16303,375 @@ async function queueDuplicateReview(
 }
 
 
+/*
+ * Queues a "certificate received" notice for the parent, waiting
+ * in Needs Review until the vendor approves it. Never throws --
+ * a problem here should never break a certificate save.
+ */
+async function queueCertificateReceivedEmail(
+  certificateId,
+  certificateData,
+  studentMatch
+){
+
+  try{
+
+    const parentEmail=
+      String(
+        certificateData?.parentEmail ||
+        studentMatch?.parentEmail ||
+        ''
+      ).trim();
+
+    if(!parentEmail){
+      return;
+    }
+
+
+    const studentName=
+      certificateData?.student ||
+      studentMatch?.studentName ||
+      'your student';
+
+    const className=
+      certificateData?.tutoringClassName ||
+      certificateData?.charterSchoolName ||
+      certificateData?.school ||
+      '';
+
+    const amount=
+      Number(certificateData?.amount||0);
+
+
+    let remainingBalance=null;
+
+    if(studentMatch?.id){
+
+      const refreshedStudent=
+        students.find(
+          s=>s.id===studentMatch.id
+        ) ||
+        studentMatch;
+
+      remainingBalance=
+        studentAccountTotals(
+          refreshedStudent
+        ).parentBalance;
+    }
+
+
+    const balanceLine=
+      remainingBalance===null
+        ? ''
+        : (
+            remainingBalance>0.009
+              ? ` Their remaining balance is now ${money(remainingBalance)}.`
+              : ` Their account is now paid in full.`
+          );
+
+    const subject=
+      `We received ${studentName}'s certificate`;
+
+    const body=
+      `Hi ${certificateData?.parentName||studentMatch?.parentName||'there'},
+
+`+
+      `We wanted to let you know that we received a certificate for `+
+      `${studentName}${className?` — ${className}`:''} in the amount of `+
+      `${money(amount)}.${balanceLine}
+
+`+
+      `Thank you,
+${profile.businessName||''}`;
+
+    const detail=
+      `${money(amount)} certificate for ${studentName}` +
+      `${className?` — ${className}`:''}.`;
+
+
+    await addDoc(
+      sub('review'),
+      {
+        reviewType:
+          'certificate-received-email',
+
+        certificateId:
+          certificateId||'',
+
+        studentId:
+          certificateData?.studentId ||
+          studentMatch?.id ||
+          '',
+
+        title:
+          'Parent Email: Confirming Certificate Received — Ready to Send',
+
+        detail,
+
+        to:
+          parentEmail,
+
+        subject,
+
+        body,
+
+        source:
+          'VendorFlow',
+
+        createdAt:
+          serverTimestamp()
+      }
+    );
+
+  }catch(error){
+
+    console.error(
+      'Could not queue certificate-received email:',
+      error
+    );
+  }
+}
+
+
+/*
+ * Scans every dated payment obligation and queues a payment
+ * reminder for the parent when it's due within the class's
+ * configured reminder window and hasn't been reviewed yet.
+ * Never throws -- a problem here should never break refreshAll().
+ */
+async function queuePaymentReminderReviews(){
+
+  try{
+
+    if(!obligations.length){
+      return 0;
+    }
+
+
+    const todayMs=
+      Date.now();
+
+    let queued=0;
+
+
+    for(const obligation of obligations){
+
+      if(obligation.deleted){
+        continue;
+      }
+
+      if(!obligation.parentReminderEnabled){
+        continue;
+      }
+
+      if(obligation.parentReminderReviewedAt){
+        continue;
+      }
+
+      if(!obligation.dueDate){
+        continue;
+      }
+
+      const remaining=
+        Number(
+          obligation.remainingAmount ??
+          obligation.amount ??
+          0
+        );
+
+      if(remaining<=0.009){
+        continue;
+      }
+
+
+      const dueMs=
+        new Date(
+          `${obligation.dueDate}T00:00:00`
+        ).getTime();
+
+      if(Number.isNaN(dueMs)){
+        continue;
+      }
+
+
+      const reminderDays=
+        Number(obligation.parentReminderDays||0);
+
+      const daysUntilDue=
+        Math.round(
+          (dueMs-todayMs)/86400000
+        );
+
+      if(daysUntilDue>reminderDays){
+        continue;
+      }
+
+
+      const alreadyQueued=
+        reviews.some(
+          r=>
+            r.reviewType==='payment-reminder-email' &&
+            r.obligationId===obligation.id
+        );
+
+      if(alreadyQueued){
+        continue;
+      }
+
+
+      const student=
+        students.find(
+          s=>s.id===obligation.studentId
+        );
+
+      const parentEmail=
+        String(student?.parentEmail||'').trim();
+
+      if(!parentEmail){
+        continue;
+      }
+
+
+      const classRecord=
+        classes.find(
+          c=>c.id===obligation.classId
+        ) || {};
+
+      const lateFee=
+        Number(
+          obligation.lateFeeAmount ??
+          classRecord.lateFee ??
+          0
+        );
+
+      const lateFeeNote=
+        lateFee>0
+          ? ` A ${money(lateFee)} late fee will be added ${
+              obligation.lateFeeDate
+                ? `on ${formatVendorDate(obligation.lateFeeDate)}`
+                : 'if this payment is late'
+            }.`
+          : '';
+
+
+      const subjectTemplate=
+        classRecord.reminderSubject ||
+        'Payment reminder for {{studentName}}';
+
+      const bodyTemplate=
+        classRecord.reminderBody ||
+        'Hi {{parentName}},
+
+This is a reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}.
+
+Thank you,
+{{businessName}}';
+
+      const tokens={
+        studentName:
+          obligation.studentName ||
+          student?.studentName ||
+          '',
+
+        parentName:
+          student?.parentName || '',
+
+        amountDue:
+          money(remaining),
+
+        dueDate:
+          formatVendorDate(obligation.dueDate) ||
+          obligation.dueDate,
+
+        serviceName:
+          obligation.serviceName ||
+          obligation.className ||
+          '',
+
+        paymentInstructions:'',
+
+        businessName:
+          profile.businessName || ''
+      };
+
+      const fillTemplate=text=>
+        String(text||'').replace(
+          /\{\{(\w+)\}\}/g,
+          (match,key)=>
+            tokens[key]!==undefined
+              ? tokens[key]
+              : ''
+        );
+
+      const subject=
+        fillTemplate(subjectTemplate);
+
+      const body=
+        fillTemplate(bodyTemplate) +
+        lateFeeNote;
+
+
+      await addDoc(
+        sub('review'),
+        {
+          reviewType:
+            'payment-reminder-email',
+
+          obligationId:
+            obligation.id,
+
+          studentId:
+            obligation.studentId||'',
+
+          classId:
+            obligation.classId||'',
+
+          title:
+            `Parent Email: Payment Reminder — ${
+              obligation.studentName ||
+              student?.studentName ||
+              'Student'
+            } — Ready to Send`,
+
+          detail:
+            `${money(remaining)} due ${
+              formatVendorDate(obligation.dueDate) ||
+              obligation.dueDate
+            } for ${obligation.serviceName||''}.`,
+
+          to:
+            parentEmail,
+
+          subject,
+
+          body,
+
+          source:
+            'VendorFlow',
+
+          createdAt:
+            serverTimestamp()
+        }
+      );
+
+      queued++;
+    }
+
+
+    return queued;
+
+  }catch(error){
+
+    console.error(
+      'Could not queue payment reminder emails:',
+      error
+    );
+
+    return 0;
+  }
+}
+
+
 function showCenteredActionConfirmation(
   message
 ){
@@ -16519,6 +16980,248 @@ async function keepDuplicateReview(
 
   toast(
     'Item kept and recorded.'
+  );
+}
+
+
+async function sendCertificateReceivedEmailReview(
+  reviewId
+){
+
+  const review=
+    reviews.find(
+      r=>r.id===reviewId
+    );
+
+  if(
+    !review ||
+    review.reviewType!==
+      'certificate-received-email'
+  ){
+    return;
+  }
+
+
+  try{
+
+    await sendParentEmailThroughVendorFlow(
+      'certificate-received',
+      review.certificateId || review.id,
+      review.to,
+      review.subject,
+      review.body
+    );
+
+  }catch(error){
+
+    console.error(error);
+
+    toast(
+      error.message ||
+      'This email could not be sent.'
+    );
+
+    return;
+  }
+
+
+  await deleteDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'review',
+      reviewId
+    )
+  );
+
+  await log(
+    'Parent email sent',
+    `Certificate-received email sent to ${review.to}.`,
+    'Manual'
+  );
+
+  await refreshAll();
+
+  toast(
+    'Email sent.'
+  );
+}
+
+
+async function discardCertificateReceivedEmailReview(
+  reviewId
+){
+
+  await deleteDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'review',
+      reviewId
+    )
+  );
+
+  await log(
+    'Parent email discarded',
+    'Certificate-received email was not sent.',
+    'Manual'
+  );
+
+  await refreshAll();
+
+  toast(
+    'Email discarded.'
+  );
+}
+
+
+async function sendPaymentReminderReview(
+  reviewId
+){
+
+  const review=
+    reviews.find(
+      r=>r.id===reviewId
+    );
+
+  if(
+    !review ||
+    review.reviewType!==
+      'payment-reminder-email'
+  ){
+    return;
+  }
+
+
+  try{
+
+    await sendParentEmailThroughVendorFlow(
+      'payment-reminder',
+      review.obligationId || review.id,
+      review.to,
+      review.subject,
+      review.body
+    );
+
+  }catch(error){
+
+    console.error(error);
+
+    toast(
+      error.message ||
+      'This email could not be sent.'
+    );
+
+    return;
+  }
+
+
+  if(review.obligationId){
+
+    await setDoc(
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'obligations',
+        review.obligationId
+      ),
+      {
+        parentReminderSentAt:
+          serverTimestamp(),
+
+        parentReminderReviewedAt:
+          serverTimestamp(),
+
+        updatedAt:
+          serverTimestamp()
+      },
+      {
+        merge:true
+      }
+    );
+  }
+
+
+  await deleteDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'review',
+      reviewId
+    )
+  );
+
+  await log(
+    'Parent email sent',
+    `Payment reminder sent to ${review.to}.`,
+    'Manual'
+  );
+
+  await refreshAll();
+
+  toast(
+    'Email sent.'
+  );
+}
+
+
+async function discardPaymentReminderReview(
+  reviewId
+){
+
+  const review=
+    reviews.find(
+      r=>r.id===reviewId
+    );
+
+  if(review?.obligationId){
+
+    await setDoc(
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'obligations',
+        review.obligationId
+      ),
+      {
+        parentReminderReviewedAt:
+          serverTimestamp(),
+
+        updatedAt:
+          serverTimestamp()
+      },
+      {
+        merge:true
+      }
+    );
+  }
+
+
+  await deleteDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'review',
+      reviewId
+    )
+  );
+
+  await log(
+    'Parent email discarded',
+    'Payment reminder was not sent.',
+    'Manual'
+  );
+
+  await refreshAll();
+
+  toast(
+    'Email discarded.'
   );
 }
 
@@ -18690,10 +19393,20 @@ $('#saveCertificate').onclick=async()=>{
 
     }else{
 
-      await addDoc(
-        sub('certificates'),
-        data
-      );
+      const newCertificateRef=
+        await addDoc(
+          sub('certificates'),
+          data
+        );
+
+      vfPendingCertificateReceivedEmail={
+        certificateId:
+          newCertificateRef.id,
+
+        data,
+
+        studentMatch
+      };
 
 
       await log(
@@ -18762,6 +19475,18 @@ $('#saveCertificate').onclick=async()=>{
     hide($('#certificateForm'));
 
     await refreshAll();
+
+
+    if(vfPendingCertificateReceivedEmail){
+
+      await queueCertificateReceivedEmail(
+        vfPendingCertificateReceivedEmail.certificateId,
+        vfPendingCertificateReceivedEmail.data,
+        vfPendingCertificateReceivedEmail.studentMatch
+      );
+
+      vfPendingCertificateReceivedEmail=null;
+    }
 
 
     if(
@@ -20390,6 +21115,104 @@ function renderReviews(){
       }
 
 
+      if(
+        review.reviewType===
+        'certificate-received-email'
+      ){
+
+        return `
+          <div class="record vf-parent-email-review">
+
+            <strong>
+              ${esc(review.title)}
+            </strong>
+
+            <div class="meta">
+              ${esc(review.detail||'')}
+            </div>
+
+            <details class="vf-parent-email-preview">
+              <summary>Preview email</summary>
+              <div class="vf-parent-email-preview-body">
+                <div><strong>To:</strong> ${esc(review.to||'')}</div>
+                <div><strong>Subject:</strong> ${esc(review.subject||'')}</div>
+                <div>${esc(review.body||'').replace(/
+/g,'<br>')}</div>
+              </div>
+            </details>
+
+            <div class="vf-review-actions">
+
+              <button
+                type="button"
+                class="primary"
+                data-send-certificate-email="${esc(review.id)}">
+                Approve &amp; Send
+              </button>
+
+              <button
+                type="button"
+                class="vf-secondary-button"
+                data-discard-certificate-email="${esc(review.id)}">
+                Discard
+              </button>
+
+            </div>
+
+          </div>
+        `;
+      }
+
+
+      if(
+        review.reviewType===
+        'payment-reminder-email'
+      ){
+
+        return `
+          <div class="record vf-parent-email-review">
+
+            <strong>
+              ${esc(review.title)}
+            </strong>
+
+            <div class="meta">
+              ${esc(review.detail||'')}
+            </div>
+
+            <details class="vf-parent-email-preview">
+              <summary>Preview email</summary>
+              <div class="vf-parent-email-preview-body">
+                <div><strong>To:</strong> ${esc(review.to||'')}</div>
+                <div><strong>Subject:</strong> ${esc(review.subject||'')}</div>
+                <div>${esc(review.body||'').replace(/
+/g,'<br>')}</div>
+              </div>
+            </details>
+
+            <div class="vf-review-actions">
+
+              <button
+                type="button"
+                class="primary"
+                data-send-payment-reminder="${esc(review.id)}">
+                Approve &amp; Send
+              </button>
+
+              <button
+                type="button"
+                class="vf-secondary-button"
+                data-discard-payment-reminder="${esc(review.id)}">
+                Discard
+              </button>
+
+            </div>
+
+          </div>
+        `;
+      }
+
+
 
       if(
         review.reviewType!=='duplicate'
@@ -20714,6 +21537,72 @@ function renderReviews(){
 
         openCertificateForRepair(
           button.dataset.fixReviewCertificate
+        );
+      };
+    });
+
+
+  $$('[data-send-certificate-email]')
+    .forEach(button=>{
+
+      button.onclick=async()=>{
+
+        button.disabled=true;
+
+        try{
+
+          await sendCertificateReceivedEmailReview(
+            button.dataset.sendCertificateEmail
+          );
+
+        }finally{
+
+          button.disabled=false;
+        }
+      };
+    });
+
+
+  $$('[data-discard-certificate-email]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        discardCertificateReceivedEmailReview(
+          button.dataset.discardCertificateEmail
+        );
+      };
+    });
+
+
+  $$('[data-send-payment-reminder]')
+    .forEach(button=>{
+
+      button.onclick=async()=>{
+
+        button.disabled=true;
+
+        try{
+
+          await sendPaymentReminderReview(
+            button.dataset.sendPaymentReminder
+          );
+
+        }finally{
+
+          button.disabled=false;
+        }
+      };
+    });
+
+
+  $$('[data-discard-payment-reminder]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        discardPaymentReminderReview(
+          button.dataset.discardPaymentReminder
         );
       };
     });
@@ -24373,6 +25262,8 @@ async function importReadyBulkCertificates(
   let duplicates=0;
   let skipped=0;
 
+  const vfCertificateEmailQueue=[];
+
 
   try{
 
@@ -24669,6 +25560,16 @@ async function importReadyBulkCertificates(
           data
         );
 
+      vfCertificateEmailQueue.push({
+        certificateId:
+          importedCertificateRef.id,
+
+        data,
+
+        studentMatch:
+          student
+      });
+
 
       /*
        * When VendorFlow makes a unique strong name match,
@@ -24723,6 +25624,16 @@ async function importReadyBulkCertificates(
 
 
     await refreshAll();
+
+
+    for(const pendingEmail of vfCertificateEmailQueue){
+
+      await queueCertificateReceivedEmail(
+        pendingEmail.certificateId,
+        pendingEmail.data,
+        pendingEmail.studentMatch
+      );
+    }
 
 
     bulkCertificateItems=
