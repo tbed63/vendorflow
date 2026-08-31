@@ -7593,3 +7593,54 @@ body.vf-wizard-open{
     font-size:12px;
   }
 }
+
+
+/* ==========================================================
+   WIZARD POLISH ROUND 2
+   ========================================================== */
+
+body.vf-wizard-open .vf-modal-overlay{
+  z-index:133000;
+}
+
+.vf-wizard-step-prompt{
+  margin:0 26px 18px;
+  padding:14px 16px;
+  border-radius:12px;
+  background:#f8f9fb;
+  border:1px solid var(--line);
+}
+
+.vf-wizard-step-prompt p{
+  margin:0 0 10px;
+  font-weight:700;
+  color:var(--ink);
+}
+
+.vf-wizard-step-prompt-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+.vf-wizard-step-prompt-actions button{
+  border-radius:999px;
+  padding:8px 16px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.vf-wizard-step-prompt-actions .primary{
+  border:0;
+}
+
+.vf-wizard-step-prompt-actions .vf-secondary-button{
+  background:#fff;
+  border:1px solid #d0d5dd;
+  color:var(--ink);
+}
+
+.vf-wizard-foot #vfWizardNext:disabled{
+  opacity:.4;
+  cursor:not-allowed;
+}

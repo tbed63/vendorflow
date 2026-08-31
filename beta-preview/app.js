@@ -9740,6 +9740,30 @@ $('#saveClass').onclick=async()=>{
   },1200);
 };
 
+const vfOriginalSaveClassClick=$('#saveClass').onclick;
+$('#saveClass').onclick=async()=>{
+  await vfOriginalSaveClassClick();
+
+  if(
+    $('#vfWizard') &&
+    typeof VF_WIZARD_STEPS!=='undefined' &&
+    VF_WIZARD_STEPS[vfWizardStepIndex]==='classes' &&
+    $('#classCreateFormWrap')?.classList.contains('hidden')
+  ){
+    vfWizardShowStepPrompt(`
+      <p>Class saved. Now upload that class’s student roster as a CSV below, or skip if you don’t have one yet.</p>
+      <div class="vf-wizard-step-prompt-actions">
+        <button type="button" id="vfWizardSkipRoster" class="vf-secondary-button">No roster for this class</button>
+      </div>`);
+    $('#csv')?.scrollIntoView({behavior:'smooth',block:'center'});
+    if($('#vfWizardSkipRoster')){
+      $('#vfWizardSkipRoster').onclick=()=>{
+        vfWizardAskAnotherClass();
+      };
+    }
+  }
+};
+
 $('#classSelect').onchange=async()=>{
 
   /*
@@ -10021,6 +10045,19 @@ $('#saveRoster').onclick=async()=>{
   renderRoster();
 
   toast('Roster saved.');
+};
+
+const vfOriginalSaveRosterClick=$('#saveRoster').onclick;
+$('#saveRoster').onclick=async()=>{
+  await vfOriginalSaveRosterClick();
+
+  if(
+    $('#vfWizard') &&
+    typeof VF_WIZARD_STEPS!=='undefined' &&
+    VF_WIZARD_STEPS[vfWizardStepIndex]==='classes'
+  ){
+    vfWizardAskAnotherClass();
+  }
 };
 
 
@@ -23147,12 +23184,13 @@ if($('#certificateImportConfirmation')){
 function vendorReviewsCertificatesBeforeImport(){
 
   /*
-   * Default ON for every vendor unless they explicitly
-   * turn the preference off.
+   * Always true now -- every certificate is read automatically and
+   * always requires the vendor to approve, edit, or deny it before
+   * it's added. There's no reason to import one unread or
+   * unapproved, so this is no longer a preference a vendor can turn
+   * off.
    */
-  return (
-    profile?.reviewCertificatesBeforeImport !== false
-  );
+  return true;
 }
 
 
@@ -23657,11 +23695,11 @@ function bulkCertificateStateLabel(item){
   }
 
   if(item.state==='ready'){
-    return 'Read successfully';
+    return 'Awaiting approval';
   }
 
   if(item.state==='review'){
-    return 'Needs review';
+    return 'Awaiting approval';
   }
 
   if(item.state==='error'){
@@ -24895,15 +24933,13 @@ if($('#bulkCertificateFiles')){
           status.textContent=
             `${bulkCertificateItems.length} certificate` +
             `${bulkCertificateItems.length===1 ? '' : 's'} selected. ` +
-            (
-              vendorReviewsCertificatesBeforeImport()
-                ? `VendorFlow will read them for your review.`
-                : `VendorFlow will read and import the certificates it can verify safely.`
-            );
+            `VendorFlow is reading them now.`;
         }
 
 
         renderBulkCertificateItems();
+
+        processBulkCertificateBatch();
       }
     );
 }
@@ -31965,10 +32001,11 @@ function vfEnsureWizardShell(){
             <h2 id="vfWizardStepTitle"></h2>
             <p id="vfWizardStepInstruction" class="vf-wizard-instruction"></p>
           </div>
-          <button type="button" id="vfWizardLater">Do this later</button>
+          <button type="button" id="vfWizardLater">Run Setup Wizard Later</button>
         </div>
       </div>
       <div id="vfWizardBody" class="vf-wizard-body"></div>
+      <div id="vfWizardStepPrompt" class="vf-wizard-step-prompt hidden"></div>
       <div class="vf-wizard-foot">
         <button type="button" id="vfWizardBack">Back</button>
         <button type="button" id="vfWizardSkip">Skip this step</button>
@@ -31997,6 +32034,11 @@ function vfRenderWizardStep(){
   $('#vfWizardStepInstruction').textContent=info.instruction;
 
   $('#vfWizardBack').disabled=vfWizardStepIndex===0;
+
+  vfWizardStopPolling();
+  vfWizardHideStepPrompt();
+  vfWizardCertPromptShown=false;
+  vfWizardPaymentPromptShown=false;
 
   const body=$('#vfWizardBody');
 
@@ -32030,6 +32072,17 @@ function vfRenderWizardStep(){
     $('#vfWizardNext').textContent='Next';
     body.innerHTML='';
     vfWizardAdopt(info.viewId);
+
+    $('#vfWizardNext').disabled=!vfWizardStepUnlocked[stepId];
+
+    if(stepId==='classes'){
+      if(!vfWizardClassesStarted){
+        vfWizardClassesStarted=true;
+        vfWizardStartClassesFlow();
+      }
+    }else if(stepId==='certificates' || stepId==='payments'){
+      vfWizardStartPolling(stepId);
+    }
   }
 }
 
@@ -32041,11 +32094,14 @@ function vfWizardGo(index){
 }
 
 function vfOpenWizard(){
+  vfWizardStepUnlocked={classes:false,certificates:false,payments:false};
+  vfWizardClassesStarted=false;
   document.body.classList.add('vf-wizard-open');
   vfRenderWizardStep();
 }
 
 function vfCloseWizardOverlay(){
+  vfWizardStopPolling();
   vfWizardRestoreAdopted();
   $('#vfWizard')?.remove();
   document.body.classList.remove('vf-wizard-open');
@@ -32119,6 +32175,164 @@ function vfRenderWizardNudge(){
   };
 }
 
+let vfWizardStepUnlocked={classes:false,certificates:false,payments:false};
+let vfWizardClassesStarted=false;
+let vfWizardPollTimer=null;
+let vfWizardCertPromptShown=false;
+let vfWizardPaymentPromptShown=false;
+
+function vfWizardShowStepPrompt(html){
+  const el=$('#vfWizardStepPrompt');
+  if(!el)return;
+  el.innerHTML=html;
+  el.classList.remove('hidden');
+}
+
+function vfWizardHideStepPrompt(){
+  const el=$('#vfWizardStepPrompt');
+  if(!el)return;
+  el.classList.add('hidden');
+  el.innerHTML='';
+}
+
+function vfWizardUnlock(stepId){
+  vfWizardStepUnlocked[stepId]=true;
+  if(VF_WIZARD_STEPS[vfWizardStepIndex]===stepId){
+    $('#vfWizardNext').disabled=false;
+  }
+}
+
+function vfWizardStopPolling(){
+  if(vfWizardPollTimer){
+    clearInterval(vfWizardPollTimer);
+    vfWizardPollTimer=null;
+  }
+}
+
+function vfWizardStartPolling(stepId){
+  vfWizardStopPolling();
+  if(stepId==='certificates'){
+    vfWizardPollTimer=setInterval(vfWizardPollCertificatesLoop,900);
+    vfWizardPollCertificatesLoop();
+  }else if(stepId==='payments'){
+    vfWizardPollTimer=setInterval(vfWizardPollPaymentsLoop,900);
+    vfWizardPollPaymentsLoop();
+  }
+}
+
+/*
+ * Watches the real certificate-upload state (the same array the
+ * Certificates page itself uses) and, once every selected file has
+ * either been approved, edited-and-approved, denied, or failed --
+ * nothing left mid-read or awaiting a decision -- offers to either
+ * upload more or move on. Next stays locked until the vendor
+ * explicitly answers that prompt at least once.
+ */
+function vfWizardPollCertificatesLoop(){
+  if(typeof bulkCertificateItems==='undefined')return;
+
+  const items=bulkCertificateItems||[];
+  const pending=items.some(
+    item=>item.state==='reading' || item.state==='ready' || item.state==='review'
+  );
+
+  if(items.length && !pending){
+    if(!vfWizardCertPromptShown){
+      vfWizardCertPromptShown=true;
+      vfWizardShowStepPrompt(`
+        <p>Would you like to upload any more certificates?</p>
+        <div class="vf-wizard-step-prompt-actions">
+          <button type="button" id="vfWizardCertAddMore" class="vf-secondary-button">Yes, add more</button>
+          <button type="button" id="vfWizardCertContinue" class="primary">Go to next step</button>
+        </div>`);
+      $('#vfWizardCertAddMore').onclick=()=>{
+        vfWizardCertPromptShown=false;
+        vfWizardHideStepPrompt();
+        $('#chooseBulkCertificates')?.click();
+      };
+      $('#vfWizardCertContinue').onclick=()=>{
+        vfWizardUnlock('certificates');
+        vfWizardGo(vfWizardStepIndex+1);
+      };
+    }
+  }else{
+    vfWizardCertPromptShown=false;
+    vfWizardHideStepPrompt();
+  }
+}
+
+/*
+ * Same idea for payment statements: once an import has actually
+ * finished (VendorFlow's own status line says so), offer to upload
+ * another statement or move on.
+ */
+function vfWizardPollPaymentsLoop(){
+  const status=$('#paymentStatementStatus');
+  const done=Boolean(
+    status &&
+    /Statement import finished/.test(status.textContent||'')
+  );
+
+  if(done){
+    if(!vfWizardPaymentPromptShown){
+      vfWizardPaymentPromptShown=true;
+      vfWizardShowStepPrompt(`
+        <p>Would you like to upload another statement?</p>
+        <div class="vf-wizard-step-prompt-actions">
+          <button type="button" id="vfWizardPaymentAddMore" class="vf-secondary-button">Yes, add another</button>
+          <button type="button" id="vfWizardPaymentContinue" class="primary">Go to next step</button>
+        </div>`);
+      $('#vfWizardPaymentAddMore').onclick=()=>{
+        vfWizardPaymentPromptShown=false;
+        vfWizardHideStepPrompt();
+        if($('#paymentStatementFile'))$('#paymentStatementFile').value='';
+        if(status)status.textContent='';
+        $('#paymentStatementFile')?.scrollIntoView({behavior:'smooth',block:'center'});
+      };
+      $('#vfWizardPaymentContinue').onclick=()=>{
+        vfWizardUnlock('payments');
+        vfWizardGo(vfWizardStepIndex+1);
+      };
+    }
+  }else{
+    vfWizardPaymentPromptShown=false;
+    vfWizardHideStepPrompt();
+  }
+}
+
+/*
+ * The classes step is guided rather than just adopted as-is: it
+ * opens straight into the real create-class form so there's no
+ * "+ Create a new class" button to hunt for, then chains into
+ * uploading that class's roster and asking about the next one.
+ */
+function vfWizardStartClassesFlow(){
+  resetClassCreateFormFields();
+  show($('#classCreateFormWrap'));
+  vfWizardShowStepPrompt(`<p>Fill in this class's details below, then click <strong>Save class</strong>.</p>`);
+}
+
+function vfWizardAskAnotherClass(){
+  vfWizardShowStepPrompt(`
+    <p>Would you like to create another class?</p>
+    <div class="vf-wizard-step-prompt-actions">
+      <button type="button" id="vfWizardAnotherClassNew" class="vf-secondary-button">Yes, create new</button>
+      <button type="button" id="vfWizardAnotherClassDup" class="vf-secondary-button">Yes, duplicate a class</button>
+      <button type="button" id="vfWizardAnotherClassDone" class="primary">No, I'm done</button>
+    </div>`);
+
+  $('#vfWizardAnotherClassNew').onclick=()=>{
+    vfWizardStartClassesFlow();
+  };
+  $('#vfWizardAnotherClassDup').onclick=()=>{
+    vfWizardShowStepPrompt(`<p>Choose the class you want to copy from the list above, then click <strong>Duplicate class</strong> on its details card, change whatever's different, and click Save.</p>`);
+    $('#classSelect')?.scrollIntoView({behavior:'smooth',block:'center'});
+  };
+  $('#vfWizardAnotherClassDone').onclick=()=>{
+    vfWizardUnlock('classes');
+    vfWizardHideStepPrompt();
+  };
+}
 
 
 /* VENDORFLOW PREVIEW TASK BASED TUTORIAL */
