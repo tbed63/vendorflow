@@ -7360,3 +7360,236 @@ body.vf-has-setup-bar main{
   font-weight:800;
   cursor:pointer;
 }
+
+
+/* ==========================================================
+   VENDORFLOW GUIDED SETUP WIZARD
+   ========================================================== */
+
+body.vf-wizard-open{
+  overflow:hidden;
+}
+
+.vf-wizard-overlay{
+  position:fixed;
+  inset:0;
+  z-index:132000;
+  display:grid;
+  place-items:center;
+  padding:20px;
+  background:rgba(8,25,52,.72);
+}
+
+.vf-wizard-card{
+  width:min(880px,100%);
+  max-height:calc(100vh - 40px);
+  overflow:auto;
+  border-radius:18px;
+  background:#fff;
+  box-shadow:0 28px 90px rgba(0,0,0,.34);
+  display:flex;
+  flex-direction:column;
+}
+
+.vf-wizard-head{
+  position:sticky;
+  top:0;
+  background:#fff;
+  padding:20px 26px 16px;
+  border-bottom:1px solid var(--line);
+  z-index:1;
+}
+
+.vf-wizard-progress{
+  height:5px;
+  border-radius:999px;
+  background:#eef1f5;
+  overflow:hidden;
+  margin-bottom:14px;
+}
+
+.vf-wizard-progress span{
+  display:block;
+  height:100%;
+  background:var(--gold);
+  transition:width .2s ease;
+}
+
+.vf-wizard-head-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:16px;
+}
+
+.vf-wizard-head-row h2{
+  margin:2px 0 6px;
+}
+
+.vf-wizard-instruction{
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.5;
+  max-width:640px;
+  margin:0;
+}
+
+#vfWizardLater{
+  flex-shrink:0;
+  background:transparent;
+  border:1px solid #d0d5dd;
+  color:var(--muted);
+  border-radius:999px;
+  padding:9px 16px;
+  font-weight:700;
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+.vf-wizard-body{
+  padding:22px 26px;
+  overflow:visible;
+}
+
+.vf-wizard-body .vf-wizard-adopted{
+  display:block!important;
+}
+
+.vf-wizard-foot{
+  position:sticky;
+  bottom:0;
+  background:#fff;
+  border-top:1px solid var(--line);
+  padding:14px 26px;
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:10px;
+}
+
+.vf-wizard-foot #vfWizardBack{
+  margin-right:auto;
+  background:transparent;
+  border:1px solid #d0d5dd;
+  color:var(--ink);
+  border-radius:999px;
+  padding:10px 18px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.vf-wizard-foot #vfWizardBack:disabled{
+  opacity:.35;
+  cursor:default;
+}
+
+.vf-wizard-foot #vfWizardSkip{
+  background:transparent;
+  border:1px solid #d0d5dd;
+  color:var(--ink);
+  border-radius:999px;
+  padding:10px 18px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.vf-wizard-foot #vfWizardNext{
+  border-radius:999px;
+  padding:10px 22px;
+}
+
+.vf-wizard-finish{
+  text-align:center;
+  padding:30px 10px 10px;
+}
+
+.vf-wizard-finish h3{
+  font-size:22px;
+  margin-bottom:8px;
+}
+
+.vf-wizard-finish p{
+  color:var(--muted);
+  max-width:480px;
+  margin:0 auto 24px;
+}
+
+.vf-wizard-finish-actions{
+  display:flex;
+  justify-content:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.vf-wizard-finish-actions .primary,
+.vf-wizard-finish-actions .vf-secondary-button{
+  border-radius:999px;
+  padding:12px 22px;
+}
+
+.vf-wizard-nudge{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-right:14px;
+}
+
+.vf-wizard-nudge #vfWizardNudgeOpen{
+  background:var(--gold);
+  color:#fff;
+  border:0;
+  border-radius:999px;
+  padding:9px 16px;
+  font-weight:800;
+  font-size:13px;
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+.vf-wizard-nudge #vfWizardNudgeDismiss{
+  background:transparent;
+  border:1px solid #d0d5dd;
+  color:var(--muted);
+  border-radius:999px;
+  width:26px;
+  height:26px;
+  line-height:1;
+  font-size:15px;
+  cursor:pointer;
+  display:grid;
+  place-items:center;
+}
+
+@media(max-width:760px){
+  .vf-wizard-head-row{
+    flex-direction:column;
+  }
+
+  #vfWizardLater{
+    align-self:flex-start;
+  }
+
+  .vf-wizard-foot{
+    flex-wrap:wrap;
+  }
+
+  .vf-wizard-foot #vfWizardBack{
+    margin-right:0;
+    order:3;
+    width:100%;
+  }
+
+  .vf-wizard-foot #vfWizardSkip,
+  .vf-wizard-foot #vfWizardNext{
+    flex:1;
+  }
+
+  .vf-wizard-nudge{
+    margin-right:6px;
+  }
+
+  .vf-wizard-nudge #vfWizardNudgeOpen{
+    padding:8px 12px;
+    font-size:12px;
+  }
+}

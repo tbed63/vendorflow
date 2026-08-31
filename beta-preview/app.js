@@ -493,20 +493,7 @@ async function enterApp(){
   await refreshAll();
   switchView('review');
 
-  /*
-   * A vendor with in-progress setup should land back on their actual
-   * step's page, not the default Notifications view. This has to run
-   * AFTER the switchView('review') above -- otherwise that unconditional
-   * default silently overwrites wherever the resume logic had already
-   * navigated to.
-   */
-  if(
-    profile?.betaSetupComplete!==true &&
-    localStorage.getItem('vf-preview-setup-step')!==null &&
-    typeof vfGoToSetupStep==='function'
-  ){
-    vfGoToSetupStep(vfSequentialSetupIndex);
-  }
+  if(typeof vfRenderWizardNudge==='function')vfRenderWizardNudge();
 }
 
 async function log(
@@ -7870,6 +7857,13 @@ function renderSelectedClassDetails(){
         Edit class
       </button>
 
+      <button
+        type="button"
+        class="vf-secondary-button"
+        id="duplicateSelectedClass">
+        Duplicate class
+      </button>
+
     </div>
 
 
@@ -8053,6 +8047,44 @@ function renderSelectedClassDetails(){
         c.id
       );
     };
+
+  if($('#duplicateSelectedClass')){
+    $('#duplicateSelectedClass').onclick=()=>{
+      duplicateSavedClass(c.id);
+    };
+  }
+}
+
+/*
+ * Loads a saved class into the create-class form exactly like Edit
+ * does, then clears editingClassId so Save creates a brand new class
+ * instead of overwriting the original. Lets a vendor start a new
+ * class from one that's close to what they need instead of typing
+ * everything from scratch.
+ */
+function duplicateSavedClass(classId){
+  const original=classes.find(item=>item.id===classId);
+
+  editSavedClass(classId);
+
+  editingClassId='';
+
+  if($('#classCreateFormTitle')){
+    $('#classCreateFormTitle').textContent='Duplicate class';
+  }
+
+  if($('#className')){
+    $('#className').value=
+      original?.name
+        ? `${original.name} (Copy)`
+        : $('#className').value;
+    $('#className').focus();
+    $('#className').select();
+  }
+
+  $('#saveClass').textContent='Save as new class';
+
+  toast(`Duplicating ${original?.name||'class'} as a new class.`);
 }
 
 
@@ -21941,7 +21973,6 @@ function switchView(v){
     loadInboundInbox();
   }
 
-  if(typeof vfRenderSetupPanel==='function')vfRenderSetupPanel();
 }
 
 $$('nav button').forEach(
@@ -31371,7 +31402,7 @@ function installBetaGettingStartedGuide(){
     checklist.type='button';
     checklist.className='vf-hero-secondary';
     checklist.textContent='Setup Checklist';
-    checklist.addEventListener('click',()=>vfOpenFullSetupWorkspace());
+    checklist.addEventListener('click',()=>vfOpenWizard());
     always.insertAdjacentElement('afterend',checklist);
   }
 
@@ -31616,7 +31647,7 @@ $('#nextBtn').onclick=async()=>{
     await log('Business setup completed',`${profile.businessName} workspace created with ${vfOnboardingSelectedCharters.length} charter affiliation${vfOnboardingSelectedCharters.length===1?'':'s'}.`,'Onboarding');
     hide($('#onboarding'));
     await enterApp();
-    window.setTimeout(()=>vfGoToSetupStep(0),350);
+    window.setTimeout(()=>vfOpenWizard(),350);
   }catch(error){
     console.error('Preview charter onboarding failed:',error);
     toast(error.message||'VendorFlow could not finish setup. Please try again.');
@@ -31840,312 +31871,254 @@ function vfOpenRealInteractiveTutorial(){
 
 
 /* ==========================================================
-   VENDORFLOW PREVIEW SEQUENTIAL SETUP EXPERIENCE
+   VENDORFLOW GUIDED SETUP WIZARD
+   A full-screen overlay that walks a new vendor through loading
+   real data into their account -- classes and rosters, certificates,
+   and payments -- reusing the exact same VendorFlow screens and
+   functions as the regular pages, just relocated into the wizard
+   while it's open. Nothing about how those screens save data is
+   duplicated or reimplemented here.
    ========================================================== */
-let vfSequentialSetupIndex=Math.max(0,Number(localStorage.getItem('vf-preview-setup-step')||0));
-let vfWelcomeShownThisPage=false;
 
-function vfSequentialSetupSteps(){
-  return [
-    {
-      id:'business',
-      title:'Set up your Business Profile',
-      purpose:'VendorFlow uses this information on invoices, emails, account records, and communications.',
-      instruction:'Enter your business name, contact information, mailing address, and payment details. Save the profile before continuing.',
-      action:'Open Business Profile'
-    },
-    {
-      id:'charters',
-      title:'Add your charter schools',
-      purpose:'Saved charter information speeds up invoices and keeps billing instructions in one place.',
-      instruction:'Search the Charter Directory and add every school you work with. If a school is missing, add it manually.',
-      action:'Open Charter Schools'
-    },
-    {
-      id:'classes',
-      title:'Create every class and service',
-      purpose:'Classes and services determine student charges, payment schedules, reminders, and invoice details.',
-      instruction:'Create each class, tutoring service, and other service separately. Use the complete VendorFlow form for every offering.',
-      action:'Open Classes & Services'
-    },
-    {
-      id:'rosters',
-      title:'Add a roster for every class',
-      purpose:'Each student must be connected to the correct class so charges, payments, certificates, and invoices stay accurate.',
-      instruction:'Choose one saved class, upload its CSV roster or add students manually, then repeat for every other class.',
-      action:'Open Class Rosters'
-    },
-    {
-      id:'payments',
-      title:'Add payments already received',
-      purpose:'Starting with complete payment history prevents incorrect family balances.',
-      instruction:'Enter earlier payments manually or import a Venmo or bank statement. Review every match before importing.',
-      action:'Open Payments'
-    },
-    {
-      id:'certificates',
-      title:'Add certificates already received',
-      purpose:'Existing charter certificates must be present so student balances and future charter invoices are correct.',
-      instruction:'Upload individual PDFs or select up to 20 certificates for bulk review and import.',
-      action:'Open Certificates'
-    },
-    {
-      id:'students',
-      title:'Review every student account',
-      purpose:'This final accounting check catches missing contacts, services, payments, certificates, and incorrect balances.',
-      instruction:'Open each student and confirm their contact information and complete financial activity.',
-      action:'Open Students'
-    },
-    {
-      id:'invoices',
-      title:'Review invoice settings',
-      purpose:'You control when invoices are created and sent, how they are numbered, and what the charter receives.',
-      instruction:'Review your invoice workflow and existing invoices. The saved invoice-email template will be added before beta release.',
-      action:'Open Invoices'
-    },
-    {
-      id:'tutorial',
-      title:'Learn how VendorFlow works',
-      purpose:'Knowing both direct entry and email intake lets VendorFlow save time without taking away your control.',
-      instruction:'Complete the interactive tutorial covering Notifications, email intake, accounting evidence, invoices, and Actions.',
-      action:'Start Tutorial'
-    }
-  ];
+const VF_WIZARD_STEPS=['classes','certificates','payments','finish'];
+
+let vfWizardStepIndex=Math.max(
+  0,
+  Math.min(
+    VF_WIZARD_STEPS.length-1,
+    Number(localStorage.getItem('vf-wizard-step-index')||0)
+  )
+);
+
+let vfWizardAdoptedNode=null;
+let vfWizardAdoptedSlot=null;
+
+const VF_WIZARD_STEP_INFO={
+  classes:{
+    title:'Create your classes',
+    instruction:'Create each class or service you offer, then upload that class\u2019s student roster as a CSV. Repeat for every class -- you can also duplicate a class you already made and change what\u2019s different. Click Next once every class and roster is loaded.',
+    viewId:'classesView'
+  },
+  certificates:{
+    title:'Add certificates you already have',
+    instruction:'If you have charter certificates saved on your computer, upload them below and VendorFlow will read each one and show you what it found before saving anything. No certificates yet? Skip this step.',
+    viewId:'certificatesView'
+  },
+  payments:{
+    title:'Add payments you\u2019ve already received',
+    instruction:'Upload a bank or Venmo statement and VendorFlow will pull out the payments and match them to students for you to review. Nothing to add yet? Skip this step.',
+    viewId:'paymentsView'
+  },
+  finish:{
+    title:'You\u2019re all set',
+    instruction:'',
+    viewId:null
+  }
+};
+
+/*
+ * Moves a real page section into the wizard body instead of copying
+ * its markup, so every button, upload, and save inside it is the
+ * exact same code as the regular page -- nothing here needs to know
+ * how classes, certificates, or payments actually get saved.
+ */
+function vfWizardAdopt(viewId){
+  vfWizardRestoreAdopted();
+
+  const node=document.getElementById(viewId);
+  if(!node)return null;
+
+  vfWizardAdoptedNode=node;
+  vfWizardAdoptedSlot={parent:node.parentNode,next:node.nextSibling};
+  node.classList.add('vf-wizard-adopted');
+
+  $('#vfWizardBody').appendChild(node);
+
+  return node;
 }
 
-function vfSetupSkippedSteps(){
+function vfWizardRestoreAdopted(){
+  if(vfWizardAdoptedNode && vfWizardAdoptedSlot){
+    vfWizardAdoptedNode.classList.remove('vf-wizard-adopted');
+    vfWizardAdoptedSlot.parent.insertBefore(
+      vfWizardAdoptedNode,
+      vfWizardAdoptedSlot.next
+    );
+  }
+  vfWizardAdoptedNode=null;
+  vfWizardAdoptedSlot=null;
+}
+
+function vfEnsureWizardShell(){
+  if($('#vfWizard'))return;
+
+  const overlay=document.createElement('div');
+  overlay.id='vfWizard';
+  overlay.className='vf-wizard-overlay';
+  overlay.innerHTML=`
+    <div class="vf-wizard-card">
+      <div class="vf-wizard-head">
+        <div class="vf-wizard-progress"><span id="vfWizardProgressFill"></span></div>
+        <div class="vf-wizard-head-row">
+          <div>
+            <div class="eyebrow" id="vfWizardStepLabel"></div>
+            <h2 id="vfWizardStepTitle"></h2>
+            <p id="vfWizardStepInstruction" class="vf-wizard-instruction"></p>
+          </div>
+          <button type="button" id="vfWizardLater">Do this later</button>
+        </div>
+      </div>
+      <div id="vfWizardBody" class="vf-wizard-body"></div>
+      <div class="vf-wizard-foot">
+        <button type="button" id="vfWizardBack">Back</button>
+        <button type="button" id="vfWizardSkip">Skip this step</button>
+        <button type="button" id="vfWizardNext" class="primary">Next</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  $('#vfWizardLater').onclick=vfCloseWizard;
+  $('#vfWizardBack').onclick=()=>vfWizardGo(vfWizardStepIndex-1);
+  $('#vfWizardSkip').onclick=()=>vfWizardGo(vfWizardStepIndex+1);
+  $('#vfWizardNext').onclick=()=>vfWizardGo(vfWizardStepIndex+1);
+}
+
+function vfRenderWizardStep(){
+  vfEnsureWizardShell();
+
+  const stepId=VF_WIZARD_STEPS[vfWizardStepIndex];
+  const info=VF_WIZARD_STEP_INFO[stepId];
+
+  $('#vfWizardProgressFill').style.width=
+    `${((vfWizardStepIndex+1)/VF_WIZARD_STEPS.length)*100}%`;
+  $('#vfWizardStepLabel').textContent=
+    `Setup \u2014 Step ${vfWizardStepIndex+1} of ${VF_WIZARD_STEPS.length}`;
+  $('#vfWizardStepTitle').textContent=info.title;
+  $('#vfWizardStepInstruction').textContent=info.instruction;
+
+  $('#vfWizardBack').disabled=vfWizardStepIndex===0;
+
+  const body=$('#vfWizardBody');
+
+  if(stepId==='finish'){
+    vfWizardRestoreAdopted();
+    body.innerHTML=`
+      <div class="vf-wizard-finish">
+        <h3>Setup complete!</h3>
+        <p>Your classes, certificates, and payments are loaded. VendorFlow is ready to use.</p>
+        <div class="vf-wizard-finish-actions">
+          <button type="button" id="vfWizardWatchTutorial" class="primary">Watch a quick tutorial</button>
+          <button type="button" id="vfWizardGoHome" class="vf-secondary-button">Go to home page</button>
+        </div>
+      </div>`;
+    $('#vfWizardSkip').classList.add('hidden');
+    $('#vfWizardNext').classList.add('hidden');
+
+    $('#vfWizardWatchTutorial').onclick=()=>{
+      vfCompleteWizard();
+      vfCloseWizardOverlay();
+      vfOpenRealInteractiveTutorial();
+    };
+    $('#vfWizardGoHome').onclick=()=>{
+      vfCompleteWizard();
+      vfCloseWizardOverlay();
+      switchView('review');
+    };
+  }else{
+    $('#vfWizardSkip').classList.remove('hidden');
+    $('#vfWizardNext').classList.remove('hidden');
+    $('#vfWizardNext').textContent='Next';
+    body.innerHTML='';
+    vfWizardAdopt(info.viewId);
+  }
+}
+
+function vfWizardGo(index){
+  if(index<0)return;
+  vfWizardStepIndex=Math.max(0,Math.min(VF_WIZARD_STEPS.length-1,index));
+  localStorage.setItem('vf-wizard-step-index',vfWizardStepIndex);
+  vfRenderWizardStep();
+}
+
+function vfOpenWizard(){
+  document.body.classList.add('vf-wizard-open');
+  vfRenderWizardStep();
+}
+
+function vfCloseWizardOverlay(){
+  vfWizardRestoreAdopted();
+  $('#vfWizard')?.remove();
+  document.body.classList.remove('vf-wizard-open');
+}
+
+function vfCloseWizard(){
+  vfCloseWizardOverlay();
+  vfRenderWizardNudge();
+}
+
+async function vfCompleteWizard(){
   try{
-    return JSON.parse(localStorage.getItem('vf-preview-setup-skipped')||'[]');
+    await setDoc(
+      vendorDoc(),
+      {betaSetupComplete:true,betaSetupCompletedAt:serverTimestamp()},
+      {merge:true}
+    );
+    profile.betaSetupComplete=true;
+    await log(
+      'Vendor setup completed',
+      `${profile.businessName||'This vendor'} finished the guided VendorFlow setup.`,
+      'Onboarding'
+    );
   }catch(error){
-    return [];
+    console.error('Could not save setup completion:',error);
   }
-}
-
-function vfMarkStepSkipped(stepId){
-  const skipped=vfSetupSkippedSteps();
-  if(!skipped.includes(stepId)){
-    skipped.push(stepId);
-    localStorage.setItem('vf-preview-setup-skipped',JSON.stringify(skipped));
-  }
-}
-
-function vfCloseSetupPanel(){
-  $('#vfSetupPanel')?.remove();
-  document.body.classList.remove('vf-has-setup-bar');
+  localStorage.removeItem('vf-wizard-step-index');
+  vfRenderWizardNudge();
 }
 
 /*
- * The persistent setup panel. This is the ONLY setup UI now -- it
- * never closes itself and reopens as the vendor moves through steps.
- * It stays fixed on screen the whole time VendorFlow navigates them
- * from step to step's real page underneath it, so they always know
- * exactly where they are in setup and never have to go looking for a
- * way back in.
+ * The one lasting reminder that setup isn't finished: a small button
+ * in the header, present on every screen, until the wizard is
+ * completed or the vendor explicitly dismisses it. It never pops
+ * anything open on its own -- only a click opens the wizard.
  */
-function vfRenderSetupPanel(){
-  vfCloseSetupPanel();
+function vfRenderWizardNudge(){
+  localStorage.removeItem('vf-preview-setup-step');
+  localStorage.removeItem('vf-preview-setup-skipped');
+
+  const existing=$('#vfWizardNudge');
+  if(existing)existing.remove();
 
   if(profile?.betaSetupComplete===true)return;
-  if($('#vfSetupWelcome'))return;
+  if(profile?.betaWizardDismissed===true)return;
+  if($('#vfWizard'))return;
 
   const app=$('#app');
   if(!app || app.classList.contains('hidden'))return;
 
-  const steps=vfSequentialSetupSteps();
-  vfSequentialSetupIndex=Math.min(Math.max(vfSequentialSetupIndex,0),steps.length-1);
-  const step=steps[vfSequentialSetupIndex];
-  const isLast=vfSequentialSetupIndex===steps.length-1;
+  const host=$('.vf-header-account');
+  if(!host)return;
 
-  const panel=document.createElement('div');
-  panel.id='vfSetupPanel';
-  panel.className='vf-setup-bar vf-setup-panel-expanded';
-  panel.innerHTML=`
-    <div class="vf-setup-bar-inner vf-setup-panel-inner">
-      <div class="vf-setup-panel-progress"><span style="width:${((vfSequentialSetupIndex+1)/steps.length)*100}%"></span></div>
-      <div class="vf-setup-bar-info">
-        <span class="vf-setup-bar-step">VendorFlow setup — Step ${vfSequentialSetupIndex+1} of ${steps.length}</span>
-        <strong>${esc(step.title)}</strong>
-        <span class="vf-setup-panel-instruction">${esc(step.instruction)}</span>
-      </div>
-      <div class="vf-setup-bar-actions">
-        <button type="button" id="vfSetupPanelBack" ${vfSequentialSetupIndex===0?'disabled':''}>Back</button>
-        <button type="button" id="vfSetupPanelSkip">Do this later</button>
-        <button type="button" id="vfSetupPanelNext" class="primary">${isLast?'Finish setup':'Next step'}</button>
-      </div>
-    </div>`;
-  document.body.appendChild(panel);
-  document.body.classList.add('vf-has-setup-bar');
+  const nudge=document.createElement('div');
+  nudge.id='vfWizardNudge';
+  nudge.className='vf-wizard-nudge';
+  nudge.innerHTML=`
+    <button type="button" id="vfWizardNudgeOpen">Finish Setup Wizard</button>
+    <button type="button" id="vfWizardNudgeDismiss" title="Dismiss">&times;</button>`;
+  host.insertAdjacentElement('beforebegin',nudge);
 
-  $('#vfSetupPanelBack').onclick=()=>vfGoToSetupStep(vfSequentialSetupIndex-1);
-  $('#vfSetupPanelSkip').onclick=()=>{
-    vfMarkStepSkipped(step.id);
-    vfGoToSetupStep(vfSequentialSetupIndex+1);
-  };
-  $('#vfSetupPanelNext').onclick=()=>vfGoToSetupStep(vfSequentialSetupIndex+1);
-}
-
-let vfSetupNavInProgress=false;
-
-/*
- * The one function anything that wants to move setup forward or
- * backward should call. It updates the saved step position, takes
- * the vendor straight to that step's real page (or opens the
- * tutorial, for that step), and re-shows the persistent panel for the
- * new step -- page and panel move together, always, so they can never
- * fall out of sync the way "close a modal, hope a bar shows up"
- * used to.
- */
-function vfGoToSetupStep(index){
-  if(vfSetupNavInProgress)return;
-  vfSetupNavInProgress=true;
-
-  const steps=vfSequentialSetupSteps();
-
-  if(index>=steps.length){
-    vfCloseSetupPanel();
-    vfSetupNavInProgress=false;
-
-    (async()=>{
-
-      try{
-
-        await setDoc(
-          vendorDoc(),
-          {
-            betaSetupComplete:true,
-            betaSetupCompletedAt:serverTimestamp()
-          },
-          {merge:true}
-        );
-
-        profile.betaSetupComplete=true;
-
-        await log(
-          'Vendor setup completed',
-          `${profile.businessName||'This vendor'} finished the full VendorFlow setup walkthrough.`,
-          'Onboarding'
-        );
-
-        localStorage.removeItem('vf-preview-setup-step');
-        localStorage.removeItem('vf-preview-setup-skipped');
-
-        showCenteredActionConfirmation('Setup complete. VendorFlow will take you straight to your workspace from now on.');
-
-      }catch(error){
-
-        console.error('Could not save setup completion:',error);
-
-        showCenteredActionConfirmation('Setup walkthrough finished, but VendorFlow could not save that — check your connection and try again from Continue Setup.');
-      }
-    })();
-    return;
-  }
-
-  vfSequentialSetupIndex=Math.max(0,index);
-  localStorage.setItem('vf-preview-setup-step',vfSequentialSetupIndex);
-
-  const step=steps[vfSequentialSetupIndex];
-
-  if(step.id==='tutorial'){
-    vfOpenRealInteractiveTutorial();
-    vfRenderSetupPanel();
-    vfSetupNavInProgress=false;
-    return;
-  }
-
-  const routes={
-    business:'profile',charters:'charters',classes:'classes',rosters:'classes',
-    payments:'payments',certificates:'certificates',students:'students',invoices:'invoices'
-  };
-  switchView(routes[step.id]||'review');
-  window.setTimeout(()=>{
-    const targets={
-      business:'#profileView',charters:'#charterBankSearch',classes:'#saveClass',
-      rosters:'#classSelect',payments:'#paymentStatementWorkspace',
-      certificates:'#bulkCertificateIntake',students:'#studentDirectorySearch',invoices:'#invoicesView'
-    };
-    document.querySelector(targets[step.id]||'')?.scrollIntoView({behavior:'smooth',block:'start'});
-  },150);
-
-  vfRenderSetupPanel();
-  vfSetupNavInProgress=false;
-}
-
-function vfOpenFullSetupWorkspace(){
-  vfGoToSetupStep(vfSequentialSetupIndex);
-}
-
-function vfCloseWelcome(){
-  $('#vfSetupWelcome')?.remove();
-}
-
-/*
- * Marks this VENDOR ACCOUNT (not just this browser) as having seen
- * the one-time welcome screen. Stored in Firestore so it never
- * reappears on a different device, browser, or private window —
- * only local browser storage was tracking this before, which is
- * exactly why it could resurface.
- */
-function vfMarkSetupWelcomeSeen(){
-  profile.betaSetupWelcomeSeen=true;
-  setDoc(
-    vendorDoc(),
-    {betaSetupWelcomeSeen:true},
-    {merge:true}
-  ).catch(error=>{
-    console.error('Could not save setup welcome state:',error);
-  });
-}
-
-function vfShowSetupWelcome(){
-  if($('#vfSetupWelcome') || profile?.betaSetupComplete===true)return;
-
-  vfWelcomeShownThisPage=true;
-
-  /*
-   * A vendor with in-progress setup should always be taken straight
-   * back to where they left off -- whether or not the one-time
-   * welcome screen has been seen before. The welcome-seen flag only
-   * decides whether the full-screen intro appears, never whether
-   * resuming happens.
-   */
-  if(localStorage.getItem('vf-preview-setup-step')!==null){
-    vfMarkSetupWelcomeSeen();
-    vfGoToSetupStep(vfSequentialSetupIndex);
-    return;
-  }
-
-  if(profile?.betaSetupWelcomeSeen===true)return;
-
-  const welcome=document.createElement('div');
-  welcome.id='vfSetupWelcome';
-  welcome.className='vf-setup-welcome';
-  welcome.innerHTML=`
-    <main class="vf-setup-welcome-card">
-      <img src="vendorflow-logo.png" alt="VendorFlow" class="vf-setup-welcome-logo">
-      <div class="eyebrow">Welcome to VendorFlow</div>
-      <h1>Spend less time managing paperwork.<br>Spend more time serving students.</h1>
-      <p>VendorFlow brings your classes, students, charter schools, payments, certificates, invoices, and reminders together—while keeping you informed and in control.</p>
-      <button type="button" id="vfBeginSequentialSetup" class="primary">Get Started Setting Up Your Vendor Business</button>
-      <small>Your progress is saved as you complete each real VendorFlow setup step.</small>
-    </main>`;
-  document.body.appendChild(welcome);
-  $('#vfBeginSequentialSetup').onclick=()=>{
-    vfMarkSetupWelcomeSeen();
-    vfCloseWelcome();
-    vfGoToSetupStep(0);
+  $('#vfWizardNudgeOpen').onclick=vfOpenWizard;
+  $('#vfWizardNudgeDismiss').onclick=async()=>{
+    nudge.remove();
+    try{
+      await setDoc(vendorDoc(),{betaWizardDismissed:true},{merge:true});
+      profile.betaWizardDismissed=true;
+    }catch(error){
+      console.error('Could not save wizard dismissal:',error);
+    }
   };
 }
 
-function vfMaybeShowSetupWelcome(){
-  const app=$('#app');
-  if(!app || app.classList.contains('hidden') || vfWelcomeShownThisPage)return;
-  vfShowSetupWelcome();
-}
-
-const vfSetupVisibilityObserver=new MutationObserver(vfMaybeShowSetupWelcome);
-if($('#app'))vfSetupVisibilityObserver.observe($('#app'),{attributes:true,attributeFilter:['class']});
-window.setTimeout(vfMaybeShowSetupWelcome,500);
 
 
 /* VENDORFLOW PREVIEW TASK BASED TUTORIAL */
