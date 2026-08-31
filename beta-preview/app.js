@@ -19481,6 +19481,14 @@ $('#saveCertificate').onclick=async()=>{
       );
 
       vfPendingCertificateReceivedEmail=null;
+
+      /*
+       * The email review doc was created after refreshAll() already
+       * ran above, so the vendor's Notifications list doesn't have
+       * it yet -- refresh once more so it shows up immediately
+       * instead of only after their next reload.
+       */
+      await refreshAll();
     }
 
 
@@ -25626,6 +25634,15 @@ async function importReadyBulkCertificates(
         pendingEmail.data,
         pendingEmail.studentMatch
       );
+    }
+
+    /*
+     * Same reasoning as the single-certificate save: these email
+     * reviews were created after refreshAll() already ran, so
+     * refresh once more so they show up immediately.
+     */
+    if(vfCertificateEmailQueue.length){
+      await refreshAll();
     }
 
 
