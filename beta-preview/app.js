@@ -16560,12 +16560,7 @@ async function queuePaymentReminderReviews(){
 
       const bodyTemplate=
         classRecord.reminderBody ||
-        'Hi {{parentName}},
-
-This is a reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}.
-
-Thank you,
-{{businessName}}';
+        'Hi {{parentName}},\n\nThis is a reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}.\n\nThank you,\n{{businessName}}';
 
       const tokens={
         studentName:
@@ -21136,8 +21131,7 @@ function renderReviews(){
               <div class="vf-parent-email-preview-body">
                 <div><strong>To:</strong> ${esc(review.to||'')}</div>
                 <div><strong>Subject:</strong> ${esc(review.subject||'')}</div>
-                <div>${esc(review.body||'').replace(/
-/g,'<br>')}</div>
+                <div>${esc(review.body||'').replace(/\n/g,'<br>')}</div>
               </div>
             </details>
 
@@ -21185,8 +21179,7 @@ function renderReviews(){
               <div class="vf-parent-email-preview-body">
                 <div><strong>To:</strong> ${esc(review.to||'')}</div>
                 <div><strong>Subject:</strong> ${esc(review.subject||'')}</div>
-                <div>${esc(review.body||'').replace(/
-/g,'<br>')}</div>
+                <div>${esc(review.body||'').replace(/\n/g,'<br>')}</div>
               </div>
             </details>
 
