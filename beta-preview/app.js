@@ -25841,6 +25841,18 @@ if($('#bulkCertificateFiles')){
         }
 
 
+        /*
+         * Remember (for the rest of this wizard visit) that a real
+         * certificate batch was started here -- independent of
+         * bulkCertificateItems later being cleared back to [] once
+         * everything in it finishes importing. Without this, the
+         * wizard's "upload more / go to next step" poll below never
+         * fires after a fully successful import, since it was keyed
+         * off items.length alone -- see vfWizardPollCertificatesLoop.
+         */
+        vfWizardCertBatchEverRan=true;
+
+
         show(
           $('#bulkCertificateWorkspace')
         );
@@ -33017,6 +33029,7 @@ function vfWizardGo(index){
 function vfOpenWizard(){
   vfWizardStepUnlocked={classes:false,certificates:false,payments:false};
   vfWizardClassesStarted=false;
+  vfWizardCertBatchEverRan=false;
   document.body.classList.add('vf-wizard-open');
   vfRenderWizardStep();
 }
@@ -33101,6 +33114,7 @@ let vfWizardClassesStarted=false;
 let vfWizardPollTimer=null;
 let vfWizardCertPromptShown=false;
 let vfWizardPaymentPromptShown=false;
+let vfWizardCertBatchEverRan=false;
 
 function vfWizardShowStepPrompt(html){
   const el=$('#vfWizardStepPrompt');
@@ -33157,7 +33171,7 @@ function vfWizardPollCertificatesLoop(){
     item=>item.state==='reading' || item.state==='ready' || item.state==='review'
   );
 
-  if(items.length && !pending){
+  if((items.length || vfWizardCertBatchEverRan) && !pending){
     if(!vfWizardCertPromptShown){
       vfWizardCertPromptShown=true;
       vfWizardShowStepPrompt(`
