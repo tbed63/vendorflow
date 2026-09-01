@@ -7396,7 +7396,6 @@ body.vf-wizard-open{
   top:0;
   background:#fff;
   padding:20px 26px 16px;
-  border-bottom:1px solid var(--line);
   z-index:1;
 }
 
@@ -7432,6 +7431,21 @@ body.vf-wizard-open{
   line-height:1.5;
   max-width:640px;
   margin:0;
+}
+
+/*
+ * Lives outside the sticky head on purpose -- it's real content, not
+ * chrome, so it should scroll away with the rest of the step instead
+ * of permanently eating screen height (this mattered most on phones).
+ */
+.vf-wizard-instruction-bar{
+  padding:14px 26px 18px;
+  border-bottom:1px solid var(--line);
+  background:var(--bg);
+}
+
+.vf-wizard-instruction-bar:has(#vfWizardStepInstruction:empty){
+  display:none;
 }
 
 #vfWizardLater{
@@ -7561,27 +7575,47 @@ body.vf-wizard-open{
 }
 
 @media(max-width:760px){
+  .vf-wizard-head{
+    padding:14px 16px 10px;
+  }
+
+  .vf-wizard-instruction-bar{
+    padding:10px 16px 12px;
+  }
+
+  .vf-wizard-body{
+    padding:16px 16px 22px;
+  }
+
   .vf-wizard-head-row{
     flex-direction:column;
   }
 
   #vfWizardLater{
     align-self:flex-start;
+    padding:7px 14px;
+    font-size:12px;
   }
 
   .vf-wizard-foot{
-    flex-wrap:wrap;
+    flex-wrap:nowrap;
+    padding:10px 16px;
+    gap:8px;
   }
 
   .vf-wizard-foot #vfWizardBack{
     margin-right:0;
-    order:3;
-    width:100%;
+    order:0;
+    width:auto;
+    flex-shrink:0;
+    padding:10px 14px;
   }
 
   .vf-wizard-foot #vfWizardSkip,
   .vf-wizard-foot #vfWizardNext{
     flex:1;
+    padding:10px 10px;
+    font-size:13px;
   }
 
   .vf-wizard-nudge{

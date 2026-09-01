@@ -32946,10 +32946,12 @@ function vfEnsureWizardShell(){
           <div>
             <div class="eyebrow" id="vfWizardStepLabel"></div>
             <h2 id="vfWizardStepTitle"></h2>
-            <p id="vfWizardStepInstruction" class="vf-wizard-instruction"></p>
           </div>
           <button type="button" id="vfWizardLater">Run Setup Wizard Later</button>
         </div>
+      </div>
+      <div class="vf-wizard-instruction-bar">
+        <p id="vfWizardStepInstruction" class="vf-wizard-instruction"></p>
       </div>
       <div id="vfWizardBody" class="vf-wizard-body"></div>
       <div id="vfWizardStepPrompt" class="vf-wizard-step-prompt hidden"></div>
