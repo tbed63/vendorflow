@@ -7718,3 +7718,31 @@ body.vf-wizard-open .vf-modal-overlay{
 .vf-parent-email-preview-body div strong{
   margin-right:4px;
 }
+
+/*
+ * On narrow screens the floating centered "BETA PREVIEW" pill
+ * (position:fixed, top:8px, inline-styled in index.html) sits
+ * directly on top of the header's real controls -- most notably the
+ * "Finish Setup Wizard" button, which it can fully cover, both
+ * visually and to clicks. Below the wizard's own breakpoint, drop it
+ * out of fixed/floating positioning entirely and let it flow as a
+ * plain full-width strip at the very top of the page (it's the first
+ * element in body) -- it pushes everything else down instead of
+ * covering it, so it can never block a real control again.
+ */
+@media(max-width:760px){
+  #vfPreviewBanner{
+    position:static !important;
+    left:auto !important;
+    top:auto !important;
+    transform:none !important;
+    display:block !important;
+    width:100% !important;
+    max-width:100% !important;
+    box-sizing:border-box !important;
+    border-radius:0 !important;
+    text-align:center !important;
+    font-size:11px !important;
+    padding:6px 10px !important;
+  }
+}
