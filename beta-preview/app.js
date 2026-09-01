@@ -32851,11 +32851,25 @@ function vfOpenRealInteractiveTutorial(){
 
 const VF_WIZARD_STEPS=['classes','certificates','payments','finish'];
 
+/*
+ * The wizard remembers which step a vendor was on using localStorage,
+ * so it can pick back up after a page reload. That key must be scoped
+ * to the signed-in account -- otherwise a browser that was previously
+ * used to run the wizard for one vendor (or for testing) can make a
+ * brand-new vendor's wizard silently start on a later step, including
+ * "Setup complete!", skipping the whole thing.
+ */
+function vfWizardStorageKey(){
+  return user&&user.uid
+    ? `vf-wizard-step-index-${user.uid}`
+    : 'vf-wizard-step-index';
+}
+
 let vfWizardStepIndex=Math.max(
   0,
   Math.min(
     VF_WIZARD_STEPS.length-1,
-    Number(localStorage.getItem('vf-wizard-step-index')||0)
+    Number(localStorage.getItem(vfWizardStorageKey())||0)
   )
 );
 
@@ -33022,7 +33036,7 @@ function vfRenderWizardStep(){
 function vfWizardGo(index){
   if(index<0)return;
   vfWizardStepIndex=Math.max(0,Math.min(VF_WIZARD_STEPS.length-1,index));
-  localStorage.setItem('vf-wizard-step-index',vfWizardStepIndex);
+  localStorage.setItem(vfWizardStorageKey(),vfWizardStepIndex);
   vfRenderWizardStep();
 }
 
@@ -33030,6 +33044,15 @@ function vfOpenWizard(){
   vfWizardStepUnlocked={classes:false,certificates:false,payments:false};
   vfWizardClassesStarted=false;
   vfWizardCertBatchEverRan=false;
+  // Re-sync to this account's own saved progress, not whichever
+  // account last used this browser.
+  vfWizardStepIndex=Math.max(
+    0,
+    Math.min(
+      VF_WIZARD_STEPS.length-1,
+      Number(localStorage.getItem(vfWizardStorageKey())||0)
+    )
+  );
   document.body.classList.add('vf-wizard-open');
   vfRenderWizardStep();
 }
@@ -33062,7 +33085,7 @@ async function vfCompleteWizard(){
   }catch(error){
     console.error('Could not save setup completion:',error);
   }
-  localStorage.removeItem('vf-wizard-step-index');
+  localStorage.removeItem(vfWizardStorageKey());
   vfRenderWizardNudge();
 }
 
