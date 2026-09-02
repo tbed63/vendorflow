@@ -7776,6 +7776,18 @@ body.vf-wizard-open .vf-modal-overlay{
   body > *:not(#vfMobileGate){
     display:none !important;
   }
+
+  /*
+   * #app.shell:not(.hidden) earlier in this file forces
+   * display:grid!important with higher specificity (1 id, 2 classes)
+   * than the blanket rule just above (1 id from :not(), 1 type) --
+   * so without this, the dashboard grid still rendered underneath
+   * the gate. Match that exact selector so this wins on specificity,
+   * not just source order.
+   */
+  #app.shell:not(.hidden){
+    display:none !important;
+  }
 }
 
 /*
