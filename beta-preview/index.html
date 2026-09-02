@@ -44,7 +44,7 @@
 
 <section id="onboarding" class="center hidden">
   <div class="card onboarding-card">
-    <div class="row between"><div><div class="eyebrow">VendorFlow setup</div><h1>Tell me about your business.</h1><p>One simple question at a time. You can edit everything later.</p></div><button id="onboardLogout">Log out</button></div>
+    <div class="row between"><div><div class="eyebrow">VendorFlow setup</div><h1>Tell me about your business.</h1><p>One simple question at a time. You can edit everything later.</p></div><button id="onboardLogout">Run Setup Wizard Later</button></div>
     <div class="progress"><div id="progressBar"></div></div>
     <div id="questionBox" class="question"></div>
     <div class="row between"><button id="backBtn">Back</button><button id="nextBtn" class="primary">Next</button></div>
@@ -199,7 +199,7 @@
 
     <section id="classesView" class="view">
 
-      <div class="card">
+      <div class="card" id="chooseClassCard">
         <div class="eyebrow">Step 1</div><h2>Choose a class</h2>
 
         <label class="vf-field-label">
@@ -238,7 +238,7 @@
               </option>
 
               <option value="Tutoring">
-                Tutoring class
+                Tutoring Students List
               </option>
 
             </select>
@@ -585,7 +585,7 @@ Thank you,
           </button>
         </div>
 
-      <div class="card">
+      <div class="card" id="rosterCsvCard">
         <div class="eyebrow">Step 2</div><h2>Upload roster CSV</h2>
         <p>Download the roster CSV from your school or learning center and drop it here.</p>
         <label class="drop"><input id="csv" type="file" accept=".csv" hidden><strong>Drop CSV here</strong><span>or click to choose</span></label>
@@ -601,7 +601,7 @@ Thank you,
 <button id="saveStudent" class="primary">Save student</button><button id="cancelStudent">Cancel</button></div><div id="rosterEmpty" class="empty">Choose a class.</div><div id="rosterWrap" class="tablewrap hidden"><table><thead><tr><th>Student</th><th>Parent</th><th>Email</th><th>Phone</th><th>Status</th><th>Grade</th><th>Action</th></tr></thead><tbody id="rosterBody"></tbody></table></div></div>
     
 
-      <div class="card vf-archive-card">
+      <div class="card vf-archive-card" id="archivedClassesCard">
 
         <div class="row between">
 
@@ -1098,82 +1098,25 @@ Thank you,
 
   <h2>Payments/Charges</h2>
 
-  <button
-    id="openPaymentActionChooser"
-    type="button"
-    class="primary">
-    Add Payment / Charge
-  </button>
-
-</div>
-
-<div
-  id="paymentActionChooser"
-  class="vf-payment-action-chooser"
-  hidden>
-
-  <div class="section-title">
-    What would you like to add?
-  </div>
-
-  <div class="vf-payment-choice-grid">
-
-    <button
-      type="button"
-      class="vf-payment-choice"
-      data-payment-choice="family">
-      <strong>Family payment</strong>
-      <span>Record a payment from a parent or family.</span>
-    </button>
-
-    <button
-      type="button"
-      class="vf-payment-choice"
-      data-payment-choice="charge">
-      <strong>Charge / service rendered</strong>
-      <span>Add tutoring, an extra session, or another amount owed.</span>
-    </button>
-
-    <button
-      type="button"
-      class="vf-payment-choice"
-      data-payment-choice="refund">
-      <strong>Refund</strong>
-      <span>Record money returned to a family.</span>
-    </button>
-
-    <button
-      type="button"
-      class="vf-payment-choice"
-      data-payment-choice="statement">
-      <strong>Import payment statement</strong>
-      <span>Read a Venmo CSV or a bank statement PDF/CSV.</span>
-    </button>
-
-  </div>
-
-  <button
-    id="closePaymentActionChooser"
-    type="button"
-    class="secondary">
-    Cancel
-  </button>
-
 </div>
 
 <div
   id="paymentStatementWorkspace"
-  class="card vf-statement-card"
-  hidden>
+  class="card vf-statement-card">
 
   <div class="section-title">
-    Import payments from statement
+    Upload a bank or Venmo statement
   </div>
 
   <p class="muted">
-    Upload a Venmo CSV or a bank statement PDF/CSV.
-    VendorFlow will find likely incoming payments before anything is recorded.
+    Upload any bank statement, Venmo statement, or similar record showing money you've received from families.
+    VendorFlow will pull out the payments so you can review, connect them to students, and import.
   </p>
+
+  <label class="vf-defer-match-row">
+    <input type="checkbox" id="paymentDeferStudentMatch">
+    <span>I will connect these payments to students later in VendorFlow.</span>
+  </label>
 
   <div class="form-grid">
 
@@ -1185,15 +1128,6 @@ Thank you,
         accept="application/pdf,text/csv,.pdf,.csv">
     </label>
 
-  </div>
-
-  <div class="actions">
-    <button
-      id="readPaymentStatement"
-      type="button"
-      class="primary">
-      Read statement
-    </button>
   </div>
 
   <div
@@ -1209,11 +1143,16 @@ Thank you,
 
 </div>
 
-<p>Forwarded payment emails will automate this later.</p></div><div class="row">
-<button id="addRefund" class="vf-refund-button">Refund</button>
-<button id="addCharge" class="primary">Add charge</button>
-<button id="addPayment">Add family payment</button>
-</div></div><div id="paymentForm" class="formgrid hidden"><input id="payDate" class="input" type="date"><input id="payPayer" class="input" placeholder="Payer / parent"><div class="vf-student-search-wrap">
+<p class="muted" style="margin-top:14px">
+  Or add a single entry manually:
+</p>
+<div class="row">
+<button id="addPayment">+ Family payment</button>
+<button id="addCharge">+ Charge</button>
+<button id="addRefund" class="vf-refund-button">+ Refund</button>
+</div>
+
+<p class="muted" style="margin-top:10px">Forwarded payment emails will automate this later.</p></div></div><div id="paymentForm" class="formgrid hidden"><input id="payDate" class="input" type="date"><input id="payPayer" class="input" placeholder="Payer / parent"><div class="vf-student-search-wrap">
   <input
     id="payStudent"
     class="input"
@@ -1441,9 +1380,8 @@ Thank you,
             <div class="eyebrow">Charter funding</div>
             <h2>Certificates</h2>
             <p>
-              Upload the original charter certificate PDF.
-              VendorFlow keeps the PDF securely with the certificate
-              so it can be used later when creating invoices.
+              Upload a certificate PDF and VendorFlow reads it automatically.
+              Nothing is saved to your account until you approve it.
             </p>
           </div>
 
@@ -1456,14 +1394,17 @@ Thank you,
   id="bulkCertificateIntake"
   class="vf-bulk-intake-card">
 
+  <label class="vf-defer-match-row">
+    <input type="checkbox" id="certDeferStudentMatch">
+    <span>I will connect these certificates to students later in VendorFlow.</span>
+  </label>
+
   <div class="vf-bulk-intake-heading">
 
     <div>
       <strong>Upload certificates</strong>
       <div class="muted">
-        Choose 1 to 20 certificate PDFs. VendorFlow reads each one
-        automatically, then waits for you to approve, edit, or deny what
-        it found before anything is added to your account.
+        Choose up to 20 PDFs at once.
       </div>
     </div>
 
@@ -1707,15 +1648,6 @@ Thank you,
 
     <div class="vf-bulk-actions">
 
-      <button
-        type="button"
-        id="startBulkCertificates"
-        class="primary">
-        Read certificates
-      </button>
-
-      
-
           <button
             type="button"
             class="primary"
@@ -1793,6 +1725,11 @@ Thank you,
                 id="certStudentLinked"
                 class="vf-cert-student-linked hidden">
               </div>
+
+              <label class="vf-defer-match-row vf-defer-match-row-tight">
+                <input type="checkbox" id="certStudentLater">
+                <span>I don't have this student in VendorFlow yet -- connect them later.</span>
+              </label>
 
             </div>
 
@@ -2605,6 +2542,13 @@ Thank you,
               id="copyInboundEmail"
               class="vf-secondary-button">
               Copy
+            </button>
+
+            <button
+              type="button"
+              id="retryInboundEmail"
+              class="vf-secondary-button hidden">
+              Try again
             </button>
 
           </div>

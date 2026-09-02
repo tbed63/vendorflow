@@ -381,7 +381,46 @@ $('#authSubmit').onclick=async()=>{
   }
 };
 
-$('#logout').onclick=$('#onboardLogout').onclick=()=>signOut(auth);
+$('#logout').onclick=()=>signOut(auth);
+
+
+/*
+ * Business-info setup can't be skipped to a dashboard (there isn't
+ * one yet -- onboardingComplete gates app access), but a vendor can
+ * still save their progress and pick this back up later instead of
+ * losing everything typed so far. Mirrors the "Run Setup Wizard
+ * Later" pattern used by the classes/certificates/payments wizard.
+ */
+$('#onboardLogout').onclick=async()=>{
+
+  if(questions[step]){
+    answers[questions[step][0]]=$('#answer')?.value.trim()||'';
+  }
+
+  try{
+
+    await setDoc(
+      vendorDoc(),
+      {
+        ...answers,
+        email:user?.email||'',
+        lastOnboardingStep:step,
+        updatedAt:serverTimestamp()
+      },
+      {merge:true}
+    );
+
+  }catch(err){
+    /*
+     * Even if the save fails (offline, etc.), still let the vendor
+     * sign out rather than trapping them on this screen.
+     */
+  }
+
+  toast('Progress saved. Pick up where you left off next time you log in.');
+
+  await signOut(auth);
+};
 
 let vfAuthStateGeneration=0;
 
@@ -395,6 +434,18 @@ onAuthStateChanged(auth,async u=>{
 
   if(!u){
     user=null;
+
+    /*
+     * inboundEmailPromise is a module-level cache. Without clearing
+     * it on sign-out, a second account signing in on the same
+     * browser tab (no full page reload) could inherit the previous
+     * vendor's cached "creating the address" promise -- and even
+     * once resolved, would never re-fetch this account's own actual
+     * address. Same family of bug as the wizard-step localStorage
+     * leak fixed earlier: state that outlives the signed-in user.
+     */
+    inboundEmailPromise=null;
+
     show($('#auth'));
     return;
   }
@@ -413,7 +464,13 @@ onAuthStateChanged(auth,async u=>{
   if(!s.exists()||!s.data().onboardingComplete){
     profile=s.exists()?s.data():{};
     answers={...profile,ownerName:profile.ownerName||u.displayName||''};
-    step=0;
+    step=Math.max(
+      0,
+      Math.min(
+        questions.length-1,
+        Number(profile.lastOnboardingStep||0)
+      )
+    );
     renderQuestion();
     hide($('#app'));
     show($('#onboarding'));
@@ -432,7 +489,7 @@ function renderQuestion(){
   $('#nextBtn').textContent=step===questions.length-1?'Finish setup':'Next';
 
   $('#questionBox').innerHTML=
-    `<div class="eyebrow">Question ${step+1} of ${questions.length}</div>
+    `<div class="eyebrow">Step ${step+1} of ${questions.length+VF_WIZARD_STEPS.length}</div>
      <h2>${q}</h2>
      <p>${h}</p>
      ${
@@ -656,6 +713,18 @@ function certificateAttentionIssue(cert){
     cert.deleted
   ){
     return null;
+  }
+
+
+  if(!cert.studentId){
+
+    return {
+      code:'missing-student',
+      title:'Certificate needs a matching student',
+      detail:
+        `${cert.student||'This certificate'} — ${money(cert.amount)} — `+
+        `no student account matches this name yet. Add the student, then come back and match this certificate to them.`
+    };
   }
 
 
@@ -988,6 +1057,74 @@ function certificateAttentionReviews(){
 }
 
 
+function paymentAttentionIssue(payment){
+
+  if(
+    !payment ||
+    payment.deleted ||
+    payment.studentId
+  ){
+    return null;
+  }
+
+  return {
+    code:'missing-student',
+    title:'Payment needs a matching student',
+    detail:
+      `${payment.payer||payment.student||'This payment'} — ${money(payment.amount)} — `+
+      `no student account matches this name yet. Add the student, then come back and match this payment to them.`
+  };
+}
+
+
+function paymentAttentionReviews(){
+
+  return payments
+    .map(payment=>{
+
+      const issue=
+        paymentAttentionIssue(payment);
+
+      if(!issue){
+        return null;
+      }
+
+      return {
+        id:
+          `payment-attention-${payment.id}`,
+
+        reviewType:
+          'payment-attention',
+
+        itemType:
+          'payment',
+
+        paymentId:
+          payment.id,
+
+        title:
+          issue.title,
+
+        detail:
+          issue.detail,
+
+        issueCode:
+          issue.code,
+
+        student:
+          payment.payer||payment.student||'',
+
+        amount:
+          Number(payment.amount||0),
+
+        source:
+          'VendorFlow'
+      };
+    })
+    .filter(Boolean);
+}
+
+
 async function refreshAll(){
   classes=await getList('classes',false);
 
@@ -1052,7 +1189,8 @@ async function refreshAll(){
    */
   reviews=[
     ...reviews,
-    ...certificateAttentionReviews()
+    ...certificateAttentionReviews(),
+    ...paymentAttentionReviews()
   ];
 
 
@@ -1324,6 +1462,63 @@ function renderInboundVendorEmail(){
 }
 
 
+/*
+ * Runs the address creation attempt and, on failure, shows a clear
+ * error plus a "Try again" button instead of leaving the Account
+ * page stuck on "Creating your address..." with no way forward.
+ */
+async function vfAttemptInboundVendorEmail(){
+
+  const retryButton=
+    $('#retryInboundEmail');
+
+  if(retryButton){
+    hide(retryButton);
+  }
+
+  try{
+
+    await ensureInboundVendorEmail();
+
+  }catch(error){
+
+    console.error(
+      'VendorFlow inbound email:',
+      error
+    );
+
+    const el=
+      $('#accountInboundEmail');
+
+    if(el){
+      el.textContent=
+        error?.message ||
+        'Could not create address.';
+    }
+
+    if(retryButton){
+      show(retryButton);
+    }
+  }
+}
+
+
+if($('#retryInboundEmail')){
+
+  $('#retryInboundEmail').onclick=()=>{
+
+    /*
+     * The failed attempt already reset inboundEmailPromise to null
+     * inside ensureInboundVendorEmail()'s own catch block, so a
+     * fresh call here genuinely retries instead of returning the
+     * same rejected promise.
+     */
+    renderInboundVendorEmail();
+    vfAttemptInboundVendorEmail();
+  };
+}
+
+
 async function ensureInboundVendorEmail(){
 
   if(!user){
@@ -1343,29 +1538,67 @@ async function ensureInboundVendorEmail(){
         await user.getIdToken();
 
 
-      const response=
-        await fetch(
-          `${VENDORFLOW_API}/inbound/address`,
-          {
-            method:'POST',
+      /*
+       * Without a timeout, a request that never resolves or rejects
+       * (a dropped connection, a Worker that hangs) leaves the
+       * Account page stuck on "Creating your address..." forever,
+       * with no error and no way to retry short of a full reload.
+       */
+      const timeoutController=
+        new AbortController();
 
-            headers:{
-              Authorization:
-                `Bearer ${token}`,
+      const timeoutId=
+        setTimeout(
+          ()=>timeoutController.abort(),
+          20000
+        );
 
-              'Content-Type':
-                'application/json'
-            },
+      let response;
 
-            body:
-              JSON.stringify({
-                businessName:
+      try{
+
+        response=
+          await fetch(
+            `${VENDORFLOW_API}/inbound/address`,
+            {
+              method:'POST',
+
+              signal:
+                timeoutController.signal,
+
+              headers:{
+                Authorization:
+                  `Bearer ${token}`,
+
+                'Content-Type':
+                  'application/json'
+              },
+
+              body:
+                JSON.stringify({
+                  businessName:
                   profile.businessName ||
                   profile.ownerName ||
                   'vendor'
               })
           }
         );
+
+      }catch(fetchError){
+
+        if(fetchError?.name==='AbortError'){
+
+          throw new Error(
+            'VendorFlow could not create your email address in time. Please try again.'
+          );
+        }
+
+        throw fetchError;
+
+      }finally{
+
+        clearTimeout(timeoutId);
+      }
 
 
       let data={};
@@ -1446,23 +1679,7 @@ async function ensureInboundVendorEmail(){
 function renderAccountPage(){
 
   renderInboundVendorEmail();
-
-  ensureInboundVendorEmail()
-    .catch(error=>{
-
-      console.error(
-        'VendorFlow inbound email:',
-        error
-      );
-
-      const el=
-        $('#accountInboundEmail');
-
-      if(el){
-        el.textContent=
-          'Could not create address';
-      }
-    });
+  vfAttemptInboundVendorEmail();
 
 
   const subscription=
@@ -2305,8 +2522,9 @@ function renderCertificateStudentMatches(){
       <div class="vf-cert-student-no-match">
         <strong>No student found.</strong>
         <span>
-          Add the student in Class Rosters or Students & Services
-          before assigning a certificate.
+          Add the student in Class Rosters or Students & Services,
+          or check "connect them later" below to save this certificate
+          now and match it once the student exists.
         </span>
       </div>
     `;
@@ -8292,6 +8510,8 @@ function editSavedClass(
 
 This is a reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}.
 
+{{lateFeeWarning}}
+
 Payment instructions:
 {{paymentInstructions}}
 
@@ -9456,6 +9676,8 @@ function resetClassCreateFormFields(){
 
 This is a reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}.
 
+{{lateFeeWarning}}
+
 Payment instructions:
 {{paymentInstructions}}
 
@@ -9808,6 +10030,7 @@ $('#saveClass').onclick=async()=>{
    * its roster, and collapse the create/edit form.
    */
   $('#classSelect').value=savedClassId;
+  updateRosterUploadTarget();
 
   await loadRoster();
 
@@ -10132,6 +10355,7 @@ $('#saveRoster').onclick=async()=>{
   await refreshAll();
 
   $('#classSelect').value=c.id;
+  updateRosterUploadTarget();
 
   await loadRoster();
   renderRoster();
@@ -10670,6 +10894,7 @@ async function changeStatus(id){
   await refreshAll();
 
   $('#classSelect').value=c.id;
+  updateRosterUploadTarget();
 
   await loadRoster();
   renderRoster();
@@ -10739,6 +10964,141 @@ if($('#ss')){
     'change',
     updateStudentStatusHelp
   );
+}
+
+
+let vfPendingStudentNamePrefill='';
+
+
+/*
+ * Entry point for the "Add student" button on a Notifications card
+ * for a certificate that has no matching student yet. A student in
+ * VendorFlow always belongs to a class roster, so this can't create
+ * the student directly -- it sends the vendor to Class Rosters with
+ * the extracted name ready to drop into the add-student form the
+ * moment they pick (or have already picked) the right class.
+ */
+function openAddStudentForCertificate(certificateId){
+
+  const cert=
+    certs.find(
+      item=>item.id===certificateId
+    );
+
+  if(!cert){
+    return toast(
+      'Certificate could not be found.'
+    );
+  }
+
+  vfPendingStudentNamePrefill=
+    String(cert.student||'').trim();
+
+  switchView('classes');
+
+  const hasClassSelected=
+    Boolean($('#classSelect')?.value);
+
+  if(hasClassSelected){
+    $('#addStudent')?.click();
+  }else{
+    toast(
+      'Choose the class this student belongs to, then click "Add student manually" to add them.'
+    );
+  }
+}
+
+
+/*
+ * Same idea as openAddStudentForCertificate, for a payment that was
+ * imported without a matched student.
+ */
+function openAddStudentForPayment(paymentId){
+
+  const payment=
+    payments.find(
+      item=>item.id===paymentId
+    );
+
+  if(!payment){
+    return toast(
+      'Payment could not be found.'
+    );
+  }
+
+  vfPendingStudentNamePrefill=
+    String(
+      payment.payer ||
+      payment.student ||
+      ''
+    ).trim();
+
+  switchView('classes');
+
+  const hasClassSelected=
+    Boolean($('#classSelect')?.value);
+
+  if(hasClassSelected){
+    $('#addStudent')?.click();
+  }else{
+    toast(
+      'Choose the class this student belongs to, then click "Add student manually" to add them. Afterward, come back to Notifications to match this payment.'
+    );
+  }
+}
+
+
+/*
+ * Attaches an already-existing student to a payment that was
+ * imported with "connect later" checked (or otherwise saved with no
+ * student match). Clears the Notifications flag automatically, since
+ * paymentAttentionIssue() only fires while studentId is empty.
+ */
+async function matchStudentToPendingPayment(paymentId,studentId){
+
+  const payment=
+    payments.find(
+      item=>item.id===paymentId
+    );
+
+  const student=
+    students.find(
+      item=>item.id===studentId
+    );
+
+  if(!payment || !student){
+    return toast(
+      'Could not find that payment or student.'
+    );
+  }
+
+  await updateDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'payments',
+      paymentId
+    ),
+    {
+      studentId:student.id,
+      student:student.studentName||'',
+      parentName:student.parentName||'',
+      parentEmail:student.parentEmail||'',
+      matchedBy:'Vendor matched from Notifications',
+      updatedAt:serverTimestamp()
+    }
+  );
+
+  await log(
+    'Payment matched to student',
+    `${money(payment.amount)} payment matched to ${student.studentName||'student'}.`,
+    'Manual'
+  );
+
+  await refreshAll();
+
+  toast('Payment matched.');
 }
 
 
@@ -10837,6 +11197,21 @@ $('#addStudent').onclick=()=>{
   show(
     $('#studentForm')
   );
+
+  if(vfPendingStudentNamePrefill){
+
+    const nameParts=
+      vfPendingStudentNamePrefill.split(/\s+/);
+
+    $('#sf').value=nameParts[0]||'';
+    $('#sl').value=nameParts.slice(1).join(' ')||'';
+
+    vfPendingStudentNamePrefill='';
+
+    $('#sl').focus();
+  }else{
+    $('#sf').focus();
+  }
 };
 
 
@@ -11332,6 +11707,7 @@ $('#saveStudent').onclick=async()=>{
 
   $('#classSelect').value=
     c.id;
+  updateRosterUploadTarget();
 
   await loadRoster();
 
@@ -11406,6 +11782,7 @@ $('#archiveClass').onclick=async()=>{
 
 
   $('#classSelect').value='';
+  updateRosterUploadTarget();
 
   roster=[];
 
@@ -12062,6 +12439,7 @@ async function openGlobalStudentEdit(studentId){
 
       $('#classSelect').value=
         c.id;
+      updateRosterUploadTarget();
 
       await loadRoster();
 
@@ -16546,11 +16924,11 @@ async function queuePaymentReminderReviews(){
 
       const lateFeeNote=
         lateFee>0
-          ? ` A ${money(lateFee)} late fee will be added ${
+          ? `A ${money(lateFee)} late fee will be added ${
               obligation.lateFeeDate
                 ? `on ${formatVendorDate(obligation.lateFeeDate)}`
                 : 'if this payment is late'
-            }.`
+            } if payment has not been received.`
           : '';
 
 
@@ -16560,7 +16938,7 @@ async function queuePaymentReminderReviews(){
 
       const bodyTemplate=
         classRecord.reminderBody ||
-        'Hi {{parentName}},\n\nThis is a reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}.\n\nThank you,\n{{businessName}}';
+        'Hi {{parentName}},\n\nThis is a reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}.\n\n{{lateFeeWarning}}\n\nThank you,\n{{businessName}}';
 
       const tokens={
         studentName:
@@ -16585,6 +16963,9 @@ async function queuePaymentReminderReviews(){
 
         paymentInstructions:'',
 
+        lateFeeWarning:
+          lateFeeNote,
+
         businessName:
           profile.businessName || ''
       };
@@ -16601,9 +16982,37 @@ async function queuePaymentReminderReviews(){
       const subject=
         fillTemplate(subjectTemplate);
 
+      /*
+       * {{lateFeeWarning}} lets a vendor place the late-fee sentence
+       * wherever it reads best in their own custom message. Older
+       * templates saved before this token existed won't contain it --
+       * for those (and any template someone deletes the token from),
+       * still append the late fee sentence rather than silently
+       * dropping it, since a vendor asked for it to always be present
+       * whenever a late fee is configured.
+       */
+      const bodyIncludesLateFeeToken=
+        /\{\{lateFeeWarning\}\}/.test(
+          bodyTemplate
+        );
+
       const body=
-        fillTemplate(bodyTemplate) +
-        lateFeeNote;
+        (
+          fillTemplate(bodyTemplate) +
+          (
+            !bodyIncludesLateFeeToken && lateFeeNote
+              ? `\n\n${lateFeeNote}`
+              : ''
+          )
+        )
+          /*
+           * When there's no late fee, {{lateFeeWarning}} resolves to
+           * an empty string and leaves a blank line where it sat --
+           * collapse any run of 3+ newlines down to a single blank
+           * line so the email doesn't show an awkward gap.
+           */
+          .replace(/\n{3,}/g,'\n\n')
+          .trim();
 
 
       await addDoc(
@@ -18924,6 +19333,10 @@ $('#cancelCertificate').onclick=()=>{
 
   editingCertificateId='';
 
+  if($('#certStudentLater')){
+    $('#certStudentLater').checked=false;
+  }
+
   $('#saveCertificate').textContent=
     'Save certificate';
 
@@ -19011,13 +19424,16 @@ $('#saveCertificate').onclick=async()=>{
   const studentMatch =
     selectedCertificateStudent();
 
+  const willConnectStudentLater =
+    Boolean($('#certStudentLater')?.checked);
 
-  if(!studentMatch){
+
+  if(!studentMatch && !willConnectStudentLater){
 
     renderCertificateStudentMatches();
 
     return toast(
-      'Choose the student from VendorFlow before saving the certificate.'
+      'Choose the student from VendorFlow, or check "connect them later" before saving.'
     );
   }
 
@@ -19444,6 +19860,10 @@ $('#saveCertificate').onclick=async()=>{
     if($('#certPdfStatus')){
       $('#certPdfStatus').textContent=
         'No PDF selected.';
+    }
+
+    if($('#certStudentLater')){
+      $('#certStudentLater').checked=false;
     }
 
     pendingCertificatePdf=null;
@@ -21224,11 +21644,20 @@ function renderReviews(){
             'certificate-attention' &&
           review.certificateId;
 
+        const isPaymentAttention=
+          review.reviewType===
+            'payment-attention' &&
+          review.paymentId;
+
 
         return `
           <div class="record ${
             isCertificateAttention
               ? 'vf-certificate-review'
+              : ''
+          }${
+            isPaymentAttention
+              ? 'vf-payment-attention-review'
               : ''
           }">
 
@@ -21244,16 +21673,58 @@ function renderReviews(){
               isCertificateAttention
                 ? `
                   <div class="vf-review-actions">
+                    ${
+                      review.issueCode==='missing-student'
+                        ? `
+                          <button
+                            type="button"
+                            class="primary"
+                            data-add-student-for-certificate="${esc(review.certificateId)}">
+                            Add student
+                          </button>
+                        `
+                        : ''
+                    }
                     <button
                       type="button"
-                      class="primary"
+                      class="${review.issueCode==='missing-student' ? 'vf-secondary-button' : 'primary'}"
                       data-fix-review-certificate="${esc(review.certificateId)}">
                       Fix certificate
                     </button>
                   </div>
                 `
-                : inboundReviewActionsHTML(
-                    review
+                : (
+                    isPaymentAttention
+                      ? `
+                        <div class="vf-payment-attention-match">
+                          <select class="input" data-match-student-for-payment-select="${esc(review.paymentId)}">
+                            <option value="">Choose an existing student…</option>
+                            ${
+                              [...students]
+                                .sort((a,b)=>String(a.studentName||'').localeCompare(String(b.studentName||'')))
+                                .map(student=>`<option value="${esc(student.id)}">${esc(student.studentName||'Unnamed student')}${student.parentName?' — '+esc(student.parentName):''}</option>`)
+                                .join('')
+                            }
+                          </select>
+                          <div class="vf-review-actions">
+                            <button
+                              type="button"
+                              class="primary"
+                              data-match-student-for-payment="${esc(review.paymentId)}">
+                              Match student
+                            </button>
+                            <button
+                              type="button"
+                              class="vf-secondary-button"
+                              data-add-student-for-payment="${esc(review.paymentId)}">
+                              Add student
+                            </button>
+                          </div>
+                        </div>
+                      `
+                      : inboundReviewActionsHTML(
+                          review
+                        )
                   )
             }
 
@@ -21538,6 +22009,60 @@ function renderReviews(){
 
         openCertificateForRepair(
           button.dataset.fixReviewCertificate
+        );
+      };
+    });
+
+
+  $$('[data-add-student-for-certificate]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        openAddStudentForCertificate(
+          button.dataset.addStudentForCertificate
+        );
+      };
+    });
+
+
+  $$('[data-add-student-for-payment]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        openAddStudentForPayment(
+          button.dataset.addStudentForPayment
+        );
+      };
+    });
+
+
+  $$('[data-match-student-for-payment]')
+    .forEach(button=>{
+
+      button.onclick=async()=>{
+
+        const paymentId=
+          button.dataset.matchStudentForPayment;
+
+        const select=
+          document.querySelector(
+            `[data-match-student-for-payment-select="${paymentId}"]`
+          );
+
+        const studentId=
+          select?.value || '';
+
+        if(!studentId){
+          return toast(
+            'Choose a student first.'
+          );
+        }
+
+        await matchStudentToPendingPayment(
+          paymentId,
+          studentId
         );
       };
     });
@@ -23975,6 +24500,21 @@ installVendorFlowBranding();setAuthMode('login');
 
 let bulkCertificateItems=[];
 
+/*
+ * When checked, a vendor is telling VendorFlow it's fine to import
+ * certificates (or payments, via the payments version of this flag
+ * below) without a matched student -- VendorFlow will still flag the
+ * item in Notifications so the vendor can connect it to a student
+ * later, rather than being blocked from importing at all.
+ */
+let vfDeferCertStudentMatch=false;
+
+/*
+ * Same idea as vfDeferCertStudentMatch, but for the payment
+ * statement importer.
+ */
+let vfDeferPaymentStudentMatch=false;
+
 
 
 
@@ -24443,10 +24983,10 @@ function bulkCertificateImportReadiness(
   }
 
 
-  if(!student){
+  if(!student && !vfDeferCertStudentMatch){
 
     problems.push(
-      'Student does not exactly match one saved VendorFlow student.'
+      'Student does not exactly match one saved VendorFlow student. Either match a student below, or check "I will connect students later" above.'
     );
   }
 
@@ -25348,19 +25888,19 @@ async function importReadyBulkCertificates(
       const data={
 
         studentId:
-          student.id,
+          student?.id || '',
 
         student:
-          student.studentName ||
+          student?.studentName ||
           String(
             x.studentName || ''
           ).trim(),
 
         parentName:
-          student.parentName || '',
+          student?.parentName || '',
 
         parentEmail:
-          student.parentEmail || '',
+          student?.parentEmail || '',
 
 
         school:
@@ -25408,7 +25948,12 @@ async function importReadyBulkCertificates(
             : 'Bulk PDF import',
 
         matchedBy:
-          'Exact student + charter match',
+          student
+            ? 'Exact student + charter match'
+            : 'Charter match only -- vendor will connect student later',
+
+        studentMatchPending:
+          !student,
 
 
         pdfObjectKey:
@@ -25775,6 +26320,41 @@ if($('#chooseBulkCertificates')){
 
         $('#bulkCertificateFiles')
           ?.click();
+      }
+    );
+}
+
+
+if($('#certDeferStudentMatch')){
+
+  $('#certDeferStudentMatch')
+    .addEventListener(
+      'change',
+      e=>{
+
+        vfDeferCertStudentMatch=
+          e.target.checked;
+
+        /*
+         * Re-check every already-scanned item against the new
+         * preference and re-render so items that were blocked
+         * only on a missing student become importable right away.
+         */
+        renderBulkCertificateItems();
+        updateBulkCertificateImportButton();
+
+        if(activeBulkCertificateReviewId){
+
+          const current=
+            bulkCertificateItems.find(
+              entry=>
+                entry.id===activeBulkCertificateReviewId
+            );
+
+          if(current){
+            renderBulkCertificateReviewFields(current);
+          }
+        }
       }
     );
 }
@@ -28336,6 +28916,18 @@ if($('#approveBulkCertificateReview')){
               behavior:'smooth',
               block:'nearest'
             });
+
+            /*
+             * The blocking message can be identical to what was
+             * already on screen (the vendor clicked Import Now
+             * without changing anything). Re-triggering a brief
+             * shake makes it obvious the click registered and is
+             * still being blocked, instead of looking like nothing
+             * happened.
+             */
+            status.classList.remove('vf-shake');
+            void status.offsetWidth;
+            status.classList.add('vf-shake');
           }
 
 
@@ -31214,10 +31806,10 @@ async function importSelectedStatementPayments(){
         );
 
 
-      if(!student){
+      if(!student && !vfDeferPaymentStudentMatch){
 
         tx._importError=
-          'Choose the correct student before importing.';
+          'Choose the correct student, or check "connect later" above, before importing.';
 
         needsMatch++;
         continue;
@@ -31250,20 +31842,21 @@ async function importSelectedStatementPayments(){
 
         payer:
           String(tx.payer||'').trim() ||
-          student.parentName ||
+          student?.parentName ||
           '',
 
         studentId:
-          student.id,
+          student?.id || '',
 
         student:
-          student.studentName||'',
+          student?.studentName ||
+          String(tx.payer||'').trim(),
 
         parentName:
-          student.parentName||'',
+          student?.parentName || '',
 
         parentEmail:
-          student.parentEmail||'',
+          student?.parentEmail || '',
 
         className:'',
 
@@ -31306,14 +31899,18 @@ async function importSelectedStatementPayments(){
           'Payment statement',
 
         matchedBy:
-          paymentStatementStudentMatch(tx)?.id===
-            student.id
-              ? (
-                  paymentStatementMatchDetails(tx)
-                    ?.matchedBy ||
-                  'VendorFlow exact statement match'
-                )
-              : 'Vendor statement selection',
+          !student
+            ? 'Deferred -- vendor will match student later'
+            : (
+                paymentStatementStudentMatch(tx)?.id===
+                  student.id
+                  ? (
+                      paymentStatementMatchDetails(tx)
+                        ?.matchedBy ||
+                      'VendorFlow exact statement match'
+                    )
+                  : 'Vendor statement selection'
+              ),
 
         createdAt:
           serverTimestamp(),
@@ -31767,9 +32364,13 @@ function renderPaymentStatementResults(){
                                 !outgoing &&
                                 !tx._imported &&
                                 !tx._duplicateQueued
-                                  ? `<div class="vf-statement-row-warning">
-                                       Student match required
-                                     </div>`
+                                  ? (
+                                      vfDeferPaymentStudentMatch
+                                        ? `<div class="vf-statement-match-note">Will connect to a student later</div>`
+                                        : `<div class="vf-statement-row-warning">
+                                             Student match required
+                                           </div>`
+                                    )
                                   : ''
                               )
                         }
@@ -32020,13 +32621,18 @@ async function readPaymentStatement(){
 }
 
 
-const paymentStatementButton=
-  $('#readPaymentStatement');
+/*
+ * Read the statement automatically as soon as a file is chosen --
+ * same behavior as the certificate PDF importer, so the vendor
+ * never has to remember a separate "Read" click.
+ */
+if($('#paymentStatementFile')){
 
-if(paymentStatementButton){
-
-  paymentStatementButton.onclick=
-    readPaymentStatement;
+  $('#paymentStatementFile')
+    .addEventListener(
+      'change',
+      readPaymentStatement
+    );
 }
 
 
@@ -32057,161 +32663,31 @@ function vfButtonByExactText(text){
 }
 
 
-function closePaymentActionChooser(){
-
-  const chooser=
-    $('#paymentActionChooser');
-
-  if(chooser){
-    chooser.hidden=true;
-  }
-}
-
-
-function hidePaymentStatementWorkspace(){
-
-  const workspace=
-    $('#paymentStatementWorkspace');
-
-  if(workspace){
-    workspace.hidden=true;
-  }
-}
-
-
-function showPaymentStatementWorkspace(){
-
-  const workspace=
-    $('#paymentStatementWorkspace');
-
-  if(workspace){
-    workspace.hidden=false;
-
-    workspace.scrollIntoView({
-      behavior:'smooth',
-      block:'nearest'
-    });
-  }
-}
-
-
 /*
- * Preserve the old proven buttons as internal triggers.
- * They remain functional but are no longer part of the UX.
+ * The payments page used to hide statement import behind a
+ * "what would you like to add" chooser, with three manual-entry
+ * buttons routed through it as a click-proxy. That indirection was
+ * confusing (a vendor could re-open and re-close the chooser and end
+ * up back where they started with nothing added) and buried the one
+ * action most vendors want first: uploading a statement. The
+ * statement importer is now always visible as the primary action;
+ * the three manual-entry buttons below it are the same real buttons
+ * as always, just no longer hidden behind a proxy.
  */
-[
-  'Refund',
-  'Add charge',
-  'Add family payment'
-]
-  .forEach(label=>{
+if($('#paymentDeferStudentMatch')){
 
-    const button=
-      vfButtonByExactText(
-        label
-      );
+  $('#paymentDeferStudentMatch')
+    .addEventListener(
+      'change',
+      e=>{
 
-    if(button){
+        vfDeferPaymentStudentMatch=
+          e.target.checked;
 
-      button.classList.add(
-        'vf-hidden-legacy-payment-action'
-      );
-    }
-  });
-
-
-const paymentActionLauncher=
-  $('#openPaymentActionChooser');
-
-if(paymentActionLauncher){
-
-  paymentActionLauncher.onclick=()=>{
-
-    const chooser=
-      $('#paymentActionChooser');
-
-    if(!chooser){
-      return;
-    }
-
-    chooser.hidden=
-      !chooser.hidden;
-  };
+        renderPaymentStatementResults();
+      }
+    );
 }
-
-
-const closePaymentChooserButton=
-  $('#closePaymentActionChooser');
-
-if(closePaymentChooserButton){
-
-  closePaymentChooserButton.onclick=
-    closePaymentActionChooser;
-}
-
-
-$$('[data-payment-choice]')
-  .forEach(button=>{
-
-    button.onclick=()=>{
-
-      const choice=
-        button.dataset.paymentChoice;
-
-
-      closePaymentActionChooser();
-
-
-      if(
-        choice!=='statement'
-      ){
-
-        hidePaymentStatementWorkspace();
-      }
-
-
-      if(
-        choice==='statement'
-      ){
-
-        showPaymentStatementWorkspace();
-        return;
-      }
-
-
-      const legacyLabel=
-        choice==='family'
-          ? 'Add family payment'
-          : (
-              choice==='charge'
-                ? 'Add charge'
-                : (
-                    choice==='refund'
-                      ? 'Refund'
-                      : ''
-                  )
-            );
-
-
-      const legacyButton=
-        vfButtonByExactText(
-          legacyLabel
-        );
-
-
-      if(!legacyButton){
-
-        toast(
-          'VendorFlow could not open that entry form.'
-        );
-
-        return;
-      }
-
-
-      legacyButton.click();
-    };
-  });
 
 
 
@@ -32512,7 +32988,7 @@ function vfRenderActualCharterOnboarding(){
   $('#backBtn').disabled=step===0;
   $('#nextBtn').textContent='Save schools and continue setup';
   $('#questionBox').innerHTML=`
-    <div class="eyebrow">Step ${step+1} of ${questions.length}</div>
+    <div class="eyebrow">Step ${step+1} of ${questions.length+VF_WIZARD_STEPS.length}</div>
     <h2>Add the charter schools you work with</h2>
     <p>Search the verified Charter Directory and add every school you currently work with. You can add more later.</p>
     <label class="vf-field-label"><span>Find a charter school</span>
@@ -32849,7 +33325,7 @@ function vfOpenRealInteractiveTutorial(){
    duplicated or reimplemented here.
    ========================================================== */
 
-const VF_WIZARD_STEPS=['classes','certificates','payments','finish'];
+const VF_WIZARD_STEPS=['intro','classes','certificates','payments','finish'];
 
 /*
  * The wizard remembers which step a vendor was on using localStorage,
@@ -32877,6 +33353,11 @@ let vfWizardAdoptedNode=null;
 let vfWizardAdoptedSlot=null;
 
 const VF_WIZARD_STEP_INFO={
+  intro:{
+    title:'Before you begin',
+    instruction:'',
+    viewId:null
+  },
   classes:{
     title:'Create your classes',
     instruction:'Create each class or service you offer, then upload that class\u2019s student roster as a CSV. Repeat for every class -- you can also duplicate a class you already made and change what\u2019s different. Click Next once every class and roster is loaded.',
@@ -32884,12 +33365,12 @@ const VF_WIZARD_STEP_INFO={
   },
   certificates:{
     title:'Add certificates you already have',
-    instruction:'If you have charter certificates saved on your computer, upload them below and VendorFlow will read each one and show you what it found before saving anything. No certificates yet? Skip this step.',
+    instruction:'Upload any certificates you have saved. Don\u2019t have any yet? Skip this step -- you can always add certificates later, by bulk upload or by forwarding the certificate email to VendorFlow.',
     viewId:'certificatesView'
   },
   payments:{
     title:'Add payments you\u2019ve already received',
-    instruction:'Upload a bank or Venmo statement and VendorFlow will pull out the payments and match them to students for you to review. Nothing to add yet? Skip this step.',
+    instruction:'Upload a bank or Venmo statement and VendorFlow will pull out the payments for you to review. Nothing to add yet? Skip this step -- you can always import statements later.',
     viewId:'paymentsView'
   },
   finish:{
@@ -32922,6 +33403,13 @@ function vfWizardAdopt(viewId){
 
 function vfWizardRestoreAdopted(){
   if(vfWizardAdoptedNode && vfWizardAdoptedSlot){
+
+    if(
+      typeof vfWizardRestoreClassCardOrder==='function'
+    ){
+      vfWizardRestoreClassCardOrder();
+    }
+
     vfWizardAdoptedNode.classList.remove('vf-wizard-adopted');
     vfWizardAdoptedSlot.parent.insertBefore(
       vfWizardAdoptedNode,
@@ -32978,7 +33466,7 @@ function vfRenderWizardStep(){
   $('#vfWizardProgressFill').style.width=
     `${((vfWizardStepIndex+1)/VF_WIZARD_STEPS.length)*100}%`;
   $('#vfWizardStepLabel').textContent=
-    `Setup \u2014 Step ${vfWizardStepIndex+1} of ${VF_WIZARD_STEPS.length}`;
+    `Step ${questions.length+vfWizardStepIndex+1} of ${questions.length+VF_WIZARD_STEPS.length}`;
   $('#vfWizardStepTitle').textContent=info.title;
   $('#vfWizardStepInstruction').textContent=info.instruction;
 
@@ -32991,12 +33479,42 @@ function vfRenderWizardStep(){
 
   const body=$('#vfWizardBody');
 
-  if(stepId==='finish'){
+  if(stepId==='intro'){
+    vfWizardRestoreAdopted();
+    body.innerHTML=`
+      <div class="vf-wizard-intro">
+        <p>
+          You can bulk-upload your rosters, certificates already saved
+          on your computer, and payment statements (bank or Venmo) --
+          this saves time later and is always available in VendorFlow,
+          not just right now.
+        </p>
+        <p>
+          Don\u2019t have those handy? Skip ahead and add them anytime.
+        </p>
+        <p>
+          You can also add or update certificates, rosters, and
+          payments simply by forwarding the relevant email to
+          VendorFlow -- for example, forward a charter school\u2019s
+          certificate email and VendorFlow reads it and attaches it to
+          the right student automatically.
+        </p>
+      </div>`;
+    $('#vfWizardSkip').classList.add('hidden');
+    $('#vfWizardNext').classList.remove('hidden');
+    $('#vfWizardNext').disabled=false;
+    $('#vfWizardNext').textContent='Next';
+  }else if(stepId==='finish'){
     vfWizardRestoreAdopted();
     body.innerHTML=`
       <div class="vf-wizard-finish">
         <h3>Setup complete!</h3>
         <p>Your classes, certificates, and payments are loaded. VendorFlow is ready to use.</p>
+        <p class="vf-wizard-finish-next-step">
+          Your next step is probably to forward any relevant emails to
+          VendorFlow. You\u2019ll find your VendorFlow email address on
+          your account page, under your name in the top right corner.
+        </p>
         <div class="vf-wizard-finish-actions">
           <button type="button" id="vfWizardWatchTutorial" class="primary">Watch a quick tutorial</button>
           <button type="button" id="vfWizardGoHome" class="vf-secondary-button">Go to home page</button>
@@ -33266,8 +33784,50 @@ function vfWizardPollPaymentsLoop(){
  * "+ Create a new class" button to hunt for, then chains into
  * uploading that class's roster and asking about the next one.
  */
+let vfClassCardsReordered=false;
+
+/*
+ * A brand-new vendor has no classes yet, so leading with "Choose a
+ * class" (an empty dropdown) makes no sense during setup. Move the
+ * "Create a new class" card above it for the duration of the wizard
+ * only -- vfWizardRestoreClassCardOrder() puts it back for the
+ * regular Class Rosters page, where picking an existing class first
+ * is the more common everyday action.
+ */
+function vfWizardReorderClassCards(){
+  const chooseCard=$('#chooseClassCard');
+  const createCard=$('#classCreateFormWrap');
+
+  if(
+    chooseCard &&
+    createCard &&
+    chooseCard.parentNode===createCard.parentNode
+  ){
+    createCard.parentNode.insertBefore(createCard,chooseCard);
+    vfClassCardsReordered=true;
+  }
+}
+
+function vfWizardRestoreClassCardOrder(){
+  if(!vfClassCardsReordered)return;
+
+  const chooseCard=$('#chooseClassCard');
+  const createCard=$('#classCreateFormWrap');
+
+  if(
+    chooseCard &&
+    createCard &&
+    chooseCard.parentNode===createCard.parentNode
+  ){
+    chooseCard.parentNode.insertBefore(chooseCard,createCard);
+  }
+
+  vfClassCardsReordered=false;
+}
+
 function vfWizardStartClassesFlow(){
   resetClassCreateFormFields();
+  vfWizardReorderClassCards();
   show($('#classCreateFormWrap'));
   vfWizardShowStepPrompt(`<p>Fill in this class's details below, then click <strong>Save class</strong>.</p>`);
 }

@@ -4811,6 +4811,29 @@ button.vf-certificate-problem:focus-visible{
   font-size:13px;
 }
 
+.vf-defer-match-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:0 0 14px;
+  padding:10px 12px;
+  border:1px solid #e2e7ea;
+  border-radius:8px;
+  background:#f7f9fa;
+  font-size:13px;
+  cursor:pointer;
+}
+
+.vf-defer-match-row input{
+  width:16px;
+  height:16px;
+  flex-shrink:0;
+}
+
+.vf-defer-match-row-tight{
+  margin:8px 0 0;
+}
+
 .vf-bulk-workspace{
   margin-top:16px;
 }
@@ -7541,6 +7564,32 @@ body.vf-wizard-open{
   padding:12px 22px;
 }
 
+.vf-wizard-finish-next-step{
+  background:#f7f9fa;
+  border:1px solid #e2e7ea;
+  border-radius:10px;
+  padding:12px 16px;
+  font-size:14px;
+  max-width:480px;
+  margin:0 auto 24px;
+  text-align:left;
+}
+
+.vf-wizard-intro{
+  padding:10px 4px 4px;
+  max-width:560px;
+}
+
+.vf-wizard-intro p{
+  color:var(--text);
+  line-height:1.55;
+  margin:0 0 16px;
+}
+
+.vf-wizard-intro p:last-child{
+  margin-bottom:0;
+}
+
 .vf-wizard-nudge{
   display:flex;
   align-items:center;
@@ -7816,4 +7865,44 @@ body.vf-wizard-open .vf-modal-overlay{
     font-size:11px !important;
     padding:6px 10px !important;
   }
+}
+
+@keyframes vfShake{
+  10%,90%{transform:translateX(-1px);}
+  20%,80%{transform:translateX(2px);}
+  30%,50%,70%{transform:translateX(-4px);}
+  40%,60%{transform:translateX(4px);}
+}
+
+.vf-shake{
+  animation:vfShake .5s;
+}
+
+.vf-payment-attention-match{
+  margin-top:8px;
+}
+
+.vf-payment-attention-match select{
+  margin-bottom:8px;
+}
+
+/*
+ * Inside the setup wizard, the wizard's own header already shows
+ * "Step X of 11" -- the Class Rosters page's internal "Step 1" /
+ * "Step 2" sub-labels would double up confusingly there (especially
+ * once the cards are reordered for a brand-new vendor), so hide them
+ * only while this view is adopted into the wizard.
+ */
+#classesView.vf-wizard-adopted #chooseClassCard > .eyebrow,
+#classesView.vf-wizard-adopted #rosterCsvCard > .eyebrow{
+  display:none;
+}
+
+/*
+ * "Archived Classes" is meaningless during setup -- a brand-new
+ * account can't have any classes to archive yet. It's a normal-use
+ * feature that belongs on the everyday Class Rosters page only.
+ */
+#classesView.vf-wizard-adopted #archivedClassesCard{
+  display:none;
 }
