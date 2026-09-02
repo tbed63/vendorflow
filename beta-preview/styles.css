@@ -7720,6 +7720,65 @@ body.vf-wizard-open .vf-modal-overlay{
 }
 
 /*
+ * Phone-width gate: VendorFlow's layout (the sidebar especially)
+ * isn't built for narrow screens, so below the wizard's own
+ * breakpoint we show this plain message instead of a half-broken
+ * app. Hides every other top-level element and shows only the gate.
+ * Revisit this once a real mobile-friendly layout exists.
+ */
+#vfMobileGate{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:250000;
+  background:var(--bg);
+  align-items:center;
+  justify-content:center;
+  padding:32px 24px;
+  text-align:center;
+  box-sizing:border-box;
+}
+
+.vf-mobile-gate-card{
+  max-width:360px;
+}
+
+.vf-mobile-gate-logo{
+  width:120px;
+  margin:0 auto 24px;
+  display:block;
+}
+
+#vfMobileGate h1{
+  font-size:21px;
+  color:var(--ink);
+  margin:0 0 12px;
+}
+
+#vfMobileGate p{
+  color:var(--muted);
+  font-size:15px;
+  line-height:1.6;
+  margin:0 0 8px;
+}
+
+.vf-mobile-gate-note{
+  font-size:13px !important;
+  font-weight:700;
+  color:var(--ink) !important;
+}
+
+@media(max-width:760px){
+  #vfMobileGate{
+    display:flex !important;
+  }
+
+  body > *:not(#vfMobileGate){
+    display:none !important;
+  }
+}
+
+/*
  * On narrow screens the floating centered "BETA PREVIEW" pill
  * (position:fixed, top:8px, inline-styled in index.html) sits
  * directly on top of the header's real controls -- most notably the

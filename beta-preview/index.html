@@ -10,6 +10,23 @@
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA PREVIEW — LIVE APP UNCHANGED</div>
 
+<!--
+  VendorFlow isn't built for phone-width screens yet (see the project
+  notes). Rather than ship a half-working phone layout, this gate
+  replaces the whole app with a plain "please use a desktop or laptop"
+  message below a fixed width -- pure CSS, see the matching rule near
+  the end of styles.css. A real mobile-friendly experience is planned
+  as a separate future app.
+-->
+<div id="vfMobileGate">
+  <div class="vf-mobile-gate-card">
+    <img src="vendorflow-logo.png" alt="VendorFlow" class="vf-mobile-gate-logo">
+    <h1>Please use a desktop or laptop</h1>
+    <p>VendorFlow isn't set up for phones yet -- everything here was built for a bigger screen. Please switch to a desktop or laptop computer to use VendorFlow.</p>
+    <p class="vf-mobile-gate-note">A phone-friendly version is on the way.</p>
+  </div>
+</div>
+
 <div id="loading" class="center">Opening VendorFlow…</div>
 
 <section id="auth" class="center hidden">
