@@ -28990,7 +28990,7 @@ if($('#approveBulkCertificateReview')){
 
             if(showInlineDefer && $('#bulkCertMatchLaterInline')){
 
-              $('#bulkCertMatchLaterInline').onclick=()=>{
+              $('#bulkCertMatchLaterInline').onclick=async ()=>{
 
                 vfDeferCertStudentMatch=true;
 
@@ -29008,6 +29008,25 @@ if($('#approveBulkCertificateReview')){
 
                 if(refreshedItem){
                   renderBulkCertificateReviewFields(refreshedItem);
+                }
+
+                /*
+                 * Deferring the match is meant to be one click,
+                 * not two. Immediately retry the same import
+                 * attempt now that the defer flag is set, instead
+                 * of leaving the stale "Fix this before importing"
+                 * message on screen until the vendor clicks
+                 * Import Now again. This reuses the exact same
+                 * approve/import logic below rather than
+                 * duplicating it, so if something else is still
+                 * blocking (e.g. an unrecognized charter school)
+                 * that reason still shows correctly.
+                 */
+                const approveButton=
+                  $('#approveBulkCertificateReview');
+
+                if(approveButton && approveButton.onclick){
+                  await approveButton.onclick();
                 }
               };
             }
