@@ -32080,7 +32080,18 @@ async function importSelectedStatementPayments(){
 
       await log(
         'Payment imported from statement',
-        `${student.studentName} — `+
+        /*
+         * student can legitimately be undefined here -- this is
+         * the deferred-match path (the vendor checked "I will
+         * connect unconnected payments to students later"). Use
+         * the same fallback label already computed for the
+         * payment record itself instead of student.studentName,
+         * which crashed the whole import loop mid-batch for any
+         * deferred payment (later payments in the same statement
+         * never got imported, and the list never re-rendered to
+         * show what did make it in before the crash).
+         */
+        `${payment.student} — `+
         `${money(amount)} via ${payment.method}.`,
         'Statement import',
         {
