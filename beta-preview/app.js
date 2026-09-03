@@ -8394,6 +8394,25 @@ function duplicateSavedClass(classId){
 
   $('#saveClass').textContent='Save as new class';
 
+  /*
+   * A duplicated class needs its own roster -- clear out whatever
+   * roster preview/upload state belonged to the class being copied
+   * from, so it's obvious this is a fresh class, not a continuation
+   * of the original's roster.
+   */
+  preview=[];
+  hide($('#previewCard'));
+
+  if($('#csvStatus')){
+    $('#csvStatus').textContent='';
+  }
+
+  if($('#csv')){
+    $('#csv').value='';
+  }
+
+  hide($('#warnings'));
+
   toast(`Duplicating ${original?.name||'class'} as a new class.`);
 }
 
@@ -10314,6 +10333,11 @@ $('#saveRoster').onclick=async()=>{
 
   if(!c||!preview.length)return;
 
+  const saveRosterButton=$('#saveRoster');
+  const saveRosterOriginalLabel=saveRosterButton.textContent;
+  saveRosterButton.disabled=true;
+  saveRosterButton.textContent='Saving...';
+
   let col=collection(db,'vendors',user.uid,'classes',c.id,'students'),
       old=await getDocs(col),
       b=writeBatch(db);
@@ -10360,7 +10384,14 @@ $('#saveRoster').onclick=async()=>{
   await loadRoster();
   renderRoster();
 
+  saveRosterButton.textContent='Saved \u2713';
+
   toast('Roster saved.');
+
+  setTimeout(()=>{
+    saveRosterButton.disabled=false;
+    saveRosterButton.textContent=saveRosterOriginalLabel;
+  },1200);
 };
 
 const vfOriginalSaveRosterClick=$('#saveRoster').onclick;
@@ -16694,6 +16725,16 @@ async function queueCertificateReceivedEmail(
 
   try{
 
+    /*
+     * Same reasoning as queuePaymentReminderReviews: don't draft a
+     * "we received your certificate" email while the vendor is
+     * still mid-setup and hasn't told VendorFlow they're done
+     * importing.
+     */
+    if(profile?.betaSetupComplete===false){
+      return;
+    }
+
     const parentEmail=
       String(
         certificateData?.parentEmail ||
@@ -16820,6 +16861,23 @@ ${profile.businessName||''}`;
 async function queuePaymentReminderReviews(){
 
   try{
+
+    /*
+     * While a vendor is still mid-import during initial setup
+     * (profile.betaSetupComplete is explicitly false -- written the
+     * moment onboarding finishes, flipped true when the setup
+     * wizard is finished or explicitly marked done), don't queue
+     * payment reminders yet. Every obligation created while
+     * bulk-importing rosters/payments would otherwise generate a
+     * reminder immediately, before the vendor has had a chance to
+     * import everything and know which ones are even real. Once
+     * betaSetupComplete is true (or the field doesn't exist at all,
+     * e.g. an older account from before this flag existed), reminders
+     * behave exactly as before.
+     */
+    if(profile?.betaSetupComplete===false){
+      return 0;
+    }
 
     if(!obligations.length){
       return 0;
@@ -18181,6 +18239,7 @@ $('#saveRefund').onclick=async()=>{
 
   await refreshAll();
 
+  renderRecords();
 
   toast(
     `Refund of ${money(amount)} recorded.`
@@ -18368,6 +18427,8 @@ $('#savePayment').onclick=async()=>{
   hide($('#paymentForm'));
 
   await refreshAll();
+
+  renderRecords();
 
   toast('Payment recorded and credited.');
 };
@@ -24986,7 +25047,7 @@ function bulkCertificateImportReadiness(
   if(!student && !vfDeferCertStudentMatch){
 
     problems.push(
-      'Student does not exactly match one saved VendorFlow student. Either match a student below, or check "I will connect students later" above.'
+      'Student does not exactly match one saved VendorFlow student. Either match a student below, or check "I will connect any unconnected certificates to students later" above.'
     );
   }
 
@@ -25113,8 +25174,8 @@ function updateBulkCertificateImportButton(){
 
   button.textContent=
     count
-      ? `Import ${count} ready certificate${count===1?'':'s'}`
-      : 'Import ready certificates';
+      ? `Import all ${count} certificate${count===1?'':'s'} below (no need to preview each one)`
+      : 'Import all certificates below (no need to preview each one)';
 }
 
 
@@ -25125,11 +25186,11 @@ function bulkCertificateStateLabel(item){
   }
 
   if(item.state==='ready'){
-    return 'Awaiting approval';
+    return 'Click to approve';
   }
 
   if(item.state==='review'){
-    return 'Awaiting approval';
+    return 'Needs your review';
   }
 
   if(item.state==='error'){
@@ -28901,6 +28962,17 @@ if($('#approveBulkCertificateReview')){
 
           if(status){
 
+            /*
+             * If the only reason this is blocked is a missing
+             * student match, give the vendor a one-click way to
+             * say "I'll match this later" right here, instead of
+             * making them close the popup, find the page-level
+             * checkbox, and start over.
+             */
+            const showInlineDefer=
+              !readiness.student &&
+              !vfDeferCertStudentMatch;
+
             status.innerHTML=
               '<strong>Fix this before importing</strong>' +
               '<div>VendorFlow found something that still needs your attention:</div>' +
@@ -28909,7 +28981,36 @@ if($('#approveBulkCertificateReview')){
                   problem=>
                     `<div class="vf-bulk-review-warning">• ${esc(problem)}</div>`
                 )
-                .join('');
+                .join('') +
+              (
+                showInlineDefer
+                  ? `<button type="button" id="bulkCertMatchLaterInline" class="vf-secondary-button vf-bulk-review-inline-defer">I'll match this student later</button>`
+                  : ''
+              );
+
+            if(showInlineDefer && $('#bulkCertMatchLaterInline')){
+
+              $('#bulkCertMatchLaterInline').onclick=()=>{
+
+                vfDeferCertStudentMatch=true;
+
+                if($('#certDeferStudentMatch')){
+                  $('#certDeferStudentMatch').checked=true;
+                }
+
+                renderBulkCertificateItems();
+                updateBulkCertificateImportButton();
+
+                const refreshedItem=
+                  bulkCertificateItems.find(
+                    entry=>entry.id===item.id
+                  );
+
+                if(refreshedItem){
+                  renderBulkCertificateReviewFields(refreshedItem);
+                }
+              };
+            }
 
 
             status.scrollIntoView({
@@ -30822,6 +30923,7 @@ if($('#saveCharge')){
 
     await refreshAll();
 
+    renderChargeRecords();
 
     toast(
       `${money(amount)} charge recorded.`
@@ -31809,7 +31911,7 @@ async function importSelectedStatementPayments(){
       if(!student && !vfDeferPaymentStudentMatch){
 
         tx._importError=
-          'Choose the correct student, or check "connect later" above, before importing.';
+          'Choose the correct student, or check "I will connect any unconnected payments to students later" above, before importing.';
 
         needsMatch++;
         continue;
@@ -31977,6 +32079,17 @@ async function importSelectedStatementPayments(){
 
 
     await refreshAll();
+
+    /*
+     * refreshAll() reloads the `payments` array from Firestore but
+     * does not re-render anything -- without an explicit call here,
+     * the "Payments" list below (renderRecords, the vendor's actual
+     * confirmation that an import worked) stayed on its stale
+     * "No payments yet." text even though the import succeeded,
+     * which is exactly why it looked like the checked rows just
+     * vanished with no evidence they were ever added.
+     */
+    renderRecords();
 
     renderPaymentStatementResults();
 
@@ -33510,6 +33623,7 @@ function vfRenderWizardStep(){
       <div class="vf-wizard-finish">
         <h3>Setup complete!</h3>
         <p>Your classes, certificates, and payments are loaded. VendorFlow is ready to use.</p>
+        <p>Finishing here tells VendorFlow you're done importing -- payment reminders, past-due notices, and certificate-received emails will start going out from now on.</p>
         <p class="vf-wizard-finish-next-step">
           Your next step is probably to forward any relevant emails to
           VendorFlow. You\u2019ll find your VendorFlow email address on
@@ -33602,6 +33716,16 @@ async function vfCompleteWizard(){
       `${profile.businessName||'This vendor'} finished the guided VendorFlow setup.`,
       'Onboarding'
     );
+
+    /*
+     * Payment reminders and certificate-received emails were held
+     * back the whole time betaSetupComplete was false (see
+     * queuePaymentReminderReviews/queueCertificateReceivedEmail).
+     * Refresh right away so anything genuinely due gets queued now,
+     * instead of silently waiting for the vendor's next unrelated
+     * page load to notice.
+     */
+    await refreshAll();
   }catch(error){
     console.error('Could not save setup completion:',error);
   }
@@ -33644,8 +33768,29 @@ function vfRenderWizardNudge(){
   $('#vfWizardNudgeDismiss').onclick=async()=>{
     nudge.remove();
     try{
-      await setDoc(vendorDoc(),{betaWizardDismissed:true},{merge:true});
+      /*
+       * Dismissing the nudge means "I'm not going to finish the
+       * guided wizard" -- it should also count as telling
+       * VendorFlow the vendor is done importing, the same as
+       * finishing the wizard does. Otherwise a vendor who dismisses
+       * this and later imports real data on the regular pages
+       * would have payment reminders and certificate-received
+       * emails silently withheld forever, with no way to turn them
+       * back on.
+       */
+      await setDoc(
+        vendorDoc(),
+        {
+          betaWizardDismissed:true,
+          betaSetupComplete:true,
+          betaSetupCompletedAt:serverTimestamp()
+        },
+        {merge:true}
+      );
       profile.betaWizardDismissed=true;
+      profile.betaSetupComplete=true;
+
+      await refreshAll();
     }catch(error){
       console.error('Could not save wizard dismissal:',error);
     }

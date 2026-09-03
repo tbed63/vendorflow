@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>VendorFlow</title>
-  <link rel="stylesheet" href="styles.css?v=setup-wizard-overhaul-20260902-185945">
+  <link rel="stylesheet" href="styles.css?v=wizard-feedback2-20260903-000000">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA PREVIEW — LIVE APP UNCHANGED</div>
@@ -1115,7 +1115,7 @@ Thank you,
 
   <label class="vf-defer-match-row">
     <input type="checkbox" id="paymentDeferStudentMatch">
-    <span>I will connect these payments to students later in VendorFlow.</span>
+    <span>I will connect any unconnected payments to students later in VendorFlow. <span class="vf-recommended-tag">(Recommended)</span></span>
   </label>
 
   <div class="form-grid">
@@ -1396,7 +1396,7 @@ Thank you,
 
   <label class="vf-defer-match-row">
     <input type="checkbox" id="certDeferStudentMatch">
-    <span>I will connect these certificates to students later in VendorFlow.</span>
+    <span>I will connect any unconnected certificates to students later in VendorFlow. <span class="vf-recommended-tag">(Recommended)</span></span>
   </label>
 
   <div class="vf-bulk-intake-heading">
@@ -1636,6 +1636,18 @@ Thank you,
 
     </div>
 
+    <div class="vf-bulk-actions vf-bulk-actions-top">
+
+          <button
+            type="button"
+            class="primary"
+            id="importReadyCertificates"
+            disabled>
+            Import all certificates below (no need to preview each one)
+          </button>
+
+    </div>
+
     <div
       id="bulkCertificateStatus"
       class="vf-bulk-status">
@@ -1647,14 +1659,6 @@ Thank you,
     </div>
 
     <div class="vf-bulk-actions">
-
-          <button
-            type="button"
-            class="primary"
-            id="importReadyCertificates"
-            disabled>
-            Import ready certificates
-          </button>
 
           <button
         type="button"
@@ -2884,5 +2888,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=setup-wizard-overhaul-20260902-185945"></script>
+<script type="module" src="app.js?v=wizard-feedback2-20260903-000000"></script>
 </body></html>
