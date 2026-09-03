@@ -10757,7 +10757,7 @@ function renderRoster(){
             <button
               class="primary"
               data-edit-student="${s.id}">
-              Edit student
+              Edit
             </button>
 
           </div>
@@ -26366,7 +26366,21 @@ if($('#importReadyCertificates')){
     .addEventListener(
       'click',
       ()=>importReadyBulkCertificates({
-        automatic:false
+        automatic:false,
+
+        /*
+         * This button's own label already promises "no need to
+         * preview each one" -- a blocking native confirm() dialog
+         * right after clicking it contradicted that promise, and
+         * was very likely why the button looked like it "didn't
+         * work": a vendor clicking the big blue button and getting
+         * an unexpected native popup, easy to miss or misread as
+         * nothing having happened. Skip it here; the button already
+         * shows "Importing certificates..." while the real work is
+         * in flight, which is the actual proof-of-life a vendor
+         * needs.
+         */
+        skipConfirmation:true
       })
     );
 }
