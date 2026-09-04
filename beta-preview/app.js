@@ -33880,8 +33880,9 @@ function vfRenderWizardStep(){
         <p>
           You can bulk-upload your rosters, certificates already saved
           on your computer, and payment statements (bank or Venmo) --
-          this saves time later and is always available in VendorFlow,
-          not just right now.
+          this saves time later. The same bulk upload tools are also
+          available in VendorFlow after the setup wizard is complete,
+          so there's no need to do it all right now.
         </p>
         <p>
           Don\u2019t have those handy? Skip ahead and add them anytime.
