@@ -34115,6 +34115,16 @@ function vfRenderWizardNudge(){
 
   if(profile?.betaWizardCompleted===true)return;
   if(profile?.betaWizardDismissed===true)return;
+
+  /*
+   * Backward compatibility: any account that finished its wizard
+   * before betaWizardCompleted existed only ever got
+   * betaSetupComplete:true written (the old, single-flag system).
+   * Treat that as "wizard done" too, so those accounts don't see
+   * the nudge reappear after this split.
+   */
+  if(profile?.betaSetupComplete===true)return;
+
   if($('#vfWizard'))return;
 
   const app=$('#app');
