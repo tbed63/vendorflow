@@ -8396,7 +8396,12 @@ function renderSelectedClassDetails(){
             <div>
               <strong>Custom message</strong>
               <span class="vf-reminder-message">
-                ${esc(c.reminderBody||'')}
+                ${esc(
+                  reminderBodyForDisplay(
+                    c.reminderBody||'',
+                    Number(c.lateFee||0)>0
+                  )
+                )}
               </span>
             </div>
 
@@ -8486,6 +8491,53 @@ function duplicateSavedClass(classId){
   hide($('#warnings'));
 
   toast(`Duplicating ${original?.name||'class'} as a new class.`);
+}
+
+
+/*
+ * Canonical default text for a class's payment-reminder email body.
+ * Kept in one place instead of duplicated at every spot that
+ * populates #classReminderBody (previously copy-pasted twice).
+ */
+function defaultReminderBodyTemplate(){
+  return `Hi {{parentName}},
+
+This is a reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}.
+
+{{lateFeeWarning}}
+
+Payment instructions:
+{{paymentInstructions}}
+
+Thank you,
+{{businessName}}`;
+}
+
+/*
+ * Strips the {{lateFeeWarning}} token (and the blank line it sits
+ * on) out of a reminder-email body whenever the class currently has
+ * no late fee -- so the template editor never shows a token that
+ * reads as an active warning line for a class that will never
+ * generate one. Left untouched when a late fee IS set, so a
+ * vendor's own placement choice for that sentence is never
+ * second-guessed.
+ */
+function reminderBodyForDisplay(
+  bodyText,
+  hasLateFee
+){
+
+  const text=
+    String(bodyText||'');
+
+  if(hasLateFee){
+    return text;
+  }
+
+  return text
+    .replace(/\{\{lateFeeWarning\}\}/g,'')
+    .replace(/\n{3,}/g,'\n\n')
+    .trim();
 }
 
 
@@ -8598,18 +8650,11 @@ function editSavedClass(
     'Payment reminder for {{studentName}}';
 
   $('#classReminderBody').value=
-    c.reminderBody ||
-`Hi {{parentName}},
-
-This is a reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}.
-
-{{lateFeeWarning}}
-
-Payment instructions:
-{{paymentInstructions}}
-
-Thank you,
-{{businessName}}`;
+    reminderBodyForDisplay(
+      c.reminderBody ||
+        defaultReminderBodyTemplate(),
+      Number(c.lateFee||0)>0
+    );
 
 
   const monthlyList=
@@ -9765,17 +9810,10 @@ function resetClassCreateFormFields(){
   $('#classReminderSubject').value=
     'Payment reminder for {{studentName}}';
   $('#classReminderBody').value=
-`Hi {{parentName}},
-
-This is a reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}.
-
-{{lateFeeWarning}}
-
-Payment instructions:
-{{paymentInstructions}}
-
-Thank you,
-{{businessName}}`;
+    reminderBodyForDisplay(
+      defaultReminderBodyTemplate(),
+      false
+    );
 
   editingClassId='';
 
@@ -25342,11 +25380,24 @@ function bulkCertificateImportReadiness(
    *
    * It may use only a clean VendorFlow "ready" result.
    * A Needs Review item never slips through automatically.
+   *
+   * The manual "Import all ready certificates" button is a
+   * superset of that: it also accepts anything a vendor has
+   * individually edited or approved. It must NOT drop plain
+   * "ready" items though -- that button's own label promises "no
+   * need to preview each one," so a cleanly-read certificate has
+   * to count as importable without the vendor first opening it and
+   * clicking Looks correct. Missing `item.state==='ready'` here
+   * made the button (and its count) silently exclude every
+   * certificate VendorFlow read successfully but the vendor hadn't
+   * yet clicked on individually -- which is why the button looked
+   * like it did nothing on a fresh batch.
    */
   const reviewed=
     automatic
       ? item.state==='ready'
       : (
+          item.state==='ready' ||
           item.vendorEdited ||
           item.vendorApproved
         );
