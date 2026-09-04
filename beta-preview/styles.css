@@ -7813,6 +7813,67 @@ body.vf-wizard-open .vf-modal-overlay{
   gap:10px;
 }
 
+.vf-review-select-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:12px;
+  font-weight:700;
+  color:var(--muted);
+  cursor:pointer;
+}
+
+.vf-review-select-row input{
+  width:16px;
+  height:16px;
+  cursor:pointer;
+}
+
+.vf-bulk-review-bar{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  flex-wrap:wrap;
+  background:#f8f9fb;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:12px 16px;
+  margin-bottom:14px;
+}
+
+.vf-bulk-review-all{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-weight:800;
+  font-size:13px;
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+.vf-bulk-review-all input{
+  width:16px;
+  height:16px;
+  cursor:pointer;
+}
+
+.vf-bulk-review-count{
+  color:var(--muted);
+  font-size:12px;
+  font-weight:700;
+}
+
+.vf-bulk-review-actions{
+  display:flex;
+  gap:10px;
+  margin-left:auto;
+}
+
+.vf-bulk-review-actions button:disabled{
+  opacity:.5;
+  cursor:not-allowed;
+}
+
 .vf-parent-email-preview{
   border:1px solid var(--line);
   border-radius:10px;

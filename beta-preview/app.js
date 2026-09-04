@@ -17448,7 +17448,8 @@ async function keepDuplicateReview(
 
 
 async function sendCertificateReceivedEmailReview(
-  reviewId
+  reviewId,
+  {silent=false}={}
 ){
 
   const review=
@@ -17461,7 +17462,7 @@ async function sendCertificateReceivedEmailReview(
     review.reviewType!==
       'certificate-received-email'
   ){
-    return;
+    return false;
   }
 
 
@@ -17479,12 +17480,14 @@ async function sendCertificateReceivedEmailReview(
 
     console.error(error);
 
-    toast(
-      error.message ||
-      'This email could not be sent.'
-    );
+    if(!silent){
+      toast(
+        error.message ||
+        'This email could not be sent.'
+      );
+    }
 
-    return;
+    return false;
   }
 
 
@@ -17504,16 +17507,22 @@ async function sendCertificateReceivedEmailReview(
     'Manual'
   );
 
-  await refreshAll();
+  if(!silent){
 
-  toast(
-    'Email sent.'
-  );
+    await refreshAll();
+
+    toast(
+      'Email sent.'
+    );
+  }
+
+  return true;
 }
 
 
 async function discardCertificateReceivedEmailReview(
-  reviewId
+  reviewId,
+  {silent=false}={}
 ){
 
   await deleteDoc(
@@ -17532,16 +17541,22 @@ async function discardCertificateReceivedEmailReview(
     'Manual'
   );
 
-  await refreshAll();
+  if(!silent){
 
-  toast(
-    'Email discarded.'
-  );
+    await refreshAll();
+
+    toast(
+      'Email discarded.'
+    );
+  }
+
+  return true;
 }
 
 
 async function sendPaymentReminderReview(
-  reviewId
+  reviewId,
+  {silent=false}={}
 ){
 
   const review=
@@ -17554,7 +17569,7 @@ async function sendPaymentReminderReview(
     review.reviewType!==
       'payment-reminder-email'
   ){
-    return;
+    return false;
   }
 
 
@@ -17572,12 +17587,14 @@ async function sendPaymentReminderReview(
 
     console.error(error);
 
-    toast(
-      error.message ||
-      'This email could not be sent.'
-    );
+    if(!silent){
+      toast(
+        error.message ||
+        'This email could not be sent.'
+      );
+    }
 
-    return;
+    return false;
   }
 
 
@@ -17624,16 +17641,22 @@ async function sendPaymentReminderReview(
     'Manual'
   );
 
-  await refreshAll();
+  if(!silent){
 
-  toast(
-    'Email sent.'
-  );
+    await refreshAll();
+
+    toast(
+      'Email sent.'
+    );
+  }
+
+  return true;
 }
 
 
 async function discardPaymentReminderReview(
-  reviewId
+  reviewId,
+  {silent=false}={}
 ){
 
   const review=
@@ -17681,10 +17704,90 @@ async function discardPaymentReminderReview(
     'Manual'
   );
 
+  if(!silent){
+
+    await refreshAll();
+
+    toast(
+      'Email discarded.'
+    );
+  }
+
+  return true;
+}
+
+
+async function bulkApproveSelectedReviews(reviewIds){
+  if(!reviewIds || !reviewIds.length)return;
+
+  let sent=0;
+  let failed=0;
+
+  for(const reviewId of reviewIds){
+
+    const review=
+      reviews.find(r=>r.id===reviewId);
+
+    if(!review)continue;
+
+    let ok=false;
+
+    if(review.reviewType==='certificate-received-email'){
+      ok=await sendCertificateReceivedEmailReview(reviewId,{silent:true});
+    }else if(review.reviewType==='payment-reminder-email'){
+      ok=await sendPaymentReminderReview(reviewId,{silent:true});
+    }else{
+      continue;
+    }
+
+    if(ok){
+      sent++;
+    }else{
+      failed++;
+    }
+  }
+
+  selectedReviewIds.clear();
+
   await refreshAll();
 
   toast(
-    'Email discarded.'
+    failed
+      ? `Sent ${sent} email${sent===1?'':'s'}, ${failed} failed.`
+      : `Sent ${sent} email${sent===1?'':'s'}.`
+  );
+}
+
+
+async function bulkDiscardSelectedReviews(reviewIds){
+  if(!reviewIds || !reviewIds.length)return;
+
+  let discarded=0;
+
+  for(const reviewId of reviewIds){
+
+    const review=
+      reviews.find(r=>r.id===reviewId);
+
+    if(!review)continue;
+
+    if(review.reviewType==='certificate-received-email'){
+      await discardCertificateReceivedEmailReview(reviewId,{silent:true});
+    }else if(review.reviewType==='payment-reminder-email'){
+      await discardPaymentReminderReview(reviewId,{silent:true});
+    }else{
+      continue;
+    }
+
+    discarded++;
+  }
+
+  selectedReviewIds.clear();
+
+  await refreshAll();
+
+  toast(
+    `Discarded ${discarded} item${discarded===1?'':'s'}.`
   );
 }
 
@@ -21477,6 +21580,42 @@ async function openInboundEmailFromReview(
 }
 
 
+/*
+ * Bulk approve/discard for the Notifications page. Only the two
+ * review types that are actually a simple "send this email or
+ * don't" decision qualify -- certificate-received-email and
+ * payment-reminder-email. Everything else (duplicates, certificate
+ * attention, payment matching, etc.) needs the vendor to actually
+ * look at it and make a judgment call, so those never get a
+ * checkbox.
+ */
+let selectedReviewIds=new Set();
+
+function vfReviewIsBulkable(review){
+  return (
+    review?.reviewType==='certificate-received-email' ||
+    review?.reviewType==='payment-reminder-email'
+  );
+}
+
+function vfBulkReviewControlsHTML(eligibleCount){
+  const selectedCount=selectedReviewIds.size;
+
+  return `
+    <div class="vf-bulk-review-bar" id="vfBulkReviewBar">
+      <label class="vf-bulk-review-all">
+        <input type="checkbox" id="vfReviewSelectAll">
+        <span>All / Clear</span>
+      </label>
+      <span class="vf-bulk-review-count" id="vfBulkReviewCount">${selectedCount} of ${eligibleCount} selected</span>
+      <div class="vf-bulk-review-actions">
+        <button type="button" id="vfBulkApproveReviews" class="primary" ${selectedCount ? '' : 'disabled'}>Approve selected</button>
+        <button type="button" id="vfBulkDiscardReviews" class="vf-secondary-button" ${selectedCount ? '' : 'disabled'}>Discard selected</button>
+      </div>
+    </div>
+  `;
+}
+
 function renderReviews(){
 
   const list=
@@ -21499,6 +21638,8 @@ function renderReviews(){
 
   if(!displayReviews.length){
 
+    selectedReviewIds.clear();
+
     list.innerHTML=
       '<div class="empty">Nothing needs review.</div>';
 
@@ -21506,7 +21647,26 @@ function renderReviews(){
   }
 
 
+  const bulkEligibleIds=
+    new Set(
+      displayReviews
+        .filter(vfReviewIsBulkable)
+        .map(review=>review.id)
+    );
+
+  [...selectedReviewIds].forEach(id=>{
+    if(!bulkEligibleIds.has(id)){
+      selectedReviewIds.delete(id);
+    }
+  });
+
+
   list.innerHTML=
+    (
+      bulkEligibleIds.size
+        ? vfBulkReviewControlsHTML(bulkEligibleIds.size)
+        : ''
+    ) +
     displayReviews.map(review=>{
 
 
@@ -21608,6 +21768,15 @@ function renderReviews(){
         return `
           <div class="record vf-parent-email-review">
 
+            <label class="vf-review-select-row">
+              <input
+                type="checkbox"
+                class="vf-review-select"
+                data-review-select="${esc(review.id)}"
+                ${selectedReviewIds.has(review.id) ? 'checked' : ''}>
+              <span>Select for bulk action</span>
+            </label>
+
             <strong>
               ${esc(review.title)}
             </strong>
@@ -21655,6 +21824,15 @@ function renderReviews(){
 
         return `
           <div class="record vf-parent-email-review">
+
+            <label class="vf-review-select-row">
+              <input
+                type="checkbox"
+                class="vf-review-select"
+                data-review-select="${esc(review.id)}"
+                ${selectedReviewIds.has(review.id) ? 'checked' : ''}>
+              <span>Select for bulk action</span>
+            </label>
 
             <strong>
               ${esc(review.title)}
@@ -21936,6 +22114,64 @@ function renderReviews(){
         </div>
       `;
     }).join('');
+
+
+  const selectAllBox=$('#vfReviewSelectAll');
+  if(selectAllBox){
+    const eligibleCount=bulkEligibleIds.size;
+    const selectedCount=selectedReviewIds.size;
+    selectAllBox.checked=eligibleCount>0 && selectedCount===eligibleCount;
+    selectAllBox.indeterminate=selectedCount>0 && selectedCount<eligibleCount;
+    selectAllBox.onchange=()=>{
+      if(selectAllBox.checked){
+        bulkEligibleIds.forEach(id=>selectedReviewIds.add(id));
+      }else{
+        selectedReviewIds.clear();
+      }
+      renderReviews();
+    };
+  }
+
+  $$('[data-review-select]')
+    .forEach(box=>{
+      box.onchange=()=>{
+        const id=box.dataset.reviewSelect;
+        if(box.checked){
+          selectedReviewIds.add(id);
+        }else{
+          selectedReviewIds.delete(id);
+        }
+        renderReviews();
+      };
+    });
+
+  const bulkApproveBtn=$('#vfBulkApproveReviews');
+  if(bulkApproveBtn){
+    bulkApproveBtn.onclick=async()=>{
+      bulkApproveBtn.disabled=true;
+      bulkApproveBtn.textContent='Approving…';
+      try{
+        await bulkApproveSelectedReviews([...selectedReviewIds]);
+      }finally{
+        bulkApproveBtn.disabled=false;
+        bulkApproveBtn.textContent='Approve selected';
+      }
+    };
+  }
+
+  const bulkDiscardBtn=$('#vfBulkDiscardReviews');
+  if(bulkDiscardBtn){
+    bulkDiscardBtn.onclick=async()=>{
+      bulkDiscardBtn.disabled=true;
+      bulkDiscardBtn.textContent='Discarding…';
+      try{
+        await bulkDiscardSelectedReviews([...selectedReviewIds]);
+      }finally{
+        bulkDiscardBtn.disabled=false;
+        bulkDiscardBtn.textContent='Discard selected';
+      }
+    };
+  }
 
 
   $$('[data-create-todo-review]')
