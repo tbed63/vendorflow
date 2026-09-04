@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Start Your Free Trial — VendorFlow</title>
+<meta name="description" content="Start your free 7-day trial of VendorFlow. $199/year after your trial, cancel anytime, 30-day money-back guarantee.">
+<style>
+  :root{
+    --navy:#172337;
+    --navy-light:#1f3050;
+    --ink:#18202b;
+    --muted:#5b6470;
+    --line:#e5e7eb;
+    --bg:#f5f6f8;
+    --gold:#b7791f;
+    --gold-light:#f2cd8d;
+    --white:#ffffff;
+    --error:#b3261e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55}
+  a{color:inherit}
+  img{max-width:100%}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+  .hidden{display:none!important}
+
+  /* ---------- Nav ---------- */
+  header.site-nav{
+    position:sticky;top:0;z-index:100;
+    background:var(--white);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-inner{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 24px;max-width:1120px;margin:0 auto;
+  }
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;color:var(--navy);text-decoration:none}
+  .brand .mark{
+    width:36px;height:36px;border-radius:10px;background:var(--navy);color:#fff;
+    display:grid;place-items:center;font-weight:800;font-size:15px;
+  }
+  .btn{
+    display:inline-block;border-radius:11px;padding:12px 20px;font-weight:700;
+    text-decoration:none;cursor:pointer;border:0;font-size:15px;
+  }
+  .btn-primary{background:var(--navy);color:#fff}
+  .btn-primary:hover{background:var(--navy-light)}
+  .btn-primary:disabled{background:#8a93a3;cursor:not-allowed}
+  .btn-ghost{background:transparent;color:var(--navy);border:1.5px solid var(--line)}
+  .btn-ghost:hover{border-color:var(--navy)}
+  .btn-full{width:100%;text-align:center}
+
+  /* ---------- Header ---------- */
+  .page-header{
+    background:linear-gradient(180deg,var(--navy) 0%,var(--navy-light) 100%);
+    color:#fff;padding:56px 24px 44px;text-align:center;
+  }
+  .eyebrow{
+    display:inline-block;font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+    font-weight:800;color:var(--gold-light);background:rgba(255,255,255,.08);
+    padding:7px 14px;border-radius:999px;margin-bottom:18px;
+  }
+  .page-header h1{font-size:34px;line-height:1.2;margin:0 0 12px;font-weight:800}
+  .page-header p{font-size:16.5px;color:#d9e0ea;max-width:520px;margin:0 auto}
+
+  /* ---------- Layout ---------- */
+  .subscribe-section{padding:52px 24px 80px}
+  .subscribe-grid{
+    max-width:960px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:start;
+  }
+
+  /* ---------- Price card (reused from homepage) ---------- */
+  .price-card{
+    background:#fff;border:1.5px solid var(--line);border-radius:20px;
+    padding:32px 28px;
+  }
+  .price-card .amount{font-size:44px;font-weight:800;color:var(--navy)}
+  .price-card .period{font-size:14.5px;color:var(--muted);font-weight:600}
+  .price-card .trial-note{margin:12px 0 22px;font-size:13.5px;color:var(--muted)}
+  .price-card ul{list-style:none;margin:0;padding:0;text-align:left}
+  .price-card li{padding:8px 0;font-size:14px;color:var(--ink);display:flex;gap:9px;align-items:flex-start}
+  .price-card li .check{color:var(--gold);font-weight:800;flex-shrink:0}
+
+  /* ---------- Form card ---------- */
+  .form-card{
+    background:#fff;border:2px solid var(--navy);border-radius:20px;
+    padding:32px 28px;box-shadow:0 12px 30px rgba(23,35,55,.08);
+  }
+  .form-card h2{margin:0 0 4px;font-size:20px;color:var(--navy)}
+  .form-card .form-sub{margin:0 0 22px;font-size:13.5px;color:var(--muted)}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:13px;font-weight:700;color:var(--navy);margin-bottom:6px}
+  .field input{
+    width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;
+    font-size:14.5px;font-family:inherit;color:var(--ink);
+  }
+  .field input:focus{outline:none;border-color:var(--navy)}
+  .field-hint{margin:6px 0 0;font-size:12px;color:var(--muted)}
+  .form-error{
+    background:#fdecea;border:1px solid #f5c6c2;color:var(--error);
+    padding:10px 13px;border-radius:10px;font-size:13.5px;margin-bottom:14px;
+  }
+  .form-toggle{margin-top:16px;text-align:center;font-size:13.5px;color:var(--muted)}
+  .form-toggle button{
+    background:none;border:0;color:var(--navy);font-weight:700;text-decoration:underline;
+    cursor:pointer;font-size:13.5px;padding:0;font-family:inherit;
+  }
+  .card-fine{margin:16px 0 0;font-size:12px;color:var(--muted);text-align:center}
+  .signed-in-box{text-align:center}
+  .signed-in-box p{font-size:14px;color:var(--muted);margin:0 0 18px}
+  .signed-in-box .who{color:var(--navy);font-weight:700}
+  .already-box{text-align:center}
+  .already-box .icon{font-size:30px;margin-bottom:10px}
+  .already-box h2{font-size:19px;color:var(--navy);margin:0 0 10px}
+  .already-box p{font-size:14px;color:var(--muted);margin:0 0 20px}
+
+  /* ---------- Trust strip ---------- */
+  .trust-strip{
+    max-width:960px;margin:30px auto 0;display:flex;justify-content:center;gap:32px;
+    flex-wrap:wrap;text-align:center;
+  }
+  .trust-item{max-width:200px}
+  .trust-item .trust-icon{font-size:22px;margin-bottom:6px}
+  .trust-item h4{margin:0 0 3px;font-size:13.5px;color:var(--navy)}
+  .trust-item p{margin:0;font-size:12.5px;color:var(--muted)}
+
+  /* ---------- Footer ---------- */
+  footer{background:#101827;color:#8b96a8;padding:40px 24px 26px;margin-top:20px}
+  .footer-inner{max-width:1120px;margin:0 auto;display:flex;justify-content:space-between;flex-wrap:wrap;gap:32px}
+  .footer-brand{display:flex;align-items:center;gap:10px;color:#fff;font-weight:800;font-size:16px}
+  .footer-brand .mark{
+    width:30px;height:30px;border-radius:8px;background:#fff;color:var(--navy);
+    display:grid;place-items:center;font-weight:800;font-size:13px;
+  }
+  .footer-links{display:flex;gap:40px;flex-wrap:wrap}
+  .footer-col h5{color:#fff;font-size:12.5px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 12px}
+  .footer-col a{display:block;color:#8b96a8;text-decoration:none;font-size:13.5px;margin-bottom:9px}
+  .footer-col a:hover{color:#fff}
+  .footer-bottom{
+    max-width:1120px;margin:30px auto 0;padding-top:20px;border-top:1px solid rgba(255,255,255,.08);
+    font-size:12.5px;color:#5f6a7d;
+  }
+
+  @media(max-width:800px){
+    .subscribe-grid{grid-template-columns:1fr}
+    .page-header h1{font-size:28px}
+    .footer-inner{flex-direction:column}
+  }
+</style>
+</head>
+<body>
+
+<header class="site-nav">
+  <div class="nav-inner">
+    <a class="brand" href="../marketing/"><span class="mark">VF</span> VendorFlow</a>
+    <a class="btn btn-ghost" href="../beta-preview/">Sign In</a>
+  </div>
+</header>
+
+<section class="page-header">
+  <div class="wrap">
+    <span class="eyebrow">7-day free trial</span>
+    <h1>Start managing your charter vendor business the easy way.</h1>
+    <p>Create your account, start your free trial, and you're in — no sales calls, no setup fees.</p>
+  </div>
+</section>
+
+<section class="subscribe-section">
+  <div class="subscribe-grid">
+
+    <div class="price-card">
+      <div class="amount">$199</div>
+      <div class="period">per year</div>
+      <p class="trial-note">Starts with a free 7-day trial — cancel before it ends and you won't be charged. 30-day money-back guarantee after that.</p>
+      <ul>
+        <li><span class="check">✓</span> Unlimited classes, rosters, and students</li>
+        <li><span class="check">✓</span> Certificate tracking, auto-read &amp; approval</li>
+        <li><span class="check">✓</span> Automated payment reminders &amp; late fees</li>
+        <li><span class="check">✓</span> Charter-timed invoice generation</li>
+        <li><span class="check">✓</span> Forward-to-import email inbox</li>
+        <li><span class="check">✓</span> Every common payment method supported</li>
+      </ul>
+    </div>
+
+    <div class="form-card">
+
+      <div id="loadingBox">
+        <p style="text-align:center;color:var(--muted);font-size:14px">Loading...</p>
+      </div>
+
+      <div id="alreadyBox" class="already-box hidden">
+        <div class="icon">✓</div>
+        <h2>You already have an active plan</h2>
+        <p>Looks like this account already has a VendorFlow subscription. Head to your dashboard to keep going.</p>
+        <a class="btn btn-primary btn-full" href="../beta-preview/">Go to your dashboard</a>
+      </div>
+
+      <div id="signedInBox" class="signed-in-box hidden">
+        <h2>Almost there</h2>
+        <p>Signed in as <span class="who" id="signedInEmail"></span>.</p>
+        <div id="signedInError" class="form-error hidden"></div>
+        <button type="button" class="btn btn-primary btn-full" id="signedInStartBtn">Start your free trial</button>
+        <p class="card-fine">You'll enter payment details on the next step. You won't be charged until your 7-day trial ends.</p>
+      </div>
+
+      <form id="subscribeForm" class="hidden">
+        <h2 id="formTitle">Create your account</h2>
+        <p class="form-sub" id="formSub">Start your free trial in under a minute.</p>
+
+        <div id="formError" class="form-error hidden"></div>
+
+        <div class="field" id="nameField">
+          <label for="fullName">Your name</label>
+          <input type="text" id="fullName" autocomplete="name">
+        </div>
+
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" autocomplete="email" required>
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" autocomplete="new-password" required>
+          <p class="field-hint" id="passwordHint">At least 6 characters.</p>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full" id="submitBtn">Start your free trial</button>
+
+        <p class="card-fine">You'll enter payment details on the next step. You won't be charged until your 7-day trial ends.</p>
+
+        <div class="form-toggle">
+          <span id="toggleLead">Already have an account?</span>
+          <button type="button" id="toggleModeBtn">Log in</button>
+        </div>
+      </form>
+
+    </div>
+
+  </div>
+
+  <div class="trust-strip">
+    <div class="trust-item">
+      <div class="trust-icon">🗓️</div>
+      <h4>7-day free trial</h4>
+      <p>Full access from day one. Cancel before it ends and you won't be charged.</p>
+    </div>
+    <div class="trust-item">
+      <div class="trust-icon">↩️</div>
+      <h4>30-day money back</h4>
+      <p>Not right for you? Get a full refund within 30 days, no questions asked.</p>
+    </div>
+    <div class="trust-item">
+      <div class="trust-icon">🔒</div>
+      <h4>Cancel anytime</h4>
+      <p>No contracts. Cancel from your account whenever you want.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div>
+      <div class="footer-brand"><span class="mark">VF</span> VendorFlow</div>
+      <p style="max-width:260px;font-size:13px;margin-top:14px;color:#8b96a8">Financial and accounting management built for charter school vendors.</p>
+    </div>
+    <div class="footer-links">
+      <div class="footer-col">
+        <h5>Product</h5>
+        <a href="../marketing/#features">Features</a>
+        <a href="../marketing/#pricing">Pricing</a>
+        <a href="../beta-preview/">Sign In</a>
+      </div>
+      <div class="footer-col">
+        <h5>Legal</h5>
+        <a href="../privacy/">Privacy Policy</a>
+        <a href="../terms/">Terms of Service</a>
+      </div>
+      <div class="footer-col">
+        <h5>Contact</h5>
+        <a href="mailto:support@myvendorflow.com">support@myvendorflow.com</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    © 2026 VendorFlow. All rights reserved.
+  </div>
+</footer>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+import {
+  getFirestore,
+  doc,
+  getDoc
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCjAnrOfpmDMGB3O5x9i0yDZ-JR8NZMa0o",
+  authDomain: "vendorflow-68828.firebaseapp.com",
+  projectId: "vendorflow-68828",
+  storageBucket: "vendorflow-68828.firebasestorage.app",
+  messagingSenderId: "803061946107",
+  appId: "1:803061946107:web:fe9622dd2d0c1c5c13c25e"
+};
+
+const VENDORFLOW_API = "https://vendorflow-api.tbed63.workers.dev";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const $ = (s) => document.querySelector(s);
+
+const loadingBox = $('#loadingBox');
+const alreadyBox = $('#alreadyBox');
+const signedInBox = $('#signedInBox');
+const subscribeForm = $('#subscribeForm');
+
+let mode = 'signup';
+
+function showOnly(el) {
+  [loadingBox, alreadyBox, signedInBox, subscribeForm].forEach((box) => {
+    box.classList.toggle('hidden', box !== el);
+  });
+}
+
+function setMode(next) {
+  mode = next;
+  const nameField = $('#nameField');
+  const submitBtn = $('#submitBtn');
+  const formTitle = $('#formTitle');
+  const formSub = $('#formSub');
+  const toggleLead = $('#toggleLead');
+  const toggleModeBtn = $('#toggleModeBtn');
+  const passwordHint = $('#passwordHint');
+
+  $('#formError').classList.add('hidden');
+
+  if (mode === 'signup') {
+    nameField.classList.remove('hidden');
+    submitBtn.textContent = 'Start your free trial';
+    formTitle.textContent = 'Create your account';
+    formSub.textContent = 'Start your free trial in under a minute.';
+    toggleLead.textContent = 'Already have an account?';
+    toggleModeBtn.textContent = 'Log in';
+    passwordHint.classList.remove('hidden');
+  } else {
+    nameField.classList.add('hidden');
+    submitBtn.textContent = 'Log in & subscribe';
+    formTitle.textContent = 'Log in';
+    formSub.textContent = 'Log in to your existing VendorFlow account to subscribe.';
+    toggleLead.textContent = 'New to VendorFlow?';
+    toggleModeBtn.textContent = 'Create an account';
+    passwordHint.classList.add('hidden');
+  }
+}
+
+$('#toggleModeBtn').onclick = () => setMode(mode === 'signup' ? 'login' : 'signup');
+
+function safeRelativePath(pathname) {
+  const value = String(pathname || '').trim();
+  if (!value.startsWith('/') || value.startsWith('//')) {
+    return '/';
+  }
+  return value;
+}
+
+async function startCheckout(user) {
+  const token = await user.getIdToken();
+
+  const successPath = safeRelativePath(
+    new URL('../beta-preview/', window.location.href).pathname + '?checkout=success'
+  );
+
+  const cancelPath = safeRelativePath(
+    window.location.pathname + '?checkout=canceled'
+  );
+
+  const response = await fetch(
+    `${VENDORFLOW_API}/billing/checkout-session`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ successPath, cancelPath })
+    }
+  );
+
+  let data = {};
+
+  try {
+    data = await response.json();
+  } catch {}
+
+  if (!response.ok || !data.url) {
+    throw new Error(data.error || 'Could not start checkout. Please try again.');
+  }
+
+  window.location.href = data.url;
+}
+
+$('#signedInStartBtn').onclick = async () => {
+  const btn = $('#signedInStartBtn');
+  const errorBox = $('#signedInError');
+
+  errorBox.classList.add('hidden');
+  btn.disabled = true;
+  btn.textContent = 'Redirecting to checkout...';
+
+  try {
+    await startCheckout(auth.currentUser);
+  } catch (err) {
+    errorBox.textContent = err.message;
+    errorBox.classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = 'Start your free trial';
+  }
+};
+
+subscribeForm.onsubmit = async (event) => {
+  event.preventDefault();
+
+  const errorBox = $('#formError');
+  const submitBtn = $('#submitBtn');
+
+  errorBox.classList.add('hidden');
+
+  const email = $('#email').value.trim();
+  const password = $('#password').value;
+  const name = $('#fullName').value.trim();
+
+  if (mode === 'signup' && !name) {
+    errorBox.textContent = 'Enter your name.';
+    errorBox.classList.remove('hidden');
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = mode === 'signup' ? 'Creating your account...' : 'Logging in...';
+
+  try {
+    let credential;
+
+    if (mode === 'signup') {
+      credential = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(credential.user, { displayName: name });
+    } else {
+      credential = await signInWithEmailAndPassword(auth, email, password);
+    }
+
+    submitBtn.textContent = 'Redirecting to checkout...';
+    await startCheckout(credential.user);
+
+  } catch (err) {
+    let message = err.message || 'Something went wrong. Please try again.';
+
+    if (err.code === 'auth/email-already-in-use') {
+      message = 'An account with this email already exists. Log in instead.';
+      setMode('login');
+    }
+
+    errorBox.textContent = message;
+    errorBox.classList.remove('hidden');
+    submitBtn.disabled = false;
+    submitBtn.textContent = mode === 'signup' ? 'Start your free trial' : 'Log in & subscribe';
+  }
+};
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    setMode('signup');
+    showOnly(subscribeForm);
+    return;
+  }
+
+  let vendorSnap;
+
+  try {
+    vendorSnap = await getDoc(doc(db, 'vendors', user.uid));
+  } catch {
+    vendorSnap = null;
+  }
+
+  const status = vendorSnap && vendorSnap.exists()
+    ? (vendorSnap.data().subscriptionStatus || '')
+    : '';
+
+  if (status === 'active' || status === 'trialing') {
+    showOnly(alreadyBox);
+    return;
+  }
+
+  $('#signedInEmail').textContent = user.email || '';
+  showOnly(signedInBox);
+});
+</script>
+
+</body>
+</html>
