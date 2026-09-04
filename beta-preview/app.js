@@ -436,6 +436,8 @@ onAuthStateChanged(auth,async u=>{
   hide($('#auth'));
   hide($('#onboarding'));
   hide($('#app'));
+  hide($('#vfPaywallGate'));
+  hide($('#vfSubscriptionActivating'));
 
   if(!u){
     user=null;
@@ -482,9 +484,76 @@ onAuthStateChanged(auth,async u=>{
   }else{
     profile=s.data();
     hide($('#onboarding'));
-    await enterApp();
+    await vfEnforceBillingGate();
   }
 });
+
+/*
+ * Billing launch cutover: any vendor whose Firebase Auth account was
+ * created before this moment is grandfathered in as free forever (Tim's
+ * explicit decision) -- they never see a paywall, no Stripe involvement
+ * needed for them at all. Anyone whose account is created from this
+ * moment on must have an active or trialing Stripe subscription to get
+ * past this gate.
+ */
+const VF_BILLING_LAUNCH_AT=new Date('2026-09-04T23:40:00Z').getTime();
+
+function vfHasBillingAccess(p,authUser){
+  const createdAtMs=Date.parse(authUser?.metadata?.creationTime||'')||0;
+  if(createdAtMs && createdAtMs<VF_BILLING_LAUNCH_AT)return true;
+  const status=p?.subscriptionStatus;
+  return status==='trialing'||status==='active';
+}
+
+function vfSubscribeUrl(){
+  return new URL('../subscribe/',window.location.href).pathname;
+}
+
+async function vfEnforceBillingGate(){
+  if(vfHasBillingAccess(profile,user)){
+    await enterApp();
+    return;
+  }
+
+  const cameFromCheckout=
+    new URLSearchParams(window.location.search).get('checkout')==='success';
+
+  if(!cameFromCheckout){
+    hide($('#app'));
+    show($('#vfPaywallGate'));
+    return;
+  }
+
+  hide($('#app'));
+  show($('#vfSubscriptionActivating'));
+  hide($('#vfSubscriptionActivatingRetry'));
+
+  for(let attempt=0;attempt<10;attempt++){
+    await new Promise(r=>setTimeout(r,1500));
+    const s=await getDoc(vendorDoc());
+    profile=s.exists()?s.data():profile;
+    if(vfHasBillingAccess(profile,user)){
+      hide($('#vfSubscriptionActivating'));
+      await enterApp();
+      return;
+    }
+  }
+
+  show($('#vfSubscriptionActivatingRetry'));
+}
+
+$('#vfPaywallStartTrial').onclick=()=>{
+  window.location.href=vfSubscribeUrl();
+};
+
+$('#vfPaywallSignOut').onclick=async()=>{
+  await signOut(auth);
+};
+
+$('#vfSubscriptionActivatingCheckAgain').onclick=async()=>{
+  hide($('#vfSubscriptionActivatingRetry'));
+  await vfEnforceBillingGate();
+};
 
 function renderQuestion(){
   let[k,q,h]=questions[step];

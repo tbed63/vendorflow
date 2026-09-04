@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>VendorFlow</title>
-  <link rel="stylesheet" href="styles.css?v=sidebartutorial-20260904-110000">
+  <link rel="stylesheet" href="styles.css?v=paywall-20260904-234500">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA PREVIEW — LIVE APP UNCHANGED</div>
@@ -48,6 +48,25 @@
     <div class="progress"><div id="progressBar"></div></div>
     <div id="questionBox" class="question"></div>
     <div class="row between"><button id="backBtn">Back</button><button id="nextBtn" class="primary">Next</button></div>
+  </div>
+</section>
+
+<section id="vfPaywallGate" class="center hidden">
+  <div class="card auth-card">
+    <h1>VendorFlow</h1><p>AI Vendor Assistant</p>
+    <h2>Start your free trial to continue</h2>
+    <p>Your trial hasn't started yet (or has ended). Start a free 7-day trial to get back into your VendorFlow account.</p>
+    <button id="vfPaywallStartTrial" class="primary">Start your free trial</button>
+    <button id="vfPaywallSignOut" class="linkbtn">Sign out</button>
+  </div>
+</section>
+
+<section id="vfSubscriptionActivating" class="center hidden">
+  <div class="card auth-card">
+    <h1>VendorFlow</h1>
+    <h2>Setting up your subscription&hellip;</h2>
+    <p>This usually takes just a few seconds.</p>
+    <p id="vfSubscriptionActivatingRetry" class="hidden">Taking longer than expected. <button id="vfSubscriptionActivatingCheckAgain" class="linkbtn">Check again</button></p>
   </div>
 </section>
 
@@ -2937,5 +2956,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=sidebartutorial-20260904-110000"></script>
+<script type="module" src="app.js?v=paywall-20260904-234500"></script>
 </body></html>
