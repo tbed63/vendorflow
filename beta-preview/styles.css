@@ -5899,6 +5899,21 @@ button.history.vf-history-evidence:focus-visible{
   grid-column:1 / -1;
 }
 
+.vf-invoice-timing-field{
+  padding:14px 16px;
+  border:1px solid #cfe0e6;
+  border-radius:12px;
+  background:#f4f9fb;
+}
+
+.vf-invoice-timing-field .vf-field-label{
+  margin-bottom:6px;
+}
+
+.vf-invoice-timing-field p{
+  margin:8px 0 0;
+}
+
 
 
 

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>VendorFlow</title>
-  <link rel="stylesheet" href="styles.css?v=wizardwording-20260904-030000">
+  <link rel="stylesheet" href="styles.css?v=invoicetiming-20260904-040000">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA PREVIEW — LIVE APP UNCHANGED</div>
@@ -304,26 +304,34 @@
                 </div>
               </label>
 
-              <label class="vf-field-label vf-tutoring-invoice-field">
-                <span>Generate charter invoice</span>
-
-                <div class="vf-number-suffix">
-
-                  <input
-                    id="classInvoiceDaysAfterStart"
-                    class="input"
-                    type="number"
-                    min="0"
-                    max="365"
-                    step="1"
-                    value="14">
-
-                  <span>days after certificate start</span>
-
-                </div>
-              </label>
-
             </div>
+
+          </div>
+
+          <div class="vf-class-section vf-invoice-timing-field">
+
+            <label class="vf-field-label">
+              <span>When should VendorFlow generate the invoice for this class?</span>
+
+              <div class="vf-number-suffix">
+
+                <input
+                  id="classInvoiceDaysAfterStart"
+                  class="input"
+                  type="number"
+                  min="0"
+                  max="365"
+                  step="1"
+                  value="14">
+
+                <span>days after the certificate's start date</span>
+
+              </div>
+            </label>
+
+            <p class="muted">
+              VendorFlow puts the invoice in your Notifications outbox on this schedule. Applies to every student in this class -- set it now so it's not overlooked. Defaults to 14 days if left alone.
+            </p>
 
           </div>
 
@@ -2924,5 +2932,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=wizardwording-20260904-030000"></script>
+<script type="module" src="app.js?v=invoicetiming-20260904-040000"></script>
 </body></html>

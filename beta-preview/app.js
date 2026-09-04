@@ -3658,6 +3658,62 @@ function uniqueTutoringClassForStudent(
 }
 
 
+function uniqueActiveClassForStudent(
+  studentId
+){
+
+  if(!studentId){
+    return null;
+  }
+
+
+  const activeServices=
+    services.filter(
+      service=>
+        service.studentId===studentId &&
+        service.status!=='Dropped' &&
+        service.status!=='Removed' &&
+        service.classId
+    );
+
+
+  const ids=[
+    ...new Set(
+      activeServices
+        .map(
+          service=>service.classId
+        )
+        .filter(Boolean)
+    )
+  ];
+
+
+  const activeClasses=
+    ids
+      .map(
+        id=>
+          classes.find(
+            c=>
+              c.id===id &&
+              !c.archived
+          )
+      )
+      .filter(Boolean);
+
+
+  /*
+   * Never guess between multiple classes -- same rule as
+   * uniqueTutoringClassForStudent above, just not restricted to
+   * Tutoring-type classes, so a per-class invoice-timing override
+   * (classInvoiceDaysAfterStart) can also apply to a regular
+   * roster class, not only 1:1 tutoring.
+   */
+  return activeClasses.length===1
+    ? activeClasses[0]
+    : null;
+}
+
+
 function certificateInvoiceSchedule(
   serviceStartDate,
   charter,
@@ -3680,16 +3736,28 @@ function certificateInvoiceSchedule(
   }
 
 
-  const tutoringClass=
-    uniqueTutoringClassForStudent(
+  const studentClass=
+    uniqueActiveClassForStudent(
       studentId
     );
 
 
-  const tutoringDays=
-    Number(
-      tutoringClass?.invoiceDaysAfterStart
-    );
+  const classInvoiceDaysRaw=
+    studentClass?.invoiceDaysAfterStart;
+
+
+  /*
+   * A class only "counts" here if a vendor actually set an
+   * invoice-timing value on it -- null/undefined (an older class
+   * saved before this field existed, or simply never touched)
+   * falls back to the charter's own setting instead. Number(null)
+   * is 0, which would wrongly look like a real "0 days" setting,
+   * so the raw value is checked before ever coercing to a number.
+   */
+  const classDaysSet=
+    classInvoiceDaysRaw!==null &&
+    classInvoiceDaysRaw!==undefined &&
+    Number.isFinite(Number(classInvoiceDaysRaw));
 
 
   const charterDays=
@@ -3699,16 +3767,15 @@ function certificateInvoiceSchedule(
 
 
   /*
-   * Tutoring certificates use the vendor's tutoring-class
-   * setting. Other certificates keep the proven existing
-   * charter-record setting.
+   * A class's own invoice-timing setting -- if the vendor actually
+   * set one -- always wins. This used to only exist for Tutoring
+   * classes; the wizard now asks every class for this, so any
+   * class type can carry its own override. Falls back to the
+   * charter school's own default otherwise.
    */
   const rawDays=
-    tutoringClass &&
-    Number.isFinite(tutoringDays)
-
-      ? tutoringDays
-
+    classDaysSet
+      ? Number(classInvoiceDaysRaw)
       : charterDays;
 
 
@@ -3750,15 +3817,19 @@ function certificateInvoiceSchedule(
     valid:true,
 
     source:
-      tutoringClass
-        ? 'Tutoring class'
+      studentClass && classDaysSet
+        ? (
+            studentClass.classType==='Tutoring'
+              ? 'Tutoring class'
+              : 'Class settings'
+          )
         : 'Charter school settings',
 
     tutoringClassId:
-      tutoringClass?.id || '',
+      studentClass?.id || '',
 
     tutoringClassName:
-      tutoringClass?.name || ''
+      studentClass?.name || ''
   };
 }
 
@@ -8476,8 +8547,10 @@ function editSavedClass(
   if($('#classInvoiceDaysAfterStart')){
 
     $('#classInvoiceDaysAfterStart').value=
-      Number.isFinite(
-        Number(c.invoiceDaysAfterStart)
+      (
+        c.invoiceDaysAfterStart!==null &&
+        c.invoiceDaysAfterStart!==undefined &&
+        Number.isFinite(Number(c.invoiceDaysAfterStart))
       )
         ? Number(c.invoiceDaysAfterStart)
         : 14;
@@ -9784,19 +9857,17 @@ $('#saveClass').onclick=async()=>{
 
 
   const invoiceDaysAfterStart=
-    tutoring
-      ? Math.max(
-          0,
-          Math.min(
-            365,
-            Math.round(
-              Number(
-                $('#classInvoiceDaysAfterStart')?.value || 0
-              )
-            )
+    Math.max(
+      0,
+      Math.min(
+        365,
+        Math.round(
+          Number(
+            $('#classInvoiceDaysAfterStart')?.value || 14
           )
         )
-      : null;
+      )
+    );
 
 
   if(
@@ -16974,12 +17045,25 @@ async function queuePaymentReminderReviews(){
           c=>c.id===obligation.classId
         ) || {};
 
+      /*
+       * The class's CURRENT late fee is authoritative. Obligations
+       * snapshot a late fee at creation time, so if a vendor later
+       * corrects a class's fee to $0 -- including undoing a fee
+       * that was accidentally carried over by duplicating another
+       * class -- older obligations would otherwise keep quoting
+       * the stale nonzero amount forever. A genuinely-$0 fee on
+       * the class always wins and suppresses the warning outright.
+       */
+      const classCurrentLateFee=
+        Number(classRecord.lateFee||0);
+
       const lateFee=
-        Number(
-          obligation.lateFeeAmount ??
-          classRecord.lateFee ??
-          0
-        );
+        classCurrentLateFee>0
+          ? Number(
+              obligation.lateFeeAmount ??
+              classCurrentLateFee
+            )
+          : 0;
 
       const lateFeeNote=
         lateFee>0
@@ -33905,7 +33989,7 @@ function vfRenderWizardStep(){
       <div class="vf-wizard-finish">
         <h3>Setup complete!</h3>
         <p>Your classes, certificates, and payments are loaded. VendorFlow is ready to use.</p>
-        <p>Finishing here tells VendorFlow you're done importing -- payment reminders, past-due notices, and certificate-received emails will start going out from now on.</p>
+        <p><strong>One more step:</strong> VendorFlow won't send anything automatically yet. Click the <strong>Ready?</strong> button in the header whenever you're truly done setting up -- that's what turns on payment reminders, past-due notices, invoice generation, and certificate-received emails.</p>
         <p class="vf-wizard-finish-next-step">
           Your next step is probably to forward any relevant emails to
           VendorFlow. You\u2019ll find your VendorFlow email address on
