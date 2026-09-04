@@ -5990,6 +5990,30 @@ button.history.vf-history-evidence:focus-visible{
   font-size:13px;
 }
 
+.vf-sidebar-footer{
+  margin-top:auto;
+  padding-top:14px;
+  border-top:1px solid rgba(255,255,255,.12);
+  display:grid;
+  gap:6px;
+}
+
+.vf-sidebar-footer-btn{
+  background:transparent;
+  border:0;
+  color:#d9e0ea;
+  text-align:left;
+  padding:9px 4px;
+  border-radius:8px;
+  font-weight:700;
+  font-size:13px;
+  cursor:pointer;
+}
+
+.vf-sidebar-footer-btn:hover{
+  background:rgba(255,255,255,.08);
+}
+
 
 
 

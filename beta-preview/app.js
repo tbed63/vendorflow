@@ -246,6 +246,11 @@ function installVendorFlowBranding(){
     btn.insertBefore(icon,btn.firstChild);
   });
 
+  const vfSidebarTutorialBtn=document.querySelector('#vfSidebarTutorial');
+  if(vfSidebarTutorialBtn){
+    vfSidebarTutorialBtn.onclick=()=>vfOpenRealInteractiveTutorial();
+  }
+
 // Main app header
   const header=document.querySelector('main header');
 
