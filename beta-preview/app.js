@@ -8540,6 +8540,79 @@ function reminderBodyForDisplay(
     .trim();
 }
 
+/*
+ * True only when `text` is exactly one of the two canonical default
+ * reminder bodies (with the {{lateFeeWarning}} token, or without
+ * it) -- i.e. the vendor hasn't customized this field at all. Used
+ * to decide whether it's safe to auto-update the body as the late
+ * fee changes; a genuinely custom message is never touched.
+ */
+function isDefaultReminderBody(text){
+
+  const t=
+    String(text||'').trim();
+
+  const withToken=
+    defaultReminderBodyTemplate().trim();
+
+  const withoutToken=
+    reminderBodyForDisplay(
+      defaultReminderBodyTemplate(),
+      false
+    ).trim();
+
+  return (
+    t===withToken ||
+    t===withoutToken
+  );
+}
+
+/*
+ * Keeps #classReminderBody's default text in sync with #classLateFee
+ * as the vendor types, so setting a real late fee on a still-open
+ * class-create/edit form immediately shows the warning line instead
+ * of requiring a save-and-reopen round trip to pick it up. Only
+ * acts while the body still matches one of the two canonical
+ * defaults (see isDefaultReminderBody) -- a vendor's own custom
+ * message is never rewritten out from under them.
+ */
+function syncReminderBodyLateFeeToken(){
+
+  const bodyEl=
+    $('#classReminderBody');
+
+  const feeEl=
+    $('#classLateFee');
+
+  if(!bodyEl || !feeEl){
+    return;
+  }
+
+  if(!isDefaultReminderBody(bodyEl.value)){
+    return;
+  }
+
+  const hasLateFee=
+    Number(feeEl.value||0)>0;
+
+  bodyEl.value=
+    hasLateFee
+      ? defaultReminderBodyTemplate()
+      : reminderBodyForDisplay(
+          defaultReminderBodyTemplate(),
+          false
+        );
+}
+
+if($('#classLateFee')){
+
+  $('#classLateFee')
+    .addEventListener(
+      'input',
+      syncReminderBodyLateFeeToken
+    );
+}
+
 
 function editSavedClass(
   classId
