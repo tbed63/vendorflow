@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VendorFlow — Charter Vendor Accounting, Finally Under Control</title>
+<meta name="description" content="VendorFlow keeps charter school vendors organized: certificates, rosters, invoices, and payment reminders, all in one place. Start your free 7-day trial.">
+<style>
+  :root{
+    --navy:#172337;
+    --navy-light:#1f3050;
+    --ink:#18202b;
+    --muted:#5b6470;
+    --line:#e5e7eb;
+    --bg:#f5f6f8;
+    --gold:#b7791f;
+    --gold-light:#f2cd8d;
+    --white:#ffffff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55}
+  a{color:inherit}
+  img{max-width:100%}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+
+  /* ---------- Nav ---------- */
+  header.site-nav{
+    position:sticky;top:0;z-index:100;
+    background:var(--white);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-inner{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 24px;max-width:1120px;margin:0 auto;
+  }
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;color:var(--navy)}
+  .brand .mark{
+    width:36px;height:36px;border-radius:10px;background:var(--navy);color:#fff;
+    display:grid;place-items:center;font-weight:800;font-size:15px;
+  }
+  .nav-links{display:flex;align-items:center;gap:28px}
+  .nav-links a{text-decoration:none;color:var(--muted);font-weight:600;font-size:14.5px}
+  .nav-links a:hover{color:var(--navy)}
+  .btn{
+    display:inline-block;border-radius:11px;padding:12px 20px;font-weight:700;
+    text-decoration:none;cursor:pointer;border:0;font-size:15px;
+  }
+  .btn-primary{background:var(--navy);color:#fff}
+  .btn-primary:hover{background:var(--navy-light)}
+  .btn-ghost{background:transparent;color:var(--navy);border:1.5px solid var(--line)}
+  .btn-ghost:hover{border-color:var(--navy)}
+  .btn-lg{padding:15px 28px;font-size:16.5px;border-radius:12px}
+
+  /* ---------- Hero ---------- */
+  .hero{
+    background:linear-gradient(180deg,var(--navy) 0%,var(--navy-light) 100%);
+    color:#fff;padding:76px 24px 92px;text-align:center;
+  }
+  .eyebrow{
+    display:inline-block;font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+    font-weight:800;color:var(--gold-light);background:rgba(255,255,255,.08);
+    padding:7px 14px;border-radius:999px;margin-bottom:20px;
+  }
+  .hero h1{font-size:44px;line-height:1.15;margin:0 0 18px;font-weight:800;max-width:800px;margin-left:auto;margin-right:auto}
+  .hero p.sub{font-size:19px;color:#d9e0ea;max-width:640px;margin:0 auto 34px}
+  .hero-ctas{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:22px}
+  .hero-fine{font-size:13.5px;color:#b7c1d1}
+  .hero-fine strong{color:#fff}
+
+  /* ---------- Problem ---------- */
+  .section{padding:74px 24px}
+  .section h2{font-size:32px;margin:0 0 14px;text-align:center;font-weight:800;color:var(--navy)}
+  .section p.lead{font-size:17px;color:var(--muted);text-align:center;max-width:660px;margin:0 auto 48px}
+
+  .problem-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;max-width:1000px;margin:0 auto}
+  .problem-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:26px}
+  .problem-card .icon{font-size:26px;margin-bottom:10px}
+  .problem-card h3{margin:0 0 8px;font-size:16.5px;color:var(--navy)}
+  .problem-card p{margin:0;color:var(--muted);font-size:14.5px}
+
+  /* ---------- Features ---------- */
+  .features{background:#fff}
+  .feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;max-width:1120px;margin:0 auto}
+  .feature-card{border:1px solid var(--line);border-radius:16px;padding:26px;background:var(--bg)}
+  .feature-card .icon{
+    width:42px;height:42px;border-radius:11px;background:var(--navy);color:#fff;
+    display:grid;place-items:center;margin-bottom:14px;font-size:19px;
+  }
+  .feature-card h3{margin:0 0 8px;font-size:17px;color:var(--navy)}
+  .feature-card p{margin:0;color:var(--muted);font-size:14.5px}
+
+  /* ---------- How it works ---------- */
+  .how{max-width:900px;margin:0 auto}
+  .how-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;counter-reset:step}
+  .how-step{text-align:center;position:relative}
+  .how-step .num{
+    width:40px;height:40px;border-radius:50%;background:var(--gold);color:#fff;font-weight:800;
+    display:grid;place-items:center;margin:0 auto 14px;font-size:16px;
+  }
+  .how-step h3{margin:0 0 8px;font-size:16.5px;color:var(--navy)}
+  .how-step p{margin:0;color:var(--muted);font-size:14px}
+
+  /* ---------- Trial / guarantee ---------- */
+  .trial-band{
+    background:var(--bg);border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+    padding:56px 24px;text-align:center;
+  }
+  .trial-band .badges{display:flex;justify-content:center;gap:36px;flex-wrap:wrap;margin-top:28px}
+  .badge{max-width:210px}
+  .badge .badge-icon{font-size:26px;margin-bottom:8px}
+  .badge h4{margin:0 0 4px;font-size:14.5px;color:var(--navy)}
+  .badge p{margin:0;font-size:13px;color:var(--muted)}
+
+  /* ---------- Pricing teaser ---------- */
+  .pricing-teaser{text-align:center}
+  .price-card{
+    max-width:420px;margin:0 auto;background:#fff;border:2px solid var(--navy);border-radius:20px;
+    padding:40px 32px;box-shadow:0 12px 30px rgba(23,35,55,.08);
+  }
+  .price-card .amount{font-size:52px;font-weight:800;color:var(--navy)}
+  .price-card .period{font-size:15px;color:var(--muted);font-weight:600}
+  .price-card .trial-note{margin:14px 0 26px;font-size:14px;color:var(--muted)}
+  .price-card ul{list-style:none;margin:0 0 28px;padding:0;text-align:left}
+  .price-card li{padding:9px 0;font-size:14.5px;color:var(--ink);display:flex;gap:10px;align-items:flex-start}
+  .price-card li .check{color:var(--gold);font-weight:800;flex-shrink:0}
+
+  /* ---------- Video placeholder ---------- */
+  .video-section{background:var(--navy);color:#fff;text-align:center}
+  .video-section h2{color:#fff}
+  .video-section p.lead{color:#c9d2df}
+  .video-placeholder{
+    max-width:760px;margin:0 auto;aspect-ratio:16/9;background:rgba(255,255,255,.06);
+    border:1.5px dashed rgba(255,255,255,.25);border-radius:20px;
+    display:grid;place-items:center;gap:10px;
+  }
+  .video-placeholder .play{
+    width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.12);
+    display:grid;place-items:center;font-size:22px;
+  }
+  .video-placeholder span{color:#c9d2df;font-size:14px;font-weight:600}
+
+  /* ---------- Footer ---------- */
+  footer{background:#101827;color:#8b96a8;padding:48px 24px 28px}
+  .footer-inner{max-width:1120px;margin:0 auto;display:flex;justify-content:space-between;flex-wrap:wrap;gap:32px}
+  .footer-brand{display:flex;align-items:center;gap:10px;color:#fff;font-weight:800;font-size:16px}
+  .footer-brand .mark{
+    width:30px;height:30px;border-radius:8px;background:#fff;color:var(--navy);
+    display:grid;place-items:center;font-weight:800;font-size:13px;
+  }
+  .footer-links{display:flex;gap:40px;flex-wrap:wrap}
+  .footer-col h5{color:#fff;font-size:12.5px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 12px}
+  .footer-col a{display:block;color:#8b96a8;text-decoration:none;font-size:13.5px;margin-bottom:9px}
+  .footer-col a:hover{color:#fff}
+  .footer-bottom{
+    max-width:1120px;margin:36px auto 0;padding-top:24px;border-top:1px solid rgba(255,255,255,.08);
+    font-size:12.5px;color:#5f6a7d;
+  }
+
+  @media(max-width:900px){
+    .nav-links{display:none}
+    .hero h1{font-size:32px}
+    .hero p.sub{font-size:16.5px}
+    .problem-grid,.feature-grid,.how-steps{grid-template-columns:1fr}
+    .trial-band .badges{gap:22px}
+    .footer-inner{flex-direction:column}
+  }
+</style>
+</head>
+<body>
+
+<header class="site-nav">
+  <div class="nav-inner">
+    <div class="brand"><span class="mark">VF</span> VendorFlow</div>
+    <nav class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#how-it-works">How it works</a>
+    </nav>
+    <div style="display:flex;gap:10px">
+      <a class="btn btn-ghost" href="../beta-preview/">Sign In</a>
+      <a class="btn btn-primary" href="../subscribe/">Start Free Trial</a>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Built for charter school vendors</span>
+    <h1>Charter vendor accounting, finally under control.</h1>
+    <p class="sub">VendorFlow keeps your certificates, rosters, invoices, and payments organized in one place — so nothing slips through the cracks and nobody has to chase a spreadsheet at tax time.</p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary btn-lg" href="../subscribe/">Start your free 7-day trial</a>
+      <a class="btn btn-ghost btn-lg" style="color:#fff;border-color:rgba(255,255,255,.3)" href="#how-it-works">See how it works</a>
+    </div>
+    <p class="hero-fine"><strong>7-day free trial.</strong> Cancel anytime. <strong>30-day money-back guarantee</strong>, no questions asked.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <h2>Running a charter vendor business shouldn't feel like a second job in bookkeeping.</h2>
+    <p class="lead">Between chasing certificates, tracking who's paid, and keeping every charter school's paperwork straight, the financial side of the job eats hours you don't have.</p>
+    <div class="problem-grid">
+      <div class="problem-card">
+        <div class="icon">📄</div>
+        <h3>Certificates pile up</h3>
+        <p>Approval certificates arrive by email, get buried, and someone has to manually match each one to the right student and charter school.</p>
+      </div>
+      <div class="problem-card">
+        <div class="icon">💸</div>
+        <h3>Payments are scattered</h3>
+        <p>Zelle here, a check there, Venmo from someone else — tracking who actually paid, and who's late, means piecing it together yourself.</p>
+      </div>
+      <div class="problem-card">
+        <div class="icon">🧾</div>
+        <h3>Invoicing is a guessing game</h3>
+        <p>Every charter school has its own timing for when an invoice can go out, and getting it wrong means delayed payment.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section features" id="features">
+  <div class="wrap">
+    <h2>Everything you need, nothing you don't</h2>
+    <p class="lead">VendorFlow was built specifically for how charter vendors actually get paid — not adapted from generic invoicing software.</p>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="icon">📥</div>
+        <h3>Forward-to-import inbox</h3>
+        <p>Forward a certificate, roster, or payment statement email to your VendorFlow address and it reads and files it automatically — no manual data entry.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">✅</div>
+        <h3>Certificate tracking &amp; approval</h3>
+        <p>Certificates are read automatically, matched to the right student, and queued for your one-click approval — nothing gets lost in an inbox again.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">👨‍👩‍👧‍👦</div>
+        <h3>Class &amp; roster management</h3>
+        <p>Upload a roster by CSV or build classes by hand, with per-class payment plans, due dates, and late fees set exactly the way you run your business.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔔</div>
+        <h3>Automated payment reminders</h3>
+        <p>Reminder emails go out on your schedule, in your own words, and only once you tell VendorFlow you're ready — never before you're set up.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🏫</div>
+        <h3>Charter-timed invoicing</h3>
+        <p>Invoices generate on each charter school's own schedule, so you're never guessing when it's safe to bill.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">💳</div>
+        <h3>Every way families pay you</h3>
+        <p>Zelle, Venmo, PayPal, Cash App, check, cash, and more — set up once, and it shows up automatically in every reminder you send.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="how-it-works">
+  <div class="wrap how">
+    <h2>Up and running in three steps</h2>
+    <p class="lead">A guided setup walks you through everything — no manual, no training required.</p>
+    <div class="how-steps">
+      <div class="how-step">
+        <div class="num">1</div>
+        <h3>Set up your business</h3>
+        <p>Answer a few questions about your business and the charter schools you work with. Takes about five minutes.</p>
+      </div>
+      <div class="how-step">
+        <div class="num">2</div>
+        <h3>Bring in your data</h3>
+        <p>Upload rosters, certificates, and payment history — or just start forwarding the emails you already get.</p>
+      </div>
+      <div class="how-step">
+        <div class="num">3</div>
+        <h3>Let VendorFlow keep watch</h3>
+        <p>Reminders, invoices, and notifications happen on schedule, and everything you need for tax time is already organized.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="trial-band">
+  <div class="wrap">
+    <h2 style="margin-bottom:6px">Try it risk-free</h2>
+    <p class="lead" style="margin-bottom:0">No pressure, no surprises.</p>
+    <div class="badges">
+      <div class="badge">
+        <div class="badge-icon">🗓️</div>
+        <h4>7-day free trial</h4>
+        <p>Full access from day one. Cancel before it ends and you won't be charged.</p>
+      </div>
+      <div class="badge">
+        <div class="badge-icon">↩️</div>
+        <h4>30-day money back</h4>
+        <p>Not right for you? Get a full refund within 30 days, no questions asked.</p>
+      </div>
+      <div class="badge">
+        <div class="badge-icon">🔒</div>
+        <h4>Your data stays yours</h4>
+        <p>Your business and client information is kept confidential — see our <a href="../privacy/">Privacy Policy</a>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section pricing-teaser" id="pricing">
+  <div class="wrap">
+    <h2>Simple, honest pricing</h2>
+    <p class="lead">One plan. Everything included. No tiers to compare.</p>
+    <div class="price-card">
+      <div class="amount">$199</div>
+      <div class="period">per year</div>
+      <p class="trial-note">Starts with a free 7-day trial — cancel before it ends and you won't be charged.</p>
+      <ul>
+        <li><span class="check">✓</span> Unlimited classes, rosters, and students</li>
+        <li><span class="check">✓</span> Certificate tracking, auto-read &amp; approval</li>
+        <li><span class="check">✓</span> Automated payment reminders &amp; late fees</li>
+        <li><span class="check">✓</span> Charter-timed invoice generation</li>
+        <li><span class="check">✓</span> Forward-to-import email inbox</li>
+        <li><span class="check">✓</span> Every common payment method supported</li>
+      </ul>
+      <a class="btn btn-primary btn-lg" style="width:100%;text-align:center" href="../subscribe/">Start your free 7-day trial</a>
+    </div>
+  </div>
+</section>
+
+<section class="section video-section">
+  <div class="wrap">
+    <h2>See VendorFlow in action</h2>
+    <p class="lead">A short walkthrough of exactly what your day-to-day looks like — coming soon.</p>
+    <div class="video-placeholder">
+      <div class="play">▶</div>
+      <span>Promo video coming soon</span>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div>
+      <div class="footer-brand"><span class="mark">VF</span> VendorFlow</div>
+      <p style="max-width:260px;font-size:13px;margin-top:14px;color:#8b96a8">Financial and accounting management built for charter school vendors.</p>
+    </div>
+    <div class="footer-links">
+      <div class="footer-col">
+        <h5>Product</h5>
+        <a href="#features">Features</a>
+        <a href="#pricing">Pricing</a>
+        <a href="../beta-preview/">Sign In</a>
+      </div>
+      <div class="footer-col">
+        <h5>Legal</h5>
+        <a href="../privacy/">Privacy Policy</a>
+        <a href="../terms/">Terms of Service</a>
+      </div>
+      <div class="footer-col">
+        <h5>Contact</h5>
+        <a href="mailto:support@myvendorflow.com">support@myvendorflow.com</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    © 2026 VendorFlow. All rights reserved.
+  </div>
+</footer>
+
+</body>
+</html>
