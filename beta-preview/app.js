@@ -23367,6 +23367,100 @@ function fillProfile(){
     $('#pPaymentMethods'),
     profile.paymentMethods||{}
   );
+
+  vfRenderSubscriptionCard();
+}
+
+function vfRenderSubscriptionCard(){
+  const container=$('#pSubscriptionCard');
+  if(!container)return;
+
+  const createdAtMs=
+    Date.parse(user?.metadata?.creationTime||'')||0;
+
+  const grandfathered=
+    createdAtMs && createdAtMs<VF_BILLING_LAUNCH_AT;
+
+  const fmtDate=(iso)=>{
+    if(!iso)return'';
+    const d=new Date(iso);
+    return isNaN(d)?'':d.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  };
+
+  if(grandfathered){
+    container.innerHTML=
+      `<div class="vf-field-label"><span>Subscription</span></div>
+       <p class="muted">You have free access to VendorFlow -- no subscription needed.</p>`;
+    return;
+  }
+
+  const status=profile.subscriptionStatus||'';
+  const cancelAtEnd=!!profile.subscriptionCancelAtPeriodEnd;
+  const periodEnd=fmtDate(profile.subscriptionCurrentPeriodEnd);
+  const trialEnd=fmtDate(profile.trialEndsAt);
+
+  let html=`<div class="vf-field-label"><span>Subscription</span></div>`;
+
+  if(status==='trialing'){
+    html+=cancelAtEnd
+      ?`<p class="muted">Your free trial ends${trialEnd?` ${trialEnd}`:' soon'} and you won't be charged.</p>`
+      :`<p class="muted">Your free trial is active${trialEnd?` and ends ${trialEnd}`:''}. You'll be charged $199/year once it ends, unless you cancel first.</p>
+        <button id="vfCancelSubscriptionBtn" class="linkbtn">Cancel subscription</button>`;
+  }else if(status==='active'){
+    html+=cancelAtEnd
+      ?`<p class="muted">Your subscription will end${periodEnd?` on ${periodEnd}`:''} -- you won't be charged again.</p>`
+      :`<p class="muted">Your subscription is active${periodEnd?`, renews ${periodEnd}`:''}.</p>
+        <button id="vfCancelSubscriptionBtn" class="linkbtn">Cancel subscription</button>`;
+  }else if(status==='past_due'){
+    html+=`<p class="muted">Your last payment didn't go through. Stripe will retry automatically -- update your card if it keeps failing.</p>`;
+  }else{
+    html+=`<p class="muted">You don't have an active subscription.</p>
+           <button id="vfGoSubscribeBtn" class="linkbtn">Start your free trial</button>`;
+  }
+
+  container.innerHTML=html;
+
+  const cancelBtn=$('#vfCancelSubscriptionBtn');
+
+  if(cancelBtn){
+    cancelBtn.onclick=async()=>{
+      if(!confirm('Cancel your VendorFlow subscription? You will keep access through the end of your current trial/billing period, and will not be charged again.'))return;
+
+      cancelBtn.disabled=true;
+      cancelBtn.textContent='Canceling...';
+
+      try{
+        const token=await user.getIdToken();
+
+        const res=await fetch(`${VENDORFLOW_API}/billing/cancel-subscription`,{
+          method:'POST',
+          headers:{Authorization:`Bearer ${token}`}
+        });
+
+        const data=await res.json().catch(()=>({}));
+
+        if(!res.ok)throw new Error(data.error||'Could not cancel your subscription.');
+
+        const s=await getDoc(vendorDoc());
+        profile=s.exists()?s.data():profile;
+        vfRenderSubscriptionCard();
+
+        toast("Your subscription is set to cancel -- you keep access until it ends, and won't be charged again.");
+      }catch(error){
+        toast(error.message||'Could not cancel your subscription.');
+        cancelBtn.disabled=false;
+        cancelBtn.textContent='Cancel subscription';
+      }
+    };
+  }
+
+  const subscribeBtn=$('#vfGoSubscribeBtn');
+
+  if(subscribeBtn){
+    subscribeBtn.onclick=()=>{
+      window.location.href=vfSubscribeUrl();
+    };
+  }
 }
 
 
