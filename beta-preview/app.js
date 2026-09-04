@@ -552,6 +552,7 @@ async function enterApp(){
   switchView('review');
 
   if(typeof vfRenderWizardNudge==='function')vfRenderWizardNudge();
+  if(typeof vfRenderReadySetupButton==='function')vfRenderReadySetupButton();
 }
 
 async function log(
@@ -33745,16 +33746,17 @@ function vfCloseWizardOverlay(){
 function vfCloseWizard(){
   vfCloseWizardOverlay();
   vfRenderWizardNudge();
+  vfRenderReadySetupButton();
 }
 
 async function vfCompleteWizard(){
   try{
     await setDoc(
       vendorDoc(),
-      {betaSetupComplete:true,betaSetupCompletedAt:serverTimestamp()},
+      {betaWizardCompleted:true,betaWizardCompletedAt:serverTimestamp()},
       {merge:true}
     );
-    profile.betaSetupComplete=true;
+    profile.betaWizardCompleted=true;
     await log(
       'Vendor setup completed',
       `${profile.businessName||'This vendor'} finished the guided VendorFlow setup.`,
@@ -33762,12 +33764,11 @@ async function vfCompleteWizard(){
     );
 
     /*
-     * Payment reminders and certificate-received emails were held
-     * back the whole time betaSetupComplete was false (see
-     * queuePaymentReminderReviews/queueCertificateReceivedEmail).
-     * Refresh right away so anything genuinely due gets queued now,
-     * instead of silently waiting for the vendor's next unrelated
-     * page load to notice.
+     * Finishing the wizard no longer turns automation on by itself.
+     * The vendor does that explicitly with the "Ready?" button once
+     * they've actually double-checked everything -- see
+     * installVfReadyModal(). This refresh just brings the rest of
+     * the UI (wizard nudge, etc.) up to date.
      */
     await refreshAll();
   }catch(error){
@@ -33775,6 +33776,7 @@ async function vfCompleteWizard(){
   }
   localStorage.removeItem(vfWizardStorageKey());
   vfRenderWizardNudge();
+  vfRenderReadySetupButton();
 }
 
 /*
@@ -33790,7 +33792,7 @@ function vfRenderWizardNudge(){
   const existing=$('#vfWizardNudge');
   if(existing)existing.remove();
 
-  if(profile?.betaSetupComplete===true)return;
+  if(profile?.betaWizardCompleted===true)return;
   if(profile?.betaWizardDismissed===true)return;
   if($('#vfWizard'))return;
 
@@ -33814,32 +33816,141 @@ function vfRenderWizardNudge(){
     try{
       /*
        * Dismissing the nudge means "I'm not going to finish the
-       * guided wizard" -- it should also count as telling
-       * VendorFlow the vendor is done importing, the same as
-       * finishing the wizard does. Otherwise a vendor who dismisses
-       * this and later imports real data on the regular pages
-       * would have payment reminders and certificate-received
-       * emails silently withheld forever, with no way to turn them
-       * back on.
+       * guided wizard" -- it stops the setup reminder, but it does
+       * NOT turn automation on. That's a separate, deliberate
+       * decision the vendor makes with the "Ready?" button, so
+       * dismissing this while still mid-import doesn't trigger a
+       * sudden wave of emails and reminders nobody asked for yet.
        */
       await setDoc(
         vendorDoc(),
         {
-          betaWizardDismissed:true,
-          betaSetupComplete:true,
-          betaSetupCompletedAt:serverTimestamp()
+          betaWizardDismissed:true
         },
         {merge:true}
       );
       profile.betaWizardDismissed=true;
-      profile.betaSetupComplete=true;
 
       await refreshAll();
+      vfRenderReadySetupButton();
     }catch(error){
       console.error('Could not save wizard dismissal:',error);
     }
   };
 }
+
+/*
+ * A second, separate signal from finishing the wizard: an explicit
+ * "yes, actually start automating" button. Finishing (or dismissing)
+ * the wizard only means setup is done -- it does NOT by itself queue
+ * parent emails, invoice generation, or payment reminders anymore.
+ * Those stay held back (see queuePaymentReminderReviews /
+ * queueCertificateReceivedEmail, both gated on betaSetupComplete)
+ * until the vendor deliberately clicks this.
+ */
+function vfRenderReadySetupButton(){
+  const existing=$('#vfReadyNudge');
+  if(existing)existing.remove();
+
+  if(profile?.betaSetupComplete===true)return;
+  if($('#vfWizard'))return;
+
+  const app=$('#app');
+  if(!app || app.classList.contains('hidden'))return;
+
+  const host=$('.vf-header-account');
+  if(!host)return;
+
+  const nudge=document.createElement('div');
+  nudge.id='vfReadyNudge';
+  nudge.className='vf-ready-nudge';
+  nudge.innerHTML=`
+    <button type="button" id="vfReadyNudgeOpen">Ready?</button>`;
+  host.insertAdjacentElement('beforebegin',nudge);
+
+  $('#vfReadyNudgeOpen').onclick=()=>{
+    const modal=$('#vfReadyModal');
+    if(modal)show(modal);
+  };
+}
+
+/*
+ * Wires up the "Ready?" popup itself. The modal markup lives
+ * statically in index.html (same pattern as the other vf-modal-*
+ * popups) since its content never varies, so this just needs to
+ * run once at load time.
+ */
+function installVfReadyModal(){
+  const modal=$('#vfReadyModal');
+  const close=$('#closeVfReadyModal');
+  const confirmBtn=$('#vfReadyConfirmBtn');
+
+  if(!modal)return;
+
+  const closeModal=()=>hide(modal);
+
+  if(close){
+    close.onclick=closeModal;
+  }
+
+  modal.onclick=event=>{
+    if(event.target===modal){
+      closeModal();
+    }
+  };
+
+  if(confirmBtn){
+
+    const defaultLabel=confirmBtn.textContent;
+
+    confirmBtn.onclick=async()=>{
+
+      confirmBtn.disabled=true;
+      confirmBtn.textContent='One sec…';
+
+      try{
+
+        await setDoc(
+          vendorDoc(),
+          {
+            betaSetupComplete:true,
+            betaSetupCompletedAt:serverTimestamp()
+          },
+          {merge:true}
+        );
+
+        profile.betaSetupComplete=true;
+
+        await log(
+          'Vendor marked ready for automation',
+          `${profile.businessName||'This vendor'} told VendorFlow to start sending parent emails, invoices, and payment reminders.`,
+          'Onboarding'
+        );
+
+        closeModal();
+
+        await refreshAll();
+
+        vfRenderReadySetupButton();
+
+        toast('VendorFlow is on it -- automation is live.');
+
+      }catch(error){
+
+        console.error('Could not save ready confirmation:',error);
+
+        toast('Something went wrong -- try again.');
+
+      }finally{
+
+        confirmBtn.disabled=false;
+        confirmBtn.textContent=defaultLabel;
+      }
+    };
+  }
+}
+
+installVfReadyModal();
 
 let vfWizardStepUnlocked={classes:false,certificates:false,payments:false};
 let vfWizardClassesStarted=false;
