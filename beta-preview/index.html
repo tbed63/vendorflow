@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>VendorFlow</title>
-  <link rel="stylesheet" href="styles.css?v=latefeelive-20260904-080000">
+  <link rel="stylesheet" href="styles.css?v=paymentmethods-20260904-090000">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA PREVIEW — LIVE APP UNCHANGED</div>
@@ -1105,6 +1105,8 @@ Thank you,
 <section id="paymentsView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Manual control</div><div class="vf-payment-heading-row">
 
   <h2>Payments/Charges</h2>
+
+  <div class="vf-payment-methods-link-banner"><span>Add your Zelle, Venmo, PayPal and other payment details so they show up automatically in payment reminder emails.</span><button type="button" id="pmGoToProfile" class="vf-payment-methods-link-btn">Set up payment methods &rarr;</button></div>
 
 </div>
 
@@ -2719,7 +2721,7 @@ Thank you,
     </section>
 
 
-<section id="profileView" class="view"><div class="card narrow"><div class="eyebrow">Business profile</div><h2>Information VendorFlow uses</h2><input id="pBusiness" class="input" placeholder="Business name"><input id="pOwner" class="input" placeholder="Owner / vendor name"><input id="pAddress" class="input" placeholder="Business address"><input id="pCity" class="input" placeholder="City"><input id="pState" class="input" placeholder="State"><input id="pZip" class="input" placeholder="ZIP"><input id="pPhone" class="input" placeholder="Business phone"><textarea id="pLocations" class="input" rows="3" placeholder="Places of business / learning centers"></textarea><textarea id="pSchools" class="input" rows="4" placeholder="Charter schools you work with"></textarea><button id="saveProfile" class="primary">Save business profile</button></div></section>
+<section id="profileView" class="view"><div class="card narrow"><div class="eyebrow">Business profile</div><h2>Information VendorFlow uses</h2><input id="pBusiness" class="input" placeholder="Business name"><input id="pOwner" class="input" placeholder="Owner / vendor name"><input id="pAddress" class="input" placeholder="Business address"><input id="pCity" class="input" placeholder="City"><input id="pState" class="input" placeholder="State"><input id="pZip" class="input" placeholder="ZIP"><input id="pPhone" class="input" placeholder="Business phone"><textarea id="pLocations" class="input" rows="3" placeholder="Places of business / learning centers"></textarea><textarea id="pSchools" class="input" rows="4" placeholder="Charter schools you work with"></textarea><div class="vf-invoice-timing-field vf-payment-methods-block"><div class="vf-field-label"><span>How families can pay you</span></div><p class="muted">Check every method you accept and add your details for each one -- this is what shows up automatically in payment reminder emails.</p><div id="pPaymentMethods"></div></div><button id="saveProfile" class="primary">Save business profile</button></div></section>
   </main>
 </div>
 <div id="toast"></div>
@@ -2932,5 +2934,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=latefeelive-20260904-080000"></script>
+<script type="module" src="app.js?v=paymentmethods-20260904-090000"></script>
 </body></html>

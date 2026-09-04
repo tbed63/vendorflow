@@ -17215,7 +17215,8 @@ async function queuePaymentReminderReviews(){
           obligation.className ||
           '',
 
-        paymentInstructions:'',
+        paymentInstructions:
+          vfFormatPaymentInstructions(profile.paymentMethods||{}),
 
         lateFeeWarning:
           lateFeeNote,
@@ -23157,6 +23158,105 @@ function renderHistory(){
   );
 }
 
+/* ==========================================================
+   PAYMENT METHODS (how families pay this vendor)
+   Collected once in Business Profile, reused everywhere the
+   {{paymentInstructions}} merge token is filled in for outgoing
+   payment reminder emails.
+   ========================================================== */
+
+const VF_PAYMENT_METHODS=[
+  {key:'zelle',    name:'Zelle',         placeholder:'Zelle email or phone number'},
+  {key:'venmo',    name:'Venmo',         placeholder:'Venmo handle (e.g. @your-name)'},
+  {key:'cashapp',  name:'Cash App',      placeholder:'Cash App $Cashtag'},
+  {key:'paypal',   name:'PayPal',        placeholder:'PayPal email or PayPal.me link'},
+  {key:'check',    name:'Check',         placeholder:'Payable to (name on the check)'},
+  {key:'cash',     name:'Cash',          placeholder:'Any notes (e.g. "in-person only, see coach")'},
+  {key:'ach',      name:'Bank transfer', placeholder:'Account/routing info or transfer instructions'},
+  {key:'applepay', name:'Apple Pay',     placeholder:'Phone number or email linked to Apple Pay'},
+  {key:'other',    name:'Other',         placeholder:'Describe the method and where to send it'}
+];
+
+/*
+ * Renders the checkbox-plus-detail-box row for every method in
+ * VF_PAYMENT_METHODS into `container`, pre-filled from `values`
+ * ({key:{enabled,detail}}). Wires each checkbox to enable/disable
+ * its own detail input. Nothing here saves anything -- the caller
+ * reads the finished state back out with vfReadPaymentMethodsField.
+ */
+function vfRenderPaymentMethodsField(container,values){
+  if(!container)return;
+
+  values=values||{};
+
+  container.innerHTML=VF_PAYMENT_METHODS.map(m=>{
+    const saved=values[m.key]||{};
+    const checked=!!saved.enabled;
+    const detail=esc(saved.detail||'');
+
+    return `<div class="vf-payment-method-row${checked?'':' vf-payment-method-row-off'}" data-key="${m.key}">
+      <input type="checkbox" id="pm-${m.key}"${checked?' checked':''}>
+      <label class="vf-payment-method-name" for="pm-${m.key}">${m.name}</label>
+      <div class="vf-payment-method-detail">
+        <input type="text" id="pm-${m.key}-detail" class="input" placeholder="${m.placeholder}" value="${detail}"${checked?'':' disabled'}>
+      </div>
+    </div>`;
+  }).join('');
+
+  VF_PAYMENT_METHODS.forEach(m=>{
+    const chk=container.querySelector(`#pm-${m.key}`);
+    const row=container.querySelector(`.vf-payment-method-row[data-key="${m.key}"]`);
+    const input=container.querySelector(`#pm-${m.key}-detail`);
+    if(!chk||!row||!input)return;
+
+    chk.addEventListener('change',()=>{
+      input.disabled=!chk.checked;
+      row.classList.toggle('vf-payment-method-row-off',!chk.checked);
+      if(chk.checked)input.focus();
+    });
+  });
+}
+
+/*
+ * Reads the checkbox+detail state back out of `container` into
+ * {key:{enabled,detail}}, ready to save on the vendor doc.
+ */
+function vfReadPaymentMethodsField(container){
+  const out={};
+  if(!container)return out;
+
+  VF_PAYMENT_METHODS.forEach(m=>{
+    const chk=container.querySelector(`#pm-${m.key}`);
+    const input=container.querySelector(`#pm-${m.key}-detail`);
+    if(!chk)return;
+
+    out[m.key]={
+      enabled:!!chk.checked,
+      detail:(input?.value||'').trim()
+    };
+  });
+
+  return out;
+}
+
+/*
+ * Turns a saved paymentMethods object into the plain-text block
+ * used to fill the {{paymentInstructions}} token in payment
+ * reminder emails. Only methods that are both checked AND have a
+ * detail filled in are included, so a vendor who checked a box but
+ * never filled in the detail doesn't send parents a blank line.
+ */
+function vfFormatPaymentInstructions(paymentMethods){
+  paymentMethods=paymentMethods||{};
+
+  const lines=VF_PAYMENT_METHODS
+    .filter(m=>paymentMethods[m.key]&&paymentMethods[m.key].enabled&&paymentMethods[m.key].detail)
+    .map(m=>`${m.name}: ${paymentMethods[m.key].detail}`);
+
+  return lines.join('\n');
+}
+
+
 function fillProfile(){
 
   const address=
@@ -23188,6 +23288,11 @@ function fillProfile(){
 
   $('#pSchools').value=
     profile.schools||'';
+
+  vfRenderPaymentMethodsField(
+    $('#pPaymentMethods'),
+    profile.paymentMethods||{}
+  );
 }
 
 
@@ -23215,6 +23320,7 @@ $('#saveProfile').onclick=async()=>{
     phone:$('#pPhone').value.trim(),
     locations:$('#pLocations').value.trim(),
     schools:$('#pSchools').value.trim(),
+    paymentMethods:vfReadPaymentMethodsField($('#pPaymentMethods')),
     updatedAt:serverTimestamp()
   };
 
@@ -23242,6 +23348,18 @@ $('#saveProfile').onclick=async()=>{
 
   toast('Business profile saved.');
 };
+
+if($('#pmGoToProfile')){
+  $('#pmGoToProfile').onclick=()=>{
+    switchView('profile');
+    window.requestAnimationFrame(()=>{
+      $('#pPaymentMethods')?.scrollIntoView({
+        behavior:'smooth',
+        block:'center'
+      });
+    });
+  };
+}
 
 
 let inboundInboxMessages=[];

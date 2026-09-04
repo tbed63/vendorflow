@@ -5914,6 +5914,82 @@ button.history.vf-history-evidence:focus-visible{
   margin:8px 0 0;
 }
 
+.vf-payment-methods-block{
+  margin:18px 0;
+}
+
+.vf-payment-methods-block p{
+  margin:6px 0 12px;
+  font-size:12.5px;
+}
+
+.vf-payment-method-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 0;
+  border-bottom:1px solid #e2edf1;
+}
+
+.vf-payment-method-row:last-child{
+  border-bottom:0;
+}
+
+.vf-payment-method-row input[type="checkbox"]{
+  width:17px;
+  height:17px;
+  accent-color:var(--navy);
+  flex-shrink:0;
+  cursor:pointer;
+}
+
+.vf-payment-method-name{
+  font-weight:700;
+  font-size:13.5px;
+  width:104px;
+  flex-shrink:0;
+  cursor:pointer;
+}
+
+.vf-payment-method-row-off .vf-payment-method-name{
+  color:#5D757D;
+}
+
+.vf-payment-method-detail{
+  flex:1;
+  min-width:0;
+}
+
+.vf-payment-method-detail .input{
+  margin:0;
+}
+
+.vf-payment-method-row-off .vf-payment-method-detail .input{
+  background:#eef1f2;
+  color:#9FA4A9;
+}
+
+.vf-payment-methods-link-banner{
+  margin-top:8px;
+  font-size:13px;
+  color:var(--muted);
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  align-items:center;
+}
+
+.vf-payment-methods-link-btn{
+  background:transparent;
+  border:0;
+  color:var(--navy);
+  font-weight:700;
+  text-decoration:underline;
+  cursor:pointer;
+  padding:0;
+  font-size:13px;
+}
+
 
 
 
