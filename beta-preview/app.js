@@ -33774,7 +33774,7 @@ function installBetaGettingStartedGuide(){
     checklist.type='button';
     checklist.className='vf-hero-secondary';
     checklist.textContent='Setup Checklist';
-    checklist.addEventListener('click',()=>vfOpenWizard());
+    checklist.addEventListener('click',()=>openBetaGettingStartedGuide());
     always.insertAdjacentElement('afterend',checklist);
   }
 
