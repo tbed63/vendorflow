@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>VendorFlow</title>
-  <link rel="stylesheet" href="styles.css?v=paywall-20260904-234500">
+  <link rel="stylesheet" href="styles.css?v=expenses-20260905-035600">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA PREVIEW — LIVE APP UNCHANGED</div>
@@ -80,6 +80,8 @@
       <button data-view="charters">Charter Schools</button>
       <button data-view="students">Students</button>
       <button data-view="payments">Payments/Charges</button>
+      <button data-view="expenses">Expenses</button>
+      <button data-view="taxsummary">Tax Summary</button>
       <button data-view="certificates">Certificates</button>
       <button data-view="invoices">Invoices</button>
       <button data-view="compliance">To-do List</button>
@@ -1404,6 +1406,84 @@ Thank you,
 </div>
 
 </div></section>
+
+<section id="expensesView" class="view">
+  <div class="card">
+    <div class="row between">
+      <div>
+        <div class="eyebrow">Operating expenses</div>
+        <h2>Expenses</h2>
+        <p>Track what you spend running your business, organized the same way the IRS wants it -- so at tax time, every category total is ready to use.</p>
+      </div>
+      <button id="addExpense" class="primary" type="button">Add expense</button>
+    </div>
+    <div id="expenseForm" class="formgrid hidden vf-todo-form">
+      <label class="vf-field-label">
+        <span>Category</span>
+        <select id="expCategory" class="input">
+          <option value="advertising">Advertising (Line 8)</option>
+          <option value="carMileage">Car &amp; Mileage (Line 9)</option>
+          <option value="commissions">Commissions &amp; Fees (Line 10)</option>
+          <option value="contractLabor">Contract Labor (Line 11)</option>
+          <option value="depletion">Depletion (Line 12)</option>
+          <option value="depreciation">Depreciation (Line 13)</option>
+          <option value="employeeBenefits">Employee Benefit Programs (Line 14)</option>
+          <option value="insurance">Insurance, other than health (Line 15)</option>
+          <option value="interestMortgage">Interest &mdash; Mortgage (Line 16a)</option>
+          <option value="interestOther">Interest &mdash; Other (Line 16b)</option>
+          <option value="legalProfessional">Legal &amp; Professional Services (Line 17)</option>
+          <option value="officeExpense">Office Expense (Line 18)</option>
+          <option value="pensionProfitSharing">Pension &amp; Profit-Sharing Plans (Line 19)</option>
+          <option value="rentVehiclesEquipment">Rent or Lease &mdash; Vehicles &amp; Equipment (Line 20a)</option>
+          <option value="rentOtherProperty">Rent or Lease &mdash; Other Business Property (Line 20b)</option>
+          <option value="repairsMaintenance">Repairs &amp; Maintenance (Line 21)</option>
+          <option value="supplies">Supplies (Line 22)</option>
+          <option value="taxesLicenses">Taxes &amp; Licenses (Line 23)</option>
+          <option value="travel">Travel (Line 24a)</option>
+          <option value="meals">Meals (Line 24b)</option>
+          <option value="utilities">Utilities (Line 25)</option>
+          <option value="wages">Wages (Line 26)</option>
+          <option value="homeOffice">Home Office (Line 30)</option>
+          <option value="other">Other Expenses (Line 27b)</option>
+        </select>
+      </label>
+      <label class="vf-field-label">
+        <span>Amount</span>
+        <input id="expAmount" class="input" type="number" min="0" step="0.01" placeholder="0.00">
+      </label>
+      <label class="vf-field-label">
+        <span>Date</span>
+        <input id="expDate" class="input" type="date">
+      </label>
+      <label class="vf-field-label vf-todo-notes-field">
+        <span>Note (optional)</span>
+        <textarea id="expNote" class="input" rows="2" placeholder="What was this for?"></textarea>
+      </label>
+      <div class="vf-todo-form-actions">
+        <button id="saveExpense" class="primary" type="button">Save expense</button>
+        <button id="cancelExpense" type="button">Cancel</button>
+      </div>
+    </div>
+    <div id="expenseList"></div>
+  </div>
+</section>
+
+<section id="taxsummaryView" class="view">
+  <div class="card">
+    <div class="row between">
+      <div>
+        <div class="eyebrow">Ready for tax time</div>
+        <h2>Tax Summary</h2>
+        <p>Totals for one year, organized by IRS category -- pull these straight into your tax return or hand them to your tax preparer.</p>
+      </div>
+      <label class="vf-field-label vf-tax-summary-year-field">
+        <span>Year</span>
+        <select id="taxYear" class="input"></select>
+      </label>
+    </div>
+    <div id="taxSummaryBody"></div>
+  </div>
+</section>
 
     
     <section id="certificatesView" class="view">
@@ -2993,5 +3073,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=checklistfix-20260905-031500"></script>
+<script type="module" src="app.js?v=expenses-20260905-035600"></script>
 </body></html>

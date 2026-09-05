@@ -1392,6 +1392,78 @@ main{
   cursor:pointer;
 }
 
+.vf-expense-row{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:12px 0;
+  border-bottom:1px solid #E7ECEF;
+}
+
+.vf-expense-row-main{
+  flex:1;
+  min-width:0;
+}
+
+.vf-expense-row-main strong{
+  display:block;
+}
+
+.vf-expense-row-amount{
+  font-weight:800;
+  white-space:nowrap;
+}
+
+.vf-tax-summary-year-field{
+  min-width:140px;
+}
+
+.vf-tax-summary-totals{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:14px;
+  margin:16px 0 22px;
+}
+
+.vf-tax-summary-tile{
+  border:1px solid #E7ECEF;
+  border-radius:12px;
+  padding:14px 16px;
+  background:#F8F9FB;
+}
+
+.vf-tax-summary-figure{
+  font-size:22px;
+  font-weight:800;
+  color:#1A346F;
+  margin-top:4px;
+}
+
+.vf-tax-summary-table{
+  width:100%;
+  border-collapse:collapse;
+}
+
+.vf-tax-summary-table th{
+  text-align:left;
+  padding:8px 10px;
+  border-bottom:2px solid #E7ECEF;
+  font-size:12px;
+  text-transform:uppercase;
+  color:#7A888E;
+}
+
+.vf-tax-summary-table td{
+  padding:8px 10px;
+  border-bottom:1px solid #E7ECEF;
+}
+
+@media (max-width:760px){
+  .vf-tax-summary-totals{
+    grid-template-columns:1fr;
+  }
+}
+
 .vf-csv-help-button{
   display:inline-block;
   margin:8px 0;

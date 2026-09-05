@@ -34,7 +34,7 @@ const VENDORFLOW_API =
   "https://vendorflow-api.tbed63.workers.dev";
 
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),$=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],show=e=>e.classList.remove("hidden"),hide=e=>e.classList.add("hidden"),esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
-let user=null,profile={},classes=[],roster=[],students=[],services=[],obligations=[],charterSchools=[],payments=[],certs=[],invoices=[],compliance=[],reviews=[],history=[],ignoredStatementPayers=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
+let user=null,profile={},classes=[],roster=[],students=[],services=[],obligations=[],charterSchools=[],payments=[],certs=[],invoices=[],compliance=[],reviews=[],history=[],ignoredStatementPayers=[],expenses=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
 let invoiceStatusFilter='all';
 let invoiceSearchQuery='';
 
@@ -1210,6 +1210,7 @@ async function refreshAll(){
   obligations=await getList('obligations',false);
   charterSchools=await getList('charterSchools',false);
   payments=await getList('payments');
+  expenses=await getList('expenses');
 
   const ignoredPayerVendorSnap=
     await getDoc(
@@ -1403,6 +1404,8 @@ function renderAll(){
   renderInvoices();
   renderReviews();
   renderHistory();
+  renderExpenses();
+  renderTaxSummary();
 }
 
 
@@ -12130,6 +12133,254 @@ $('#archiveClass').onclick=async()=>{
 /* ==========================================================
    STUDENTS, SERVICES & FUNDING
    ========================================================== */
+
+const VF_EXPENSE_CATEGORIES=[
+  {key:'advertising',label:'Advertising',line:'Line 8'},
+  {key:'carMileage',label:'Car & Mileage',line:'Line 9'},
+  {key:'commissions',label:'Commissions & Fees',line:'Line 10'},
+  {key:'contractLabor',label:'Contract Labor',line:'Line 11'},
+  {key:'depletion',label:'Depletion',line:'Line 12'},
+  {key:'depreciation',label:'Depreciation',line:'Line 13'},
+  {key:'employeeBenefits',label:'Employee Benefit Programs',line:'Line 14'},
+  {key:'insurance',label:'Insurance (other than health)',line:'Line 15'},
+  {key:'interestMortgage',label:'Interest — Mortgage',line:'Line 16a'},
+  {key:'interestOther',label:'Interest — Other',line:'Line 16b'},
+  {key:'legalProfessional',label:'Legal & Professional Services',line:'Line 17'},
+  {key:'officeExpense',label:'Office Expense',line:'Line 18'},
+  {key:'pensionProfitSharing',label:'Pension & Profit-Sharing Plans',line:'Line 19'},
+  {key:'rentVehiclesEquipment',label:'Rent or Lease — Vehicles & Equipment',line:'Line 20a'},
+  {key:'rentOtherProperty',label:'Rent or Lease — Other Business Property',line:'Line 20b'},
+  {key:'repairsMaintenance',label:'Repairs & Maintenance',line:'Line 21'},
+  {key:'supplies',label:'Supplies',line:'Line 22'},
+  {key:'taxesLicenses',label:'Taxes & Licenses',line:'Line 23'},
+  {key:'travel',label:'Travel',line:'Line 24a'},
+  {key:'meals',label:'Meals',line:'Line 24b'},
+  {key:'utilities',label:'Utilities',line:'Line 25'},
+  {key:'wages',label:'Wages',line:'Line 26'},
+  {key:'other',label:'Other Expenses',line:'Line 27b'},
+  {key:'homeOffice',label:'Home Office',line:'Line 30'}
+];
+
+function vfExpenseCategoryLabel(key){
+  const found=VF_EXPENSE_CATEGORIES.find(c=>c.key===key);
+  return found?found.label:'Other Expenses';
+}
+
+let editingExpenseId=null;
+
+function clearExpenseForm(){
+  editingExpenseId=null;
+  if($('#expCategory'))$('#expCategory').value='advertising';
+  if($('#expAmount'))$('#expAmount').value='';
+  if($('#expDate'))$('#expDate').value=new Date().toISOString().slice(0,10);
+  if($('#expNote'))$('#expNote').value='';
+  if($('#saveExpense'))$('#saveExpense').textContent='Save expense';
+}
+
+function renderExpenses(){
+  const list=$('#expenseList');
+  if(!list)return;
+
+  if(!expenses.length){
+    list.innerHTML='<p class="muted">No expenses recorded yet.</p>';
+    return;
+  }
+
+  const sorted=[...expenses].sort(
+    (a,b)=>String(b.date||'').localeCompare(String(a.date||''))
+  );
+
+  list.innerHTML=sorted.map(e=>`
+    <div class="vf-expense-row">
+      <div class="vf-expense-row-main">
+        <strong>${esc(vfExpenseCategoryLabel(e.category))}</strong>
+        <span class="muted">${esc(e.date||'')}</span>
+        ${e.note?`<p class="muted">${esc(e.note)}</p>`:''}
+      </div>
+      <div class="vf-expense-row-amount">${money(Number(e.amount||0))}</div>
+      <button type="button" class="vf-secondary-button" data-delete-expense="${e.id}">Delete</button>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('[data-delete-expense]').forEach(btn=>{
+    btn.onclick=()=>deleteExpense(btn.dataset.deleteExpense);
+  });
+}
+
+async function deleteExpense(expenseId){
+  const expense=expenses.find(e=>e.id===expenseId);
+  if(!expense)return;
+
+  const ok=confirm(
+    `Delete this expense?\n\n${vfExpenseCategoryLabel(expense.category)} — ${money(Number(expense.amount||0))}`
+  );
+
+  if(!ok)return;
+
+  await deleteDoc(
+    doc(db,'vendors',user.uid,'expenses',expenseId)
+  );
+
+  await log(
+    'Expense deleted',
+    `${vfExpenseCategoryLabel(expense.category)} — ${money(Number(expense.amount||0))}.`,
+    'Manual'
+  );
+
+  await refreshAll();
+  renderExpenses();
+  renderTaxSummary();
+
+  toast('Expense deleted.');
+}
+
+if($('#addExpense')){
+  $('#addExpense').onclick=()=>{
+    clearExpenseForm();
+    show($('#expenseForm'));
+  };
+}
+
+if($('#cancelExpense')){
+  $('#cancelExpense').onclick=()=>{
+    clearExpenseForm();
+    hide($('#expenseForm'));
+  };
+}
+
+if($('#saveExpense')){
+  $('#saveExpense').onclick=async()=>{
+
+    const amount=Number($('#expAmount').value);
+
+    if(!amount){
+      return toast('Enter an amount.');
+    }
+
+    const d={
+      category:$('#expCategory').value,
+      amount,
+      date:$('#expDate').value || new Date().toISOString().slice(0,10),
+      note:$('#expNote').value.trim(),
+      updatedAt:serverTimestamp()
+    };
+
+    await addDoc(
+      sub('expenses'),
+      {
+        ...d,
+        createdAt:serverTimestamp()
+      }
+    );
+
+    await log(
+      'Expense added',
+      `${vfExpenseCategoryLabel(d.category)} — ${money(amount)}.`,
+      'Manual'
+    );
+
+    clearExpenseForm();
+    hide($('#expenseForm'));
+
+    await refreshAll();
+    renderExpenses();
+    renderTaxSummary();
+
+    toast('Expense saved.');
+  };
+}
+
+function vfAvailableTaxYears(){
+  const years=new Set();
+  years.add(String(new Date().getFullYear()));
+
+  payments.forEach(p=>{
+    if(p.date)years.add(String(p.date).slice(0,4));
+  });
+
+  expenses.forEach(e=>{
+    if(e.date)years.add(String(e.date).slice(0,4));
+  });
+
+  return Array.from(years).sort((a,b)=>b.localeCompare(a));
+}
+
+function populateTaxYearSelect(){
+  const select=$('#taxYear');
+  if(!select)return;
+
+  const years=vfAvailableTaxYears();
+  const wanted=select.value || String(new Date().getFullYear());
+
+  select.innerHTML=years.map(
+    y=>`<option value="${y}">${y}</option>`
+  ).join('');
+
+  select.value=years.includes(wanted)?wanted:years[0];
+}
+
+function renderTaxSummary(){
+  const body=$('#taxSummaryBody');
+  if(!body)return;
+
+  populateTaxYearSelect();
+
+  const year=$('#taxYear').value || String(new Date().getFullYear());
+
+  const totalIncome=payments
+    .filter(p=>String(p.date||'').startsWith(year))
+    .reduce((sum,p)=>sum+Number(p.amount||0),0);
+
+  const yearExpenses=expenses.filter(
+    e=>String(e.date||'').startsWith(year)
+  );
+
+  const totalExpenses=yearExpenses.reduce(
+    (sum,e)=>sum+Number(e.amount||0),0
+  );
+
+  const categoryTotals=VF_EXPENSE_CATEGORIES.map(cat=>({
+    ...cat,
+    total:yearExpenses
+      .filter(e=>e.category===cat.key)
+      .reduce((sum,e)=>sum+Number(e.amount||0),0)
+  }));
+
+  body.innerHTML=`
+    <div class="vf-tax-summary-totals">
+      <div class="vf-tax-summary-tile">
+        <div class="eyebrow">Total income</div>
+        <div class="vf-tax-summary-figure">${money(totalIncome)}</div>
+      </div>
+      <div class="vf-tax-summary-tile">
+        <div class="eyebrow">Total expenses</div>
+        <div class="vf-tax-summary-figure">${money(totalExpenses)}</div>
+      </div>
+      <div class="vf-tax-summary-tile">
+        <div class="eyebrow">Net</div>
+        <div class="vf-tax-summary-figure">${money(totalIncome-totalExpenses)}</div>
+      </div>
+    </div>
+    <table class="vf-tax-summary-table">
+      <thead>
+        <tr><th>Category</th><th>IRS line</th><th>Total</th></tr>
+      </thead>
+      <tbody>
+        ${categoryTotals.map(c=>`
+          <tr>
+            <td>${esc(c.label)}</td>
+            <td class="muted">${esc(c.line)}</td>
+            <td>${money(c.total)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+if($('#taxYear')){
+  $('#taxYear').onchange=()=>renderTaxSummary();
+}
 
 function money(v){
   return Number(v||0).toLocaleString(
@@ -24218,6 +24469,8 @@ function switchView(v){
     charters:'Charter Schools',
     students:'Students',
     payments:'Payments',
+    expenses:'Expenses',
+    taxsummary:'Tax Summary',
     certificates:'Certificates',
     invoices:'Invoices',
     compliance:'To-do List',
@@ -24241,6 +24494,14 @@ function switchView(v){
   if(v==='inbox'){
 
     loadInboundInbox();
+  }
+
+  if(v==='expenses'){
+    renderExpenses();
+  }
+
+  if(v==='taxsummary'){
+    renderTaxSummary();
   }
 
 }
