@@ -103,12 +103,14 @@
   }
   .btn-secondary:hover{background:var(--gray-bg)}
   .btn-secondary:disabled{opacity:.6;cursor:default}
-  .btn-danger{
-    background:#fff;color:var(--error);border:1px solid #f3c2bd;border-radius:8px;
+  .btn-row{
+    background:#fff;color:var(--navy);border:1px solid var(--line);border-radius:8px;
     padding:6px 12px;font-weight:700;font-size:12.5px;
   }
-  .btn-danger:hover{background:#fdecea}
-  .btn-danger:disabled{opacity:.6;cursor:default}
+  .btn-row:hover{background:var(--gray-bg)}
+  .btn-row:disabled{opacity:.6;cursor:default}
+  .row-hidden{opacity:.55}
+  .toolbar label.check-label{display:flex;align-items:center;gap:6px;font-size:13.5px;color:var(--muted);white-space:nowrap}
 </style>
 </head>
 <body>
@@ -195,6 +197,12 @@
         <option value="grandfathered">Grandfathered (free)</option>
         <option value="none">No subscription</option>
       </select>
+      <select id="activityFilter">
+        <option value="">All accounts</option>
+        <option value="1y">Hide inactive 1+ years</option>
+        <option value="2y">Hide inactive 2+ years</option>
+      </select>
+      <label class="check-label"><input type="checkbox" id="showHiddenCheckbox"> Show hidden accounts</label>
       <span class="count" id="resultCount"></span>
     </div>
 
@@ -209,6 +217,7 @@
             <th>Status</th>
             <th>Trial ends</th>
             <th>Renews</th>
+            <th>Last Login</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -299,19 +308,43 @@ function fmtDate(iso) {
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+function lastActivityMs(v) {
+  return v.lastLoginAtMs || v.authCreatedAtMs || 0;
+}
+
+function fmtLastLogin(v) {
+  const ms = lastActivityMs(v);
+  if (!ms) return '—';
+  return fmtDate(new Date(ms).toISOString());
+}
+
 function escapeHtml(value) {
   return String(value || '').replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[c]));
 }
 
+const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+
 function renderVendors() {
   const search = $('#searchBox').value.trim().toLowerCase();
   const statusFilter = $('#statusFilter').value;
+  const activityFilter = $('#activityFilter').value;
+  const showHidden = $('#showHiddenCheckbox').checked;
+  const now = Date.now();
 
   const filtered = allVendors.filter((v) => {
+    if (v.adminHidden && !showHidden) return false;
+
     const bucket = vendorStatusBucket(v);
     if (statusFilter && bucket !== statusFilter) return false;
+
+    if (activityFilter) {
+      const thresholdMs = activityFilter === '1y' ? YEAR_MS : YEAR_MS * 2;
+      const activity = lastActivityMs(v);
+      const inactiveMs = activity ? (now - activity) : Infinity;
+      if (inactiveMs >= thresholdMs) return false;
+    }
 
     if (!search) return true;
 
@@ -339,8 +372,13 @@ function renderVendors() {
       const bucket = vendorStatusBucket(v);
       const tr = document.createElement('tr');
 
+      if (v.adminHidden) {
+        tr.classList.add('row-hidden');
+      }
+
       const location = [v.city, v.state].filter(Boolean).join(', ') || '—';
       const email = v.email || '';
+      const hideLabel = v.adminHidden ? 'Unhide' : 'Hide';
 
       tr.innerHTML = `
         <td><span class="biz-name">${escapeHtml(v.businessName || '(no business name yet)')}</span></td>
@@ -353,7 +391,8 @@ function renderVendors() {
         </td>
         <td class="muted">${bucket === 'trialing' ? fmtDate(v.trialEndsAt) : '—'}</td>
         <td class="muted">${bucket === 'active' ? fmtDate(v.subscriptionCurrentPeriodEnd) : '—'}</td>
-        <td><button type="button" class="btn-danger delete-vendor-btn" data-uid="${escapeHtml(v.uid)}" data-label="${escapeHtml(v.businessName || v.email || 'this account')}">Delete</button></td>
+        <td class="muted">${fmtLastLogin(v)}</td>
+        <td><button type="button" class="btn-row hide-vendor-btn" data-uid="${escapeHtml(v.uid)}" data-hidden="${v.adminHidden ? '1' : '0'}">${hideLabel}</button></td>
       `;
 
       rows.appendChild(tr);
@@ -361,36 +400,28 @@ function renderVendors() {
 }
 
 $('#vendorRows').addEventListener('click', async (event) => {
-  const btn = event.target.closest('.delete-vendor-btn');
+  const btn = event.target.closest('.hide-vendor-btn');
 
   if (!btn) {
     return;
   }
 
   const uid = btn.getAttribute('data-uid');
-  const label = btn.getAttribute('data-label') || 'this account';
-
-  const confirmed = window.confirm(
-    `Permanently delete ${label}?\n\nThis removes their sign-in and all their data (students, classes, invoices, payments, etc). This cannot be undone.`
-  );
-
-  if (!confirmed) {
-    return;
-  }
+  const nextHidden = btn.getAttribute('data-hidden') !== '1';
 
   btn.disabled = true;
-  btn.textContent = 'Deleting\u2026';
+  btn.textContent = nextHidden ? 'Hiding\u2026' : 'Unhiding\u2026';
 
   try {
     const token = await auth.currentUser.getIdToken();
 
-    const res = await fetch(`${VENDORFLOW_API}/admin/delete-vendor`, {
+    const res = await fetch(`${VENDORFLOW_API}/admin/hide-vendor`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ uid })
+      body: JSON.stringify({ uid, hidden: nextHidden })
     });
 
     let data = {};
@@ -400,17 +431,22 @@ $('#vendorRows').addEventListener('click', async (event) => {
     } catch {}
 
     if (!res.ok || data.ok === false) {
-      throw new Error(data.error || 'Could not delete this account.');
+      throw new Error(data.error || 'Could not update this account.');
     }
 
-    allVendors = allVendors.filter((v) => v.uid !== uid);
+    const vendor = allVendors.find((v) => v.uid === uid);
+
+    if (vendor) {
+      vendor.adminHidden = nextHidden;
+    }
+
     renderVendors();
 
   } catch (error) {
-    $('#loadError').textContent = error.message || 'Could not delete this account.';
+    $('#loadError').textContent = error.message || 'Could not update this account.';
     $('#loadError').classList.remove('hidden');
     btn.disabled = false;
-    btn.textContent = 'Delete';
+    btn.textContent = nextHidden ? 'Hide' : 'Unhide';
   }
 });
 
@@ -560,6 +596,8 @@ $('#generateCodeBtn').addEventListener('click', async () => {
 
 $('#searchBox').addEventListener('input', renderVendors);
 $('#statusFilter').addEventListener('change', renderVendors);
+$('#activityFilter').addEventListener('change', renderVendors);
+$('#showHiddenCheckbox').addEventListener('change', renderVendors);
 
 $('#signInForm').addEventListener('submit', async (e) => {
   e.preventDefault();
