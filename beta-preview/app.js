@@ -14624,6 +14624,18 @@ function renderStudentsServices(){
   upgradeStudentDirectoryRows();
 
 
+  $$('[data-remove-late-fee]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        removeLateFeeManually(
+          button.dataset.removeLateFee
+        );
+      };
+    });
+
+
   $$('[data-student-certificate]')
     .forEach(button=>{
 
@@ -16150,6 +16162,19 @@ function serviceObligationHTML(
                   : ''
               }
 
+              ${
+                obligation.lateFeeApplied
+                  ? `
+                    <button
+                      type="button"
+                      class="vf-secondary-button"
+                      data-remove-late-fee="${esc(obligation.id)}">
+                      Remove Late Fee
+                    </button>
+                  `
+                  : ''
+              }
+
             </div>
           `
         )
@@ -16157,6 +16182,100 @@ function serviceObligationHTML(
 
     </div>
   `;
+}
+
+
+/*
+ * Undoes a late fee that applyLateFees() already charged -- the
+ * direct counterpart to markInvoiceUnpaidManually(), for the same
+ * reason: an error, whether the vendor's or VendorFlow's, should be
+ * correctable. Sets lateFeeWaived so it won't simply get re-charged
+ * on the next refreshAll() -- the fee stays off unless the vendor
+ * changes something that creates a new obligation.
+ */
+async function removeLateFeeManually(obligationId){
+
+  const obligation=
+    obligations.find(
+      o=>o.id===obligationId
+    );
+
+  if(!obligation || !obligation.lateFeeApplied){
+    return;
+  }
+
+  const chargedAmount=
+    Number(obligation.lateFeeChargedAmount||0);
+
+  const ok=
+    confirm(
+      `Remove the ${money(chargedAmount)} late fee from ${obligation.studentName||'this student'}'s account?\n\n`+
+      `This undoes the charge and won't be re-applied automatically.`
+    );
+
+  if(!ok){
+    return;
+  }
+
+  const currentRemaining=
+    Number(
+      obligation.remainingAmount ??
+      obligation.amount ??
+      0
+    );
+
+  const newRemaining=
+    Number(
+      (currentRemaining-chargedAmount).toFixed(2)
+    );
+
+  await setDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'obligations',
+      obligation.id
+    ),
+    {
+      remainingAmount:
+        newRemaining,
+
+      lateFeeApplied:
+        false,
+
+      lateFeeWaived:
+        true,
+
+      lateFeeChargedAmount:
+        0,
+
+      lateFeeAppliedAt:
+        null,
+
+      updatedAt:
+        serverTimestamp()
+    },
+    {
+      merge:true
+    }
+  );
+
+  await log(
+    'Late fee removed',
+    `${money(chargedAmount)} late fee removed from ${obligation.studentName||'a student'}'s account for ${obligation.serviceName||obligation.className||'a payment'} -- balance is now ${money(newRemaining)}.`,
+    'Manual',
+    {
+      type:'obligation',
+      id:obligation.id
+    }
+  );
+
+  await refreshAll();
+
+  toast(
+    'Late fee removed.'
+  );
 }
 
 
