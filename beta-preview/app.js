@@ -506,7 +506,7 @@ function vfHasBillingAccess(p,authUser){
 }
 
 function vfSubscribeUrl(){
-  return new URL('../subscribe/',window.location.href).pathname;
+  return 'https://myvendorflow.com/subscribe/';
 }
 
 async function vfEnforceBillingGate(){

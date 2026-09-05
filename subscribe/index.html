@@ -154,8 +154,8 @@
 
 <header class="site-nav">
   <div class="nav-inner">
-    <a class="brand" href="../marketing/"><span class="mark">VF</span> VendorFlow <span class="vf-beta-tag">BETA</span></a>
-    <a class="btn btn-ghost" href="../beta-preview/">Sign In</a>
+    <a class="brand" href="/"><span class="mark">VF</span> VendorFlow <span class="vf-beta-tag">BETA</span></a>
+    <a class="btn btn-ghost" href="https://app.myvendorflow.com/">Sign In</a>
   </div>
 </header>
 
@@ -194,7 +194,7 @@
         <div class="icon">✓</div>
         <h2>You already have an active plan</h2>
         <p>Looks like this account already has a VendorFlow subscription. Head to your dashboard to keep going.</p>
-        <a class="btn btn-primary btn-full" href="../beta-preview/">Go to your dashboard</a>
+        <a class="btn btn-primary btn-full" href="https://app.myvendorflow.com/">Go to your dashboard</a>
       </div>
 
       <div id="signedInBox" class="signed-in-box hidden">
@@ -269,9 +269,9 @@
     <div class="footer-links">
       <div class="footer-col">
         <h5>Product</h5>
-        <a href="../marketing/#features">Features</a>
-        <a href="../marketing/#pricing">Pricing</a>
-        <a href="../beta-preview/">Sign In</a>
+        <a href="/#features">Features</a>
+        <a href="/#pricing">Pricing</a>
+        <a href="https://app.myvendorflow.com/">Sign In</a>
       </div>
       <div class="footer-col">
         <h5>Legal</h5>
@@ -378,9 +378,7 @@ function safeRelativePath(pathname) {
 async function startCheckout(user) {
   const token = await user.getIdToken();
 
-  const successPath = safeRelativePath(
-    new URL('../beta-preview/', window.location.href).pathname + '?checkout=success'
-  );
+  const successPath = safeRelativePath('/?checkout=success');
 
   const cancelPath = safeRelativePath(
     window.location.pathname + '?checkout=canceled'
