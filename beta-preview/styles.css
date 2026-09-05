@@ -4875,6 +4875,14 @@ button.vf-certificate-problem:focus-visible{
    OBLIGATION FUNDING STATUS
    ========================================================== */
 
+.vf-obligation-extra{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+  justify-content:flex-end;
+}
+
 .vf-obligation-remaining{
   font-size:11px;
   font-weight:700;

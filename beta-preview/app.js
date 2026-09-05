@@ -15544,6 +15544,11 @@ function emptyObligationAllocation(
         )-
         Number(
           obligation.waivedAmount||0
+        )+
+        (
+          obligation.lateFeeApplied
+            ? Number(obligation.lateFeeChargedAmount||0)
+            : 0
         )
       )
   };
@@ -16141,39 +16146,43 @@ function serviceObligationHTML(
                 ${esc(obligation.status||'Scheduled')}
               </span>
 
-              ${
-                Number(obligation.remainingAmount ?? obligation.amount)>0.009 &&
-                Number(obligation.creditedAmount||0)>0.009
-                  ? `
-                    <span class="vf-obligation-remaining">
-                      ${money(obligation.remainingAmount)} remaining
-                    </span>
-                  `
-                  : ''
-              }
+              <div class="vf-obligation-extra">
 
-              ${
-                Number(obligation.remainingAmount ?? obligation.amount)<=0.009
-                  ? `
-                    <span class="vf-obligation-funded">
-                      Fully funded
-                    </span>
-                  `
-                  : ''
-              }
+                ${
+                  Number(obligation.remainingAmount ?? obligation.amount)>0.009 &&
+                  Number(obligation.creditedAmount||0)>0.009
+                    ? `
+                      <span class="vf-obligation-remaining">
+                        ${money(obligation.remainingAmount)} remaining
+                      </span>
+                    `
+                    : ''
+                }
 
-              ${
-                obligation.lateFeeApplied
-                  ? `
-                    <button
-                      type="button"
-                      class="vf-secondary-button"
-                      data-remove-late-fee="${esc(obligation.id)}">
-                      Remove Late Fee
-                    </button>
-                  `
-                  : ''
-              }
+                ${
+                  Number(obligation.remainingAmount ?? obligation.amount)<=0.009
+                    ? `
+                      <span class="vf-obligation-funded">
+                        Fully funded
+                      </span>
+                    `
+                    : ''
+                }
+
+                ${
+                  obligation.lateFeeApplied
+                    ? `
+                      <button
+                        type="button"
+                        class="vf-secondary-button"
+                        data-remove-late-fee="${esc(obligation.id)}">
+                        Remove Late Fee
+                      </button>
+                    `
+                    : ''
+                }
+
+              </div>
 
             </div>
           `
@@ -16225,8 +16234,11 @@ async function removeLateFeeManually(obligationId){
     );
 
   const newRemaining=
-    Number(
-      (currentRemaining-chargedAmount).toFixed(2)
+    Math.max(
+      0,
+      Number(
+        (currentRemaining-chargedAmount).toFixed(2)
+      )
     );
 
   await setDoc(
@@ -19336,6 +19348,17 @@ async function queueRecurringPaymentReminders(){
         );
 
       if(alreadyQueued){
+        continue;
+      }
+
+      const initialReminderStillPending=
+        reviews.some(
+          r=>
+            r.reviewType==='payment-reminder-email' &&
+            r.obligationId===obligation.id
+        );
+
+      if(initialReminderStillPending){
         continue;
       }
 
