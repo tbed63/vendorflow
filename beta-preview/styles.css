@@ -3873,6 +3873,20 @@ aside nav{
 }
 
 
+.vf-ledger-status-cell{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:6px;
+}
+
+
+.vf-ledger-mark-paid{
+  font-size:11px;
+  padding:4px 9px;
+}
+
+
 .vf-invoice-ledger-empty{
   padding:42px 18px;
 

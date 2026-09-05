@@ -7164,7 +7164,7 @@ function renderInvoices(){
 
 
   let visible=
-    [...invoices];
+    [...ready,...sent];
 
 
   if(invoiceStatusFilter==='ready'){
@@ -7238,8 +7238,9 @@ function renderInvoices(){
         invoiceStatus(invoice);
 
       return `
-        <button
-          type="button"
+        <div
+          role="button"
+          tabindex="0"
           class="vf-invoice-ledger-row"
           data-ledger-invoice="${invoice.id}">
 
@@ -7267,13 +7268,22 @@ function renderInvoices(){
             ${money(invoice.amount)}
           </span>
 
-          <span>
+          <span class="vf-ledger-status-cell">
             <span class="vf-ledger-status ${invoiceLedgerStatusClass(status)}">
               ${esc(status.toUpperCase())}
             </span>
+
+            ${status==='Sent'
+              ? `<button
+                  type="button"
+                  class="vf-secondary-button vf-ledger-mark-paid"
+                  data-mark-paid-invoice="${invoice.id}">
+                  Mark Paid
+                </button>`
+              : ''}
           </span>
 
-        </button>
+        </div>
       `;
     }).join('')}
   `;
@@ -7296,6 +7306,27 @@ function renderInvoices(){
           showInvoiceLedgerDetail(
             invoice
           );
+        }
+      };
+    });
+
+
+  $$('[data-mark-paid-invoice]')
+    .forEach(button=>{
+
+      button.onclick=event=>{
+
+        event.stopPropagation();
+
+        const invoice=
+          invoices.find(
+            item=>
+              item.id===
+              button.dataset.markPaidInvoice
+          );
+
+        if(invoice){
+          markInvoicePaidManually(invoice);
         }
       };
     });
@@ -25503,6 +25534,10 @@ if($('#saveInvoiceNumbering')){
 
 
       renderInvoiceNumberingSettings();
+
+      if(typeof vfWizardUnlock==='function'){
+        vfWizardUnlock('invoicing');
+      }
     };
 }
 
@@ -34839,7 +34874,7 @@ function vfOpenRealInteractiveTutorial(){
    duplicated or reimplemented here.
    ========================================================== */
 
-const VF_WIZARD_STEPS=['intro','classes','certificates','payments','finish'];
+const VF_WIZARD_STEPS=['intro','classes','certificates','payments','invoicing','finish'];
 
 /*
  * The wizard remembers which step a vendor was on using localStorage,
@@ -34886,6 +34921,11 @@ const VF_WIZARD_STEP_INFO={
     title:'Add payments you\u2019ve already received',
     instruction:'Upload a bank or Venmo statement and VendorFlow will pull out the payments for you to review. Nothing to add yet? Skip this step -- you can always import statements later.',
     viewId:'paymentsView'
+  },
+  invoicing:{
+    title:'Set up invoice numbering',
+    instruction:'Choose how VendorFlow should number your invoices -- let VendorFlow number them automatically, or continue the numbering system you already use. You can change this anytime from the Invoices page.',
+    viewId:'invoiceNumberingSettings'
   },
   finish:{
     title:'You\u2019re all set',
@@ -35077,7 +35117,7 @@ function vfWizardGo(index){
 }
 
 function vfOpenWizard(){
-  vfWizardStepUnlocked={classes:false,certificates:false,payments:false};
+  vfWizardStepUnlocked={classes:false,certificates:false,payments:false,invoicing:false};
   vfWizardClassesStarted=false;
   vfWizardCertBatchEverRan=false;
   // Re-sync to this account's own saved progress, not whichever
@@ -35319,7 +35359,7 @@ function installVfReadyModal(){
 
 installVfReadyModal();
 
-let vfWizardStepUnlocked={classes:false,certificates:false,payments:false};
+let vfWizardStepUnlocked={classes:false,certificates:false,payments:false,invoicing:false};
 let vfWizardClassesStarted=false;
 let vfWizardPollTimer=null;
 let vfWizardCertPromptShown=false;
