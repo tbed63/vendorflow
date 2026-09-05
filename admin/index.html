@@ -166,6 +166,7 @@
         <tr>
           <th>Code</th>
           <th>Invite Link</th>
+          <th>Signed By</th>
           <th>Status</th>
           <th>Created</th>
         </tr>
@@ -504,10 +505,15 @@ function renderBetaCodes() {
 
       const inviteLink = `https://myvendorflow.com/subscribe/?beta=${encodeURIComponent(c.code)}`;
 
+      const signedInfo = c.acceptedAt
+        ? `${escapeHtml(c.acceptedByName || '(no name given)')}<br><span class="muted" style="font-size:12px">${escapeHtml(c.acceptedByEmail || '')} &middot; ${fmtDateTime(c.acceptedAt)}</span>`
+        : '<span class="muted">Not yet signed</span>';
+
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td><span class="beta-code">${escapeHtml(c.code)}</span></td>
         <td><button type="button" class="btn-secondary copy-link-btn" data-link="${escapeHtml(inviteLink)}" style="font-size:12.5px;padding:6px 10px">Copy invite link</button></td>
+        <td>${signedInfo}</td>
         <td><span class="status-pill ${statusCls}">${statusLabel}</span></td>
         <td class="muted">${fmtDateTime(c.created)}</td>
       `;
