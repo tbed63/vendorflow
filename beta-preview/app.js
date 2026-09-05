@@ -48,6 +48,11 @@ let invoiceAdvancedFilters={
   amountMax:''
 };
 
+let historySearchQuery='';
+let historyCategoryFilterValue='';
+let historyFilterDateFrom='';
+let historyFilterDateTo='';
+
 let inboundEmailPromise=null;
 let editingCharterSchoolId='';
 let sharedCharterSchoolBank=[];
@@ -13854,6 +13859,60 @@ function studentFinancialActivityHTML(student){
 }
 
 
+function studentHistoryEntries(student){
+
+  if(!student?.id){
+    return [];
+  }
+
+  return history.filter(
+    item=>historyStudentId(item)===student.id
+  );
+}
+
+
+function studentHistoryHTML(student){
+
+  const entries=studentHistoryEntries(student);
+
+  if(!entries.length){
+    return `
+      <div class="vf-student-financial-empty">
+        No invoices, emails, or other actions have been recorded for this student yet.
+      </div>
+    `;
+  }
+
+  return entries.map(item=>`
+    <button
+      type="button"
+      class="history vf-history-evidence"
+      data-history-evidence="${esc(item.id)}"
+      title="Open action details">
+
+      <span>
+        ${esc(date(item.createdAt))}
+      </span>
+
+      <div>
+        <small>
+          ${esc(item.source)}
+        </small>
+
+        <strong>
+          ${esc(item.action)}
+        </strong>
+
+        <div class="meta">
+          ${esc(item.detail)}
+        </div>
+      </div>
+
+    </button>
+  `).join('');
+}
+
+
 function upgradeStudentDirectoryRows(){
 
   const list=$('#studentsServicesList');
@@ -13922,7 +13981,26 @@ function upgradeStudentDirectoryRows(){
             ${studentFinancialActivityHTML(student)}
           </div>
         </section>
+
+        <section class="vf-student-financial-activity vf-student-activity-log">
+          <div class="vf-student-financial-heading">
+            <div>
+              <div class="eyebrow">Everything on record</div>
+              <h4>Actions For This Student</h4>
+            </div>
+            <span>
+              Invoices sent to the charter, emails sent to parents, and anything else VendorFlow recorded for this student.
+            </span>
+          </div>
+          <div class="vf-student-financial-list">
+            ${studentHistoryHTML(student)}
+          </div>
+        </section>
       `);
+
+      details.querySelectorAll('[data-history-evidence]').forEach(button=>{
+        button.onclick=()=>openHistoryEvidence(button.dataset.historyEvidence);
+      });
     }
 
     details.insertAdjacentHTML('beforeend',`
@@ -18064,7 +18142,11 @@ async function sendCertificateReceivedEmailReview(
   await log(
     'Parent email sent',
     `Certificate-received email sent to ${review.to}.`,
-    'Manual'
+    'Manual',
+    {
+      type:'parent-email',
+      studentId:review.studentId||''
+    }
   );
 
   if(!silent){
@@ -18198,7 +18280,11 @@ async function sendPaymentReminderReview(
   await log(
     'Parent email sent',
     `Payment reminder sent to ${review.to}.`,
-    'Manual'
+    'Manual',
+    {
+      type:'parent-email',
+      studentId:review.studentId||''
+    }
   );
 
   if(!silent){
@@ -23379,6 +23465,124 @@ function historyPaymentEvidence(
 }
 
 
+/*
+ * Resolves which student (if any) a history entry belongs to,
+ * WITHOUT requiring every log() call site to be rewritten.
+ * Newer entries (parent emails) carry evidence.studentId
+ * directly. Invoice/certificate/payment entries are resolved
+ * through the same evidence objects openHistoryEvidence()
+ * already uses to find the underlying record.
+ */
+function historyStudentId(item){
+
+  const evidence=item?.evidence||{};
+
+  if(evidence.studentId){
+    return evidence.studentId;
+  }
+
+  if(evidence.type==='invoice'){
+    const invoice=historyInvoiceEvidence(item);
+    if(invoice?.studentId){
+      return invoice.studentId;
+    }
+  }
+
+  if(evidence.type==='payment'){
+    const payment=historyPaymentEvidence(item);
+    if(payment?.studentId){
+      return payment.studentId;
+    }
+  }
+
+  if(evidence.type==='certificate'){
+    const certificate=historyCertificateEvidence(item);
+    const student=certificate?invoiceStudent(certificate):null;
+    if(student?.id){
+      return student.id;
+    }
+  }
+
+  return '';
+}
+
+
+/*
+ * Buckets a history entry into a small, stable set of categories
+ * for the Actions page filter dropdown. Based on the existing
+ * action/source text, so it works retroactively on every action
+ * ever recorded -- no need to touch the ~50 log() call sites.
+ */
+function historyCategory(item){
+
+  const action=String(item?.action||'').toLowerCase();
+  const source=String(item?.source||'').toLowerCase();
+
+  if(action.includes('invoice')){
+    return 'Invoices';
+  }
+
+  if(action.includes('email')){
+    return 'Emails';
+  }
+
+  if(
+    action.includes('payment') ||
+    action.includes('refund') ||
+    action.includes('charge') ||
+    action.includes('statement')
+  ){
+    return 'Payments';
+  }
+
+  if(action.includes('certificate')){
+    return 'Certificates';
+  }
+
+  if(
+    action.includes('student') ||
+    action.includes('roster') ||
+    action.includes('class') ||
+    action.includes('service') ||
+    action.includes('expense')
+  ){
+    return 'Students & Classes';
+  }
+
+  if(action.includes('charter school')){
+    return 'Charter Schools';
+  }
+
+  if(
+    action.includes('numbering') ||
+    action.includes('template') ||
+    action.includes('settings') ||
+    action.includes('profile') ||
+    action.includes('account information')
+  ){
+    return 'Settings';
+  }
+
+  if(
+    action.includes('setup') ||
+    action.includes('onboarding') ||
+    source==='onboarding'
+  ){
+    return 'Setup';
+  }
+
+  if(
+    action.includes('duplicate') ||
+    action.includes('reviewed') ||
+    action.includes('to-do')
+  ){
+    return 'Reviews & Cleanup';
+  }
+
+  return 'Other';
+}
+
+
 function openHistoryEvidence(
   historyId
 ){
@@ -23510,16 +23714,138 @@ function renderHistoryInto(
 }
 
 
+function historyEntryDateISO(item){
+  const ts=item?.createdAt;
+  const parsed=ts?.toDate?ts.toDate():null;
+  return parsed?dateToLocalISO(parsed):'';
+}
+
+
+function historyFiltersActive(){
+  return Boolean(
+    historySearchQuery ||
+    historyCategoryFilterValue ||
+    historyFilterDateFrom ||
+    historyFilterDateTo
+  );
+}
+
+
+function historyFilteredList(){
+
+  let list=[...history];
+
+  if(historyCategoryFilterValue){
+    list=list.filter(
+      item=>historyCategory(item)===historyCategoryFilterValue
+    );
+  }
+
+  if(historySearchQuery){
+    list=list.filter(
+      item=>
+        [item.action,item.detail,item.source]
+          .map(value=>String(value||'').toLowerCase())
+          .join(' ')
+          .includes(historySearchQuery)
+    );
+  }
+
+  if(historyFilterDateFrom){
+    list=list.filter(item=>{
+      const iso=historyEntryDateISO(item);
+      return iso && iso>=historyFilterDateFrom;
+    });
+  }
+
+  if(historyFilterDateTo){
+    list=list.filter(item=>{
+      const iso=historyEntryDateISO(item);
+      return iso && iso<=historyFilterDateTo;
+    });
+  }
+
+  return list;
+}
+
+
 function renderHistory(){
+
   renderHistoryInto(
     $('#historyList'),
-    history
+    historyFilteredList()
   );
 
   renderHistoryInto(
     $('#recentHistory'),
     history.slice(0,6)
   );
+
+  const search=$('#historySearch');
+
+  if(search){
+
+    search.value=historySearchQuery;
+
+    search.oninput=()=>{
+      historySearchQuery=search.value.trim().toLowerCase();
+      renderHistory();
+    };
+  }
+
+  const category=$('#historyCategoryFilter');
+
+  if(category){
+
+    category.value=historyCategoryFilterValue;
+
+    category.onchange=()=>{
+      historyCategoryFilterValue=category.value;
+      renderHistory();
+    };
+  }
+
+  const fromInput=$('#historyFilterDateFrom');
+
+  if(fromInput){
+
+    fromInput.value=historyFilterDateFrom;
+
+    fromInput.onchange=()=>{
+      historyFilterDateFrom=fromInput.value;
+      renderHistory();
+    };
+  }
+
+  const toInput=$('#historyFilterDateTo');
+
+  if(toInput){
+
+    toInput.value=historyFilterDateTo;
+
+    toInput.onchange=()=>{
+      historyFilterDateTo=toInput.value;
+      renderHistory();
+    };
+  }
+
+  const clear=$('#clearHistoryFilters');
+
+  if(clear){
+
+    clear.classList.toggle(
+      'hidden',
+      !historyFiltersActive()
+    );
+
+    clear.onclick=()=>{
+      historySearchQuery='';
+      historyCategoryFilterValue='';
+      historyFilterDateFrom='';
+      historyFilterDateTo='';
+      renderHistory();
+    };
+  }
 }
 
 /* ==========================================================
