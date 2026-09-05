@@ -97,6 +97,10 @@
 
   .section-gap{margin-top:40px}
   .beta-code{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700;letter-spacing:.02em}
+  .invite-form{display:flex;flex-direction:column;gap:4px;min-width:150px}
+  .invite-form input{width:150px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font-size:12.5px;font-family:inherit}
+  .invite-sent-info{font-size:12.5px;min-width:150px}
+  .invite-status{font-size:11.5px;min-height:14px}
   .btn-secondary{
     background:#fff;color:var(--navy);border:1px solid var(--line);border-radius:9px;
     padding:9px 16px;font-weight:700;font-size:14px;
@@ -166,6 +170,7 @@
         <tr>
           <th>Code</th>
           <th>Invite Link</th>
+          <th>Send Invite</th>
           <th>Signed By</th>
           <th>Status</th>
           <th>Created</th>
@@ -509,10 +514,29 @@ function renderBetaCodes() {
         ? `${escapeHtml(c.acceptedByName || '(no name given)')}<br><span class="muted" style="font-size:12px">${escapeHtml(c.acceptedByEmail || '')} &middot; ${fmtDateTime(c.acceptedAt)}</span>`
         : '<span class="muted">Not yet signed</span>';
 
+      const hasInvite = !!c.invitedEmail;
+
+      const inviteCell = `
+        <div class="invite-wrap">
+          <div class="invite-sent-info ${hasInvite ? '' : 'hidden'}">
+            Invited: ${escapeHtml(c.invitedName ? c.invitedName + ' &middot; ' : '')}${escapeHtml(c.invitedEmail || '')}<br>
+            <span class="muted">${fmtDateTime(c.invitedAt)}</span><br>
+            <button type="button" class="btn-secondary send-invite-toggle" style="font-size:11.5px;padding:4px 8px;margin-top:4px">Send to someone else</button>
+          </div>
+          <div class="invite-form ${hasInvite ? 'hidden' : ''}">
+            <input type="text" class="invite-name-input" placeholder="Name (optional)">
+            <input type="email" class="invite-email-input" placeholder="Email address">
+            <button type="button" class="btn-secondary send-invite-btn" data-id="${escapeHtml(c.id)}" data-code="${escapeHtml(c.code)}" style="font-size:12.5px;padding:6px 10px">Send invite</button>
+            <div class="invite-status muted"></div>
+          </div>
+        </div>
+      `;
+
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td><span class="beta-code">${escapeHtml(c.code)}</span></td>
         <td><button type="button" class="btn-secondary copy-link-btn" data-link="${escapeHtml(inviteLink)}" style="font-size:12.5px;padding:6px 10px">Copy invite link</button></td>
+        <td>${inviteCell}</td>
         <td>${signedInfo}</td>
         <td><span class="status-pill ${statusCls}">${statusLabel}</span></td>
         <td class="muted">${fmtDateTime(c.created)}</td>
@@ -522,21 +546,83 @@ function renderBetaCodes() {
 }
 
 $('#betaCodeRows').addEventListener('click', async (event) => {
-  const btn = event.target.closest('.copy-link-btn');
+  const copyBtn = event.target.closest('.copy-link-btn');
 
-  if (!btn) {
+  if (copyBtn) {
+    const link = copyBtn.getAttribute('data-link');
+
+    try {
+      await navigator.clipboard.writeText(link);
+      const original = copyBtn.textContent;
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => { copyBtn.textContent = original; }, 1500);
+    } catch {
+      window.prompt('Copy this invite link:', link);
+    }
+
     return;
   }
 
-  const link = btn.getAttribute('data-link');
+  const toggleBtn = event.target.closest('.send-invite-toggle');
 
-  try {
-    await navigator.clipboard.writeText(link);
-    const original = btn.textContent;
-    btn.textContent = 'Copied!';
-    setTimeout(() => { btn.textContent = original; }, 1500);
-  } catch {
-    window.prompt('Copy this invite link:', link);
+  if (toggleBtn) {
+    const wrap = toggleBtn.closest('.invite-wrap');
+    wrap.querySelector('.invite-sent-info').classList.add('hidden');
+    wrap.querySelector('.invite-form').classList.remove('hidden');
+    return;
+  }
+
+  const sendBtn = event.target.closest('.send-invite-btn');
+
+  if (sendBtn) {
+    const form = sendBtn.closest('.invite-form');
+    const nameInput = form.querySelector('.invite-name-input');
+    const emailInput = form.querySelector('.invite-email-input');
+    const statusEl = form.querySelector('.invite-status');
+
+    const email = emailInput.value.trim();
+    const name = nameInput.value.trim();
+
+    if (!email || !email.includes('@')) {
+      statusEl.style.color = 'var(--error)';
+      statusEl.textContent = 'Enter a valid email address.';
+      return;
+    }
+
+    sendBtn.disabled = true;
+    statusEl.style.color = '';
+    statusEl.textContent = 'Sending…';
+
+    try {
+      const token = await auth.currentUser.getIdToken();
+
+      const res = await fetch(`${VENDORFLOW_API}/admin/send-beta-invite`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          promotionCodeId: sendBtn.getAttribute('data-id'),
+          code: sendBtn.getAttribute('data-code'),
+          email,
+          name
+        })
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Could not send the invite email.');
+      }
+
+      await loadBetaCodes();
+
+    } catch (error) {
+      statusEl.style.color = 'var(--error)';
+      statusEl.textContent = error.message || 'Could not send the invite email.';
+      sendBtn.disabled = false;
+    }
   }
 });
 
