@@ -147,6 +147,7 @@
       <option value="active">Active</option>
       <option value="past_due">Past due</option>
       <option value="canceled">Canceled</option>
+      <option value="grandfathered">Grandfathered (free)</option>
       <option value="none">No subscription</option>
     </select>
     <span class="count" id="resultCount"></span>
@@ -158,6 +159,7 @@
         <tr>
           <th>Business</th>
           <th>Owner</th>
+          <th>Email</th>
           <th>Location</th>
           <th>Status</th>
           <th>Trial ends</th>
@@ -211,19 +213,35 @@ function showOnly(el) {
 
 let allVendors = [];
 
-function statusLabel(status) {
-  if (status === 'trialing') return 'Trialing';
-  if (status === 'active') return 'Active';
-  if (status === 'past_due') return 'Past due';
-  if (status === 'canceled') return 'Canceled';
+// Accounts created before this moment get free access forever --
+// same cutover constant used by the paywall in beta-preview/app.js.
+const VF_BILLING_LAUNCH_AT = new Date('2026-09-04T23:40:00Z').getTime();
+
+function isGrandfathered(v) {
+  return Boolean(v.authCreatedAtMs) && v.authCreatedAtMs < VF_BILLING_LAUNCH_AT;
+}
+
+function vendorStatusBucket(v) {
+  const status = v.subscriptionStatus || '';
+  if (status) return status;
+  return isGrandfathered(v) ? 'grandfathered' : 'none';
+}
+
+function statusLabel(bucket) {
+  if (bucket === 'trialing') return 'Trialing';
+  if (bucket === 'active') return 'Active';
+  if (bucket === 'past_due') return 'Past due';
+  if (bucket === 'canceled') return 'Canceled';
+  if (bucket === 'grandfathered') return 'Grandfathered (free)';
   return 'No subscription';
 }
 
-function statusClass(status) {
-  if (status === 'trialing') return 'status-trialing';
-  if (status === 'active') return 'status-active';
-  if (status === 'past_due') return 'status-past_due';
-  if (status === 'canceled') return 'status-canceled';
+function statusClass(bucket) {
+  if (bucket === 'trialing') return 'status-trialing';
+  if (bucket === 'active') return 'status-active';
+  if (bucket === 'past_due') return 'status-past_due';
+  if (bucket === 'canceled') return 'status-canceled';
+  if (bucket === 'grandfathered') return 'status-active';
   return 'status-none';
 }
 
@@ -245,13 +263,13 @@ function renderVendors() {
   const statusFilter = $('#statusFilter').value;
 
   const filtered = allVendors.filter((v) => {
-    const status = v.subscriptionStatus || 'none';
-    if (statusFilter && status !== statusFilter) return false;
+    const bucket = vendorStatusBucket(v);
+    if (statusFilter && bucket !== statusFilter) return false;
 
     if (!search) return true;
 
     const haystack = [
-      v.businessName, v.ownerName, v.city, v.state
+      v.businessName, v.ownerName, v.email, v.city, v.state
     ].join(' ').toLowerCase();
 
     return haystack.includes(search);
@@ -271,21 +289,23 @@ function renderVendors() {
     .slice()
     .sort((a, b) => String(a.businessName || '').localeCompare(String(b.businessName || '')))
     .forEach((v) => {
-      const status = v.subscriptionStatus || 'none';
+      const bucket = vendorStatusBucket(v);
       const tr = document.createElement('tr');
 
       const location = [v.city, v.state].filter(Boolean).join(', ') || '—';
+      const email = v.email || '';
 
       tr.innerHTML = `
         <td><span class="biz-name">${escapeHtml(v.businessName || '(no business name yet)')}</span></td>
         <td class="muted">${escapeHtml(v.ownerName || '—')}</td>
+        <td class="muted">${email ? `<a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a>` : '—'}</td>
         <td class="muted">${escapeHtml(location)}</td>
         <td>
-          <span class="status-pill ${statusClass(status)}">${statusLabel(status)}</span>
+          <span class="status-pill ${statusClass(bucket)}">${statusLabel(bucket)}</span>
           ${v.subscriptionCancelAtPeriodEnd ? '<span class="cancel-tag">Ending at period end</span>' : ''}
         </td>
-        <td class="muted">${status === 'trialing' ? fmtDate(v.trialEndsAt) : '—'}</td>
-        <td class="muted">${status === 'active' ? fmtDate(v.subscriptionCurrentPeriodEnd) : '—'}</td>
+        <td class="muted">${bucket === 'trialing' ? fmtDate(v.trialEndsAt) : '—'}</td>
+        <td class="muted">${bucket === 'active' ? fmtDate(v.subscriptionCurrentPeriodEnd) : '—'}</td>
       `;
 
       rows.appendChild(tr);
