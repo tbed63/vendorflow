@@ -116,6 +116,15 @@
   .already-box h2{font-size:19px;color:var(--navy);margin:0 0 10px}
   .already-box p{font-size:14px;color:var(--muted);margin:0 0 20px}
 
+  /* ---------- Beta agreement gate ---------- */
+  .agreement-scroll{max-height:260px;overflow-y:auto;border:1.5px solid var(--line);border-radius:12px;padding:16px 18px;font-size:12.5px;color:var(--ink);background:#fafafa}
+  .agreement-scroll h3{font-size:13px;margin:14px 0 6px;color:var(--navy)}
+  .agreement-scroll h3:first-child{margin-top:0}
+  .agreement-scroll p{margin:0 0 10px}
+  .agreement-scroll ul{margin:0 0 10px;padding-left:18px}
+  .agree-checkbox-row{display:flex;align-items:flex-start;gap:8px;margin-top:14px;font-size:13px;color:var(--ink);cursor:pointer}
+  .agree-checkbox-row input{margin-top:3px}
+
   /* ---------- Trust strip ---------- */
   .trust-strip{
     max-width:960px;margin:30px auto 0;display:flex;justify-content:center;gap:32px;
@@ -203,6 +212,78 @@
         <div id="signedInError" class="form-error hidden"></div>
         <button type="button" class="btn btn-primary btn-full" id="signedInStartBtn">Start your free trial</button>
         <p class="card-fine">You'll enter payment details on the next step. You won't be charged until your 7-day trial ends.</p>
+      </div>
+
+      <div id="betaAgreementBox" class="hidden">
+        <h2>Beta Tester Agreement</h2>
+        <p class="form-sub">You're signing up with a beta invite as <strong id="betaAgreeEmail"></strong>. Please read and agree to the terms below before continuing to checkout.</p>
+
+        <div id="betaAgreeError" class="form-error hidden"></div>
+
+        <div class="agreement-scroll" id="agreementScroll">
+  <h3>1. What You're Agreeing To</h3>
+  <p>VendorFlow is a software product still in <strong>active beta development</strong>. You are being offered access at a substantially reduced price &mdash; <strong>$5</strong> instead of the regular <strong>$199/year</strong> &mdash; specifically because you are agreeing to use an unfinished, evolving product and help us improve it.</p>
+
+  <h3>2. Beta Software; No Guarantee of Correct Operation</h3>
+  <p>You understand and agree that VendorFlow is beta software and may contain bugs, errors, or incomplete features, and may behave unexpectedly, incorrectly, or not at all. VendorFlow may be unavailable, interrupted, changed, or discontinued at any time, without notice, during the beta period. Nothing about your experience during beta reflects a promise of how the finished, generally-available product will look or behave.</p>
+
+  <h3>3. Your Responsibility to Check VendorFlow's Work</h3>
+  <p>VendorFlow automates tasks like sending emails to parents/families, sending invoices and communications to charter schools, calculating balances, and tracking payments. <strong>You are solely responsible for reviewing and verifying the accuracy of anything VendorFlow prepares, sends, or calculates before relying on it or before it reaches a third party</strong>, including invoices, invoice amounts and numbering, balances, payment records, certificate/reimbursement tracking, and any reminders or automated communications VendorFlow generates. You agree that VendorFlow may make mistakes in any of the above, and that catching those mistakes before they cause a problem is your responsibility, not ours.</p>
+
+  <h3>4. Risk Acknowledgment &mdash; Time and Effort</h3>
+  <p>You understand that setting up and using VendorFlow during the beta period may take you more time, not less, than if you had simply continued organizing your business and communicating with families and charter schools using your own existing methods. You accept this as a real possibility and a risk you are knowingly taking on, in exchange for the reduced price and early access.</p>
+
+  <h3>5. Feedback</h3>
+  <p>In exchange for your discounted access, you agree to make a good-faith effort to report bugs and share honest feedback about ease of use and your overall experience. Any feedback you provide may be used by VendorFlow to improve the product, free of charge and without any obligation to credit or compensate you.</p>
+
+  <h3>6. No Demands; No Service-Level Guarantee</h3>
+  <p>This is a beta program, not a paid support contract. You agree that you will not demand refunds, compensation, damages, continued access, specific fixes, specific features, or any particular level of service from VendorFlow as a condition of your participation, beyond what this Agreement and our published <a href="../terms/" target="_blank">Terms of Service</a> already provide. VendorFlow may modify, pause, or end the beta program, or your participation in it, at any time.</p>
+
+  <h3>7. Disclaimer of Warranties</h3>
+  <p>To the fullest extent permitted by law, VendorFlow is provided &ldquo;as is&rdquo; and &ldquo;as available,&rdquo; without warranties of any kind, whether express, implied, or statutory. We do not warrant that VendorFlow will be error-free, uninterrupted, or secure during the beta period.</p>
+
+  <h3>8. Limitation of Liability</h3>
+  <p>To the fullest extent permitted by law, VendorFlow and its owner shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits, revenue, data, business opportunities, or goodwill, arising out of or related to your use of VendorFlow during the beta period. To the extent any liability cannot be fully disclaimed under applicable law, our total liability to you arising out of this Agreement or your use of VendorFlow during the beta period is limited to the amount you actually paid for your beta subscription (i.e., <strong>$5</strong>).</p>
+
+  <h3>9. Release and Hold Harmless</h3>
+  <p>To the fullest extent permitted by law, you release, and agree to hold harmless, VendorFlow and its owner from any and all claims, demands, losses, liabilities, and expenses (including reasonable attorneys' fees) arising out of or related to your participation in the beta program, including any errors, omissions, delays, or miscommunications in emails or invoices VendorFlow sends on your behalf &mdash; except to the extent such claims arise from our own fraud, willful misconduct, or gross negligence.</p>
+
+  <h3>10. Indemnification</h3>
+  <p>You agree to indemnify and hold VendorFlow and its owner harmless from any third-party claim arising from your failure to review or verify VendorFlow-generated communications, invoices, or records before relying on them, or from your own violation of this Agreement or applicable law.</p>
+
+  <h3>11. Your Own Legal and Compliance Responsibilities</h3>
+  <p>You remain solely responsible for your own business's compliance with all applicable laws, contracts, and charter school agreements, including anything related to student and family data privacy. VendorFlow does not represent that beta use satisfies your own legal or contractual obligations.</p>
+
+  <h3>12. Confidentiality</h3>
+  <p>Any non-public information you learn about VendorFlow's beta features, pricing, or roadmap should be treated as confidential until VendorFlow makes it public itself.</p>
+
+  <h3>13. Relationship of the Parties</h3>
+  <p>You and VendorFlow are independent parties. Nothing in this Agreement creates a partnership, joint venture, employment, or agency relationship.</p>
+
+  <h3>14. Term and Termination</h3>
+  <p>This Agreement remains in effect for as long as you participate in the beta program. Either party may end your participation at any time, without liability, though the disclaimers, releases, and limitations survive that ending.</p>
+
+  <h3>15. Entire Agreement</h3>
+  <p>This Agreement, together with VendorFlow's <a href="../terms/" target="_blank">Terms of Service</a> and <a href="../privacy/" target="_blank">Privacy Policy</a>, is the entire agreement between you and VendorFlow regarding the beta program.</p>
+
+  <h3>16. Governing Law</h3>
+  <p>This Agreement is governed by the laws of the State of California.</p>
+
+  <h3>17. Acknowledgment</h3>
+  <p>By checking the box below and continuing, you confirm you have read and understood this entire Agreement, understand you are testing beta software that may cost you time rather than save it, agree to check VendorFlow's work for accuracy, agree to provide honest feedback, will not demand refunds or guaranteed service, and accept the release, hold-harmless, and limitation-of-liability terms above.</p>
+        </div>
+
+        <div class="field" style="margin-top:16px">
+          <label for="betaAgreeName">Type your full name to sign</label>
+          <input type="text" id="betaAgreeName" autocomplete="name">
+        </div>
+
+        <label class="agree-checkbox-row">
+          <input type="checkbox" id="betaAgreeCheckbox">
+          <span>I have read and agree to the VendorFlow Beta Testing Agreement above.</span>
+        </label>
+
+        <button type="button" class="btn btn-primary btn-full" id="betaAgreeContinueBtn" style="margin-top:14px">I agree &mdash; continue to checkout</button>
       </div>
 
       <form id="subscribeForm" class="hidden">
@@ -325,11 +406,15 @@ const loadingBox = $('#loadingBox');
 const alreadyBox = $('#alreadyBox');
 const signedInBox = $('#signedInBox');
 const subscribeForm = $('#subscribeForm');
+const betaAgreementBox = $('#betaAgreementBox');
+
+let pendingBetaUser = null;
+let pendingBetaCode = '';
 
 let mode = 'signup';
 
 function showOnly(el) {
-  [loadingBox, alreadyBox, signedInBox, subscribeForm].forEach((box) => {
+  [loadingBox, alreadyBox, signedInBox, betaAgreementBox, subscribeForm].forEach((box) => {
     box.classList.toggle('hidden', box !== el);
   });
 }
@@ -375,7 +460,66 @@ function safeRelativePath(pathname) {
   return value;
 }
 
-async function startCheckout(user) {
+function getBetaCodeFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return (params.get('beta') || '').trim();
+}
+
+async function checkBetaCode(user, code) {
+  try {
+    const token = await user.getIdToken();
+
+    const response = await fetch(
+      `${VENDORFLOW_API}/beta/check-code?code=${encodeURIComponent(code)}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    let data = {};
+
+    try {
+      data = await response.json();
+    } catch {}
+
+    if (!response.ok || !data.ok) {
+      return null;
+    }
+
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function populateBetaAgreementBox(user) {
+  $('#betaAgreeEmail').textContent = user.email || '';
+  $('#betaAgreeCheckbox').checked = false;
+  $('#betaAgreeName').value = user.displayName || '';
+  $('#betaAgreeError').classList.add('hidden');
+
+  const btn = $('#betaAgreeContinueBtn');
+  btn.disabled = false;
+  btn.textContent = 'I agree \u2014 continue to checkout';
+}
+
+async function presentSignedIn(user) {
+  const betaCode = getBetaCodeFromUrl();
+
+  if (betaCode) {
+    const promo = await checkBetaCode(user, betaCode);
+
+    if (promo) {
+      pendingBetaUser = user;
+      pendingBetaCode = betaCode;
+      populateBetaAgreementBox(user);
+      showOnly(betaAgreementBox);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function startCheckout(user, promotionCodeId) {
   const token = await user.getIdToken();
 
   const successPath = safeRelativePath('/?checkout=success');
@@ -392,7 +536,7 @@ async function startCheckout(user) {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ successPath, cancelPath })
+      body: JSON.stringify({ successPath, cancelPath, ...(promotionCodeId ? { promotionCodeId } : {}) })
     }
   );
 
@@ -408,6 +552,64 @@ async function startCheckout(user) {
 
   window.location.href = data.url;
 }
+
+$('#betaAgreeContinueBtn').onclick = async () => {
+  const checkbox = $('#betaAgreeCheckbox');
+  const nameInput = $('#betaAgreeName');
+  const errorBox = $('#betaAgreeError');
+  const btn = $('#betaAgreeContinueBtn');
+
+  errorBox.classList.add('hidden');
+
+  if (!checkbox.checked) {
+    errorBox.textContent = 'Please check the box to confirm you agree.';
+    errorBox.classList.remove('hidden');
+    return;
+  }
+
+  const name = nameInput.value.trim();
+
+  if (!name) {
+    errorBox.textContent = 'Please type your name.';
+    errorBox.classList.remove('hidden');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Recording your agreement...';
+
+  try {
+    const token = await pendingBetaUser.getIdToken();
+
+    const response = await fetch(`${VENDORFLOW_API}/beta/accept-agreement`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ code: pendingBetaCode, name })
+    });
+
+    let data = {};
+
+    try {
+      data = await response.json();
+    } catch {}
+
+    if (!response.ok || data.ok === false || !data.promotionCodeId) {
+      throw new Error(data.reason || data.error || 'Could not record your agreement. Please try again.');
+    }
+
+    btn.textContent = 'Redirecting to checkout...';
+    await startCheckout(pendingBetaUser, data.promotionCodeId);
+
+  } catch (err) {
+    errorBox.textContent = err.message;
+    errorBox.classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = 'I agree \u2014 continue to checkout';
+  }
+};
 
 $('#signedInStartBtn').onclick = async () => {
   const btn = $('#signedInStartBtn');
@@ -458,6 +660,12 @@ subscribeForm.onsubmit = async (event) => {
       credential = await signInWithEmailAndPassword(auth, email, password);
     }
 
+    const gated = await presentSignedIn(credential.user);
+
+    if (gated) {
+      return;
+    }
+
     submitBtn.textContent = 'Redirecting to checkout...';
     await startCheckout(credential.user);
 
@@ -497,6 +705,12 @@ onAuthStateChanged(auth, async (user) => {
 
   if (status === 'active' || status === 'trialing') {
     showOnly(alreadyBox);
+    return;
+  }
+
+  const gated = await presentSignedIn(user);
+
+  if (gated) {
     return;
   }
 
