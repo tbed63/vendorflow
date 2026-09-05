@@ -4360,6 +4360,7 @@ function defaultInvoiceEmailTemplate(){
       'Certificate / PO: {{certificateNumber}}\n'+
       'Service: {{serviceName}}\n'+
       'Amount: {{amount}}\n\n'+
+      'I\'m currently testing a new tool that\'s helping me keep invoices and charter certificates organized, so you may notice these emails look a little different for now. If anything here looks off, please don\'t hesitate to let me know and I\'ll check into it more carefully. Thank you for your understanding as I work through this new way of handling charter billing.\n\n'+
       'Thank you,\n'+
       '{{ownerName}}'
   };
@@ -8615,12 +8616,16 @@ function duplicateSavedClass(classId){
 function defaultReminderBodyTemplate(){
   return `Hi {{parentName}},
 
-This is a reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}.
-
-{{lateFeeWarning}}
+Just a quick reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}. If you've already taken care of this, thank you -- this is just a general reminder going out to everyone.
 
 Payment instructions:
 {{paymentInstructions}}
+
+{{lateFeeWarning}}
+
+I'm testing a new tool that's helping me keep payments and charter certificates organized, so these emails may look a little different for now. If anything here doesn't look right, please don't hesitate to let me know and I'll check into it more carefully. Thank you for your understanding as I work through this new way of handling payments and charter funds.
+
+Please reach out if you have any questions -- I'm happy to help!
 
 Thank you,
 {{businessName}}`;
@@ -17451,9 +17456,12 @@ async function queueCertificateReceivedEmail(
       `Hi ${certificateData?.parentName||studentMatch?.parentName||'there'},
 
 `+
-      `We wanted to let you know that we received a certificate for `+
+      `Good news — we received a certificate for `+
       `${studentName}${className?` — ${className}`:''} in the amount of `+
       `${money(amount)}.${balanceLine}
+
+`+
+      `I'm testing a new tool that's helping me keep payments and charter certificates organized, so you may notice these confirmations look a little different for now. If anything here doesn't look right, please don't hesitate to let me know and I'll check into it more carefully. Thank you for your understanding as I work through this new way of handling payments and charter funds.
 
 `+
       `Thank you,
@@ -17665,7 +17673,7 @@ async function queuePaymentReminderReviews(){
 
       const bodyTemplate=
         classRecord.reminderBody ||
-        'Hi {{parentName}},\n\nThis is a reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}.\n\n{{lateFeeWarning}}\n\nThank you,\n{{businessName}}';
+        defaultReminderBodyTemplate();
 
       const tokens={
         studentName:
