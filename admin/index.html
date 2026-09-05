@@ -94,6 +94,15 @@
     .wrap{padding:20px 14px 60px}
     th,td{padding:10px 10px;font-size:13px}
   }
+
+  .section-gap{margin-top:40px}
+  .beta-code{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700;letter-spacing:.02em}
+  .btn-secondary{
+    background:#fff;color:var(--navy);border:1px solid var(--line);border-radius:9px;
+    padding:9px 16px;font-weight:700;font-size:14px;
+  }
+  .btn-secondary:hover{background:var(--gray-bg)}
+  .btn-secondary:disabled{opacity:.6;cursor:default}
 </style>
 </head>
 <body>
@@ -174,6 +183,33 @@
   </div>
 
   <div id="loadError" class="error-box hidden" style="margin-top:16px"></div>
+
+  <div class="section-gap">
+    <div class="top-actions">
+      <div>
+        <h1 class="page-title">Beta invite codes</h1>
+        <p class="page-sub">Each code works once, for one person, and only discounts their first payment -- renewals are full price.</p>
+      </div>
+      <button type="button" class="btn-secondary" id="generateCodeBtn">Generate new code</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Status</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody id="betaCodeRows"></tbody>
+      </table>
+      <div id="betaCodesEmpty" class="empty-state hidden">No beta codes yet -- click "Generate new code" to make one.</div>
+      <div id="betaCodesLoading" class="loading-state hidden">Loading beta codes&hellip;</div>
+    </div>
+
+    <div id="betaCodesError" class="error-box hidden" style="margin-top:16px"></div>
+  </div>
 </div>
 
 <script type="module">
@@ -342,6 +378,99 @@ async function loadVendors() {
   }
 }
 
+let allBetaCodes = [];
+
+function fmtDateTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d)) return '—';
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function renderBetaCodes() {
+  const rows = $('#betaCodeRows');
+  rows.innerHTML = '';
+
+  $('#betaCodesEmpty').classList.toggle('hidden', allBetaCodes.length !== 0);
+
+  allBetaCodes
+    .slice()
+    .sort((a, b) => new Date(b.created) - new Date(a.created))
+    .forEach((c) => {
+      const redeemed = (c.timesRedeemed || 0) >= (c.maxRedemptions || 1);
+      const statusLabel = redeemed ? 'Redeemed' : (c.active ? 'Active' : 'Disabled');
+      const statusCls = redeemed ? 'status-canceled' : (c.active ? 'status-active' : 'status-none');
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><span class="beta-code">${escapeHtml(c.code)}</span></td>
+        <td><span class="status-pill ${statusCls}">${statusLabel}</span></td>
+        <td class="muted">${fmtDateTime(c.created)}</td>
+      `;
+      rows.appendChild(tr);
+    });
+}
+
+async function loadBetaCodes() {
+  $('#betaCodesLoading').classList.remove('hidden');
+  $('#betaCodesError').classList.add('hidden');
+
+  try {
+    const token = await auth.currentUser.getIdToken();
+
+    const res = await fetch(`${VENDORFLOW_API}/admin/beta-codes`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(data.error || 'Could not load beta codes.');
+    }
+
+    allBetaCodes = data.codes || [];
+    renderBetaCodes();
+
+  } catch (error) {
+    $('#betaCodesError').textContent = error.message || 'Could not load beta codes.';
+    $('#betaCodesError').classList.remove('hidden');
+
+  } finally {
+    $('#betaCodesLoading').classList.add('hidden');
+  }
+}
+
+$('#generateCodeBtn').addEventListener('click', async () => {
+  $('#generateCodeBtn').disabled = true;
+  $('#generateCodeBtn').textContent = 'Generating…';
+  $('#betaCodesError').classList.add('hidden');
+
+  try {
+    const token = await auth.currentUser.getIdToken();
+
+    const res = await fetch(`${VENDORFLOW_API}/admin/beta-codes`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(data.error || 'Could not create a beta code.');
+    }
+
+    await loadBetaCodes();
+
+  } catch (error) {
+    $('#betaCodesError').textContent = error.message || 'Could not create a beta code.';
+    $('#betaCodesError').classList.remove('hidden');
+
+  } finally {
+    $('#generateCodeBtn').disabled = false;
+    $('#generateCodeBtn').textContent = 'Generate new code';
+  }
+});
+
 $('#searchBox').addEventListener('input', renderVendors);
 $('#statusFilter').addEventListener('change', renderVendors);
 
@@ -398,6 +527,7 @@ onAuthStateChanged(auth, async (user) => {
     allVendors = data.vendors || [];
     showOnly(dashboardBox);
     renderVendors();
+    loadBetaCodes();
 
   } catch (error) {
     showOnly(dashboardBox);
