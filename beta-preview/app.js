@@ -6504,6 +6504,55 @@ async function markInvoicePaidManually(invoice){
 }
 
 
+async function markInvoiceUnpaidManually(invoice){
+
+  const ok=
+    confirm(
+      `Mark ${invoice.invoiceNumber} as unpaid?\n\n`+
+      `This undoes the Paid status -- use it if this was marked paid by mistake, whether by you or by an email VendorFlow processed automatically.`
+    );
+
+  if(!ok){
+    return;
+  }
+
+
+  await setDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'invoices',
+      invoice.id
+    ),
+    {
+      status:'Sent',
+      paidAt:null,
+      updatedAt:serverTimestamp()
+    },
+    {
+      merge:true
+    }
+  );
+
+
+  await log(
+    'Invoice marked unpaid',
+    `${invoice.invoiceNumber} — ${invoice.charterSchoolName} — ${money(invoice.amount)}.`,
+    'Manual',
+    {
+      type:'invoice',
+      id:invoice.id
+    }
+  );
+
+
+  closeInvoiceLedgerDetail();
+
+  await refreshAll();
+}
+
+
 function showInvoiceLedgerDetail(invoice){
 
   const modal=
@@ -6659,6 +6708,19 @@ function showInvoiceLedgerDetail(invoice){
           : ''
       }
 
+      ${
+        status==='Paid'
+          ? `
+            <button
+              type="button"
+              id="ledgerMarkUnpaid"
+              class="vf-secondary-button">
+              Mark Unpaid
+            </button>
+          `
+          : ''
+      }
+
     </div>
   `;
 
@@ -6703,6 +6765,18 @@ function showInvoiceLedgerDetail(invoice){
 
     markPaid.onclick=
       ()=>markInvoicePaidManually(
+        invoice
+      );
+  }
+
+
+  const markUnpaid=
+    $('#ledgerMarkUnpaid');
+
+  if(markUnpaid){
+
+    markUnpaid.onclick=
+      ()=>markInvoiceUnpaidManually(
         invoice
       );
   }
@@ -7282,6 +7356,15 @@ function renderInvoices(){
                   Mark Paid
                 </button>`
               : ''}
+
+            ${status==='Paid'
+              ? `<button
+                  type="button"
+                  class="vf-secondary-button vf-ledger-mark-unpaid"
+                  data-mark-unpaid-invoice="${invoice.id}">
+                  Mark Unpaid
+                </button>`
+              : ''}
           </span>
 
         </div>
@@ -7328,6 +7411,27 @@ function renderInvoices(){
 
         if(invoice){
           markInvoicePaidManually(invoice);
+        }
+      };
+    });
+
+
+  $$('[data-mark-unpaid-invoice]')
+    .forEach(button=>{
+
+      button.onclick=event=>{
+
+        event.stopPropagation();
+
+        const invoice=
+          invoices.find(
+            item=>
+              item.id===
+              button.dataset.markUnpaidInvoice
+          );
+
+        if(invoice){
+          markInvoiceUnpaidManually(invoice);
         }
       };
     });
@@ -8616,7 +8720,7 @@ function duplicateSavedClass(classId){
 function defaultReminderBodyTemplate(){
   return `Hi {{parentName}},
 
-Just a quick reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}. If you've already taken care of this, thank you -- this is just a general reminder going out to everyone.
+Just a quick reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}. If you've already sent this in, thank you -- it's possible it just hasn't been recorded yet.
 
 Payment instructions:
 {{paymentInstructions}}
