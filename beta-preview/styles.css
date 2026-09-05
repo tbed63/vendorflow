@@ -1392,6 +1392,35 @@ main{
   cursor:pointer;
 }
 
+.vf-csv-help-button{
+  display:inline-block;
+  margin:8px 0;
+  font-size:12px;
+  padding:7px 11px;
+}
+
+.vf-csv-help-card{
+  width:min(560px,100%);
+}
+
+.vf-csv-help-steps{
+  margin:14px 0;
+  padding-left:20px;
+}
+
+.vf-csv-help-steps li{
+  margin-bottom:14px;
+  line-height:1.5;
+}
+
+.vf-csv-help-image{
+  display:block;
+  max-width:100%;
+  margin-top:10px;
+  border:1px solid #C9D2D7;
+  border-radius:8px;
+}
+
 .vf-default-note{
   margin-top:8px;
   color:#7A888E;

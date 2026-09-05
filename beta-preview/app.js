@@ -10553,6 +10553,32 @@ $('#csv').onchange=e=>{
   });
 };
 
+function openCsvHelpModal(){
+  const modal=$('#csvHelpModal');
+  if(modal){ show(modal); }
+}
+
+function closeCsvHelpModal(){
+  const modal=$('#csvHelpModal');
+  if(modal){ hide(modal); }
+}
+
+$$('[data-csv-help]').forEach(btn=>{
+  btn.onclick=openCsvHelpModal;
+});
+
+if($('#closeCsvHelp')){
+  $('#closeCsvHelp').onclick=closeCsvHelpModal;
+}
+
+if($('#csvHelpModal')){
+  $('#csvHelpModal').onclick=event=>{
+    if(event.target===$('#csvHelpModal')){
+      closeCsvHelpModal();
+    }
+  };
+}
+
 function renderPreview(){
   show($('#previewCard'));
 

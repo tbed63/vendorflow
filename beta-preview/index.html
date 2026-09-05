@@ -618,6 +618,7 @@ Thank you,
       <div class="card" id="rosterCsvCard">
         <div class="eyebrow">Step 2</div><h2>Upload roster CSV</h2>
         <p>Download the roster CSV from your school or learning center and drop it here.</p>
+        <button type="button" class="vf-secondary-button vf-csv-help-button" data-csv-help>Help with CSV Upload</button>
         <label class="drop"><input id="csv" type="file" accept=".csv" hidden><strong>Drop CSV here</strong><span>or click to choose</span></label>
         <div id="csvStatus"></div>
       </div>
@@ -1159,6 +1160,8 @@ Thank you,
         type="file"
         accept="application/pdf,text/csv,.pdf,.csv">
     </label>
+
+    <button type="button" class="vf-secondary-button vf-csv-help-button" data-csv-help>Help with CSV Upload</button>
 
   </div>
 
@@ -2956,5 +2959,39 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=rosterfix-20260905-025624"></script>
+<div
+  id="csvHelpModal"
+  class="vf-modal-overlay hidden">
+
+  <div class="vf-modal-card vf-csv-help-card">
+
+    <button
+      type="button"
+      id="closeCsvHelp"
+      class="vf-modal-close"
+      aria-label="Close">
+      ×
+    </button>
+
+    <div class="eyebrow">Quick help</div>
+    <h2>How to upload a CSV file</h2>
+
+    <ol class="vf-csv-help-steps">
+      <li>Go to where your roster or bank statement lives &mdash; your school's system, your bank, or Venmo.</li>
+      <li>
+        Look for a button like this one. It's usually labeled &ldquo;Export to CSV&rdquo; or something similar:
+        <img src="csv-export-example.png" alt="Example Export to CSV button" class="vf-csv-help-image">
+      </li>
+      <li>Click it. This downloads a CSV file to your computer, usually into your Downloads folder.</li>
+      <li>Come back here, click the upload button, find that CSV file, and choose it.</li>
+    </ol>
+
+    <p class="muted">That's it &mdash; VendorFlow takes it from there.</p>
+
+  </div>
+
+</div>
+
+
+<script type="module" src="app.js?v=csvhelp-20260905-030500"></script>
 </body></html>
