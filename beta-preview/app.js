@@ -7004,7 +7004,7 @@ function renderInvoices(){
 
   if($('#invoiceAllCount')){
     $('#invoiceAllCount').textContent=
-      `(${invoices.length})`;
+      `(${ready.length+sent.length})`;
   }
 
   if($('#invoiceReadyCount')){
