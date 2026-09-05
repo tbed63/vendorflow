@@ -10641,6 +10641,19 @@ $('#saveRoster').onclick=async()=>{
   await loadRoster();
   renderRoster();
 
+  preview=[];
+  hide($('#previewCard'));
+
+  if($('#csvStatus')){
+    $('#csvStatus').textContent='';
+  }
+
+  if($('#csv')){
+    $('#csv').value='';
+  }
+
+  hide($('#warnings'));
+
   saveRosterButton.textContent='Saved \u2713';
 
   toast('Roster saved.');
