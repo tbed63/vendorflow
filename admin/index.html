@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VendorFlow — Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<style>
+  :root{
+    --navy:#172337;
+    --navy-light:#1f3050;
+    --ink:#18202b;
+    --muted:#5b6470;
+    --line:#e5e7eb;
+    --bg:#f5f6f8;
+    --gold:#b7791f;
+    --white:#ffffff;
+    --error:#b3261e;
+    --green:#1e7a3d;
+    --green-bg:#e7f5ec;
+    --amber:#8a5a00;
+    --amber-bg:#fdf1de;
+    --gray-bg:#eceff2;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  a{color:var(--navy)}
+  .hidden{display:none!important}
+
+  header.site-nav{position:sticky;top:0;z-index:100;background:var(--white);border-bottom:1px solid var(--line)}
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;max-width:1280px;margin:0 auto}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;color:var(--navy);text-decoration:none}
+  .brand .mark{width:36px;height:36px;border-radius:10px;background:var(--navy);color:#fff;display:grid;place-items:center;font-weight:800;font-size:15px}
+  .badge{font-size:12px;font-weight:700;color:var(--gold);border:1px solid var(--gold);border-radius:999px;padding:3px 10px;margin-left:6px}
+
+  .wrap{max-width:1280px;margin:0 auto;padding:32px 24px 80px}
+
+  .center{min-height:70vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:36px;max-width:400px;width:100%}
+  .card h1{margin:0 0 4px;font-size:22px;color:var(--navy)}
+  .card p.sub{margin:0 0 22px;color:var(--muted);font-size:14px}
+  label{display:block;font-size:13px;font-weight:600;color:var(--ink);margin:14px 0 6px}
+  input[type=email], input[type=password]{
+    width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;font-size:15px;font-family:inherit;
+  }
+  button{font-family:inherit;cursor:pointer}
+  .btn-primary{
+    width:100%;margin-top:20px;background:var(--navy);color:#fff;border:0;border-radius:10px;
+    padding:12px;font-weight:700;font-size:15px;
+  }
+  .btn-primary:hover{background:var(--navy-light)}
+  .btn-primary:disabled{opacity:.6;cursor:default}
+  .error-box{background:#fdecea;border:1px solid #f3c2bd;color:var(--error);border-radius:9px;padding:10px 12px;font-size:13.5px;margin-top:14px}
+
+  h1.page-title{font-size:24px;color:var(--navy);margin:0 0 4px}
+  p.page-sub{color:var(--muted);font-size:14px;margin:0 0 24px}
+
+  .toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:18px}
+  .toolbar input[type=search]{
+    flex:1;min-width:220px;padding:10px 14px;border:1px solid var(--line);border-radius:9px;font-size:14px;font-family:inherit;
+  }
+  .toolbar .count{color:var(--muted);font-size:13.5px;white-space:nowrap}
+  .toolbar select{padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;font-family:inherit;background:#fff}
+
+  .table-wrap{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:auto}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{
+    text-align:left;padding:12px 16px;background:#fafbfc;border-bottom:1px solid var(--line);
+    color:var(--muted);font-size:12.5px;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;
+  }
+  td{padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#fafbfc}
+  .biz-name{font-weight:600;color:var(--ink)}
+  .muted{color:var(--muted)}
+
+  .status-pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+  .status-trialing{background:var(--amber-bg);color:var(--amber)}
+  .status-active{background:var(--green-bg);color:var(--green)}
+  .status-past_due{background:#fdecea;color:var(--error)}
+  .status-canceled{background:var(--gray-bg);color:var(--muted)}
+  .status-none{background:var(--gray-bg);color:var(--muted)}
+  .cancel-tag{font-size:11.5px;color:var(--muted);display:block;margin-top:3px}
+
+  .empty-state{padding:60px 24px;text-align:center;color:var(--muted)}
+  .loading-state{padding:60px 24px;text-align:center;color:var(--muted)}
+
+  .top-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;flex-wrap:wrap;gap:12px}
+  .signout-link{font-size:13.5px;color:var(--muted);text-decoration:none;cursor:pointer;background:none;border:0;font-family:inherit}
+  .signout-link:hover{color:var(--ink)}
+
+  @media(max-width:760px){
+    .wrap{padding:20px 14px 60px}
+    th,td{padding:10px 10px;font-size:13px}
+  }
+</style>
+</head>
+<body>
+
+<header class="site-nav">
+  <div class="nav-inner">
+    <a class="brand" href="../"><span class="mark">VF</span> VendorFlow <span class="badge">ADMIN</span></a>
+  </div>
+</header>
+
+<div id="loadingBox" class="center">
+  <p class="muted">Loading&hellip;</p>
+</div>
+
+<div id="signInBox" class="center hidden">
+  <div class="card">
+    <h1>Admin sign in</h1>
+    <p class="sub">Sign in with your VendorFlow account to continue.</p>
+    <form id="signInForm">
+      <label for="email">Email</label>
+      <input type="email" id="email" autocomplete="username" required>
+      <label for="password">Password</label>
+      <input type="password" id="password" autocomplete="current-password" required>
+      <button type="submit" class="btn-primary" id="signInBtn">Sign in</button>
+    </form>
+    <div id="signInError" class="error-box hidden"></div>
+  </div>
+</div>
+
+<div id="deniedBox" class="center hidden">
+  <div class="card">
+    <h1>Not authorized</h1>
+    <p class="sub">This account doesn't have access to the admin page.</p>
+    <button type="button" class="btn-primary" id="deniedSignOut">Sign out</button>
+  </div>
+</div>
+
+<div id="dashboardBox" class="wrap hidden">
+  <div class="top-actions">
+    <div>
+      <h1 class="page-title">Vendors</h1>
+      <p class="page-sub">Every VendorFlow account and its subscription status.</p>
+    </div>
+    <button type="button" class="signout-link" id="signOutBtn">Sign out</button>
+  </div>
+
+  <div class="toolbar">
+    <input type="search" id="searchBox" placeholder="Search by business name, owner, or email&hellip;">
+    <select id="statusFilter">
+      <option value="">All statuses</option>
+      <option value="trialing">Trialing</option>
+      <option value="active">Active</option>
+      <option value="past_due">Past due</option>
+      <option value="canceled">Canceled</option>
+      <option value="none">No subscription</option>
+    </select>
+    <span class="count" id="resultCount"></span>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Business</th>
+          <th>Owner</th>
+          <th>Location</th>
+          <th>Status</th>
+          <th>Trial ends</th>
+          <th>Renews</th>
+        </tr>
+      </thead>
+      <tbody id="vendorRows"></tbody>
+    </table>
+    <div id="emptyState" class="empty-state hidden">No vendors match your search.</div>
+    <div id="loadingRows" class="loading-state hidden">Loading vendors&hellip;</div>
+  </div>
+
+  <div id="loadError" class="error-box hidden" style="margin-top:16px"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCjAnrOfpmDMGB3O5x9i0yDZ-JR8NZMa0o",
+  authDomain: "vendorflow-68828.firebaseapp.com",
+  projectId: "vendorflow-68828",
+  storageBucket: "vendorflow-68828.firebasestorage.app",
+  messagingSenderId: "803061946107",
+  appId: "1:803061946107:web:fe9622dd2d0c1c5c13c25e"
+};
+
+const VENDORFLOW_API = "https://vendorflow-api.tbed63.workers.dev";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+const $ = (s) => document.querySelector(s);
+
+const loadingBox = $('#loadingBox');
+const signInBox = $('#signInBox');
+const deniedBox = $('#deniedBox');
+const dashboardBox = $('#dashboardBox');
+
+function showOnly(el) {
+  [loadingBox, signInBox, deniedBox, dashboardBox].forEach((box) => {
+    box.classList.toggle('hidden', box !== el);
+  });
+}
+
+let allVendors = [];
+
+function statusLabel(status) {
+  if (status === 'trialing') return 'Trialing';
+  if (status === 'active') return 'Active';
+  if (status === 'past_due') return 'Past due';
+  if (status === 'canceled') return 'Canceled';
+  return 'No subscription';
+}
+
+function statusClass(status) {
+  if (status === 'trialing') return 'status-trialing';
+  if (status === 'active') return 'status-active';
+  if (status === 'past_due') return 'status-past_due';
+  if (status === 'canceled') return 'status-canceled';
+  return 'status-none';
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d)) return '—';
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function renderVendors() {
+  const search = $('#searchBox').value.trim().toLowerCase();
+  const statusFilter = $('#statusFilter').value;
+
+  const filtered = allVendors.filter((v) => {
+    const status = v.subscriptionStatus || 'none';
+    if (statusFilter && status !== statusFilter) return false;
+
+    if (!search) return true;
+
+    const haystack = [
+      v.businessName, v.ownerName, v.city, v.state
+    ].join(' ').toLowerCase();
+
+    return haystack.includes(search);
+  });
+
+  $('#resultCount').textContent =
+    filtered.length === allVendors.length
+      ? `${allVendors.length} vendor${allVendors.length === 1 ? '' : 's'}`
+      : `${filtered.length} of ${allVendors.length} vendors`;
+
+  const rows = $('#vendorRows');
+  rows.innerHTML = '';
+
+  $('#emptyState').classList.toggle('hidden', filtered.length !== 0);
+
+  filtered
+    .slice()
+    .sort((a, b) => String(a.businessName || '').localeCompare(String(b.businessName || '')))
+    .forEach((v) => {
+      const status = v.subscriptionStatus || 'none';
+      const tr = document.createElement('tr');
+
+      const location = [v.city, v.state].filter(Boolean).join(', ') || '—';
+
+      tr.innerHTML = `
+        <td><span class="biz-name">${escapeHtml(v.businessName || '(no business name yet)')}</span></td>
+        <td class="muted">${escapeHtml(v.ownerName || '—')}</td>
+        <td class="muted">${escapeHtml(location)}</td>
+        <td>
+          <span class="status-pill ${statusClass(status)}">${statusLabel(status)}</span>
+          ${v.subscriptionCancelAtPeriodEnd ? '<span class="cancel-tag">Ending at period end</span>' : ''}
+        </td>
+        <td class="muted">${status === 'trialing' ? fmtDate(v.trialEndsAt) : '—'}</td>
+        <td class="muted">${status === 'active' ? fmtDate(v.subscriptionCurrentPeriodEnd) : '—'}</td>
+      `;
+
+      rows.appendChild(tr);
+    });
+}
+
+async function loadVendors() {
+  $('#loadingRows').classList.remove('hidden');
+  $('#loadError').classList.add('hidden');
+
+  try {
+    const token = await auth.currentUser.getIdToken();
+
+    const res = await fetch(`${VENDORFLOW_API}/admin/vendors`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(data.error || 'Could not load vendors.');
+    }
+
+    allVendors = data.vendors || [];
+    renderVendors();
+
+  } catch (error) {
+    $('#loadError').textContent = error.message || 'Could not load vendors.';
+    $('#loadError').classList.remove('hidden');
+
+  } finally {
+    $('#loadingRows').classList.add('hidden');
+  }
+}
+
+$('#searchBox').addEventListener('input', renderVendors);
+$('#statusFilter').addEventListener('change', renderVendors);
+
+$('#signInForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  $('#signInError').classList.add('hidden');
+  $('#signInBtn').disabled = true;
+  $('#signInBtn').textContent = 'Signing in…';
+
+  try {
+    await signInWithEmailAndPassword(auth, $('#email').value.trim(), $('#password').value);
+    // onAuthStateChanged handles the rest.
+
+  } catch (error) {
+    $('#signInError').textContent = 'Could not sign in. Check your email and password.';
+    $('#signInError').classList.remove('hidden');
+    $('#signInBtn').disabled = false;
+    $('#signInBtn').textContent = 'Sign in';
+  }
+});
+
+$('#signOutBtn').addEventListener('click', () => signOut(auth));
+$('#deniedSignOut').addEventListener('click', () => signOut(auth));
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    showOnly(signInBox);
+    $('#signInBtn').disabled = false;
+    $('#signInBtn').textContent = 'Sign in';
+    return;
+  }
+
+  showOnly(loadingBox);
+
+  try {
+    const token = await user.getIdToken();
+
+    const res = await fetch(`${VENDORFLOW_API}/admin/vendors`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (res.status === 403) {
+      showOnly(deniedBox);
+      return;
+    }
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(data.error || 'Could not load vendors.');
+    }
+
+    allVendors = data.vendors || [];
+    showOnly(dashboardBox);
+    renderVendors();
+
+  } catch (error) {
+    showOnly(dashboardBox);
+    $('#loadError').textContent = error.message || 'Could not load vendors.';
+    $('#loadError').classList.remove('hidden');
+  }
+});
+</script>
+
+</body>
+</html>
