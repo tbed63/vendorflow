@@ -12972,6 +12972,34 @@ function studentAccountTotals(student){
     );
 
 
+  /*
+   * A charged late fee lives on the obligations collection, not on
+   * the service itself -- totalDue above has no idea it exists.
+   * Only count a late fee still actually in effect (lateFeeApplied),
+   * tied to one of this student's currently-active services, so a
+   * removed/undone fee (removeLateFeeManually) or an obligation
+   * belonging to a cancelled/archived service is never counted.
+   */
+  const activeServiceIds=
+    new Set(
+      serviceList.map(s=>s.id)
+    );
+
+  const lateFeeTotal=
+    obligations
+      .filter(
+        o=>
+          !o.deleted &&
+          o.lateFeeApplied &&
+          activeServiceIds.has(o.serviceId)
+      )
+      .reduce(
+        (sum,o)=>
+          sum+Number(o.lateFeeChargedAmount||0),
+        0
+      );
+
+
   const paymentList=
     studentPayments(student);
 
@@ -13029,7 +13057,8 @@ function studentAccountTotals(student){
 
 
   const parentBalance=
-    totalDue-
+    totalDue+
+    lateFeeTotal-
     parentPayments-
     certificateTotal;
 
@@ -13043,6 +13072,7 @@ function studentAccountTotals(student){
 
   return {
     totalDue,
+    lateFeeTotal,
     parentPayments,
     charterPayments,
     certificateTotal,
