@@ -439,32 +439,83 @@ $('#vendorRows').addEventListener('click', async (event) => {
     resetBtn.disabled = true;
     resetBtn.textContent = 'Resetting\u2026';
 
+    // Same list the Worker knows about (VF_VENDOR_SUBCOLLECTIONS) --
+    // reset one collection, one small batch at a time, so no single
+    // request to the Worker ever has to delete more than a handful of
+    // documents. A real account has too much data to safely reset in
+    // one shot (Cloudflare caps how many requests one Worker call can
+    // make, and a single "delete everything" call was hitting that
+    // cap partway through).
+    const VF_RESET_COLLECTIONS = [
+      'certificates', 'charterSchools', 'classes', 'compliance',
+      'expenses', 'history', 'invoices', 'obligations', 'payments',
+      'review', 'services', 'students', 'inboundEmails'
+    ];
+
     try {
       const token = await auth.currentUser.getIdToken();
 
-      const res = await fetch(`${VENDORFLOW_API}/admin/reset-vendor-data`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ uid })
-      });
+      const resetCall = async (collection) => {
 
-      let data = {};
+        const res = await fetch(`${VENDORFLOW_API}/admin/reset-vendor-data`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ uid, collection })
+        });
 
-      try {
-        data = await res.json();
-      } catch {}
+        let data = {};
 
-      if (!res.ok || data.ok === false) {
-        throw new Error(data.error || 'Could not reset this account.');
+        try {
+          data = await res.json();
+        } catch {}
+
+        if (!res.ok || data.ok === false) {
+          throw new Error(data.error || `Could not reset ${collection}.`);
+        }
+
+        return data;
+      };
+
+      const allErrors = [];
+
+      for (const collection of VF_RESET_COLLECTIONS) {
+
+        resetBtn.textContent = `Resetting ${collection}\u2026`;
+
+        // A collection this large is very unlikely, but keep looping
+        // (bounded) rather than risk an infinite loop if something
+        // unexpected keeps reporting hasMore.
+        let hasMore = true;
+        let safety = 0;
+
+        while (hasMore && safety < 50) {
+
+          const data = await resetCall(collection);
+
+          if (data.errors && data.errors.length) {
+            allErrors.push(...data.errors);
+          }
+
+          hasMore = Boolean(data.hasMore);
+          safety += 1;
+        }
       }
 
-      if (data.errors && data.errors.length) {
+      resetBtn.textContent = 'Finishing\u2026';
+
+      const finalData = await resetCall('__vendor_document__');
+
+      if (finalData.errors && finalData.errors.length) {
+        allErrors.push(...finalData.errors);
+      }
+
+      if (allErrors.length) {
         alert(
           `Reset finished, but with some problems:\n\n` +
-          data.errors.join('\n')
+          allErrors.join('\n')
         );
       } else {
         alert(`"${name}" has been reset to a clean, brand new account.`);
