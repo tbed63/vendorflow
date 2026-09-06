@@ -24656,7 +24656,9 @@ function startGeneralReviewAsProposal(reviewId){
     'email-proposal';
 
   review.itemType=
-    'charge';
+    review.suggestedItemType==='payment'
+      ? 'payment'
+      : 'charge';
 
   review.proposalFields=
     review.proposalFields || {};
