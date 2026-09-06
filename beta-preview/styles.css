@@ -7471,14 +7471,8 @@ button.history.vf-history-evidence:focus-visible{
 @media(max-width:600px){.vf-roster-beginner-help,.vf-setup-guide-panel{padding:18px}.vf-roster-help-actions{align-items:stretch;flex-direction:column}}
 
 
-/* VENDORFLOW SCROLLABLE SIDEBAR */
-aside{
-  overflow-y:auto;
-  overflow-x:hidden;
-  overscroll-behavior:contain;
-  scrollbar-width:thin;
-}
-
+/* VENDORFLOW SIDEBAR: scrolling over the sidebar should scroll the
+   whole page along with it, not try to scroll independently. */
 aside nav{
   flex:0 0 auto;
   padding-bottom:28px;

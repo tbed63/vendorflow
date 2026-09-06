@@ -238,6 +238,20 @@ function installVendorFlowBranding(){
       <path d="M15 9h4v12"/>
       <path d="M8 8h2M8 12h2M8 16h2"/>
       <path d="M3 21h18"/>
+    </svg>`,
+
+    expenses:`<svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v3"/>
+      <path d="M3 7v11a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1H6a2 2 0 0 1-2-2Z"/>
+      <circle cx="16.5" cy="14" r="1.5"/>
+    </svg>`,
+
+    taxsummary:`<svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 3h9l4 4v14H6z"/>
+      <path d="M15 3v5h5"/>
+      <path d="M9 16 15 10"/>
+      <circle cx="9.5" cy="10.5" r="1.2"/>
+      <circle cx="14.5" cy="15.5" r="1.2"/>
     </svg>`
   };
 
