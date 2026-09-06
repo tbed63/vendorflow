@@ -25537,6 +25537,28 @@ function historyPaymentEvidence(
 }
 
 
+function historyObligationEvidence(
+  item
+){
+
+  const evidence=
+    item?.evidence || {};
+
+  if(
+    evidence.type==='obligation' &&
+    evidence.id
+  ){
+
+    return obligations.find(
+      obligation=>
+        obligation.id===evidence.id
+    ) || null;
+  }
+
+  return null;
+}
+
+
 /*
  * Resolves which student (if any) a history entry belongs to,
  * WITHOUT requiring every log() call site to be rewritten.
@@ -25713,6 +25735,22 @@ function openHistoryEvidence(
 
     showPaymentDetail(
       payment
+    );
+
+    return;
+  }
+
+
+  const obligation=
+    historyObligationEvidence(
+      item
+    );
+
+
+  if(obligation && obligation.studentId){
+
+    openGlobalStudentAccount(
+      obligation.studentId
     );
 
     return;
