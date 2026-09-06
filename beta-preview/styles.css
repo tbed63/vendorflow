@@ -4453,6 +4453,21 @@ button.vf-certificate-problem:focus-visible{
   margin:0;
 }
 
+.vf-notification-default-row{
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+  margin-bottom:10px;
+}
+
+.vf-notification-suboptions{
+  margin:0 0 14px 26px;
+}
+
+.vf-notification-save-btn{
+  margin-top:8px;
+}
+
 #classParentReminderOptions{
   margin-top:12px;
 }

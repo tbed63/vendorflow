@@ -6396,6 +6396,23 @@ function installInvoiceNumberingPopup(){
   const settings=
     $('#invoiceNumberingSettings');
 
+  /*
+   * While the setup wizard has this exact card open (it moved the
+   * card into its own shared body element), leave it alone. This
+   * function reruns every time renderInvoices() runs -- including
+   * right after the wizard's own Save button triggers a data refresh
+   * -- and would otherwise yank the card back into the settings
+   * modal mid-wizard-step, then, finding the wizard's now-empty
+   * shared body "abandoned", hide that body permanently for every
+   * step after this one too.
+   */
+  if(
+    settings &&
+    settings.classList.contains('vf-wizard-adopted')
+  ){
+    return;
+  }
+
   const body=
     $('#invoiceNumberingModalBody');
 
@@ -10253,7 +10270,8 @@ function resetClassCreateFormFields(){
 
   updateClassParentReminderUI();
   updateClassRecurringReminderUI();
-  $('#classRecurringReminderDays').value='7';
+  $('#classRecurringReminderDays').value=
+    profile?.notificationDefaults?.recurringReminderDays || 7;
   $('#classParentReminderDays').value='3';
   $('#classReminderSubject').value=
     'Payment reminder for {{studentName}}';
@@ -25790,6 +25808,32 @@ function fillProfile(){
  * unset (never saved) reads as "on" for all three -- the sensible
  * starting point for a new vendor -- not as "off".
  */
+/*
+ * Shows/hides the "Repeat every ___ days" field next to "Keep
+ * reminding until paid", exactly like the same field does for an
+ * individual class -- see updateClassRecurringReminderUI().
+ */
+function updateNdRecurringReminderUI(){
+
+  const enabled=
+    Boolean(
+      $('#ndRecurringReminder')
+        ?.checked
+    );
+
+  const options=
+    $('#ndRecurringReminderOptions');
+
+  if(!options){
+    return;
+  }
+
+  enabled
+    ? show(options)
+    : hide(options);
+}
+
+
 function vfRenderNotificationDefaults(){
 
   const defaults=
@@ -25804,10 +25848,14 @@ function vfRenderNotificationDefaults(){
   const recurringReminder=
     $('#ndRecurringReminder');
 
+  const recurringReminderDays=
+    $('#ndRecurringReminderDays');
+
   if(
     !paymentReminders ||
     !lateFeeCharged ||
-    !recurringReminder
+    !recurringReminder ||
+    !recurringReminderDays
   ){
     return;
   }
@@ -25826,6 +25874,11 @@ function vfRenderNotificationDefaults(){
     defaults.recurringReminder===undefined
       ? true
       : Boolean(defaults.recurringReminder);
+
+  recurringReminderDays.value=
+    defaults.recurringReminderDays||7;
+
+  updateNdRecurringReminderUI();
 }
 
 
@@ -26036,6 +26089,18 @@ if($('#saveWizardPaymentMethods')){
   };
 }
 
+if($('#ndRecurringReminder')){
+
+  $('#ndRecurringReminder')
+    .addEventListener(
+      'change',
+      updateNdRecurringReminderUI
+    );
+
+  updateNdRecurringReminderUI();
+}
+
+
 if($('#saveNotificationDefaults')){
 
   $('#saveNotificationDefaults').onclick=async()=>{
@@ -26059,7 +26124,10 @@ if($('#saveNotificationDefaults')){
           Boolean($('#ndLateFeeCharged').checked),
 
         recurringReminder:
-          Boolean($('#ndRecurringReminder').checked)
+          Boolean($('#ndRecurringReminder').checked),
+
+        recurringReminderDays:
+          Number($('#ndRecurringReminderDays').value||0) || 7
       };
 
       await setDoc(
