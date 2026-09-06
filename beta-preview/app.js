@@ -13512,6 +13512,59 @@ function renderGlobalStudentSearch(){
 }
 
 
+function studentHiddenFromAccountsReason(student){
+
+  const linkedServices=
+    services.filter(
+      service=>service.studentId===student.id
+    );
+
+  if(!linkedServices.length){
+    return '';
+  }
+
+  const archivedClassNames=[];
+  const droppedOrRemovedNames=[];
+
+  linkedServices.forEach(service=>{
+
+    const status=
+      String(service.status||'')
+        .trim()
+        .toLowerCase();
+
+    if(status==='removed' || status==='dropped'){
+
+      droppedOrRemovedNames.push(
+        service.name || service.serviceType || 'a class'
+      );
+
+    }else if(
+      service.classId &&
+      classIsArchived(service.classId)
+    ){
+
+      archivedClassNames.push(
+        service.name || service.serviceType || 'a class'
+      );
+    }
+  });
+
+  const name=
+    student.studentName || 'This student';
+
+  if(archivedClassNames.length){
+    return `${name}'s class (${archivedClassNames.join(', ')}) is archived, so there's no account card to show. Unarchive it on Class Rosters to bring it back.`;
+  }
+
+  if(droppedOrRemovedNames.length){
+    return `${name}'s enrollment in ${droppedOrRemovedNames.join(', ')} is marked Dropped or Removed, so there's no account card to show.`;
+  }
+
+  return `${name} doesn't have an active class linked right now, so there's no account card to show.`;
+}
+
+
 function openGlobalStudentAccount(studentId){
 
   const student=
@@ -13546,6 +13599,12 @@ function openGlobalStudentAccount(studentId){
       );
 
     if(!card){
+
+      toast(
+        studentHiddenFromAccountsReason(student) ||
+        `Could not find ${student.studentName||'that student'}'s account card.`
+      );
+
       return;
     }
 
