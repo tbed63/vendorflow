@@ -4468,6 +4468,36 @@ button.vf-certificate-problem:focus-visible{
   margin-top:8px;
 }
 
+.vf-reconcile-report{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:18px;
+  margin-top:14px;
+}
+
+.vf-reconcile-column h3{
+  font-size:14px;
+  margin:0 0 10px;
+}
+
+.vf-reconcile-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:10px 12px;
+  margin-bottom:8px;
+  background:#f8f9fb;
+}
+
+@media(max-width:700px){
+  .vf-reconcile-report{
+    grid-template-columns:1fr;
+  }
+}
+
 #classParentReminderOptions{
   margin-top:12px;
 }

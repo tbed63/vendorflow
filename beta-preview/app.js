@@ -14924,6 +14924,271 @@ function renderStudentsServices(){
    Manual student
    ---------------------------------------------------------- */
 
+let rosterReconcileMissing=[];
+let rosterReconcileExtra=[];
+
+function rosterReconcileMapHeaders(headerList){
+
+  const found={};
+
+  for(const [key,candidates] of Object.entries(aliases)){
+
+    const match=
+      find(headerList,candidates);
+
+    if(match){
+      found[key]=match;
+    }
+  }
+
+  return found;
+}
+
+function rosterReconcileTransformRow(row,headerMap){
+
+  const val=key=>
+    headerMap[key]
+      ? String(row[headerMap[key]] ?? '').trim()
+      : '';
+
+  const studentFirst=val('studentFirst');
+  const studentLast=val('studentLast');
+
+  return {
+    status:val('status')||'Active',
+    studentFirst,
+    studentLast,
+    studentName:[studentFirst,studentLast].filter(Boolean).join(' '),
+    parentName:[val('parentFirst'),val('parentLast')].filter(Boolean).join(' '),
+    parentEmail:val('parentEmail'),
+    parentPhone:val('parentPhone'),
+    grade:val('grade')
+  };
+}
+
+function renderRosterReconcileReport(){
+
+  const missingList=$('#rosterReconcileMissingList');
+  const extraList=$('#rosterReconcileExtraList');
+
+  if(!missingList || !extraList){
+    return;
+  }
+
+  $('#rosterReconcileMissingCount').textContent=
+    rosterReconcileMissing.length;
+
+  $('#rosterReconcileExtraCount').textContent=
+    rosterReconcileExtra.length;
+
+  missingList.innerHTML=
+    rosterReconcileMissing.length
+      ? rosterReconcileMissing.map((row,index)=>`
+          <div class="vf-reconcile-row">
+            <div>
+              <strong>${esc(row.studentName)}</strong>
+              ${row.parentName?`<div class="meta">${esc(row.parentName)}</div>`:''}
+            </div>
+            <button type="button" data-reconcile-add="${index}">Add to My Students</button>
+          </div>
+        `).join('')
+      : '<div class="empty">Nothing to add -- every active student on the CSV is already in VendorFlow.</div>';
+
+  extraList.innerHTML=
+    rosterReconcileExtra.length
+      ? rosterReconcileExtra.map(student=>`
+          <div class="vf-reconcile-row">
+            <div>
+              <strong>${esc(student.studentName)}</strong>
+              ${student.parentName?`<div class="meta">${esc(student.parentName)}</div>`:''}
+            </div>
+            <button type="button" data-reconcile-remove="${esc(student.id)}">Remove from My Students</button>
+          </div>
+        `).join('')
+      : '<div class="empty">Nothing to remove -- every active VendorFlow student is on the CSV.</div>';
+
+  show($('#rosterReconcileReport'));
+
+  $$('[data-reconcile-add]').forEach(button=>{
+
+    button.onclick=()=>{
+
+      const row=
+        rosterReconcileMissing[
+          Number(button.dataset.reconcileAdd)
+        ];
+
+      if(!row){
+        return;
+      }
+
+      show($('#coreStudentForm'));
+
+      $('#coreStudentFirst').value=row.studentFirst||'';
+      $('#coreStudentLast').value=row.studentLast||'';
+      $('#coreParentName').value=row.parentName||'';
+      $('#coreParentEmail').value=row.parentEmail||'';
+      $('#coreParentPhone').value=row.parentPhone||'';
+
+      $('#coreStudentForm').scrollIntoView({
+        behavior:'smooth',
+        block:'start'
+      });
+    };
+  });
+
+  $$('[data-reconcile-remove]').forEach(button=>{
+
+    button.onclick=()=>
+      removeStudentFromReconciliation(
+        button.dataset.reconcileRemove
+      );
+  });
+}
+
+async function removeStudentFromReconciliation(studentId){
+
+  const student=
+    students.find(s=>s.id===studentId);
+
+  if(!student){
+    return;
+  }
+
+  const ok=
+    confirm(
+      `Mark ${student.studentName||'this student'} as no longer active?\n\n`+
+      `This won't delete any of their payment, certificate, or invoice history -- `+
+      `it just takes them off your active roster, the same as if a roster import `+
+      `had shown them as dropped.`
+    );
+
+  if(!ok){
+    return;
+  }
+
+  await setDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'students',
+      studentId
+    ),
+    {
+      active:false,
+      updatedAt:serverTimestamp()
+    },
+    {
+      merge:true
+    }
+  );
+
+  await log(
+    'Student marked inactive',
+    `${student.studentName||'A student'} marked inactive during a roster CSV reconciliation.`,
+    'Manual'
+  );
+
+  rosterReconcileExtra=
+    rosterReconcileExtra.filter(
+      s=>s.id!==studentId
+    );
+
+  await refreshAll();
+  renderRosterReconcileReport();
+
+  toast('Student marked inactive.');
+}
+
+if($('#rosterReconcileCsv')){
+
+  $('#rosterReconcileCsv').onchange=event=>{
+
+    const file=event.target.files[0];
+
+    if(!file){
+      return;
+    }
+
+    Papa.parse(file,{
+      header:true,
+      skipEmptyLines:'greedy',
+
+      complete:results=>{
+
+        const headerMap=
+          rosterReconcileMapHeaders(
+            results.meta.fields || []
+          );
+
+        const csvRows=
+          (results.data || [])
+            .map(row=>
+              rosterReconcileTransformRow(
+                row,
+                headerMap
+              )
+            )
+            .filter(row=>row.studentName)
+            .filter(active);
+
+        const activeCoreStudents=
+          students.filter(
+            s=>s.active!==false
+          );
+
+        const coreNameSet=
+          new Set(
+            activeCoreStudents.map(
+              s=>normalizedName(s.studentName)
+            )
+          );
+
+        const csvNameSet=
+          new Set(
+            csvRows.map(
+              row=>normalizedName(row.studentName)
+            )
+          );
+
+        rosterReconcileMissing=
+          csvRows.filter(
+            row=>
+              !coreNameSet.has(
+                normalizedName(row.studentName)
+              )
+          );
+
+        rosterReconcileExtra=
+          activeCoreStudents.filter(
+            s=>
+              !csvNameSet.has(
+                normalizedName(s.studentName)
+              )
+          );
+
+        $('#rosterReconcileStatus').textContent=
+          `${csvRows.length} active student${csvRows.length===1?'':'s'} on the CSV, `+
+          `${activeCoreStudents.length} active in VendorFlow. `+
+          `${rosterReconcileMissing.length} to review adding, `+
+          `${rosterReconcileExtra.length} to review removing.`;
+
+        renderRosterReconcileReport();
+
+        event.target.value='';
+      },
+
+      error:()=>{
+
+        $('#rosterReconcileStatus').textContent=
+          'That file could not be read. Make sure it is a CSV export.';
+      }
+    });
+  };
+}
+
+
 $('#addCoreStudent').onclick=()=>{
   show($('#coreStudentForm'));
 };
