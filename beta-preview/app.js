@@ -25037,6 +25037,55 @@ function vfProposalEditFormHTML(review){
       .map(sv=>`<option value="${esc(sv.id)}" ${sv.id===f.serviceId?'selected':''}>${esc(sv.name||sv.className||'Service')}</option>`)
       .join('');
 
+  /*
+   * "Log one session" emails carry a session count but no dollar
+   * figure -- if the matched class already has a rate per session,
+   * use sessionCount x rate instead of leaving Amount at zero.
+   */
+  const sessionCount=
+    Number(f.sessionCount||0);
+
+  const rateForService=
+    serviceId=>{
+
+      const service=
+        services.find(sv=>sv.id===serviceId);
+
+      if(!service){
+        return 0;
+      }
+
+      const classRecord=
+        tutoringClassForService(service);
+
+      return Number(
+        classRecord?.ratePerSession ||
+        service.tutoringRate ||
+        0
+      );
+    };
+
+  let initialAmount=
+    Number(f.amount||0);
+
+  if(
+    sessionCount>0 &&
+    !(initialAmount>0) &&
+    f.serviceId
+  ){
+
+    const rate=
+      rateForService(f.serviceId);
+
+    if(rate>0){
+
+      initialAmount=
+        Number(
+          (sessionCount*rate).toFixed(2)
+        );
+    }
+  }
+
   return `
     <div class="vf-proposal-edit-form">
 
@@ -25055,14 +25104,19 @@ function vfProposalEditFormHTML(review){
       </label>
 
       <label class="vf-field-label"><span>Service / class</span>
-        <select class="input" data-proposal-field="serviceId">
+        <select class="input" data-proposal-field="serviceId" data-session-count="${sessionCount}">
           <option value="">Choose a service…</option>
           ${serviceOptions}
         </select>
       </label>
 
       <label class="vf-field-label"><span>Amount</span>
-        <input class="input" type="number" step="0.01" data-proposal-field="amount" value="${esc(String(f.amount||0))}">
+        <input class="input" type="number" step="0.01" data-proposal-field="amount" value="${esc(String(initialAmount||0))}">
+        ${
+          sessionCount>0
+            ? `<small>Calculated as ${sessionCount} session${sessionCount===1?'':'s'} x the class's rate per session -- adjust if needed.</small>`
+            : ''
+        }
       </label>
 
       <label class="vf-field-label"><span>Payer name</span>
@@ -26008,6 +26062,52 @@ function renderReviews(){
       button.onclick=()=>{
         vfProposalEditingId=null;
         renderReviews();
+      };
+    });
+
+  $$('select[data-proposal-field="serviceId"][data-session-count]')
+    .forEach(select=>{
+
+      const sessionCount=
+        Number(select.dataset.sessionCount||0);
+
+      if(!(sessionCount>0)){
+        return;
+      }
+
+      select.onchange=()=>{
+
+        const service=
+          services.find(sv=>sv.id===select.value);
+
+        const classRecord=
+          service
+            ? tutoringClassForService(service)
+            : null;
+
+        const rate=
+          Number(
+            classRecord?.ratePerSession ||
+            service?.tutoringRate ||
+            0
+          );
+
+        if(!(rate>0)){
+          return;
+        }
+
+        const amountInput=
+          select
+            .closest('.vf-proposal-edit-form')
+            ?.querySelector('[data-proposal-field="amount"]');
+
+        if(amountInput){
+
+          amountInput.value=
+            Number(
+              (sessionCount*rate).toFixed(2)
+            );
+        }
       };
     });
 
