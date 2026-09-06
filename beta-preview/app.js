@@ -36952,11 +36952,26 @@ function vfWizardAdopt(viewId){
   const node=document.getElementById(viewId);
   if(!node)return null;
 
-  vfWizardAdoptedNode=node;
-  vfWizardAdoptedSlot={parent:node.parentNode,next:node.nextSibling};
-  node.classList.add('vf-wizard-adopted');
+  try{
 
-  $('#vfWizardBody').appendChild(node);
+    vfWizardAdoptedNode=node;
+    vfWizardAdoptedSlot={parent:node.parentNode,next:node.nextSibling};
+    node.classList.add('vf-wizard-adopted');
+
+    $('#vfWizardBody').appendChild(node);
+
+  }catch(error){
+
+    console.error(
+      'Could not move this step\'s content into the wizard:',
+      error
+    );
+
+    vfWizardAdoptedNode=null;
+    vfWizardAdoptedSlot=null;
+
+    return null;
+  }
 
   return node;
 }
@@ -36964,17 +36979,35 @@ function vfWizardAdopt(viewId){
 function vfWizardRestoreAdopted(){
   if(vfWizardAdoptedNode && vfWizardAdoptedSlot){
 
-    if(
-      typeof vfWizardRestoreClassCardOrder==='function'
-    ){
-      vfWizardRestoreClassCardOrder();
-    }
+    try{
 
-    vfWizardAdoptedNode.classList.remove('vf-wizard-adopted');
-    vfWizardAdoptedSlot.parent.insertBefore(
-      vfWizardAdoptedNode,
-      vfWizardAdoptedSlot.next
-    );
+      if(
+        typeof vfWizardRestoreClassCardOrder==='function'
+      ){
+        vfWizardRestoreClassCardOrder();
+      }
+
+      vfWizardAdoptedNode.classList.remove('vf-wizard-adopted');
+      vfWizardAdoptedSlot.parent.insertBefore(
+        vfWizardAdoptedNode,
+        vfWizardAdoptedSlot.next
+      );
+
+    }catch(error){
+
+      /*
+       * If the spot this card used to live in has since changed (for
+       * example, something else on the page re-rendered around it),
+       * putting it back exactly where it was can fail. That's fine --
+       * the card just stays wherever it currently is instead of
+       * disappearing, and this is logged so it's easy to track down
+       * if it ever happens again.
+       */
+      console.error(
+        'Could not put this step\'s content back in its normal spot on the page:',
+        error
+      );
+    }
   }
   vfWizardAdoptedNode=null;
   vfWizardAdoptedSlot=null;
@@ -37100,7 +37133,19 @@ function vfRenderWizardStep(){
     $('#vfWizardNext').classList.remove('hidden');
     $('#vfWizardNext').textContent='Next';
     body.innerHTML='';
-    vfWizardAdopt(info.viewId);
+
+    const vfAdoptedStepNode=vfWizardAdopt(info.viewId);
+
+    if(!vfAdoptedStepNode){
+      body.innerHTML=`
+        <div class="vf-wizard-intro">
+          <p>
+            This step didn\u2019t load correctly. Click Back and then
+            forward to this step again, or refresh the page and
+            reopen the wizard from the button in the header.
+          </p>
+        </div>`;
+    }
 
     $('#vfWizardNext').disabled=!vfWizardStepUnlocked[stepId];
 
