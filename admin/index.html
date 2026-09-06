@@ -113,6 +113,12 @@
   }
   .btn-row:hover{background:var(--gray-bg)}
   .btn-row:disabled{opacity:.6;cursor:default}
+  .btn-danger{
+    background:#fff;color:var(--error);border:1px solid #f3c2bd;border-radius:8px;
+    padding:6px 12px;font-weight:700;font-size:12.5px;margin-left:6px;
+  }
+  .btn-danger:hover{background:#fdecea}
+  .btn-danger:disabled{opacity:.6;cursor:default}
   .row-hidden{opacity:.55}
   .toolbar label.check-label{display:flex;align-items:center;gap:6px;font-size:13.5px;color:var(--muted);white-space:nowrap}
 </style>
@@ -398,7 +404,10 @@ function renderVendors() {
         <td class="muted">${bucket === 'trialing' ? fmtDate(v.trialEndsAt) : '—'}</td>
         <td class="muted">${bucket === 'active' ? fmtDate(v.subscriptionCurrentPeriodEnd) : '—'}</td>
         <td class="muted">${fmtLastLogin(v)}</td>
-        <td><button type="button" class="btn-row hide-vendor-btn" data-uid="${escapeHtml(v.uid)}" data-hidden="${v.adminHidden ? '1' : '0'}">${hideLabel}</button></td>
+        <td>
+          <button type="button" class="btn-row hide-vendor-btn" data-uid="${escapeHtml(v.uid)}" data-hidden="${v.adminHidden ? '1' : '0'}">${hideLabel}</button>
+          <button type="button" class="btn-danger reset-vendor-btn" data-uid="${escapeHtml(v.uid)}" data-name="${escapeHtml(v.businessName || v.email || 'this account')}">Reset data</button>
+        </td>
       `;
 
       rows.appendChild(tr);
@@ -406,6 +415,75 @@ function renderVendors() {
 }
 
 $('#vendorRows').addEventListener('click', async (event) => {
+
+  const resetBtn = event.target.closest('.reset-vendor-btn');
+
+  if (resetBtn) {
+
+    const uid = resetBtn.getAttribute('data-uid');
+    const name = resetBtn.getAttribute('data-name');
+
+    const sure = confirm(
+      `Permanently delete ALL business data (classes, students, ` +
+      `certificates, payments, invoices, everything) for "${name}"?\n\n` +
+      `This does NOT delete their login -- they keep the same email ` +
+      `and password and will be sent through setup again as a brand ` +
+      `new account next time they sign in.\n\n` +
+      `This cannot be undone.`
+    );
+
+    if (!sure) {
+      return;
+    }
+
+    resetBtn.disabled = true;
+    resetBtn.textContent = 'Resetting\u2026';
+
+    try {
+      const token = await auth.currentUser.getIdToken();
+
+      const res = await fetch(`${VENDORFLOW_API}/admin/reset-vendor-data`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ uid })
+      });
+
+      let data = {};
+
+      try {
+        data = await res.json();
+      } catch {}
+
+      if (!res.ok || data.ok === false) {
+        throw new Error(data.error || 'Could not reset this account.');
+      }
+
+      if (data.errors && data.errors.length) {
+        alert(
+          `Reset finished, but with some problems:\n\n` +
+          data.errors.join('\n')
+        );
+      } else {
+        alert(`"${name}" has been reset to a clean, brand new account.`);
+      }
+
+      resetBtn.textContent = 'Reset data';
+      resetBtn.disabled = false;
+
+      await loadVendors();
+
+    } catch (error) {
+      alert(error.message || 'Could not reset this account.');
+      resetBtn.disabled = false;
+      resetBtn.textContent = 'Reset data';
+    }
+
+    return;
+  }
+
   const btn = event.target.closest('.hide-vendor-btn');
 
   if (!btn) {
