@@ -37156,3 +37156,209 @@ function vfWizardAskAnotherClass(){
 
 
 /* VENDORFLOW PREVIEW TASK BASED TUTORIAL */
+
+
+/*
+ * Beta Feedback -- a button/modal pair that lives outside the normal
+ * view system (both elements are direct children of body in
+ * index.html, not inside #app/#auth/#onboarding), so they show up
+ * on every screen regardless of sign-in or setup state, including
+ * the login screen and the "please use a desktop" mobile gate. The
+ * route it posts to (/beta-feedback/send) is deliberately
+ * unauthenticated on the Worker side, for the same reason -- someone
+ * stuck before ever signing in should still be able to complain.
+ */
+
+let vfBetaFeedbackScreenshots=[];
+
+function vfResetBetaFeedbackScreenshots(){
+  vfBetaFeedbackScreenshots=[];
+  if($('#betaFeedbackScreenshotPreview')){
+    $('#betaFeedbackScreenshotPreview').innerHTML='';
+  }
+  if($('#betaFeedbackScreenshots')){
+    $('#betaFeedbackScreenshots').value='';
+  }
+}
+
+function vfRenderBetaFeedbackScreenshots(){
+  const holder=$('#betaFeedbackScreenshotPreview');
+  if(!holder){
+    return;
+  }
+  holder.innerHTML=
+    vfBetaFeedbackScreenshots
+      .map(
+        (shot,index)=>`
+          <div class="vf-beta-feedback-thumb">
+            <img src="data:${esc(shot.type||'image/png')};base64,${shot.content}" alt="Screenshot">
+            <button type="button" data-remove-beta-shot="${index}">&times;</button>
+          </div>
+        `
+      )
+      .join('');
+
+  $$('[data-remove-beta-shot]').forEach(button=>{
+    button.onclick=()=>{
+      const index=Number(button.dataset.removeBetaShot);
+      vfBetaFeedbackScreenshots.splice(index,1);
+      vfRenderBetaFeedbackScreenshots();
+    };
+  });
+}
+
+function vfOpenBetaFeedback(){
+
+  if($('#betaFeedbackName') && !$('#betaFeedbackName').value && profile?.ownerName){
+    $('#betaFeedbackName').value=profile.ownerName;
+  }
+
+  if($('#betaFeedbackEmail') && !$('#betaFeedbackEmail').value && user?.email){
+    $('#betaFeedbackEmail').value=user.email;
+  }
+
+  if($('#betaFeedbackError')){
+    hide($('#betaFeedbackError'));
+  }
+
+  show($('#vfBetaFeedbackOverlay'));
+}
+
+function vfCloseBetaFeedback(){
+  hide($('#vfBetaFeedbackOverlay'));
+}
+
+if($('#vfBetaFeedbackButton')){
+  $('#vfBetaFeedbackButton').onclick=vfOpenBetaFeedback;
+}
+
+if($('#closeBetaFeedback')){
+  $('#closeBetaFeedback').onclick=vfCloseBetaFeedback;
+}
+
+if($('#vfBetaFeedbackOverlay')){
+  $('#vfBetaFeedbackOverlay').onclick=event=>{
+    if(event.target===$('#vfBetaFeedbackOverlay')){
+      vfCloseBetaFeedback();
+    }
+  };
+}
+
+if($('#betaFeedbackScreenshots')){
+
+  $('#betaFeedbackScreenshots').onchange=async event=>{
+
+    const files=
+      Array.from(event.target.files||[]);
+
+    const MAX_FILES=5;
+    const MAX_BYTES=5*1024*1024;
+
+    for(const file of files){
+
+      if(vfBetaFeedbackScreenshots.length>=MAX_FILES){
+        toast(`You can attach up to ${MAX_FILES} screenshots.`);
+        break;
+      }
+
+      if(!file.type.startsWith('image/')){
+        continue;
+      }
+
+      if(file.size>MAX_BYTES){
+        toast(`${file.name} is too large (5MB max).`);
+        continue;
+      }
+
+      const base64=
+        await new Promise(resolve=>{
+          const reader=new FileReader();
+          reader.onload=()=>{
+            const result=String(reader.result||'');
+            resolve(result.slice(result.indexOf(',')+1));
+          };
+          reader.readAsDataURL(file);
+        });
+
+      vfBetaFeedbackScreenshots.push({
+        filename:file.name||'screenshot.png',
+        type:file.type||'image/png',
+        content:base64
+      });
+    }
+
+    vfRenderBetaFeedbackScreenshots();
+    event.target.value='';
+  };
+}
+
+if($('#submitBetaFeedback')){
+
+  $('#submitBetaFeedback').onclick=async()=>{
+
+    const feedback=
+      $('#betaFeedbackText')?.value.trim()||'';
+
+    if(!feedback){
+      $('#betaFeedbackError').textContent='Please write some feedback before sending.';
+      show($('#betaFeedbackError'));
+      return;
+    }
+
+    const button=$('#submitBetaFeedback');
+    const originalLabel=button.textContent;
+    button.disabled=true;
+    button.textContent='Sending...';
+    hide($('#betaFeedbackError'));
+
+    try{
+
+      const response=
+        await fetch(
+          `${VENDORFLOW_API}/beta-feedback/send`,
+          {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+              name:$('#betaFeedbackName')?.value.trim()||'',
+              phone:$('#betaFeedbackPhone')?.value.trim()||'',
+              email:$('#betaFeedbackEmail')?.value.trim()||'',
+              feedback,
+              screenshots:
+                vfBetaFeedbackScreenshots.map(
+                  shot=>({filename:shot.filename,content:shot.content})
+                )
+            })
+          }
+        );
+
+      let data={};
+      try{
+        data=await response.json();
+      }catch(error){
+        data={};
+      }
+
+      if(!response.ok){
+        throw new Error(data?.error||'Something went wrong sending your feedback.');
+      }
+
+      $('#betaFeedbackText').value='';
+      $('#betaFeedbackPhone').value='';
+      vfResetBetaFeedbackScreenshots();
+      vfCloseBetaFeedback();
+      toast('Feedback sent -- thank you!');
+
+    }catch(error){
+
+      $('#betaFeedbackError').textContent=
+        error.message||'Something went wrong sending your feedback. Please try again.';
+      show($('#betaFeedbackError'));
+
+    }finally{
+
+      button.disabled=false;
+      button.textContent=originalLabel;
+    }
+  };
+}

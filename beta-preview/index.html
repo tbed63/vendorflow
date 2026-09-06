@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>VendorFlow</title>
-  <link rel="stylesheet" href="styles.css?v=latefeetotals-20260906-011500">
+  <link rel="stylesheet" href="styles.css?v=betafeedback-20260906-013000">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA</div>
@@ -3138,5 +3138,100 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=latefeetotals-20260906-011500"></script>
+<button
+  type="button"
+  id="vfBetaFeedbackButton"
+  class="vf-beta-feedback-button">
+  Beta Feedback
+</button>
+
+<div
+  id="vfBetaFeedbackOverlay"
+  class="vf-modal-overlay hidden">
+
+  <div class="vf-modal-card">
+
+    <button
+      type="button"
+      id="closeBetaFeedback"
+      class="vf-modal-close">
+      &times;
+    </button>
+
+    <div class="eyebrow">VendorFlow Beta</div>
+    <h2>Send feedback</h2>
+    <p class="muted">
+      Found a bug, or something confusing? Tell me directly &mdash;
+      a screenshot helps a lot.
+    </p>
+
+    <label class="vf-field-label">
+      <span>Name</span>
+      <input
+        id="betaFeedbackName"
+        class="input"
+        type="text"
+        placeholder="Your name">
+    </label>
+
+    <label class="vf-field-label">
+      <span>Phone number</span>
+      <input
+        id="betaFeedbackPhone"
+        class="input"
+        type="tel"
+        placeholder="(555) 555-5555">
+    </label>
+
+    <label class="vf-field-label">
+      <span>Email</span>
+      <input
+        id="betaFeedbackEmail"
+        class="input"
+        type="email"
+        placeholder="you@example.com">
+    </label>
+
+    <label class="vf-field-label">
+      <span>Feedback</span>
+      <textarea
+        id="betaFeedbackText"
+        class="input"
+        rows="5"
+        placeholder="What happened? What were you trying to do?"></textarea>
+    </label>
+
+    <label class="vf-field-label">
+      <span>Screenshots (optional, up to 5)</span>
+      <input
+        id="betaFeedbackScreenshots"
+        type="file"
+        accept="image/*"
+        multiple>
+    </label>
+
+    <div
+      id="betaFeedbackScreenshotPreview"
+      class="vf-beta-feedback-preview">
+    </div>
+
+    <div
+      id="betaFeedbackError"
+      class="vf-form-error hidden"
+      role="alert">
+    </div>
+
+    <button
+      type="button"
+      id="submitBetaFeedback"
+      class="primary full">
+      Send feedback
+    </button>
+
+  </div>
+
+</div>
+
+
+<script type="module" src="app.js?v=betafeedback-20260906-013000"></script>
 </body></html>
