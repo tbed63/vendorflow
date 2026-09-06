@@ -26060,10 +26060,7 @@ function renderInboundInbox(){
           message.sourceMessageId
         );
 
-        addDetail(
-          'Email message',
-          message.bodyText
-        );
+
 
 
         const actionButtons=[];
@@ -26227,6 +26224,22 @@ function renderInboundInbox(){
               <summary>
                 View everything VendorFlow knows
               </summary>
+
+              <div class="vf-inbox-body-section">
+
+                <div class="vf-inbox-body-label">
+                  Original email content
+                </div>
+
+                <div class="vf-inbox-body-text">
+                  ${
+                    String(message.bodyText||'').trim()
+                      ? inboundInboxEscape(message.bodyText)
+                      : 'VendorFlow did not capture any text for this email (it may have arrived with no plain-text version).'
+                  }
+                </div>
+
+              </div>
 
               ${
                 detailRows.length

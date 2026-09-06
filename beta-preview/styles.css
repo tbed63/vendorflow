@@ -6792,6 +6792,34 @@ button.history.vf-history-evidence:focus-visible{
   text-decoration:underline;
 }
 
+.vf-inbox-body-section{
+  margin-top:12px;
+}
+
+.vf-inbox-body-label{
+  font-size:.75rem;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.025em;
+  color:#4b5e72;
+  margin-bottom:6px;
+}
+
+.vf-inbox-body-text{
+  white-space:pre-wrap;
+  word-break:break-word;
+  background:#f8f9fb;
+  border:1px solid #d7e0ea;
+  border-radius:10px;
+  padding:13px 14px;
+  font-size:.86rem;
+  line-height:1.5;
+  color:#1d2c3d;
+  max-height:420px;
+  overflow-y:auto;
+}
+
+
 .vf-inbox-detail-grid{
   display:grid;
   grid-template-columns:
