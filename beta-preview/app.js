@@ -15676,8 +15676,9 @@ function allocationTargetsForRecord(
 }
 
 
-function emptyObligationAllocation(
-  obligation
+function baselineObligationAllocation(
+  obligation,
+  includeLateFee
 ){
 
   return {
@@ -15697,12 +15698,22 @@ function emptyObligationAllocation(
           obligation.waivedAmount||0
         )+
         (
+          includeLateFee &&
           obligation.lateFeeApplied
             ? Number(obligation.lateFeeChargedAmount||0)
             : 0
         )
       )
   };
+}
+
+function emptyObligationAllocation(
+  obligation
+){
+  return baselineObligationAllocation(
+    obligation,
+    true
+  );
 }
 
 
@@ -15820,7 +15831,11 @@ function applyFundingPool(
 }
 
 
-function expectedObligationFunding(){
+function computeObligationFunding(
+  certsList,
+  paymentsList,
+  includeLateFee
+){
 
   const expected=
     new Map(
@@ -15832,8 +15847,9 @@ function expectedObligationFunding(){
         .map(
           obligation=>[
             obligation.id,
-            emptyObligationAllocation(
-              obligation
+            baselineObligationAllocation(
+              obligation,
+              includeLateFee
             )
           ]
         )
@@ -15870,7 +15886,7 @@ function expectedObligationFunding(){
      * immediately, even before the charter pays.
      */
     const studentCertificatesForAllocation=
-      certs
+      certsList
         .filter(
           certificate=>
             certificate.studentId===
@@ -15916,7 +15932,7 @@ function expectedObligationFunding(){
      * credit automatically.
      */
     const studentPaymentsForAllocation=
-      payments
+      paymentsList
         .filter(
           payment=>
             payment.studentId===
@@ -16102,6 +16118,125 @@ function expectedObligationFunding(){
 
 
   return expected;
+}
+
+
+function expectedObligationFunding(){
+  return computeObligationFunding(
+    certs,
+    payments,
+    true
+  );
+}
+
+
+/*
+ * Real-world date a certificate or payment actually happened on --
+ * NOT when it was typed into VendorFlow (createdAt/updatedAt are
+ * both server timestamps for the moment of data entry, which is
+ * exactly what should NOT decide whether something was late).
+ */
+function certificateRecordDateMs(certificate){
+
+  const raw=
+    certificate?.issueDate ||
+    certificate?.date ||
+    '';
+
+  if(!raw){
+    return NaN;
+  }
+
+  return new Date(
+    `${raw}T00:00:00`
+  ).getTime();
+}
+
+function paymentRecordDateMs(payment){
+
+  const raw=
+    payment?.date ||
+    payment?.paymentDate ||
+    '';
+
+  if(!raw){
+    return NaN;
+  }
+
+  return new Date(
+    `${raw}T00:00:00`
+  ).getTime();
+}
+
+
+/*
+ * The same funding math as expectedObligationFunding(), but only
+ * counting certificates/payments actually dated on or before
+ * cutoffDateStr, and never adding a late fee into the starting
+ * balance. This answers "if VendorFlow only knew about the records
+ * that were genuinely on time, would this already be paid off?" --
+ * which is the real test for whether a late fee is fair.
+ */
+function timelyObligationFundingAsOf(cutoffDateStr){
+
+  const cutoffMs=
+    new Date(
+      `${cutoffDateStr}T23:59:59`
+    ).getTime();
+
+  if(Number.isNaN(cutoffMs)){
+    return new Map();
+  }
+
+  const timelyCerts=
+    certs.filter(
+      certificate=>{
+        const t=
+          certificateRecordDateMs(
+            certificate
+          );
+        return !Number.isNaN(t) && t<=cutoffMs;
+      }
+    );
+
+  const timelyPayments=
+    payments.filter(
+      payment=>{
+        const t=
+          paymentRecordDateMs(
+            payment
+          );
+        return !Number.isNaN(t) && t<=cutoffMs;
+      }
+    );
+
+  return computeObligationFunding(
+    timelyCerts,
+    timelyPayments,
+    false
+  );
+}
+
+function timelyRemainingForObligation(
+  obligation,
+  cutoffDateStr
+){
+
+  const funding=
+    timelyObligationFundingAsOf(
+      cutoffDateStr
+    );
+
+  const entry=
+    funding.get(
+      obligation.id
+    );
+
+  return Number(
+    entry?.remainingAmount ??
+    obligation.amount ??
+    0
+  );
 }
 
 
@@ -18889,6 +19024,96 @@ function resolvedLateFeeForObligation(obligation, classRecord){
  * corrected to $0, which suppresses it -- same rule already used
  * for the reminder-email warning text).
  */
+/*
+ * If an already-charged late fee turns out to have been unfair --
+ * the certificate/payment covering it is dated on or before the
+ * due date, so it was actually on time, just entered into
+ * VendorFlow after the fact -- undo it automatically. Mirrors
+ * removeLateFeeManually()'s math, but runs on its own (no confirm()
+ * dialog) and logs the reversal as Automatic so it's easy to spot.
+ */
+async function reverseLateFeeIfPaidOnTime(obligation){
+
+  if(
+    !obligation.lateFeeApplied ||
+    !obligation.dueDate
+  ){
+    return;
+  }
+
+  const timelyRemaining=
+    timelyRemainingForObligation(
+      obligation,
+      obligation.dueDate
+    );
+
+  if(timelyRemaining>0.009){
+    return;
+  }
+
+  const chargedAmount=
+    Number(obligation.lateFeeChargedAmount||0);
+
+  if(chargedAmount<=0){
+    return;
+  }
+
+  const currentRemaining=
+    Number(
+      obligation.remainingAmount ??
+      obligation.amount ??
+      0
+    );
+
+  const newRemaining=
+    Math.max(
+      0,
+      Number(
+        (currentRemaining-chargedAmount).toFixed(2)
+      )
+    );
+
+  await setDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'obligations',
+      obligation.id
+    ),
+    {
+      remainingAmount:
+        newRemaining,
+
+      lateFeeApplied:
+        false,
+
+      lateFeeChargedAmount:
+        0,
+
+      lateFeeAppliedAt:
+        null,
+
+      updatedAt:
+        serverTimestamp()
+    },
+    {
+      merge:true
+    }
+  );
+
+  await log(
+    'Late fee removed automatically',
+    `${money(chargedAmount)} late fee removed from ${obligation.studentName||'a student'}'s account for ${obligation.serviceName||obligation.className||'a payment'} -- the certificate or payment on file is dated on or before the due date, so it was actually on time. Balance is now ${money(newRemaining)}.`,
+    'Automatic',
+    {
+      type:'obligation',
+      id:obligation.id
+    }
+  );
+}
+
+
 async function applyLateFees(){
 
   if(!obligations.length){
@@ -18907,6 +19132,11 @@ async function applyLateFees(){
     }
 
     if(obligation.lateFeeApplied){
+
+      await reverseLateFeeIfPaidOnTime(
+        obligation
+      );
+
       continue;
     }
 
@@ -18935,6 +19165,22 @@ async function applyLateFees(){
       );
 
     if(remaining<=0.009){
+      continue;
+    }
+
+    if(
+      obligation.dueDate &&
+      timelyRemainingForObligation(
+        obligation,
+        obligation.dueDate
+      )<=0.009
+    ){
+      /*
+       * Fully covered by certificates/payments actually dated on
+       * or before the due date -- this was paid on time, just
+       * entered into VendorFlow later. Never charge a late fee
+       * for it.
+       */
       continue;
     }
 
