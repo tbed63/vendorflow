@@ -23616,55 +23616,219 @@ function inboundReviewActionsHTML(
 }
 
 
+function closeSourceEmailModal(){
+
+  const modal=
+    $('#vfSourceEmailModal');
+
+  if(modal){
+    hide(modal);
+  }
+}
+
+
+function showSourceEmailModal(
+  message
+){
+
+  const modal=
+    $('#vfSourceEmailModal');
+
+  const content=
+    $('#vfSourceEmailContent');
+
+  if(
+    !modal ||
+    !content ||
+    !message
+  ){
+    return;
+  }
+
+  /*
+   * Source Email can be opened from Notifications, so always keep
+   * it outside any hidden VendorFlow view (same reasoning as the
+   * Payment Details modal below).
+   */
+  if(
+    modal.parentElement!==
+    document.body
+  ){
+    document.body.appendChild(
+      modal
+    );
+  }
+
+  const attachmentCount=
+    Number(
+      message.attachmentCount || 0
+    );
+
+  const attachmentText=
+    attachmentCount
+      ? `${attachmentCount} attachment${
+          attachmentCount===1
+            ? ''
+            : 's'
+        }${
+          message.attachmentNames
+            ? ` (${message.attachmentNames})`
+            : ''
+        }`
+      : 'No attachments';
+
+  content.innerHTML=`
+
+    <div class="eyebrow">
+      Source Email
+    </div>
+
+    <h2 id="vfSourceEmailTitle">
+      ${esc(
+        message.subject ||
+        '(No subject)'
+      )}
+    </h2>
+
+    <div class="vf-payment-detail-grid">
+
+      <div>
+        <small>From</small>
+        <strong>
+          ${esc(
+            message.sender ||
+            'Unknown sender'
+          )}
+        </strong>
+      </div>
+
+      <div>
+        <small>Received</small>
+        <strong>
+          ${esc(
+            inboundInboxDate(
+              message.receivedAt
+            ) || 'Unknown'
+          )}
+        </strong>
+      </div>
+
+      <div>
+        <small>Classification</small>
+        <strong>
+          ${esc(
+            inboundInboxLabel(
+              message.classification
+            )
+          )}
+        </strong>
+      </div>
+
+      <div>
+        <small>Attachments</small>
+        <strong>
+          ${esc(attachmentText)}
+        </strong>
+      </div>
+
+    </div>
+
+    <div class="vf-inbox-body-section">
+
+      <div class="vf-inbox-body-label">
+        Original email content
+      </div>
+
+      <div class="vf-inbox-body-text">
+        ${
+          String(message.bodyText||'').trim()
+            ? inboundInboxEscape(message.bodyText)
+            : 'VendorFlow did not capture any text for this email (it may have arrived with no plain-text version).'
+        }
+      </div>
+
+    </div>
+
+  `;
+
+  show(modal);
+}
+
+
 async function openInboundEmailFromReview(
   inboundEmailId
 ){
 
-  switchView(
-    "inbox"
-  );
+  const targetId=
+    String(inboundEmailId || "");
 
-  await loadInboundInbox();
-
-  const card=
-    [...document.querySelectorAll(
-      "[data-inbox-message-id]"
-    )]
-      .find(
-        item=>
-          item.dataset.inboxMessageId===
-          String(inboundEmailId || "")
-      );
-
-  if(!card){
+  if(!targetId){
     toast(
-      "The source email could not be found in the current inbox."
+      "This review isn't linked to a source email."
     );
     return;
   }
 
-  const details=
-    card.querySelector("details");
+  /*
+   * Check already-loaded inbox data first -- no need to make the
+   * vendor wait on a network round trip when we already have it,
+   * and no dependency on the Inbox view's DOM having re-rendered.
+   */
+  let message=
+    inboundInboxMessages.find(
+      item=>
+        String(item.id||"")===
+        targetId
+    );
 
-  if(details){
-    details.open=true;
+  if(!message){
+
+    await loadInboundInbox();
+
+    message=
+      inboundInboxMessages.find(
+        item=>
+          String(item.id||"")===
+          targetId
+      );
   }
 
-  card.scrollIntoView({
-    behavior:"smooth",
-    block:"center"
-  });
+  if(!message){
 
-  card.classList.add(
-    "vf-inbox-source-highlight"
-  );
+    toast(
+      "VendorFlow couldn't find this email in your inbox history. It may be very old or was never stored."
+    );
 
-  setTimeout(
-    ()=>card.classList.remove(
-      "vf-inbox-source-highlight"
-    ),
-    2400
+    return;
+  }
+
+  showSourceEmailModal(
+    message
   );
+}
+
+
+if($('#closeSourceEmailModal')){
+
+  $('#closeSourceEmailModal')
+    .onclick=
+      closeSourceEmailModal;
+}
+
+
+if($('#vfSourceEmailModal')){
+
+  $('#vfSourceEmailModal')
+    .onclick=
+      event=>{
+
+        if(
+          event.target===
+          $('#vfSourceEmailModal')
+        ){
+          closeSourceEmailModal();
+        }
+      };
 }
 
 
