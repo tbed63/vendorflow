@@ -121,6 +121,11 @@
   .btn-danger:disabled{opacity:.6;cursor:default}
   .row-hidden{opacity:.55}
   .toolbar label.check-label{display:flex;align-items:center;gap:6px;font-size:13.5px;color:var(--muted);white-space:nowrap}
+  .charter-suggest-btn{
+    background:var(--gray-bg);color:var(--navy);border:1px solid var(--line);border-radius:6px;
+    padding:2px 7px;font-size:11.5px;font-weight:600;cursor:pointer;margin:2px 4px 0 0;
+  }
+  .charter-suggest-btn:hover{background:var(--line)}
 </style>
 </head>
 <body>
@@ -240,6 +245,51 @@
     </div>
 
     <div id="loadError" class="error-box hidden" style="margin-top:16px"></div>
+  </div>
+
+  <div class="section-gap">
+    <div class="top-actions">
+      <div>
+        <h1 class="page-title">Charter School Directory</h1>
+        <p class="page-sub">Shared billing info every vendor's "Add to My Schools" search pulls from. Saving a fix here never changes what a vendor already has on their own account -- it only helps the next person who adds that school.</p>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input type="search" id="charterDirectorySearch" placeholder="Search by school name&hellip;">
+      <span class="count" id="charterDirectoryCount"></span>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>School</th>
+            <th>Billing (AP) Email</th>
+            <th>Vendor Contact Email</th>
+            <th>Phone</th>
+            <th>Save</th>
+          </tr>
+        </thead>
+        <tbody id="charterDirectoryRows"></tbody>
+      </table>
+      <div id="charterDirectoryEmpty" class="empty-state hidden">No schools match that search.</div>
+      <div id="charterDirectoryLoading" class="loading-state hidden">Loading charter school directory&hellip;</div>
+    </div>
+
+    <div id="charterDirectoryError" class="error-box hidden" style="margin-top:16px"></div>
+
+    <div style="margin-top:24px">
+      <h1 class="page-title" style="font-size:17px">Add a charter school not listed above</h1>
+      <div class="toolbar">
+        <input type="text" id="newCharterName" placeholder="School name">
+        <input type="email" id="newCharterBilling" placeholder="Billing (AP) email">
+        <input type="email" id="newCharterContact" placeholder="Vendor contact email">
+        <input type="text" id="newCharterPhone" placeholder="Phone">
+        <button type="button" class="btn-secondary" id="addCharterBtn">Add school</button>
+      </div>
+      <div id="addCharterError" class="error-box hidden" style="margin-top:16px"></div>
+    </div>
   </div>
 </div>
 
@@ -842,6 +892,219 @@ $('#signInForm').addEventListener('submit', async (e) => {
 $('#signOutBtn').addEventListener('click', () => signOut(auth));
 $('#deniedSignOut').addEventListener('click', () => signOut(auth));
 
+let allCharterDirectorySchools = [];
+
+function renderCharterDirectory() {
+  const rows = $('#charterDirectoryRows');
+  const query = ($('#charterDirectorySearch').value || '').trim().toLowerCase();
+
+  const matches = allCharterDirectorySchools.filter(school =>
+    !query || String(school.name || '').toLowerCase().includes(query)
+  );
+
+  $('#charterDirectoryCount').textContent =
+    `${matches.length} of ${allCharterDirectorySchools.length} schools`;
+
+  if (!matches.length) {
+    rows.innerHTML = '';
+    $('#charterDirectoryEmpty').classList.remove('hidden');
+    return;
+  }
+
+  $('#charterDirectoryEmpty').classList.add('hidden');
+
+  rows.innerHTML = matches.map(school => {
+    const domain = charterDomainFromWebsite(school.website);
+    const suggestions = (!school.accountsPayableEmail && domain)
+      ? ['vendors', 'invoicing', 'accountspayable'].map(prefix =>
+          `<button type="button" class="charter-suggest-btn" data-fill="${prefix}@${escapeHtml(domain)}">${prefix}@${escapeHtml(domain)}</button>`
+        ).join(' ')
+      : '';
+
+    return `
+    <tr data-charter-row="${escapeHtml(school.id)}">
+      <td>
+        <strong>${escapeHtml(school.name || '')}</strong><br>
+        <span style="color:#6b7280;font-size:12.5px">${escapeHtml(school.county || school.network || '')}</span>
+      </td>
+      <td>
+        <input type="email" class="charter-ap-email" value="${escapeHtml(school.accountsPayableEmail || '')}" placeholder="Not on file yet" style="width:100%">
+        ${suggestions ? `<div style="margin-top:5px;font-size:12px;color:#6b7280">Try: ${suggestions}</div>` : ''}
+      </td>
+      <td><input type="email" class="charter-vendor-email" value="${escapeHtml(school.vendorEmail || '')}" placeholder="Not on file yet" style="width:100%"></td>
+      <td><input type="text" class="charter-phone" value="${escapeHtml(school.vendorPhone || '')}" placeholder="Not on file yet" style="width:100%"></td>
+      <td><button type="button" class="btn-secondary save-charter-btn" data-id="${escapeHtml(school.id)}">Save</button></td>
+    </tr>
+  `;
+  }).join('');
+
+  document.querySelectorAll('.save-charter-btn').forEach(button => {
+    button.addEventListener('click', () => saveCharterDirectoryRow(button));
+  });
+
+  document.querySelectorAll('.charter-suggest-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      const input = button.closest('td').querySelector('.charter-ap-email');
+      input.value = button.dataset.fill;
+      input.focus();
+    });
+  });
+}
+
+/*
+ * Pulls just the domain out of a stored website URL/string, for
+ * building email-address suggestions. Returns '' for anything that
+ * doesn't look like a usable domain, rather than guessing.
+ */
+function charterDomainFromWebsite(website) {
+  const raw = String(website || '').trim();
+  if (!raw) return '';
+
+  try {
+    const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    const host = new URL(withProtocol).hostname.toLowerCase();
+    return host.startsWith('www.') ? host.slice(4) : host;
+  } catch {
+    return '';
+  }
+}
+
+async function saveCharterDirectoryRow(button) {
+  const row = button.closest('tr');
+  const id = button.dataset.id;
+
+  const originalLabel = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Saving…';
+
+  try {
+    const token = await auth.currentUser.getIdToken();
+
+    const res = await fetch(`${VENDORFLOW_API}/admin/charter-schools/upsert`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        id,
+        accountsPayableEmail: row.querySelector('.charter-ap-email').value.trim(),
+        vendorEmail: row.querySelector('.charter-vendor-email').value.trim(),
+        vendorPhone: row.querySelector('.charter-phone').value.trim()
+      })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || data.ok === false) {
+      throw new Error(data.error || 'Could not save that school.');
+    }
+
+    button.textContent = 'Saved';
+
+    const school = allCharterDirectorySchools.find(item => item.id === id);
+    if (school) {
+      school.accountsPayableEmail = row.querySelector('.charter-ap-email').value.trim();
+      school.vendorEmail = row.querySelector('.charter-vendor-email').value.trim();
+      school.vendorPhone = row.querySelector('.charter-phone').value.trim();
+    }
+
+    setTimeout(() => {
+      button.textContent = originalLabel;
+      button.disabled = false;
+    }, 1200);
+
+  } catch (error) {
+    alert(error.message || 'Could not save that school.');
+    button.disabled = false;
+    button.textContent = originalLabel;
+  }
+}
+
+async function loadCharterDirectory() {
+  $('#charterDirectoryLoading').classList.remove('hidden');
+  $('#charterDirectoryError').classList.add('hidden');
+
+  try {
+    const token = await auth.currentUser.getIdToken();
+
+    const res = await fetch(`${VENDORFLOW_API}/admin/charter-schools`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(data.error || 'Could not load the charter school directory.');
+    }
+
+    allCharterDirectorySchools = data.schools || [];
+    renderCharterDirectory();
+
+  } catch (error) {
+    $('#charterDirectoryError').textContent = error.message || 'Could not load the charter school directory.';
+    $('#charterDirectoryError').classList.remove('hidden');
+
+  } finally {
+    $('#charterDirectoryLoading').classList.add('hidden');
+  }
+}
+
+$('#charterDirectorySearch').addEventListener('input', renderCharterDirectory);
+
+$('#addCharterBtn').addEventListener('click', async () => {
+  const name = $('#newCharterName').value.trim();
+  $('#addCharterError').classList.add('hidden');
+
+  if (!name) {
+    $('#addCharterError').textContent = 'Enter the school name first.';
+    $('#addCharterError').classList.remove('hidden');
+    return;
+  }
+
+  $('#addCharterBtn').disabled = true;
+  $('#addCharterBtn').textContent = 'Adding…';
+
+  try {
+    const token = await auth.currentUser.getIdToken();
+
+    const res = await fetch(`${VENDORFLOW_API}/admin/charter-schools/upsert`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name,
+        accountsPayableEmail: $('#newCharterBilling').value.trim(),
+        vendorEmail: $('#newCharterContact').value.trim(),
+        vendorPhone: $('#newCharterPhone').value.trim()
+      })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || data.ok === false) {
+      throw new Error(data.error || 'Could not add that school.');
+    }
+
+    $('#newCharterName').value = '';
+    $('#newCharterBilling').value = '';
+    $('#newCharterContact').value = '';
+    $('#newCharterPhone').value = '';
+
+    await loadCharterDirectory();
+
+  } catch (error) {
+    $('#addCharterError').textContent = error.message || 'Could not add that school.';
+    $('#addCharterError').classList.remove('hidden');
+
+  } finally {
+    $('#addCharterBtn').disabled = false;
+    $('#addCharterBtn').textContent = 'Add school';
+  }
+});
+
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     showOnly(signInBox);
@@ -874,6 +1137,7 @@ onAuthStateChanged(auth, async (user) => {
     showOnly(dashboardBox);
     renderVendors();
     loadBetaCodes();
+    loadCharterDirectory();
 
   } catch (error) {
     showOnly(dashboardBox);
