@@ -10244,9 +10244,15 @@ function resetClassCreateFormFields(){
   $('#classLateFee').value='0';
   $('#classLateFeeGraceDays').value='0';
   $('#classVendorAlertDays').value='3';
-  $('#classParentReminderEnabled').checked=false;
-  $('#classLateFeeChargedReminderEnabled').checked=false;
-  $('#classRecurringReminderEnabled').checked=false;
+  $('#classParentReminderEnabled').checked=
+    Boolean(profile?.notificationDefaults?.paymentReminders);
+  $('#classLateFeeChargedReminderEnabled').checked=
+    Boolean(profile?.notificationDefaults?.lateFeeCharged);
+  $('#classRecurringReminderEnabled').checked=
+    Boolean(profile?.notificationDefaults?.recurringReminder);
+
+  updateClassParentReminderUI();
+  updateClassRecurringReminderUI();
   $('#classRecurringReminderDays').value='7';
   $('#classParentReminderDays').value='3';
   $('#classReminderSubject').value=
@@ -25772,8 +25778,56 @@ function fillProfile(){
     profile.paymentMethods||{}
   );
 
+  vfRenderNotificationDefaults();
+
   vfRenderSubscriptionCard();
 }
+
+/*
+ * Defaults applied to every checkbox in resetClassCreateFormFields()
+ * when starting a brand new class, so a vendor doesn't have to
+ * remember to turn these on for each class individually. Genuinely
+ * unset (never saved) reads as "on" for all three -- the sensible
+ * starting point for a new vendor -- not as "off".
+ */
+function vfRenderNotificationDefaults(){
+
+  const defaults=
+    profile.notificationDefaults||{};
+
+  const paymentReminders=
+    $('#ndPaymentReminders');
+
+  const lateFeeCharged=
+    $('#ndLateFeeCharged');
+
+  const recurringReminder=
+    $('#ndRecurringReminder');
+
+  if(
+    !paymentReminders ||
+    !lateFeeCharged ||
+    !recurringReminder
+  ){
+    return;
+  }
+
+  paymentReminders.checked=
+    defaults.paymentReminders===undefined
+      ? true
+      : Boolean(defaults.paymentReminders);
+
+  lateFeeCharged.checked=
+    defaults.lateFeeCharged===undefined
+      ? true
+      : Boolean(defaults.lateFeeCharged);
+
+  recurringReminder.checked=
+    defaults.recurringReminder===undefined
+      ? true
+      : Boolean(defaults.recurringReminder);
+}
+
 
 function vfRenderSubscriptionCard(){
   const container=$('#pSubscriptionCard');
@@ -25930,6 +25984,110 @@ if($('#pmGoToProfile')){
         block:'center'
       });
     });
+  };
+}
+
+if($('#saveWizardPaymentMethods')){
+
+  $('#saveWizardPaymentMethods').onclick=async()=>{
+
+    const button=
+      $('#saveWizardPaymentMethods');
+
+    const originalLabel=
+      button.textContent;
+
+    button.disabled=true;
+    button.textContent='Saving...';
+
+    try{
+
+      const paymentMethods=
+        vfReadPaymentMethodsField(
+          $('#pPaymentMethods')
+        );
+
+      await setDoc(
+        vendorDoc(),
+        {paymentMethods},
+        {merge:true}
+      );
+
+      profile.paymentMethods=paymentMethods;
+
+      toast('Payment methods saved.');
+
+      if(typeof vfWizardUnlock==='function'){
+        vfWizardUnlock('paymentMethods');
+      }
+
+    }catch(error){
+
+      toast(
+        error.message ||
+        'Could not save payment methods.'
+      );
+
+    }finally{
+
+      button.disabled=false;
+      button.textContent=originalLabel;
+    }
+  };
+}
+
+if($('#saveNotificationDefaults')){
+
+  $('#saveNotificationDefaults').onclick=async()=>{
+
+    const button=
+      $('#saveNotificationDefaults');
+
+    const originalLabel=
+      button.textContent;
+
+    button.disabled=true;
+    button.textContent='Saving...';
+
+    try{
+
+      const notificationDefaults={
+        paymentReminders:
+          Boolean($('#ndPaymentReminders').checked),
+
+        lateFeeCharged:
+          Boolean($('#ndLateFeeCharged').checked),
+
+        recurringReminder:
+          Boolean($('#ndRecurringReminder').checked)
+      };
+
+      await setDoc(
+        vendorDoc(),
+        {notificationDefaults},
+        {merge:true}
+      );
+
+      profile.notificationDefaults=notificationDefaults;
+
+      toast('Notification defaults saved.');
+
+      if(typeof vfWizardUnlock==='function'){
+        vfWizardUnlock('notifications');
+      }
+
+    }catch(error){
+
+      toast(
+        error.message ||
+        'Could not save notification defaults.'
+      );
+
+    }finally{
+
+      button.disabled=false;
+      button.textContent=originalLabel;
+    }
   };
 }
 
@@ -36644,7 +36802,7 @@ function vfOpenRealInteractiveTutorial(){
    duplicated or reimplemented here.
    ========================================================== */
 
-const VF_WIZARD_STEPS=['intro','classes','certificates','payments','invoicing','finish'];
+const VF_WIZARD_STEPS=['intro','paymentMethods','notifications','classes','certificates','payments','invoicing','finish'];
 
 /*
  * The wizard remembers which step a vendor was on using localStorage,
@@ -36676,6 +36834,16 @@ const VF_WIZARD_STEP_INFO={
     title:'Before you begin',
     instruction:'',
     viewId:null
+  },
+  paymentMethods:{
+    title:'How families can pay you',
+    instruction:'Check every payment method you accept and add your details for each one -- this is what shows up automatically in payment reminder emails.',
+    viewId:'paymentMethodsSettings'
+  },
+  notifications:{
+    title:'Default parent notifications',
+    instruction:'Choose which emails VendorFlow sends by default every time you create a new class. This only sets the starting point -- you can still turn any of these on or off for a specific class afterward.',
+    viewId:'notificationDefaultsSettings'
   },
   classes:{
     title:'Create your classes',
@@ -36887,7 +37055,7 @@ function vfWizardGo(index){
 }
 
 function vfOpenWizard(){
-  vfWizardStepUnlocked={classes:false,certificates:false,payments:false,invoicing:false};
+  vfWizardStepUnlocked={paymentMethods:false,notifications:false,classes:false,certificates:false,payments:false,invoicing:false};
   vfWizardClassesStarted=false;
   vfWizardCertBatchEverRan=false;
   // Re-sync to this account's own saved progress, not whichever
@@ -37129,7 +37297,7 @@ function installVfReadyModal(){
 
 installVfReadyModal();
 
-let vfWizardStepUnlocked={classes:false,certificates:false,payments:false,invoicing:false};
+let vfWizardStepUnlocked={paymentMethods:false,notifications:false,classes:false,certificates:false,payments:false,invoicing:false};
 let vfWizardClassesStarted=false;
 let vfWizardPollTimer=null;
 let vfWizardCertPromptShown=false;
