@@ -445,6 +445,8 @@ onAuthStateChanged(auth,async u=>{
   hide($('#vfSubscriptionActivating'));
 
   if(!u){
+    const vfWasSignedIn=!!user;
+
     user=null;
 
     /*
@@ -459,6 +461,17 @@ onAuthStateChanged(auth,async u=>{
     inboundEmailPromise=null;
 
     show($('#auth'));
+
+    /*
+     * Only announce this for a genuine mid-session drop -- not the
+     * very first page load, where `user` was never set to begin
+     * with and showing this toast would be confusing noise on every
+     * normal visit to the login screen.
+     */
+    if(vfWasSignedIn){
+      toast('You were signed out -- please log back in.');
+    }
+
     return;
   }
 
@@ -492,6 +505,76 @@ onAuthStateChanged(auth,async u=>{
     await vfEnforceBillingGate();
   }
 });
+
+/*
+ * Safety net for a signed-out session that the UI hasn't visibly
+ * caught up to yet (see the write-up above onAuthStateChanged). Only
+ * ever shown once per page load -- a vendor who dismisses it and
+ * reloads either lands back on the login screen (if they really were
+ * signed out) or resumes normally (if this was a one-off hiccup).
+ */
+let vfSessionExpiredPromptShown=false;
+
+function vfShowSessionExpiredPrompt(){
+
+  if(vfSessionExpiredPromptShown){
+    return;
+  }
+
+  vfSessionExpiredPromptShown=true;
+
+  const overlay=document.createElement('div');
+  overlay.id='vfSessionExpiredOverlay';
+  overlay.className='vf-modal-overlay';
+  overlay.style.zIndex='250000';
+
+  overlay.innerHTML=`
+    <div class="vf-modal-card">
+      <div class="eyebrow">Session ended</div>
+      <h2>You've been signed out</h2>
+      <p>
+        Your VendorFlow session ended -- nothing you were working on
+        was lost. Log back in to keep going.
+      </p>
+      <button
+        type="button"
+        id="vfSessionExpiredReload"
+        class="primary">
+        Log back in
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  $('#vfSessionExpiredReload').onclick=()=>{
+    location.reload();
+  };
+}
+
+window.addEventListener('unhandledrejection',event=>{
+
+  if(auth.currentUser){
+    return;
+  }
+
+  const appEl=$('#app');
+
+  if(!appEl || appEl.classList.contains('hidden')){
+    return;
+  }
+
+  const reason=event?.reason;
+  const message=String(reason?.message||reason||'');
+
+  if(!/reading 'uid'|null is not an object|cannot read propert/i.test(message)){
+    return;
+  }
+
+  event.preventDefault();
+  vfShowSessionExpiredPrompt();
+});
+
 
 /*
  * Billing launch cutover: any vendor whose Firebase Auth account was
