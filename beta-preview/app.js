@@ -895,6 +895,10 @@ function certificateAttentionIssue(cert){
 
   if(!cert.studentId){
 
+    if(cert.dismissedMatchWarning){
+      return null;
+    }
+
     return {
       code:'missing-student',
       title:'Certificate needs a matching student',
@@ -1239,7 +1243,8 @@ function paymentAttentionIssue(payment){
   if(
     !payment ||
     payment.deleted ||
-    payment.studentId
+    payment.studentId ||
+    payment.dismissedMatchWarning
   ){
     return null;
   }
@@ -11747,6 +11752,84 @@ function openAddStudentForPayment(paymentId){
  * student match). Clears the Notifications flag automatically, since
  * paymentAttentionIssue() only fires while studentId is empty.
  */
+async function dismissCertificateMatchWarning(certificateId){
+
+  const cert=
+    certs.find(
+      item=>item.id===certificateId
+    );
+
+  if(!cert){
+    return toast(
+      'Could not find that certificate.'
+    );
+  }
+
+  await updateDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'certificates',
+      certificateId
+    ),
+    {
+      dismissedMatchWarning:true,
+      updatedAt:serverTimestamp()
+    }
+  );
+
+  await log(
+    'Certificate match warning dismissed',
+    `${cert.student||'A certificate'} — ${money(cert.amount)} — VendorFlow will stop asking for a student match on this one.`,
+    'Manual'
+  );
+
+  await refreshAll();
+
+  toast('Dismissed. You can still match it manually from the certificate itself later.');
+}
+
+
+async function dismissPaymentMatchWarning(paymentId){
+
+  const payment=
+    payments.find(
+      item=>item.id===paymentId
+    );
+
+  if(!payment){
+    return toast(
+      'Could not find that payment.'
+    );
+  }
+
+  await updateDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'payments',
+      paymentId
+    ),
+    {
+      dismissedMatchWarning:true,
+      updatedAt:serverTimestamp()
+    }
+  );
+
+  await log(
+    'Payment match warning dismissed',
+    `${money(payment.amount)} payment (${payment.payer||payment.student||'unmatched'}) — VendorFlow will stop asking for a student match on this one.`,
+    'Manual'
+  );
+
+  await refreshAll();
+
+  toast('Dismissed. You can still match it manually from the payment itself later.');
+}
+
+
 async function matchStudentToPendingPayment(paymentId,studentId){
 
   const payment=
@@ -24886,6 +24969,43 @@ function vfProposalEditFormHTML(review){
 }
 
 
+async function refreshReviewsView(){
+
+  if(
+    !user ||
+    vfReviewsRefreshing
+  ){
+    return;
+  }
+
+  vfReviewsRefreshing=true;
+
+  try{
+
+    reviews=await getList('review');
+
+    reviews=[
+      ...reviews,
+      ...certificateAttentionReviews(),
+      ...paymentAttentionReviews()
+    ];
+
+    renderReviews();
+
+  }catch(error){
+
+    console.error(
+      'VendorFlow could not refresh Notifications:',
+      error
+    );
+
+  }finally{
+
+    vfReviewsRefreshing=false;
+  }
+}
+
+
 function renderReviews(){
 
   const list=
@@ -25437,6 +25557,12 @@ function renderReviews(){
                             data-add-student-for-certificate="${esc(review.certificateId)}">
                             Add student
                           </button>
+                          <button
+                            type="button"
+                            class="vf-secondary-button"
+                            data-dismiss-certificate-match="${esc(review.certificateId)}">
+                            Dismiss
+                          </button>
                         `
                         : ''
                     }
@@ -25473,6 +25599,12 @@ function renderReviews(){
                               class="vf-secondary-button"
                               data-add-student-for-payment="${esc(review.paymentId)}">
                               Add student
+                            </button>
+                            <button
+                              type="button"
+                              class="vf-secondary-button"
+                              data-dismiss-payment-match="${esc(review.paymentId)}">
+                              Dismiss
                             </button>
                           </div>
                         </div>
@@ -25931,6 +26063,30 @@ function renderReviews(){
         await matchStudentToPendingPayment(
           paymentId,
           studentId
+        );
+      };
+    });
+
+
+  $$('[data-dismiss-certificate-match]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        dismissCertificateMatchWarning(
+          button.dataset.dismissCertificateMatch
+        );
+      };
+    });
+
+
+  $$('[data-dismiss-payment-match]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        dismissPaymentMatchWarning(
+          button.dataset.dismissPaymentMatch
         );
       };
     });
@@ -27727,6 +27883,8 @@ let inboundInboxMessages=[];
 let inboundInboxLoading=false;
 let inboundInboxSelectedIds=new Set();
 let vfInboxPollTimer=null;
+let vfReviewPollTimer=null;
+let vfReviewsRefreshing=false;
 
 
 function inboundInboxEscape(value){
@@ -28630,6 +28788,41 @@ function switchView(v){
     );
 
     vfInboxPollTimer=null;
+  }
+
+
+  if(v==='review'){
+
+    refreshReviewsView();
+
+    if(!vfReviewPollTimer){
+
+      vfReviewPollTimer=
+        setInterval(
+          ()=>{
+
+            /*
+             * Belt and suspenders: only actually poll while the
+             * Notifications tab is still the one on screen, in case
+             * this timer somehow outlives a view switch.
+             */
+            if(
+              $('#reviewView')?.classList.contains('active')
+            ){
+              refreshReviewsView();
+            }
+          },
+          30000
+        );
+    }
+
+  }else if(vfReviewPollTimer){
+
+    clearInterval(
+      vfReviewPollTimer
+    );
+
+    vfReviewPollTimer=null;
   }
 
   if(v==='expenses'){
