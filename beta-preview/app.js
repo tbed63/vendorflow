@@ -24632,6 +24632,42 @@ async function markInboundReviewed(
 }
 
 
+/*
+ * Turns ONE already-loaded general review card into an editable
+ * payment/charge proposal, in memory only -- nothing is written to
+ * Firestore here. approveEmailProposal() doesn't care how a card
+ * was originally classified, only about inboundEmailId/itemType/
+ * fields at the moment it's submitted, so this is safe: it just
+ * lets the vendor use the same familiar edit form to build a record
+ * from scratch when VendorFlow couldn't propose one on its own.
+ */
+function startGeneralReviewAsProposal(reviewId){
+
+  const review=
+    reviews.find(
+      item=>item.id===reviewId
+    );
+
+  if(!review){
+    return;
+  }
+
+  review.reviewType=
+    'email-proposal';
+
+  review.itemType=
+    'charge';
+
+  review.proposalFields=
+    review.proposalFields || {};
+
+  vfProposalEditingId=
+    review.id;
+
+  renderReviews();
+}
+
+
 function inboundReviewActionsHTML(
   review
 ){
@@ -24700,6 +24736,12 @@ function inboundReviewActionsHTML(
       <button
         type="button"
         class="primary"
+        data-add-proposal-from-review="${esc(review.id)}">
+        Add Payment or Charge
+      </button>
+      <button
+        type="button"
+        class="vf-secondary-button"
         data-mark-inbound-reviewed="${esc(review.id)}">
         Mark Reviewed
       </button>
@@ -26030,6 +26072,14 @@ function renderReviews(){
       button.onclick=()=>
         markInboundReviewed(
           button.dataset.markInboundReviewed
+        );
+    });
+
+  $$('[data-add-proposal-from-review]')
+    .forEach(button=>{
+      button.onclick=()=>
+        startGeneralReviewAsProposal(
+          button.dataset.addProposalFromReview
         );
     });
 

@@ -2754,13 +2754,15 @@ Thank you,
           </div>
           <button id="refreshInboundInbox" type="button">Refresh Inbox</button>
           <button id="toggleArchivedInbox" type="button">View Archived</button>
-          <button id="archiveSelectedInboxEmails" type="button" disabled>Archive Selected</button>
         </div>
         <div id="inboundInboxStatus" class="muted"></div>
-        <label class="vf-inbox-select-all-row">
-          <input type="checkbox" id="inboundInboxSelectAll">
-          <span>Select all</span>
-        </label>
+        <div class="vf-inbox-select-all-row">
+          <label style="display:flex;align-items:center;gap:7px;">
+            <input type="checkbox" id="inboundInboxSelectAll">
+            <span>Select all</span>
+          </label>
+          <button id="archiveSelectedInboxEmails" type="button" disabled>Archive Selected</button>
+        </div>
         <div id="inboundInboxList"></div>
       </div>
     </section>
@@ -3330,5 +3332,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=archivedinbox-20260906-231500"></script>
+<script type="module" src="app.js?v=genreview-20260906-233000"></script>
 </body></html>
