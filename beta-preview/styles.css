@@ -6704,6 +6704,21 @@ button.history.vf-history-evidence:focus-visible{
   align-items:flex-start;
 }
 
+.vf-inbox-select-row{
+  display:flex;
+  align-items:center;
+  padding-top:3px;
+}
+
+.vf-inbox-select-all-row{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  margin:0 0 12px;
+  color:#526477;
+  font-size:.84rem;
+}
+
 .vf-inbox-subject{
   color:#18283b;
   font-size:1rem;

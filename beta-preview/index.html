@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>VendorFlow</title>
-  <link rel="stylesheet" href="styles.css?v=sidebarwork-20260906-190000">
+  <link rel="stylesheet" href="styles.css?v=inboxarchive-20260906-210000">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA</div>
@@ -2686,8 +2686,13 @@ Thank you,
             <p>See the emails VendorFlow received and how each one was classified.</p>
           </div>
           <button id="refreshInboundInbox" type="button">Refresh Inbox</button>
+          <button id="archiveSelectedInboxEmails" type="button" disabled>Archive Selected</button>
         </div>
         <div id="inboundInboxStatus" class="muted"></div>
+        <label class="vf-inbox-select-all-row">
+          <input type="checkbox" id="inboundInboxSelectAll">
+          <span>Select all</span>
+        </label>
         <div id="inboundInboxList"></div>
       </div>
     </section>
@@ -3257,5 +3262,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=latefeeactionslink-20260906-203000"></script>
+<script type="module" src="app.js?v=inboxarchive-20260906-210000"></script>
 </body></html>

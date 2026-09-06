@@ -26460,6 +26460,7 @@ if($('#saveNotificationDefaults')){
 
 let inboundInboxMessages=[];
 let inboundInboxLoading=false;
+let inboundInboxSelectedIds=new Set();
 
 
 function inboundInboxEscape(value){
@@ -26522,6 +26523,17 @@ function renderInboundInbox(){
 
     return;
   }
+
+  inboundInboxSelectedIds=
+    new Set(
+      [...inboundInboxSelectedIds].filter(
+        id=>
+          inboundInboxMessages.some(
+            message=>
+              message.id===id
+          )
+      )
+    );
 
 
   const attentionCount=
@@ -26815,6 +26827,17 @@ function renderInboundInbox(){
         }
 
 
+        actionButtons.push(`
+          <button
+            type="button"
+            data-inbox-archive="${inboundInboxEscape(
+              message.id
+            )}">
+            Archive
+          </button>
+        `);
+
+
         return `
           <article
             class="vf-inbox-message${attentionClass}"
@@ -26822,6 +26845,18 @@ function renderInboundInbox(){
               message.id
             )}">
             <div class="vf-inbox-message-top">
+              <label class="vf-inbox-select-row" title="Select for bulk archive">
+                <input
+                  type="checkbox"
+                  data-inbox-select="${inboundInboxEscape(
+                    message.id
+                  )}"
+                  ${
+                    inboundInboxSelectedIds.has(message.id)
+                      ? 'checked'
+                      : ''
+                  }>
+              </label>
               <div>
                 <div class="vf-inbox-subject">
                   ${inboundInboxEscape(
@@ -26985,6 +27020,161 @@ function renderInboundInbox(){
       );
     };
   });
+
+  $$(
+    '#inboundInboxList [data-inbox-select]'
+  ).forEach(checkbox=>{
+
+    checkbox.onchange=()=>{
+
+      const id=
+        checkbox.dataset.inboxSelect;
+
+      if(checkbox.checked){
+        inboundInboxSelectedIds.add(id);
+      }else{
+        inboundInboxSelectedIds.delete(id);
+      }
+
+      updateInboxBulkArchiveUI();
+    };
+  });
+
+  $$(
+    '#inboundInboxList [data-inbox-archive]'
+  ).forEach(button=>{
+
+    button.onclick=()=>{
+
+      archiveInboundEmails([
+        button.dataset.inboxArchive
+      ]);
+    };
+  });
+
+  updateInboxBulkArchiveUI();
+}
+
+
+/*
+ * Keeps the "Select all" checkbox and "Archive Selected" button
+ * (in the Email Inbox header) matched to inboundInboxSelectedIds.
+ */
+function updateInboxBulkArchiveUI(){
+
+  const archiveButton=
+    $('#archiveSelectedInboxEmails');
+
+  if(archiveButton){
+
+    const count=
+      inboundInboxSelectedIds.size;
+
+    archiveButton.disabled=
+      count===0;
+
+    archiveButton.textContent=
+      count
+        ? `Archive Selected (${count})`
+        : 'Archive Selected';
+  }
+
+  const selectAll=
+    $('#inboundInboxSelectAll');
+
+  if(selectAll){
+
+    selectAll.checked=
+      inboundInboxMessages.length>0 &&
+      inboundInboxSelectedIds.size===
+        inboundInboxMessages.length;
+  }
+}
+
+
+/*
+ * Archives one or several inbox emails (POST /inbound/inbox/archive)
+ * and removes them from the list on success -- archiving just hides
+ * an email from the inbox, it doesn't touch any student/payment/
+ * certificate records already created from it.
+ */
+async function archiveInboundEmails(emailIds){
+
+  const ids=[
+    ...new Set(
+      (emailIds||[]).filter(Boolean)
+    )
+  ];
+
+  if(!ids.length){
+    return;
+  }
+
+  try{
+
+    const token=
+      await user.getIdToken();
+
+    const response=
+      await fetch(
+        `${VENDORFLOW_API}/inbound/inbox/archive`,
+        {
+          method:'POST',
+
+          headers:{
+            Authorization:
+              `Bearer ${token}`,
+            'Content-Type':
+              'application/json'
+          },
+
+          body:
+            JSON.stringify({
+              emailIds:ids
+            })
+        }
+      );
+
+    let data={};
+
+    try{
+      data=await response.json();
+    }catch{}
+
+    if(!response.ok || data.ok===false){
+
+      throw new Error(
+        data.error ||
+        'Could not archive that email.'
+      );
+    }
+
+    inboundInboxMessages=
+      inboundInboxMessages.filter(
+        message=>
+          !ids.includes(message.id)
+      );
+
+    ids.forEach(
+      id=>
+        inboundInboxSelectedIds.delete(id)
+    );
+
+    renderInboundInbox();
+
+    toast(
+      ids.length===1
+        ? 'Email archived.'
+        : `${ids.length} emails archived.`
+    );
+
+  }catch(error){
+
+    toast(
+      error.message ||
+      'Could not archive that email.'
+    );
+  }
 }
 
 
@@ -27166,6 +27356,33 @@ if($('#refreshInboundInbox')){
 
   $('#refreshInboundInbox').onclick=
     ()=>loadInboundInbox();
+}
+
+if($('#inboundInboxSelectAll')){
+
+  $('#inboundInboxSelectAll').onchange=
+    (event)=>{
+
+      inboundInboxSelectedIds=
+        event.target.checked
+          ? new Set(
+              inboundInboxMessages.map(
+                message=>message.id
+              )
+            )
+          : new Set();
+
+      renderInboundInbox();
+    };
+}
+
+if($('#archiveSelectedInboxEmails')){
+
+  $('#archiveSelectedInboxEmails').onclick=
+    ()=>
+      archiveInboundEmails(
+        [...inboundInboxSelectedIds]
+      );
 }
 
 $$('[data-go]').forEach(
