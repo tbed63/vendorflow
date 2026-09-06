@@ -25414,6 +25414,12 @@ function renderReviews(){
               ${esc(review.title||'Needs review')}
             </strong>
 
+            ${
+              review.aiSummary
+                ? `<div class="vf-proposal-summary">${esc(review.aiSummary)}</div>`
+                : ''
+            }
+
             <div class="meta">
               ${esc(review.detail||'')}
             </div>
