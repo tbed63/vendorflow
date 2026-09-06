@@ -26461,6 +26461,7 @@ if($('#saveNotificationDefaults')){
 let inboundInboxMessages=[];
 let inboundInboxLoading=false;
 let inboundInboxSelectedIds=new Set();
+let vfInboxPollTimer=null;
 
 
 function inboundInboxEscape(value){
@@ -27335,6 +27336,35 @@ function switchView(v){
   if(v==='inbox'){
 
     loadInboundInbox();
+
+    if(!vfInboxPollTimer){
+
+      vfInboxPollTimer=
+        setInterval(
+          ()=>{
+
+            /*
+             * Belt and suspenders: only actually poll while the
+             * Inbox tab is still the one on screen, in case this
+             * timer somehow outlives a view switch.
+             */
+            if(
+              $('#inboxView')?.classList.contains('active')
+            ){
+              loadInboundInbox();
+            }
+          },
+          30000
+        );
+    }
+
+  }else if(vfInboxPollTimer){
+
+    clearInterval(
+      vfInboxPollTimer
+    );
+
+    vfInboxPollTimer=null;
   }
 
   if(v==='expenses'){
