@@ -9076,6 +9076,16 @@ function editSavedClass(
   $('#classLateFeeChargedReminderEnabled').checked=
     Boolean(c.lateFeeChargedReminderEnabled);
 
+  $('#classPaymentReceivedEmailEnabled').checked=
+    c.paymentReceivedEmailEnabled===undefined
+      ? true
+      : Boolean(c.paymentReceivedEmailEnabled);
+
+  $('#classCertificateReceivedEmailEnabled').checked=
+    c.certificateReceivedEmailEnabled===undefined
+      ? true
+      : Boolean(c.certificateReceivedEmailEnabled);
+
   $('#classRecurringReminderEnabled').checked=
     Boolean(c.recurringReminderEnabled);
 
@@ -10279,6 +10289,14 @@ function resetClassCreateFormFields(){
     Boolean(profile?.notificationDefaults?.paymentReminders);
   $('#classLateFeeChargedReminderEnabled').checked=
     Boolean(profile?.notificationDefaults?.lateFeeCharged);
+  $('#classPaymentReceivedEmailEnabled').checked=
+    profile?.notificationDefaults?.paymentReceivedEmail===undefined
+      ? true
+      : Boolean(profile.notificationDefaults.paymentReceivedEmail);
+  $('#classCertificateReceivedEmailEnabled').checked=
+    profile?.notificationDefaults?.certificateReceivedEmail===undefined
+      ? true
+      : Boolean(profile.notificationDefaults.certificateReceivedEmail);
   $('#classRecurringReminderEnabled').checked=
     Boolean(profile?.notificationDefaults?.recurringReminder);
 
@@ -10545,6 +10563,12 @@ $('#saveClass').onclick=async()=>{
 
     lateFeeChargedReminderEnabled:
       Boolean($('#classLateFeeChargedReminderEnabled').checked),
+
+    paymentReceivedEmailEnabled:
+      Boolean($('#classPaymentReceivedEmailEnabled').checked),
+
+    certificateReceivedEmailEnabled:
+      Boolean($('#classCertificateReceivedEmailEnabled').checked),
 
     recurringReminderEnabled:
       Boolean($('#classRecurringReminderEnabled').checked),
@@ -18237,6 +18261,44 @@ async function queueDuplicateReview(
  * in Needs Review until the vendor approves it. Never throws --
  * a problem here should never break a certificate save.
  */
+/*
+ * Resolves whether a "we received your X" family email should go
+ * out, checking the specific class first (if one is known and it
+ * has ever been explicitly set) and falling back to the vendor's
+ * global default. A class or vendor that has never touched this
+ * setting resolves to ON, so nothing changes for anyone until they
+ * actually turn it off -- same reasoning as the "notification
+ * defaults" toggles above.
+ */
+function resolveFamilyEmailToggle(
+  classId,
+  classField,
+  defaultsKey
+){
+
+  const classRecord=
+    classId
+      ? classes.find(c=>c.id===classId)
+      : null;
+
+  if(
+    classRecord &&
+    classRecord[classField]!==undefined
+  ){
+    return Boolean(
+      classRecord[classField]
+    );
+  }
+
+  const defaults=
+    profile?.notificationDefaults || {};
+
+  return defaults[defaultsKey]===undefined
+    ? true
+    : Boolean(defaults[defaultsKey]);
+}
+
+
 async function queueCertificateReceivedEmail(
   certificateId,
   certificateData,
@@ -18252,6 +18314,16 @@ async function queueCertificateReceivedEmail(
      * importing.
      */
     if(profile?.betaSetupComplete===false){
+      return;
+    }
+
+    if(
+      !resolveFamilyEmailToggle(
+        certificateData?.tutoringClassId,
+        'certificateReceivedEmailEnabled',
+        'certificateReceivedEmail'
+      )
+    ){
       return;
     }
 
@@ -18369,6 +18441,157 @@ ${profile.businessName||''}`;
 
     console.error(
       'Could not queue certificate-received email:',
+      error
+    );
+  }
+}
+
+
+/*
+ * Same idea as queueCertificateReceivedEmail, but for a payment --
+ * drafts a "we received your payment" email for the vendor to send
+ * with one click (or discard) rather than sending it automatically.
+ * classId is optional -- pass it when it's known (for example, from
+ * an approved email payment proposal) so the per-class toggle can
+ * apply; a manually-logged payment that has no class link on file
+ * just follows the vendor's global default.
+ */
+async function queuePaymentReceivedEmail(
+  paymentId,
+  paymentData,
+  studentMatch,
+  classId=''
+){
+
+  try{
+
+    if(profile?.betaSetupComplete===false){
+      return;
+    }
+
+    if(
+      !resolveFamilyEmailToggle(
+        classId,
+        'paymentReceivedEmailEnabled',
+        'paymentReceivedEmail'
+      )
+    ){
+      return;
+    }
+
+    const parentEmail=
+      String(
+        paymentData?.parentEmail ||
+        studentMatch?.parentEmail ||
+        ''
+      ).trim();
+
+    if(!parentEmail){
+      return;
+    }
+
+    const studentName=
+      paymentData?.student ||
+      studentMatch?.studentName ||
+      'your student';
+
+    const className=
+      paymentData?.className ||
+      paymentData?.serviceName ||
+      '';
+
+    const amount=
+      Number(paymentData?.amount||0);
+
+    if(!(amount>0)){
+      return;
+    }
+
+    let remainingBalance=null;
+
+    if(studentMatch?.id){
+
+      const refreshedStudent=
+        students.find(
+          s=>s.id===studentMatch.id
+        ) ||
+        studentMatch;
+
+      remainingBalance=
+        studentAccountTotals(
+          refreshedStudent
+        ).parentBalance;
+    }
+
+    const balanceLine=
+      remainingBalance===null
+        ? ''
+        : (
+            remainingBalance>0.009
+              ? ` Their remaining balance is now ${money(remainingBalance)}.`
+              : ` Their account is now paid in full.`
+          );
+
+    const subject=
+      `We received your payment for ${studentName}`;
+
+    const body=
+      `Hi ${paymentData?.parentName||studentMatch?.parentName||'there'},
+
+`+
+      `Good news — we received a payment of ${money(amount)} for `+
+      `${studentName}${className?` — ${className}`:''}.${balanceLine}
+
+`+
+      `I'm testing a new tool that's helping me keep payments and charter certificates organized, so you may notice these confirmations look a little different for now. If anything here doesn't look right, please don't hesitate to let me know and I'll check into it more carefully. Thank you for your understanding as I work through this new way of handling payments and charter funds.
+
+`+
+      `Thank you,
+${profile.businessName||''}`;
+
+    const detail=
+      `${money(amount)} payment for ${studentName}` +
+      `${className?` — ${className}`:''}.`;
+
+
+    await addDoc(
+      sub('review'),
+      {
+        reviewType:
+          'payment-received-email',
+
+        paymentId:
+          paymentId||'',
+
+        studentId:
+          paymentData?.studentId ||
+          studentMatch?.id ||
+          '',
+
+        title:
+          'Parent Email: Confirming Payment Received — Ready to Send',
+
+        detail,
+
+        to:
+          parentEmail,
+
+        subject,
+
+        body,
+
+        source:
+          'VendorFlow',
+
+        createdAt:
+          serverTimestamp()
+      }
+    );
+
+  }catch(error){
+
+    console.error(
+      'Could not queue payment-received email:',
       error
     );
   }
@@ -19078,6 +19301,117 @@ async function discardCertificateReceivedEmailReview(
   await log(
     'Parent email discarded',
     'Certificate-received email was not sent.',
+    'Manual'
+  );
+
+  if(!silent){
+
+    await refreshAll();
+
+    toast(
+      'Email discarded.'
+    );
+  }
+
+  return true;
+}
+
+
+async function sendPaymentReceivedEmailReview(
+  reviewId,
+  {silent=false}={}
+){
+
+  const review=
+    reviews.find(
+      r=>r.id===reviewId
+    );
+
+  if(
+    !review ||
+    review.reviewType!==
+      'payment-received-email'
+  ){
+    return false;
+  }
+
+
+  try{
+
+    await sendParentEmailThroughVendorFlow(
+      'payment-received',
+      review.paymentId || review.id,
+      review.to,
+      review.subject,
+      review.body
+    );
+
+  }catch(error){
+
+    console.error(error);
+
+    if(!silent){
+      toast(
+        error.message ||
+        'This email could not be sent.'
+      );
+    }
+
+    return false;
+  }
+
+
+  await deleteDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'review',
+      reviewId
+    )
+  );
+
+  await log(
+    'Parent email sent',
+    `Payment-received email sent to ${review.to}.`,
+    'Manual',
+    {
+      type:'parent-email',
+      studentId:review.studentId||''
+    }
+  );
+
+  if(!silent){
+
+    await refreshAll();
+
+    toast(
+      'Email sent.'
+    );
+  }
+
+  return true;
+}
+
+
+async function discardPaymentReceivedEmailReview(
+  reviewId,
+  {silent=false}={}
+){
+
+  await deleteDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'review',
+      reviewId
+    )
+  );
+
+  await log(
+    'Parent email discarded',
+    'Payment-received email was not sent.',
     'Manual'
   );
 
@@ -20363,6 +20697,8 @@ async function bulkApproveSelectedReviews(reviewIds){
 
     if(review.reviewType==='certificate-received-email'){
       ok=await sendCertificateReceivedEmailReview(reviewId,{silent:true});
+    }else if(review.reviewType==='payment-received-email'){
+      ok=await sendPaymentReceivedEmailReview(reviewId,{silent:true});
     }else if(review.reviewType==='payment-reminder-email'){
       ok=await sendPaymentReminderReview(reviewId,{silent:true});
     }else if(review.reviewType==='late-fee-charged-email'){
@@ -20406,6 +20742,8 @@ async function bulkDiscardSelectedReviews(reviewIds){
 
     if(review.reviewType==='certificate-received-email'){
       await discardCertificateReceivedEmailReview(reviewId,{silent:true});
+    }else if(review.reviewType==='payment-received-email'){
+      await discardPaymentReceivedEmailReview(reviewId,{silent:true});
     }else if(review.reviewType==='payment-reminder-email'){
       await discardPaymentReminderReview(reviewId,{silent:true});
     }else if(review.reviewType==='late-fee-charged-email'){
@@ -21142,6 +21480,12 @@ $('#savePayment').onclick=async()=>{
       type:'payment',
       id:paymentRef.id
     }
+  );
+
+  await queuePaymentReceivedEmail(
+    paymentRef.id,
+    d,
+    selectedStudent
   );
 
 
@@ -24395,6 +24739,7 @@ let selectedReviewIds=new Set();
 function vfReviewIsBulkable(review){
   return (
     review?.reviewType==='certificate-received-email' ||
+    review?.reviewType==='payment-received-email' ||
     review?.reviewType==='payment-reminder-email' ||
     review?.reviewType==='late-fee-charged-email' ||
     review?.reviewType==='payment-reminder-followup-email'
@@ -24418,6 +24763,128 @@ function vfBulkReviewControlsHTML(eligibleCount){
     </div>
   `;
 }
+
+let vfProposalEditingId=null;
+
+/*
+ * The inline "Edit and approve" form for one email-proposal card.
+ * Certificates get their own simpler set of fields (no student/
+ * service picker, since certificate posting matches the student by
+ * name on its own); payment and charge proposals share a form that
+ * also lets the vendor flip between the two, since that's exactly
+ * the ambiguity VendorFlow's AI reader can't always resolve on its
+ * own.
+ */
+function vfProposalEditFormHTML(review){
+
+  const f=review.proposalFields||{};
+
+  if(review.itemType==='certificate'){
+
+    return `
+      <div class="vf-proposal-edit-form">
+
+        <label class="vf-field-label"><span>Student name</span>
+          <input class="input" data-proposal-field="studentName" value="${esc(f.studentName||'')}">
+        </label>
+
+        <label class="vf-field-label"><span>Charter school</span>
+          <input class="input" data-proposal-field="charterSchool" value="${esc(f.charterSchool||'')}">
+        </label>
+
+        <label class="vf-field-label"><span>Certificate #</span>
+          <input class="input" data-proposal-field="certificateNumber" value="${esc(f.certificateNumber||'')}">
+        </label>
+
+        <label class="vf-field-label"><span>Amount</span>
+          <input class="input" type="number" step="0.01" data-proposal-field="amount" value="${esc(String(f.amount||0))}">
+        </label>
+
+        <label class="vf-field-label"><span>Service start date</span>
+          <input class="input" type="date" data-proposal-field="serviceStartDate" value="${esc(f.serviceStartDate||'')}">
+        </label>
+
+        <label class="vf-field-label"><span>Service end date</span>
+          <input class="input" type="date" data-proposal-field="serviceEndDate" value="${esc(f.serviceEndDate||'')}">
+        </label>
+
+        <label class="vf-field-label"><span>Activity / description</span>
+          <input class="input" data-proposal-field="serviceDescription" value="${esc(f.serviceDescription||'')}">
+        </label>
+
+        <div class="vf-review-actions">
+          <button type="button" class="primary" data-submit-proposal-edit="${esc(review.id)}">Save &amp; Approve</button>
+          <button type="button" class="vf-secondary-button" data-cancel-proposal-edit="${esc(review.id)}">Cancel</button>
+        </div>
+
+      </div>
+    `;
+  }
+
+  const currentType=
+    review.itemType==='charge' ? 'charge' : 'payment';
+
+  const studentOptions=
+    students
+      .filter(s=>s.active!==false)
+      .map(s=>`<option value="${esc(s.id)}" ${s.id===f.studentId?'selected':''}>${esc(s.studentName||'')}</option>`)
+      .join('');
+
+  const serviceOptions=
+    services
+      .filter(sv=>!f.studentId || sv.studentId===f.studentId)
+      .map(sv=>`<option value="${esc(sv.id)}" ${sv.id===f.serviceId?'selected':''}>${esc(sv.name||sv.className||'Service')}</option>`)
+      .join('');
+
+  return `
+    <div class="vf-proposal-edit-form">
+
+      <label class="vf-field-label"><span>This is actually a</span>
+        <select class="input" data-proposal-type-select>
+          <option value="payment" ${currentType==='payment'?'selected':''}>Payment received</option>
+          <option value="charge" ${currentType==='charge'?'selected':''}>Charge for a service rendered</option>
+        </select>
+      </label>
+
+      <label class="vf-field-label"><span>Student</span>
+        <select class="input" data-proposal-field="studentId">
+          <option value="">Choose a student…</option>
+          ${studentOptions}
+        </select>
+      </label>
+
+      <label class="vf-field-label"><span>Service / class</span>
+        <select class="input" data-proposal-field="serviceId">
+          <option value="">Choose a service…</option>
+          ${serviceOptions}
+        </select>
+      </label>
+
+      <label class="vf-field-label"><span>Amount</span>
+        <input class="input" type="number" step="0.01" data-proposal-field="amount" value="${esc(String(f.amount||0))}">
+      </label>
+
+      <label class="vf-field-label"><span>Payer name</span>
+        <input class="input" data-proposal-field="payer" value="${esc(f.payer||'')}">
+      </label>
+
+      <label class="vf-field-label"><span>Date</span>
+        <input class="input" type="date" data-proposal-field="date" value="${esc(f.date||'')}">
+      </label>
+
+      <label class="vf-field-label"><span>Note</span>
+        <input class="input" data-proposal-field="memo" value="${esc(f.memo||'')}">
+      </label>
+
+      <div class="vf-review-actions">
+        <button type="button" class="primary" data-submit-proposal-edit="${esc(review.id)}">Save &amp; Approve</button>
+        <button type="button" class="vf-secondary-button" data-cancel-proposal-edit="${esc(review.id)}">Cancel</button>
+      </div>
+
+    </div>
+  `;
+}
+
 
 function renderReviews(){
 
@@ -24471,6 +24938,74 @@ function renderReviews(){
         : ''
     ) +
     displayReviews.map(review=>{
+
+
+      if(
+        review.reviewType===
+          'email-proposal'
+      ){
+
+        const f=
+          review.proposalFields||{};
+
+        const isCertificate=
+          review.itemType==='certificate';
+
+        const editing=
+          vfProposalEditingId===review.id;
+
+        const detailsHTML=
+          isCertificate
+            ? `
+              <div>Student: ${esc(f.studentName||'—')}</div>
+              <div>Charter school: ${esc(f.charterSchool||'—')}</div>
+              <div>Certificate #: ${esc(f.certificateNumber||'—')}</div>
+              <div>Amount: ${money(Number(f.amount||0))}</div>
+              <div>Service dates: ${esc(f.serviceStartDate||'—')} through ${esc(f.serviceEndDate||'—')}</div>
+            `
+            : `
+              <div>${review.itemType==='charge'?'Owed by':'Payer'}: ${esc(f.payer||f.studentName||'—')}</div>
+              <div>Student: ${esc(f.studentName||'—')}</div>
+              <div>Service: ${esc(f.serviceName||'—')}</div>
+              <div>Amount: ${money(Number(f.amount||0))}</div>
+              ${review.itemType!=='charge'?`<div>Method: ${esc(f.method||'—')}</div>`:''}
+              <div>Date: ${esc(f.date||'—')}</div>
+            `;
+
+        return `
+          <div class="record vf-email-proposal">
+
+            <strong>${esc(review.title||'Email needs your decision')}</strong>
+
+            <div class="meta vf-proposal-summary">
+              ${esc(review.aiSummary||review.detail||'')}
+            </div>
+
+            ${
+              review.incomplete
+                ? `<div class="vf-proposal-incomplete">VendorFlow couldn't fill in everything (${esc(review.incompleteReason||'some details are missing')}) -- use Edit and approve to fill in the rest.</div>`
+                : ''
+            }
+
+            ${
+              editing
+                ? vfProposalEditFormHTML(review)
+                : `
+                  <div class="vf-proposal-details">
+                    ${detailsHTML}
+                  </div>
+
+                  <div class="vf-review-actions">
+                    <button type="button" class="primary" data-approve-proposal="${esc(review.id)}">Approve</button>
+                    <button type="button" class="vf-secondary-button" data-edit-proposal="${esc(review.id)}">Edit and approve</button>
+                    <button type="button" class="vf-secondary-button" data-dismiss-proposal="${esc(review.id)}">Dismiss</button>
+                  </div>
+                `
+            }
+
+          </div>
+        `;
+      }
 
 
       if(
@@ -24610,6 +25145,63 @@ function renderReviews(){
                 type="button"
                 class="vf-secondary-button"
                 data-discard-certificate-email="${esc(review.id)}">
+                Discard
+              </button>
+
+            </div>
+
+          </div>
+        `;
+      }
+
+
+      if(
+        review.reviewType===
+        'payment-received-email'
+      ){
+
+        return `
+          <div class="record vf-parent-email-review">
+
+            <label class="vf-review-select-row">
+              <input
+                type="checkbox"
+                class="vf-review-select"
+                data-review-select="${esc(review.id)}"
+                ${selectedReviewIds.has(review.id) ? 'checked' : ''}>
+              <span>Select for bulk action</span>
+            </label>
+
+            <strong>
+              ${esc(review.title)}
+            </strong>
+
+            <div class="meta">
+              ${esc(review.detail||'')}
+            </div>
+
+            <details class="vf-parent-email-preview">
+              <summary>Preview email</summary>
+              <div class="vf-parent-email-preview-body">
+                <div><strong>To:</strong> ${esc(review.to||'')}</div>
+                <div><strong>Subject:</strong> ${esc(review.subject||'')}</div>
+                <div>${esc(review.body||'').replace(/\n/g,'<br>')}</div>
+              </div>
+            </details>
+
+            <div class="vf-review-actions">
+
+              <button
+                type="button"
+                class="primary"
+                data-send-payment-received-email="${esc(review.id)}">
+                Approve &amp; Send
+              </button>
+
+              <button
+                type="button"
+                class="vf-secondary-button"
+                data-discard-payment-received-email="${esc(review.id)}">
                 Discard
               </button>
 
@@ -25132,6 +25724,61 @@ function renderReviews(){
     });
 
 
+  $$('[data-approve-proposal]')
+    .forEach(button=>{
+      button.onclick=async()=>{
+        button.disabled=true;
+        try{
+          await approveEmailProposal(
+            button.dataset.approveProposal
+          );
+        }finally{
+          button.disabled=false;
+        }
+      };
+    });
+
+  $$('[data-edit-proposal]')
+    .forEach(button=>{
+      button.onclick=()=>{
+        vfProposalEditingId=
+          button.dataset.editProposal;
+        renderReviews();
+      };
+    });
+
+  $$('[data-cancel-proposal-edit]')
+    .forEach(button=>{
+      button.onclick=()=>{
+        vfProposalEditingId=null;
+        renderReviews();
+      };
+    });
+
+  $$('[data-submit-proposal-edit]')
+    .forEach(button=>{
+      button.onclick=async()=>{
+        button.disabled=true;
+        try{
+          await submitProposalEdit(
+            button.dataset.submitProposalEdit
+          );
+        }finally{
+          button.disabled=false;
+        }
+      };
+    });
+
+  $$('[data-dismiss-proposal]')
+    .forEach(button=>{
+      button.onclick=()=>{
+        dismissEmailProposal(
+          button.dataset.dismissProposal
+        );
+      };
+    });
+
+
   $$('[data-open-notification-todo]')
     .forEach(button=>{
       button.onclick=()=>{
@@ -25316,6 +25963,39 @@ function renderReviews(){
     });
 
 
+  $$('[data-send-payment-received-email]')
+    .forEach(button=>{
+
+      button.onclick=async()=>{
+
+        button.disabled=true;
+
+        try{
+
+          await sendPaymentReceivedEmailReview(
+            button.dataset.sendPaymentReceivedEmail
+          );
+
+        }finally{
+
+          button.disabled=false;
+        }
+      };
+    });
+
+
+  $$('[data-discard-payment-received-email]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        discardPaymentReceivedEmailReview(
+          button.dataset.discardPaymentReceivedEmail
+        );
+      };
+    });
+
+
   $$('[data-send-payment-reminder]')
     .forEach(button=>{
 
@@ -25450,6 +26130,296 @@ function renderReviews(){
       };
     });
 }
+
+
+/*
+ * Sends a proposal (as VendorFlow guessed it, or with the vendor's
+ * edits layered on top) to the Worker to actually create the
+ * payment, charge, or certificate. Nothing gets created until this
+ * runs -- Approve and "Save & Approve" both call this, the only
+ * difference being whether fields/itemType were changed first.
+ */
+async function approveEmailProposal(
+  reviewId,
+  overrideFields=null,
+  overrideType=null
+){
+
+  const review=
+    reviews.find(r=>r.id===reviewId);
+
+  if(!review){
+    return;
+  }
+
+  const itemType=
+    overrideType || review.itemType;
+
+  const fieldsToSend=
+    overrideFields || review.proposalFields || {};
+
+  try{
+
+    const token=
+      await user.getIdToken();
+
+    const response=
+      await fetch(
+        `${VENDORFLOW_API}/inbound/proposals/approve`,
+        {
+          method:'POST',
+          headers:{
+            Authorization:`Bearer ${token}`,
+            'Content-Type':'application/json'
+          },
+          body:JSON.stringify({
+            inboundEmailId:review.inboundEmailId,
+            itemType,
+            fields:fieldsToSend
+          })
+        }
+      );
+
+    let data={};
+
+    try{
+      data=await response.json();
+    }catch{}
+
+    if(!response.ok || data.error){
+      throw new Error(
+        data.detail ||
+        data.error ||
+        'VendorFlow could not approve this.'
+      );
+    }
+
+    await deleteDoc(
+      doc(db,'vendors',user.uid,'review',reviewId)
+    );
+
+    vfProposalEditingId=null;
+
+    await log(
+      'Email proposal approved',
+      `${review.title||'Email'} approved -- ${data.outcome||''}.`,
+      'Manual'
+    );
+
+    await refreshAll();
+
+    if(
+      data.outcome==='created' ||
+      data.outcome==='repaired'
+    ){
+
+      const studentMatch=
+        students.find(s=>s.id===data.studentId) ||
+        {id:data.studentId,studentName:data.studentName};
+
+      if(data.itemType==='payment'){
+
+        const linkedService=
+          services.find(sv=>sv.id===data.serviceId);
+
+        await queuePaymentReceivedEmail(
+          data.paymentId,
+          {
+            studentId:data.studentId,
+            student:data.studentName,
+            className:data.serviceName,
+            amount:data.amount,
+            parentName:studentMatch?.parentName,
+            parentEmail:studentMatch?.parentEmail
+          },
+          studentMatch,
+          linkedService?.classId || ''
+        );
+
+      }else if(data.itemType==='certificate'){
+
+        await queueCertificateReceivedEmail(
+          data.certificateId,
+          {
+            studentId:studentMatch?.id||'',
+            student:data.studentName,
+            charterSchoolName:data.charterSchool,
+            amount:data.amount,
+            tutoringClassId:data.tutoringClassId||'',
+            parentName:studentMatch?.parentName,
+            parentEmail:studentMatch?.parentEmail
+          },
+          studentMatch
+        );
+      }
+    }
+
+    if(
+      data.outcome==='created' ||
+      data.outcome==='repaired'
+    ){
+      toast('Approved.');
+    }else if(data.outcome==='duplicate'){
+      toast('That looked like a duplicate -- check Needs Review.');
+    }else{
+      toast(
+        (data.reasons && data.reasons[0]) ||
+        'Saved for review -- some details still need a look.'
+      );
+    }
+
+  }catch(error){
+
+    console.error(error);
+
+    toast(
+      error.message ||
+      'VendorFlow could not approve this.'
+    );
+  }
+}
+
+
+/*
+ * Reads the vendor's edits out of an open proposal card's form
+ * (including a possible payment<->charge reclassification) and
+ * approves it with those values instead of VendorFlow's original
+ * guess.
+ */
+async function submitProposalEdit(reviewId){
+
+  const review=
+    reviews.find(r=>r.id===reviewId);
+
+  if(!review){
+    return;
+  }
+
+  const submitButton=
+    document.querySelector(
+      `[data-submit-proposal-edit="${reviewId}"]`
+    );
+
+  const container=
+    submitButton?.closest('.vf-proposal-edit-form');
+
+  if(!container){
+    return;
+  }
+
+  const typeSelect=
+    container.querySelector('[data-proposal-type-select]');
+
+  const itemType=
+    typeSelect
+      ? typeSelect.value
+      : review.itemType;
+
+  const fields=
+    {...(review.proposalFields||{})};
+
+  container
+    .querySelectorAll('[data-proposal-field]')
+    .forEach(input=>{
+
+      const key=
+        input.dataset.proposalField;
+
+      fields[key]=
+        input.type==='number'
+          ? Number(input.value||0)
+          : input.value.trim();
+    });
+
+  if(fields.studentId){
+
+    const student=
+      students.find(s=>s.id===fields.studentId);
+
+    if(student){
+      fields.studentName=student.studentName||'';
+    }
+  }
+
+  if(fields.serviceId){
+
+    const service=
+      services.find(s=>s.id===fields.serviceId);
+
+    if(service){
+      fields.serviceName=
+        service.name ||
+        service.className ||
+        fields.serviceName ||
+        '';
+    }
+  }
+
+  await approveEmailProposal(
+    reviewId,
+    fields,
+    itemType
+  );
+}
+
+
+/*
+ * Same idea as ignoreInboundReview -- nothing is created, and the
+ * source email's own status is updated the same way so it still
+ * shows up correctly in the Email Inbox.
+ */
+async function dismissEmailProposal(reviewId){
+
+  const review=
+    reviews.find(r=>r.id===reviewId);
+
+  if(!review){
+    return;
+  }
+
+  const ok=
+    confirm(
+      `Dismiss this?\n\n${review.aiSummary||review.title||''}\n\n`+
+      `No payment, charge, or certificate will be created.`
+    );
+
+  if(!ok){
+    return;
+  }
+
+  try{
+
+    await updateInboundEmailDecision(
+      review,
+      'dismissed',
+      `${review.title||'Email proposal'} was dismissed.`
+    );
+
+    await deleteDoc(
+      doc(db,'vendors',user.uid,'review',reviewId)
+    );
+
+    await log(
+      'Email proposal dismissed',
+      `${review.aiSummary||review.title||'An email proposal'} was dismissed.`,
+      'Manual'
+    );
+
+    await refreshAll();
+
+    toast('Dismissed. No records were changed.');
+
+  }catch(error){
+
+    console.error(error);
+
+    toast(
+      error.message ||
+      'VendorFlow could not dismiss that.'
+    );
+  }
+}
+
 
 function date(ts){
   return ts?.toDate
@@ -26441,6 +27411,20 @@ function vfRenderNotificationDefaults(){
   recurringReminderDays.value=
     defaults.recurringReminderDays||7;
 
+  if($('#ndPaymentReceivedEmail')){
+    $('#ndPaymentReceivedEmail').checked=
+      defaults.paymentReceivedEmail===undefined
+        ? true
+        : Boolean(defaults.paymentReceivedEmail);
+  }
+
+  if($('#ndCertificateReceivedEmail')){
+    $('#ndCertificateReceivedEmail').checked=
+      defaults.certificateReceivedEmail===undefined
+        ? true
+        : Boolean(defaults.certificateReceivedEmail);
+  }
+
   updateNdRecurringReminderUI();
 }
 
@@ -26690,7 +27674,17 @@ if($('#saveNotificationDefaults')){
           Boolean($('#ndRecurringReminder').checked),
 
         recurringReminderDays:
-          Number($('#ndRecurringReminderDays').value||0) || 7
+          Number($('#ndRecurringReminderDays').value||0) || 7,
+
+        paymentReceivedEmail:
+          $('#ndPaymentReceivedEmail')
+            ? Boolean($('#ndPaymentReceivedEmail').checked)
+            : true,
+
+        certificateReceivedEmail:
+          $('#ndCertificateReceivedEmail')
+            ? Boolean($('#ndCertificateReceivedEmail').checked)
+            : true
       };
 
       await setDoc(
