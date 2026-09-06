@@ -28100,6 +28100,7 @@ if($('#saveNotificationDefaults')){
 let inboundInboxMessages=[];
 let inboundInboxLoading=false;
 let inboundInboxSelectedIds=new Set();
+let inboundInboxShowArchived=false;
 let vfInboxPollTimer=null;
 let vfReviewPollTimer=null;
 let vfReviewsRefreshing=false;
@@ -28185,7 +28186,7 @@ function renderInboundInbox(){
     ).length;
 
 
-  if(badge){
+  if(badge && !inboundInboxShowArchived){
 
     badge.textContent=
       attentionCount
@@ -28198,30 +28199,48 @@ function renderInboundInbox(){
 
     status.textContent=
       inboundInboxMessages.length
-        ? `${inboundInboxMessages.length} received email${
-            inboundInboxMessages.length===1
-              ? ''
-              : 's'
-          }. ${attentionCount} need${
-            attentionCount===1
-              ? 's'
-              : ''
-          } attention.`
+        ? (
+            inboundInboxShowArchived
+              ? `${inboundInboxMessages.length} archived email${
+                  inboundInboxMessages.length===1
+                    ? ''
+                    : 's'
+                }.`
+              : `${inboundInboxMessages.length} received email${
+                  inboundInboxMessages.length===1
+                    ? ''
+                    : 's'
+                }. ${attentionCount} need${
+                  attentionCount===1
+                    ? 's'
+                    : ''
+                } attention.`
+          )
         : '';
   }
 
 
   if(!inboundInboxMessages.length){
 
-    list.innerHTML=`
-      <div class="vf-inbox-empty">
-        <strong>No emails have been recorded yet.</strong>
-        <p>
-          New trusted emails sent to your VendorFlow address
-          will appear here.
-        </p>
-      </div>
-    `;
+    list.innerHTML=
+      inboundInboxShowArchived
+        ? `
+          <div class="vf-inbox-empty">
+            <strong>No archived emails.</strong>
+            <p>
+              Emails you archive from the inbox will show up here.
+            </p>
+          </div>
+        `
+        : `
+          <div class="vf-inbox-empty">
+            <strong>No emails have been recorded yet.</strong>
+            <p>
+              New trusted emails sent to your VendorFlow address
+              will appear here.
+            </p>
+          </div>
+        `;
 
     return;
   }
@@ -28475,7 +28494,7 @@ function renderInboundInbox(){
             data-inbox-archive="${inboundInboxEscape(
               message.id
             )}">
-            Archive
+            ${inboundInboxShowArchived ? 'Unarchive' : 'Archive'}
           </button>
         `);
 
@@ -28688,9 +28707,10 @@ function renderInboundInbox(){
 
     button.onclick=()=>{
 
-      archiveInboundEmails([
-        button.dataset.inboxArchive
-      ]);
+      archiveInboundEmails(
+        [button.dataset.inboxArchive],
+        !inboundInboxShowArchived
+      );
     };
   });
 
@@ -28712,13 +28732,18 @@ function updateInboxBulkArchiveUI(){
     const count=
       inboundInboxSelectedIds.size;
 
+    const actionWord=
+      inboundInboxShowArchived
+        ? 'Unarchive'
+        : 'Archive';
+
     archiveButton.disabled=
       count===0;
 
     archiveButton.textContent=
       count
-        ? `Archive Selected (${count})`
-        : 'Archive Selected';
+        ? `${actionWord} Selected (${count})`
+        : `${actionWord} Selected`;
   }
 
   const selectAll=
@@ -28740,7 +28765,7 @@ function updateInboxBulkArchiveUI(){
  * an email from the inbox, it doesn't touch any student/payment/
  * certificate records already created from it.
  */
-async function archiveInboundEmails(emailIds){
+async function archiveInboundEmails(emailIds, archived=true){
 
   const ids=[
     ...new Set(
@@ -28772,7 +28797,8 @@ async function archiveInboundEmails(emailIds){
 
           body:
             JSON.stringify({
-              emailIds:ids
+              emailIds:ids,
+              archived
             })
         }
       );
@@ -28787,7 +28813,7 @@ async function archiveInboundEmails(emailIds){
 
       throw new Error(
         data.error ||
-        'Could not archive that email.'
+        (archived ? 'Could not archive that email.' : 'Could not restore that email.')
       );
     }
 
@@ -28805,16 +28831,24 @@ async function archiveInboundEmails(emailIds){
     renderInboundInbox();
 
     toast(
-      ids.length===1
-        ? 'Email archived.'
-        : `${ids.length} emails archived.`
+      archived
+        ? (
+            ids.length===1
+              ? 'Email archived.'
+              : `${ids.length} emails archived.`
+          )
+        : (
+            ids.length===1
+              ? 'Email restored to the inbox.'
+              : `${ids.length} emails restored to the inbox.`
+          )
     );
 
   }catch(error){
 
     toast(
       error.message ||
-      'Could not archive that email.'
+      (archived ? 'Could not archive that email.' : 'Could not restore that email.')
     );
   }
 }
@@ -28843,7 +28877,9 @@ async function loadInboundInbox(){
 
   if(status){
     status.textContent=
-      'Loading your VendorFlow emails…';
+      inboundInboxShowArchived
+        ? 'Loading your archived emails…'
+        : 'Loading your VendorFlow emails…';
   }
 
 
@@ -28858,9 +28894,15 @@ async function loadInboundInbox(){
       await user.getIdToken();
 
 
+    const inboxUrl=
+      inboundInboxShowArchived
+        ? `${VENDORFLOW_API}/inbound/inbox?archived=true`
+        : `${VENDORFLOW_API}/inbound/inbox`;
+
+
     const response=
       await fetch(
-        `${VENDORFLOW_API}/inbound/inbox`,
+        inboxUrl,
         {
           method:'GET',
 
@@ -29087,8 +29129,29 @@ if($('#archiveSelectedInboxEmails')){
   $('#archiveSelectedInboxEmails').onclick=
     ()=>
       archiveInboundEmails(
-        [...inboundInboxSelectedIds]
+        [...inboundInboxSelectedIds],
+        !inboundInboxShowArchived
       );
+}
+
+if($('#toggleArchivedInbox')){
+
+  $('#toggleArchivedInbox').onclick=
+    ()=>{
+
+      inboundInboxShowArchived=
+        !inboundInboxShowArchived;
+
+      inboundInboxSelectedIds=
+        new Set();
+
+      $('#toggleArchivedInbox').textContent=
+        inboundInboxShowArchived
+          ? 'Back to Inbox'
+          : 'View Archived';
+
+      loadInboundInbox();
+    };
 }
 
 $$('[data-go]').forEach(
