@@ -11427,6 +11427,12 @@ function renderRoster(){
               Edit
             </button>
 
+            <button
+              class="vf-cert-delete-button"
+              data-delete-student="${s.id}">
+              Delete
+            </button>
+
           </div>
         </td>
       </tr>`
@@ -11434,6 +11440,10 @@ function renderRoster(){
 
   $$('[data-edit-student]').forEach(
     b=>b.onclick=()=>editRosterStudent(b.dataset.editStudent)
+  );
+
+  $$('[data-delete-student]').forEach(
+    b=>b.onclick=()=>deleteRosterStudent(b.dataset.deleteStudent)
   );
 
 }
@@ -11554,6 +11564,113 @@ async function dropStudentFromClass(id){
   updateRosterUploadTarget();
 
   toast(`${s.studentName} marked Dropped.`);
+}
+
+
+async function deleteRosterStudent(id){
+
+  const s=
+    roster.find(x=>x.id===id);
+
+  const c=
+    currentClass();
+
+  if(!s || !c){
+    return;
+  }
+
+  const core=
+    students.find(
+      x=>
+        normalizedName(x.studentName)===
+        normalizedName(s.studentName)
+    );
+
+  const hasLinkedService=
+    core
+      ? services.some(
+          service=>
+            service.studentId===core.id &&
+            service.classId===c.id &&
+            norm(service.status)!=='dropped'
+        )
+      : false;
+
+  if(hasLinkedService){
+
+    const dropInstead=
+      confirm(
+        `${s.studentName} already has payment or certificate activity in ${c.name}, ` +
+        `so VendorFlow can't permanently delete this roster entry -- that history needs to stay intact.\n\n` +
+        `Click OK to mark this enrollment Dropped instead (keeps the history, removes them from the active roster). ` +
+        `Click Cancel to do nothing.`
+      );
+
+    if(dropInstead){
+      await dropStudentFromClass(id);
+    }
+
+    return;
+  }
+
+  const ok=
+    confirm(
+      `Permanently delete ${s.studentName} from ${c.name}'s roster?\n\n` +
+      `This removes the roster entry completely -- use this to fix a mistake, ` +
+      `such as an accidental duplicate. There's no payment or certificate history ` +
+      `tied to this entry yet, so nothing else will be affected.`
+    );
+
+  if(!ok){
+    return;
+  }
+
+  await deleteDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'classes',
+      c.id,
+      'students',
+      id
+    )
+  );
+
+  await loadRoster();
+
+  const count=
+    roster.filter(active).length;
+
+  await updateDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'classes',
+      c.id
+    ),
+    {
+      activeStudentCount:count,
+      rosterCount:roster.length
+    }
+  );
+
+  await log(
+    'Roster entry deleted',
+    `${s.studentName} was permanently removed from ${c.name}'s roster.`,
+    'Manual'
+  );
+
+  await refreshAll();
+
+  $('#classSelect').value=c.id;
+
+  await loadRoster();
+  renderRoster();
+  updateRosterUploadTarget();
+
+  toast(`${s.studentName} deleted from the roster.`);
 }
 
 
