@@ -24873,8 +24873,25 @@ function inboundReviewActionsHTML(
   review
 ){
 
+  /*
+   * A handful of older review records were written without an
+   * inboundEmailId (Tim ran into this as a "Payment needs review"
+   * card with no buttons at all and no way to dismiss it). Rather
+   * than leave a review with no exit, fall back to just an Ignore
+   * button -- ignoreInboundReview() already tolerates a missing
+   * inboundEmailId safely, it just skips updating the source email.
+   */
   if(!review?.inboundEmailId){
-    return '';
+    return `
+      <div class="vf-review-actions">
+        <button
+          type="button"
+          class="vf-secondary-button"
+          data-ignore-inbound-review="${esc(review.id)}">
+          Ignore
+        </button>
+      </div>
+    `;
   }
 
   const sourceButton=`
