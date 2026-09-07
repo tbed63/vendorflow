@@ -8152,6 +8152,16 @@ function serviceKeepsStudentVisible(service){
 
 function studentVisibleInServices(student){
 
+  /*
+   * An active student always shows up in the directory, no matter
+   * what any individual service record says -- a bad or stale
+   * service status should never be able to hide a real, active
+   * student.
+   */
+  if(student && student.active!==false){
+    return true;
+  }
+
   const list=
     services.filter(
       service=>
@@ -25221,7 +25231,7 @@ function vfProposalEditFormHTML(review){
         }
       </label>
 
-      <label class="vf-field-label"><span>Payer name</span>
+      <label class="vf-field-label" data-payer-field-label ${currentType==='charge'?'hidden':''}><span>Payer name</span>
         <input class="input" data-proposal-field="payer" value="${esc(f.payer||'')}">
       </label>
 
@@ -26174,6 +26184,29 @@ function renderReviews(){
         renderReviews();
       };
     });
+
+  $$('select[data-proposal-type-select]')
+    .forEach(select=>{
+
+      select.onchange=()=>{
+
+        const form=
+          select.closest('.vf-proposal-edit-form');
+
+        const payerLabel=
+          form?.querySelector(
+            '[data-payer-field-label]'
+          );
+
+        if(!payerLabel){
+          return;
+        }
+
+        payerLabel.hidden=
+          select.value==='charge';
+      };
+    });
+
 
   $$('select[data-proposal-field="studentId"]')
     .forEach(select=>{
