@@ -449,8 +449,6 @@ $('#onboardLogout').onclick=async()=>{
 let vfAuthStateGeneration=0;
 
 onAuthStateChanged(auth,async u=>{
-  console.log(`[VF LOAD] onAuthStateChanged fired: ${performance.now().toFixed(0)}ms since page load started`);
-
   const vfThisAuthGeneration=++vfAuthStateGeneration;
 
   hide($('#loading'));
@@ -493,7 +491,6 @@ onAuthStateChanged(auth,async u=>{
 
   user=u;
   let s=await getDoc(vendorDoc());
-  console.log(`[VF LOAD] vendor doc loaded: ${performance.now().toFixed(0)}ms since page load started`);
 
   /*
    * Auth state can fire more than once in quick succession (a token
@@ -1311,16 +1308,9 @@ function paymentAttentionReviews(){
 
 
 async function refreshAll(){
-  const vfLoadTimer=performance.now();
-  const vfLap=label=>{
-    console.log(`[VF LOAD] ${label}: ${(performance.now()-vfLoadTimer).toFixed(0)}ms elapsed`);
-  };
-
   classes=await getList('classes',false);
 
   await repairRosterCoreLinksOnce();
-
-  vfLap('classes + repair check done');
 
   /*
    * These collections don't depend on each other, so fetching them
@@ -1355,8 +1345,6 @@ async function refreshAll(){
   payments=paymentsResult;
   expenses=expensesResult;
 
-  vfLap('core collections loaded');
-
   const ignoredPayerVendorData=
     ignoredPayerVendorSnap.exists()
       ? ignoredPayerVendorSnap.data()
@@ -1381,12 +1369,8 @@ async function refreshAll(){
     getList('invoices')
   ]);
 
-  vfLap('certs + invoices loaded');
-
   const createdInvoices=
     await createDueInvoices();
-
-  vfLap('createDueInvoices finished');
 
   if(createdInvoices>0){
     [invoices,certs]=await Promise.all([
@@ -1400,12 +1384,8 @@ async function refreshAll(){
     getList('review')
   ]);
 
-  vfLap('compliance + reviews loaded');
-
   const removedLegacyReviews=
     await cleanupLegacyPaymentDuplicateReviews();
-
-  vfLap('cleanupLegacyPaymentDuplicateReviews finished');
 
   if(removedLegacyReviews>0){
     reviews=await getList('review');
@@ -1426,12 +1406,8 @@ async function refreshAll(){
 
   history=await getList('history');
 
-  vfLap('history loaded');
-
   const repaired=
     await repairUnmatchedPayments();
-
-  vfLap('repairUnmatchedPayments finished');
 
   if(repaired>0){
     [payments,history]=await Promise.all([
@@ -1451,8 +1427,6 @@ async function refreshAll(){
   const obligationChanges=
     await reconcileObligationFunding();
 
-  vfLap('reconcileObligationFunding finished');
-
   if(obligationChanges>0){
     obligations=
       await getList(
@@ -1465,8 +1439,6 @@ async function refreshAll(){
   const queuedPaymentReminders=
     await queuePaymentReminderReviews();
 
-  vfLap('queuePaymentReminderReviews finished');
-
   if(queuedPaymentReminders>0){
     reviews=await getList('review');
   }
@@ -1474,8 +1446,6 @@ async function refreshAll(){
 
   const chargedLateFees=
     await applyLateFees();
-
-  vfLap('applyLateFees finished');
 
   if(chargedLateFees>0){
     obligations=await getList('obligations',false);
@@ -1488,16 +1458,12 @@ async function refreshAll(){
   const queuedFollowupReminders=
     await queueRecurringPaymentReminders();
 
-  vfLap('queueLateFeeChargedReviews + queueRecurringPaymentReminders finished');
-
   if(queuedLateFeeNotices>0 || queuedFollowupReminders>0){
     reviews=await getList('review');
   }
 
 
   renderAll();
-
-  vfLap('renderAll finished -- TOTAL');
 }
 
 
