@@ -17882,10 +17882,22 @@ async function syncRosterToCoreRecords(
       );
 
 
+    /*
+     * A roster row going inactive (Dropped/Removed/Withdrawn/etc. --
+     * see active()) used to collapse the linked service's status to
+     * the literal 'Dropped', which studentAccountTotals() excludes
+     * from the balance entirely -- silently zeroing out charges the
+     * student had already earned. That directly contradicts what
+     * dropStudentFromClass() promises the vendor when they remove a
+     * student from a class ("account history will NOT be deleted").
+     * 'Removed' is the status this codebase already uses for exactly
+     * that case -- an ended enrollment that still owes for what was
+     * already charged -- so use that instead of 'Dropped' here.
+     */
     const status=
       active(row)
         ? 'Active'
-        : 'Dropped';
+        : 'Removed';
 
 
     if(!existingService){
