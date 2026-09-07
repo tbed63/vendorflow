@@ -449,6 +449,8 @@ $('#onboardLogout').onclick=async()=>{
 let vfAuthStateGeneration=0;
 
 onAuthStateChanged(auth,async u=>{
+  console.log(`[VF LOAD] onAuthStateChanged fired: ${performance.now().toFixed(0)}ms since page load started`);
+
   const vfThisAuthGeneration=++vfAuthStateGeneration;
 
   hide($('#loading'));
@@ -491,6 +493,7 @@ onAuthStateChanged(auth,async u=>{
 
   user=u;
   let s=await getDoc(vendorDoc());
+  console.log(`[VF LOAD] vendor doc loaded: ${performance.now().toFixed(0)}ms since page load started`);
 
   /*
    * Auth state can fire more than once in quick succession (a token
