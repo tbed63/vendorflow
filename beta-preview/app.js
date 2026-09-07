@@ -26877,7 +26877,14 @@ async function approveEmailProposal(
     overrideType || review.itemType;
 
   const fieldsToSend=
-    overrideFields || review.proposalFields || {};
+    overrideFields ||
+    {
+      ...(review.proposalFields || {}),
+      amount:
+        proposalDisplayAmount(
+          review.proposalFields || {}
+        )
+    };
 
   try{
 
@@ -26913,6 +26920,27 @@ async function approveEmailProposal(
         data.error ||
         'VendorFlow could not approve this.'
       );
+    }
+
+    const outcomeResolved=
+      data.outcome==='created' ||
+      data.outcome==='repaired' ||
+      data.outcome==='duplicate';
+
+    if(!outcomeResolved){
+
+      /*
+       * Nothing was actually recorded -- leave the review card
+       * exactly as it was (nothing in Firestore was touched) so
+       * Tim can use Edit and approve to fix whatever was wrong
+       * instead of the item silently disappearing.
+       */
+      toast(
+        (data.reasons && data.reasons[0]) ||
+        'VendorFlow could not complete this -- the item is still in Needs Review so you can fix and retry it.'
+      );
+
+      return;
     }
 
     await deleteDoc(
@@ -26980,13 +27008,8 @@ async function approveEmailProposal(
       data.outcome==='repaired'
     ){
       toast('Approved.');
-    }else if(data.outcome==='duplicate'){
-      toast('That looked like a duplicate -- check Needs Review.');
     }else{
-      toast(
-        (data.reasons && data.reasons[0]) ||
-        'Saved for review -- some details still need a look.'
-      );
+      toast('That looked like a duplicate -- check Needs Review.');
     }
 
   }catch(error){
