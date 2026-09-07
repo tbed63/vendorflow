@@ -14238,9 +14238,42 @@ function studentFinancialActivity(student){
 
   const entries=[];
 
+  const chargeTypeObligations=
+    new Set([
+      'Charge for service rendered',
+      'Tutoring session',
+      'Manual charge'
+    ]);
+
+  const serviceIdsWithItemizedCharges=
+    new Set(
+      obligations
+        .filter(o=>
+          !o.deleted &&
+          chargeTypeObligations.has(o.obligationType)
+        )
+        .map(o=>o.serviceId)
+        .filter(Boolean)
+    );
+
   studentServices(student.id)
     .filter(serviceKeepsStudentVisible)
     .forEach(service=>{
+
+      /*
+       * A service whose charges come from individual dated
+       * obligations (session charges, manual charges, emailed
+       * charges) already gets one Financial Activity entry per
+       * obligation below -- showing the running total here too
+       * would list the same money twice.
+       */
+      if(
+        Number(service.totalPrice||0)<=0 ||
+        serviceIdsWithItemizedCharges.has(service.id)
+      ){
+        return;
+      }
+
       entries.push({
         kind:'charge',
         label:'Service charge',
@@ -14259,6 +14292,36 @@ function studentFinancialActivity(student){
         transactionId:'',
         statementFile:'',
         recordId:service.id||''
+      });
+    });
+
+  obligations
+    .filter(o=>
+      !o.deleted &&
+      o.studentId===student.id &&
+      chargeTypeObligations.has(o.obligationType)
+    )
+    .forEach(obligation=>{
+      entries.push({
+        kind:'charge',
+        label:'Charge',
+        date:studentFinancialDate(
+          obligation.serviceDate ||
+          obligation.dueDate ||
+          obligation.createdAt
+        ),
+        amount:Number(obligation.amount||0),
+        primary:
+          obligation.serviceName ||
+          obligation.className ||
+          'Service',
+        method:obligation.obligationType||'',
+        memo:obligation.note||'',
+        source:obligation.source||'VendorFlow',
+        transactionId:'',
+        statementFile:'',
+        recordId:obligation.id||'',
+        ledgerDeletable:true
       });
     });
 
@@ -14425,6 +14488,83 @@ async function deleteStudentPaymentFromLedger(paymentId){
 }
 
 
+async function deleteStudentChargeFromLedger(obligationId){
+
+  const charge=
+    obligations.find(item=>item.id===obligationId);
+
+  if(!charge){
+    return toast('That charge record could not be found.');
+  }
+
+  const confirmed=window.confirm(
+    `Delete this charge?\n\n`+
+    `Student: ${charge.studentName||'Not available'}\n`+
+    `Service: ${charge.serviceName||charge.className||'Not available'}\n`+
+    `Date: ${charge.serviceDate||charge.dueDate||'Not available'}\n`+
+    `Amount: ${money(charge.amount)}\n`+
+    `Note: ${charge.note||'Not available'}\n`+
+    `Record ID: ${charge.id}\n\n`+
+    `This removes the charge and reduces the service's total price by the same amount. `+
+    `The deletion will be recorded in Actions.`
+  );
+
+  if(!confirmed){
+    return;
+  }
+
+  await deleteDoc(
+    doc(db,'vendors',user.uid,'obligations',charge.id)
+  );
+
+  if(charge.serviceId){
+
+    const service=
+      services.find(item=>item.id===charge.serviceId);
+
+    if(service){
+
+      const newTotal=
+        Math.max(
+          0,
+          Number(
+            (
+              Number(service.totalPrice||0)-
+              Number(charge.amount||0)
+            ).toFixed(2)
+          )
+        );
+
+      await setDoc(
+        doc(db,'vendors',user.uid,'services',service.id),
+        {
+          totalPrice:newTotal,
+          updatedAt:serverTimestamp()
+        },
+        {merge:true}
+      );
+    }
+  }
+
+  await log(
+    'Charge deleted from student account',
+    `${charge.studentName||'Student'} — ${money(charge.amount)} `+
+    `for ${charge.serviceName||charge.className||'a service'} on `+
+    `${charge.serviceDate||charge.dueDate||'unknown date'}. `+
+    `Type: ${charge.obligationType||'unknown'}. `+
+    `Note: ${charge.note||'none'}. `+
+    `Deleted charge record ID: ${charge.id}.`,
+    'Manual'
+  );
+
+  await refreshAll();
+
+  showCenteredActionConfirmation(
+    'Charge deleted. The service total and student balance have been recalculated.'
+  );
+}
+
+
 async function resolveCrossIntakeDuplicate(firstId,secondId){
 
   const first=payments.find(payment=>payment.id===firstId);
@@ -14526,6 +14666,14 @@ function studentFinancialActivityHTML(student){
               class="vf-delete-ledger-payment"
               data-delete-student-payment="${esc(entry.recordId)}">
               Delete payment
+            </button>`
+          : ''}
+        ${entry.kind==='charge' && entry.ledgerDeletable && entry.recordId
+          ? `<button
+              type="button"
+              class="vf-delete-ledger-payment"
+              data-delete-student-charge="${esc(entry.recordId)}">
+              Delete charge
             </button>`
           : ''}
         ${entry.showDuplicateAction && entry.duplicatePartnerId
@@ -14769,6 +14917,18 @@ function upgradeStudentDirectoryRows(){
         event.stopPropagation();
         deleteStudentPaymentFromLedger(
           deletePaymentButton.dataset.deleteStudentPayment
+        );
+        return;
+      }
+
+      const deleteChargeButton=
+        event.target.closest('[data-delete-student-charge]');
+
+      if(deleteChargeButton){
+        event.preventDefault();
+        event.stopPropagation();
+        deleteStudentChargeFromLedger(
+          deleteChargeButton.dataset.deleteStudentCharge
         );
         return;
       }
@@ -16986,6 +17146,13 @@ function serviceObligationHTML(
   const list=
     serviceObligations(
       service.id
+    )
+    .filter(obligation=>
+      ![
+        'Charge for service rendered',
+        'Tutoring session',
+        'Manual charge'
+      ].includes(obligation.obligationType)
     );
 
 
@@ -36675,10 +36842,11 @@ function renderChargeRecords(){
       .filter(
         obligation=>
           !obligation.deleted &&
-          (
-            obligation.obligationType==='Manual charge' ||
-            obligation.source==='Manual charge'
-          )
+          [
+            'Charge for service rendered',
+            'Tutoring session',
+            'Manual charge'
+          ].includes(obligation.obligationType)
       )
       .sort(
         (a,b)=>
@@ -36714,7 +36882,7 @@ function renderChargeRecords(){
           `
         ).join('')
 
-      : '<div class="empty">No manual charges yet.</div>';
+      : '<div class="empty">No charges yet.</div>';
 }
 
 

@@ -6160,8 +6160,22 @@ button.history.vf-history-evidence:focus-visible{
   color:#667980;
 }
 
-.vf-payments-charges-section{
+.vf-payments-charges-columns{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:24px;
+  align-items:start;
   margin-top:24px;
+}
+
+@media(max-width:900px){
+  .vf-payments-charges-columns{
+    grid-template-columns:1fr;
+  }
+}
+
+.vf-payments-charges-section{
+  margin-top:0;
 }
 
 .vf-payments-charges-section > .eyebrow{
