@@ -19449,32 +19449,133 @@ async function keepDuplicateReview(
   }
 
 
-  const collectionName=
-    review.itemType==='certificate'
-      ? 'certificates'
-      : 'payments';
+  /*
+   * A kept duplicate CHARGE isn't a payment or a certificate --
+   * it's a tutoring-session obligation, and the balance/Financial
+   * Activity trail is driven off the service's own totalPrice (see
+   * applyChargeProposal), not off the obligation alone. So keeping
+   * a duplicate charge has to do both of those, the same as
+   * approving a normal charge proposal does.
+   */
+  if(review.itemType==='charge'){
+
+    const incomingCharge=
+      review.incoming || {};
+
+    const chargeAmount=
+      Number(incomingCharge.amount||0);
+
+    const chargeServiceId=
+      String(incomingCharge.serviceId||'').trim();
 
 
-  const incoming={
-    ...(review.incoming||{}),
+    await addDoc(
+      sub('obligations'),
+      {
+        studentId:
+          incomingCharge.studentId || '',
+        studentName:
+          incomingCharge.student || '',
+        serviceId:
+          chargeServiceId,
+        serviceName:
+          incomingCharge.className || '',
+        classId:'',
+        className:
+          incomingCharge.className || '',
+        obligationType:
+          'Charge for service rendered',
+        amount:
+          chargeAmount,
+        originalAmount:
+          chargeAmount,
+        dueDate:
+          incomingCharge.date || '',
+        serviceDate:
+          incomingCharge.date || '',
+        note:
+          incomingCharge.memo || '',
+        parentCreditedAmount:0,
+        certificateCreditedAmount:0,
+        creditedAmount:0,
+        remainingAmount:
+          chargeAmount,
+        status:'Scheduled',
+        source:'VendorFlow Email',
+        duplicateOverride:true,
+        duplicateReviewId:
+          review.id,
+        createdAt:
+          serverTimestamp(),
+        updatedAt:
+          serverTimestamp()
+      }
+    );
 
-    duplicateOverride:true,
 
-    duplicateReviewId:
-      review.id,
+    if(chargeServiceId){
 
-    createdAt:
-      serverTimestamp(),
+      const chargedService=
+        services.find(
+          sv=>sv.id===chargeServiceId
+        );
 
-    updatedAt:
-      serverTimestamp()
-  };
+      if(chargedService){
+
+        await updateDoc(
+
+          doc(
+            db,
+            'vendors',
+            user.uid,
+            'services',
+            chargeServiceId
+          ),
+
+          {
+            totalPrice:
+              Number(
+                (
+                  (Number(chargedService.totalPrice)||0)+
+                  chargeAmount
+                ).toFixed(2)
+              ),
+            updatedAt:
+              serverTimestamp()
+          }
+        );
+      }
+    }
+
+  }else{
+
+    const collectionName=
+      review.itemType==='certificate'
+        ? 'certificates'
+        : 'payments';
 
 
-  await addDoc(
-    sub(collectionName),
-    incoming
-  );
+    const incoming={
+      ...(review.incoming||{}),
+
+      duplicateOverride:true,
+
+      duplicateReviewId:
+        review.id,
+
+      createdAt:
+        serverTimestamp(),
+
+      updatedAt:
+        serverTimestamp()
+    };
+
+
+    await addDoc(
+      sub(collectionName),
+      incoming
+    );
+  }
 
 
   await deleteDoc(
