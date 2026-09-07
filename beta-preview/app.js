@@ -25172,36 +25172,6 @@ async function completeInboundStudentChange(
 }
 
 
-async function markInboundReviewed(
-  reviewId
-){
-
-  const review=
-    reviews.find(
-      item=>item.id===reviewId
-    );
-
-  if(!review){
-    return;
-  }
-
-  try{
-    await finishInboundReview(
-      review,
-      'reviewed',
-      `${review.subject || review.title || 'Inbound email'} was reviewed.`,
-      'Email marked reviewed.'
-    );
-  }catch(error){
-    console.error(error);
-    toast(
-      error.message ||
-      'VendorFlow could not complete that review.'
-    );
-  }
-}
-
-
 /*
  * Turns ONE already-loaded general review card into an editable
  * payment/charge proposal, in memory only -- nothing is written to
@@ -25319,6 +25289,15 @@ function inboundReviewActionsHTML(
     `;
   }
 
+  /*
+   * "Mark Reviewed" used to sit here alongside Ignore, but it did
+   * the exact same thing Ignore does (archive the review, nothing
+   * else) under a name that implied something more had happened.
+   * Tim: "If you reviewed it, you need to either dismiss it or log
+   * it as an update to vendorflow." Removed -- the only choices
+   * left are actually logging something (Add Payment or Charge) or
+   * actually dismissing it (Ignore).
+   */
   return `
     <div class="vf-review-actions">
       ${sourceButton}
@@ -25327,12 +25306,6 @@ function inboundReviewActionsHTML(
         class="primary"
         data-add-proposal-from-review="${esc(review.id)}">
         Add Payment or Charge
-      </button>
-      <button
-        type="button"
-        class="vf-secondary-button"
-        data-mark-inbound-reviewed="${esc(review.id)}">
-        Mark Reviewed
       </button>
       ${ignoreButton}
     </div>
@@ -26664,14 +26637,6 @@ function renderReviews(){
       button.onclick=()=>
         ignoreInboundReview(
           button.dataset.ignoreInboundReview
-        );
-    });
-
-  $$('[data-mark-inbound-reviewed]')
-    .forEach(button=>{
-      button.onclick=()=>
-        markInboundReviewed(
-          button.dataset.markInboundReviewed
         );
     });
 
