@@ -15242,7 +15242,7 @@ function renderStudentsServices(){
         $('#serviceStudent').value=
           btn.dataset.addServiceStudent;
 
-        openServiceEditor(studentId);
+        openServiceEditor(btn.dataset.addServiceStudent);
 
         $('#serviceForm')
           .scrollIntoView({
