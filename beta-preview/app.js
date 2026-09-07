@@ -13029,7 +13029,7 @@ function coreStudentById(id){
 
 function studentServices(studentId){
   return services.filter(
-    s=>s.studentId===studentId
+    s=>s.studentId===studentId && !s.deleted
   );
 }
 
@@ -14613,6 +14613,83 @@ async function deleteStudentChargeFromLedger(obligationId){
 }
 
 
+async function deleteStudentServiceFromLedger(serviceId){
+
+  const service=
+    services.find(item=>item.id===serviceId);
+
+  if(!service){
+    return toast('That service could not be found.');
+  }
+
+  const scheduleObligations=
+    obligations.filter(o=>
+      !o.deleted &&
+      o.serviceId===serviceId
+    );
+
+  const confirmed=window.confirm(
+    `Delete this service?\n\n`+
+    `Student: ${service.studentName||'Not available'}\n`+
+    `Service: ${service.name||service.serviceType||'Not available'}\n`+
+    `Current charge total: ${money(service.totalPrice)}\n\n`+
+    `This removes the enrollment and its charge from the student's balance`+
+    (
+      scheduleObligations.length
+        ? ` and cancels its ${scheduleObligations.length} scheduled payment${scheduleObligations.length===1?'':'s'}.`
+        : '.'
+    )+
+    ` The service record will remain preserved in VendorFlow's audit history. `+
+    `The deletion will be recorded in Actions.`
+  );
+
+  if(!confirmed){
+    return;
+  }
+
+  await setDoc(
+    doc(db,'vendors',user.uid,'services',service.id),
+    {
+      deleted:true,
+      status:'Removed',
+      deletedAt:serverTimestamp(),
+      updatedAt:serverTimestamp()
+    },
+    {merge:true}
+  );
+
+  for(const obligation of scheduleObligations){
+    await setDoc(
+      doc(db,'vendors',user.uid,'obligations',obligation.id),
+      {
+        deleted:true,
+        updatedAt:serverTimestamp()
+      },
+      {merge:true}
+    );
+  }
+
+  await log(
+    'Service deleted from student account',
+    `${service.studentName||'Student'} — ${service.name||service.serviceType||'Service'} `+
+    `(${money(service.totalPrice)}) removed. `+
+    (
+      scheduleObligations.length
+        ? `${scheduleObligations.length} scheduled payment(s) cancelled. `
+        : ''
+    )+
+    `Deleted service record ID: ${service.id}.`,
+    'Manual'
+  );
+
+  await refreshAll();
+
+  showCenteredActionConfirmation(
+    'Service deleted. The student balance has been recalculated.'
+  );
+}
+
+
 async function resolveCrossIntakeDuplicate(firstId,secondId){
 
   const first=payments.find(payment=>payment.id===firstId);
@@ -14708,12 +14785,12 @@ function studentFinancialActivityHTML(student){
         ${entry.possibleDuplicate
           ? '<span class="vf-financial-duplicate">Possible duplicate</span>'
           : ''}
-        ${entry.kind==='payment' && entry.recordId
+        ${(entry.kind==='payment' || entry.kind==='refund') && entry.recordId
           ? `<button
               type="button"
               class="vf-delete-ledger-payment"
               data-delete-student-payment="${esc(entry.recordId)}">
-              Delete payment
+              ${entry.kind==='refund' ? 'Delete refund' : 'Delete payment'}
             </button>`
           : ''}
         ${entry.kind==='charge' && entry.ledgerDeletable && entry.recordId
@@ -14722,6 +14799,22 @@ function studentFinancialActivityHTML(student){
               class="vf-delete-ledger-payment"
               data-delete-student-charge="${esc(entry.recordId)}">
               Delete charge
+            </button>`
+          : ''}
+        ${entry.kind==='charge' && !entry.ledgerDeletable && entry.recordId
+          ? `<button
+              type="button"
+              class="vf-delete-ledger-payment"
+              data-delete-student-service="${esc(entry.recordId)}">
+              Delete charge
+            </button>`
+          : ''}
+        ${entry.kind==='certificate' && entry.recordId
+          ? `<button
+              type="button"
+              class="vf-delete-ledger-payment"
+              data-delete-student-certificate="${esc(entry.recordId)}">
+              Delete certificate
             </button>`
           : ''}
         ${entry.showDuplicateAction && entry.duplicatePartnerId
@@ -14977,6 +15070,30 @@ function upgradeStudentDirectoryRows(){
         event.stopPropagation();
         deleteStudentChargeFromLedger(
           deleteChargeButton.dataset.deleteStudentCharge
+        );
+        return;
+      }
+
+      const deleteServiceButton=
+        event.target.closest('[data-delete-student-service]');
+
+      if(deleteServiceButton){
+        event.preventDefault();
+        event.stopPropagation();
+        deleteStudentServiceFromLedger(
+          deleteServiceButton.dataset.deleteStudentService
+        );
+        return;
+      }
+
+      const deleteCertificateButton=
+        event.target.closest('[data-delete-student-certificate]');
+
+      if(deleteCertificateButton){
+        event.preventDefault();
+        event.stopPropagation();
+        safeDeleteCertificate(
+          deleteCertificateButton.dataset.deleteStudentCertificate
         );
         return;
       }
