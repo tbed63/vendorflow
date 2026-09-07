@@ -29241,36 +29241,13 @@ function switchView(v){
 
   if(v==='inbox'){
 
+    /*
+     * Tim asked to remove the Email Inbox's automatic 30-second
+     * poll -- it was causing more problems than it solved. Loading
+     * the inbox when the tab is opened, plus the manual refresh
+     * button already on that view, is enough.
+     */
     loadInboundInbox();
-
-    if(!vfInboxPollTimer){
-
-      vfInboxPollTimer=
-        setInterval(
-          ()=>{
-
-            /*
-             * Belt and suspenders: only actually poll while the
-             * Inbox tab is still the one on screen, in case this
-             * timer somehow outlives a view switch.
-             */
-            if(
-              $('#inboxView')?.classList.contains('active')
-            ){
-              loadInboundInbox();
-            }
-          },
-          30000
-        );
-    }
-
-  }else if(vfInboxPollTimer){
-
-    clearInterval(
-      vfInboxPollTimer
-    );
-
-    vfInboxPollTimer=null;
   }
 
 
