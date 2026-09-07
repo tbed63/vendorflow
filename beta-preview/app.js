@@ -15573,29 +15573,30 @@ $('#saveCoreStudent').onclick=async()=>{
   }
 
 
-  await addDoc(
-    sub('students'),
-    {
-      studentFirst:first,
-      studentLast:last,
-      studentName,
+  const newStudentRef=
+    await addDoc(
+      sub('students'),
+      {
+        studentFirst:first,
+        studentLast:last,
+        studentName,
 
-      parentName:
-        $('#coreParentName').value.trim(),
+        parentName:
+          $('#coreParentName').value.trim(),
 
-      parentEmail:
-        $('#coreParentEmail').value.trim(),
+        parentEmail:
+          $('#coreParentEmail').value.trim(),
 
-      parentPhone:
-        $('#coreParentPhone').value.trim(),
+        parentPhone:
+          $('#coreParentPhone').value.trim(),
 
-      source:'Manual',
-      active:true,
+        source:'Manual',
+        active:true,
 
-      createdAt:serverTimestamp(),
-      updatedAt:serverTimestamp()
-    }
-  );
+        createdAt:serverTimestamp(),
+        updatedAt:serverTimestamp()
+      }
+    );
 
 
   await log(
@@ -15620,7 +15621,16 @@ $('#saveCoreStudent').onclick=async()=>{
 
   await refreshAll();
 
-  toast('Student saved.');
+  /*
+   * Adding a student here only creates their directory record --
+   * it does NOT enroll them in anything. Without a service they
+   * show up as "No active service" and can't be charged, so walk
+   * the vendor straight into adding one instead of leaving that as
+   * an easy-to-miss separate step.
+   */
+  openServiceEditor(newStudentRef.id);
+
+  toast('Student saved. Now add a service for them below.');
 };
 
 
