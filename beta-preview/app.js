@@ -18524,6 +18524,91 @@ function findDuplicatePayment(candidate){
 }
 
 
+function findDuplicateCharge(candidate){
+
+  const chargeTypeObligations=
+    new Set([
+      'Charge for service rendered',
+      'Tutoring session',
+      'Manual charge'
+    ]);
+
+  const studentId=
+    String(candidate.studentId||'').trim();
+
+  const className=
+    normalizeDuplicateKey(
+      candidate.className||''
+    );
+
+  const date=
+    String(candidate.date||'').trim();
+
+  const amount=
+    duplicateMoney(
+      candidate.amount
+    );
+
+  if(!studentId || !className || !date){
+    return null;
+  }
+
+  return obligations.find(existing=>{
+
+    if(existing.deleted){
+      return false;
+    }
+
+    if(
+      !chargeTypeObligations.has(
+        existing.obligationType
+      )
+    ){
+      return false;
+    }
+
+    if(
+      String(existing.studentId||'').trim()
+      !==studentId
+    ){
+      return false;
+    }
+
+    const existingClassName=
+      normalizeDuplicateKey(
+        existing.className ||
+        existing.serviceName ||
+        ''
+      );
+
+    if(existingClassName!==className){
+      return false;
+    }
+
+    const existingDate=
+      String(
+        existing.serviceDate ||
+        existing.dueDate ||
+        ''
+      ).trim();
+
+    if(existingDate!==date){
+      return false;
+    }
+
+    if(
+      duplicateMoney(existing.amount)
+      !==amount
+    ){
+      return false;
+    }
+
+    return true;
+
+  }) || null;
+}
+
+
 function findDuplicateCertificate(candidate){
 
   const number=
@@ -18846,8 +18931,12 @@ async function queueDuplicateReview(
   const isCertificate=
     itemType==='certificate';
 
+  const isCharge=
+    itemType==='charge';
+
   const exactTransactionDuplicate=
     !isCertificate &&
+    !isCharge &&
     paymentsShareTransactionId(
       incoming,
       existing
@@ -18857,7 +18946,9 @@ async function queueDuplicateReview(
   const detail=
     isCertificate
       ? `Certificate ${incoming.number||'(no number)'} already exists for ${existing.student||'a student'}.`
-      : (
+      : isCharge
+        ? `A ${incoming.className||'service'} charge of ${money(incoming.amount)} for ${incoming.student||'this student'} on ${incoming.date} appears to already exist.`
+        : (
           exactTransactionDuplicate
             ? `Exact duplicate: transaction ID ${paymentExternalTransactionId(incoming)} was already imported.`
             : `${incoming.method} payment for ${money(incoming.amount)} on ${incoming.date} appears to already exist.`
@@ -18876,7 +18967,9 @@ async function queueDuplicateReview(
       title:
         isCertificate
           ? 'Possible duplicate certificate'
-          : (
+          : isCharge
+            ? 'Possible duplicate charge'
+            : (
               exactTransactionDuplicate
                 ? 'Exact duplicate payment'
                 : 'Possible duplicate payment'
@@ -18905,7 +18998,9 @@ async function queueDuplicateReview(
       existingSummary:
         isCertificate
           ? `${existing.student||''} · ${existing.school||''} · ${existing.number||''} · ${money(existing.amount)}`
-          : `${existing.student||existing.payer||''} · ${existing.method||''} · ${existing.date||''} · ${money(existing.amount)}`,
+          : isCharge
+            ? `${existing.studentName||existing.student||''} · ${existing.className||existing.serviceName||''} · ${existing.serviceDate||existing.dueDate||''} · ${money(existing.amount)}`
+            : `${existing.student||existing.payer||''} · ${existing.method||''} · ${existing.date||''} · ${money(existing.amount)}`,
 
       source:
         incoming.source ||
@@ -26414,7 +26509,9 @@ function renderReviews(){
       const incomingSummary=
         review.itemType==='certificate'
           ? `${incoming.student||''} · ${incoming.school||''} · ${incoming.number||''} · ${money(incoming.amount)}`
-          : `${incoming.student||incoming.payer||''} · ${incoming.method||''} · ${incoming.date||''} · ${money(incoming.amount)}`;
+          : review.itemType==='charge'
+            ? `${incoming.student||''} · ${incoming.className||''} · ${incoming.date||''} · ${money(incoming.amount)}`
+            : `${incoming.student||incoming.payer||''} · ${incoming.method||''} · ${incoming.date||''} · ${money(incoming.amount)}`;
 
 
       const existingPayment=
@@ -37169,6 +37266,67 @@ if($('#saveCharge')){
             item=>item.id===service.classId
           )
         : null;
+
+
+    const candidateCharge={
+
+      studentId:
+        student.id,
+
+      student:
+        student.studentName||'',
+
+      serviceId:
+        service.id,
+
+      className:
+        classRecord?.name ||
+        service.className ||
+        service.name ||
+        'Service',
+
+      amount,
+
+      date,
+
+      memo:
+        note,
+
+      source:
+        'Manual charge'
+    };
+
+
+    const duplicateCharge=
+      findDuplicateCharge(
+        candidateCharge
+      );
+
+
+    if(duplicateCharge){
+
+      await queueDuplicateReview(
+        'charge',
+        candidateCharge,
+        duplicateCharge
+      );
+
+      resetChargeForm();
+
+      hide(
+        $('#chargeForm')
+      );
+
+      await refreshAll();
+
+      switchView('review');
+
+      toast(
+        'Possible duplicate — not recorded.'
+      );
+
+      return;
+    }
 
 
     const oldTotal=
