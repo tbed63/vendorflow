@@ -17027,7 +17027,7 @@ function serviceObligationHTML(
             <div class="vf-obligation-row">
 
               <span>
-                Payment ${esc(obligation.sequence||'')}
+                Charge ${esc(obligation.sequence||'')}
               </span>
 
               <strong>
