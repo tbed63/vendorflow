@@ -25129,7 +25129,6 @@ function vfProposalEditFormHTML(review){
 
   const studentOptions=
     students
-      .filter(s=>s.active!==false)
       .sort((a,b)=>String(a.studentName||'').localeCompare(String(b.studentName||'')))
       .map(s=>`<option value="${esc(s.id)}" ${s.id===f.studentId?'selected':''}>${esc(s.studentName||'')}</option>`)
       .join('');
