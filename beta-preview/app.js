@@ -25117,6 +25117,56 @@ let vfProposalEditingId=null;
  * the ambiguity VendorFlow's AI reader can't always resolve on its
  * own.
  */
+/*
+ * The dollar amount for a detected "N sessions" email charge is
+ * never sent in the email itself -- it's calculated here from the
+ * matched service's own per-session rate. Both the compact
+ * notification card and the full "Edit and approve" form call this
+ * SAME function so they can never show two different amounts for
+ * the same proposal again.
+ */
+function proposalDisplayAmount(f){
+
+  const sessionCount=
+    Number(f?.sessionCount||0);
+
+  let amount=
+    Number(f?.amount||0);
+
+  if(
+    sessionCount>0 &&
+    !(amount>0) &&
+    f?.serviceId
+  ){
+
+    const service=
+      services.find(sv=>sv.id===f.serviceId);
+
+    const classRecord=
+      service
+        ? tutoringClassForService(service)
+        : null;
+
+    const rate=
+      Number(
+        classRecord?.ratePerSession ||
+        service?.tutoringRate ||
+        0
+      );
+
+    if(rate>0){
+
+      amount=
+        Number(
+          (sessionCount*rate).toFixed(2)
+        );
+    }
+  }
+
+  return amount;
+}
+
+
 function vfProposalEditFormHTML(review){
 
   const f=review.proposalFields||{};
@@ -25186,46 +25236,8 @@ function vfProposalEditFormHTML(review){
   const sessionCount=
     Number(f.sessionCount||0);
 
-  const rateForService=
-    serviceId=>{
-
-      const service=
-        services.find(sv=>sv.id===serviceId);
-
-      if(!service){
-        return 0;
-      }
-
-      const classRecord=
-        tutoringClassForService(service);
-
-      return Number(
-        classRecord?.ratePerSession ||
-        service.tutoringRate ||
-        0
-      );
-    };
-
-  let initialAmount=
-    Number(f.amount||0);
-
-  if(
-    sessionCount>0 &&
-    !(initialAmount>0) &&
-    f.serviceId
-  ){
-
-    const rate=
-      rateForService(f.serviceId);
-
-    if(rate>0){
-
-      initialAmount=
-        Number(
-          (sessionCount*rate).toFixed(2)
-        );
-    }
-  }
+  const initialAmount=
+    proposalDisplayAmount(f);
 
   return `
     <div class="vf-proposal-edit-form">
@@ -25400,7 +25412,7 @@ function renderReviews(){
               <div>${review.itemType==='charge'?'Owed by':'Payer'}: ${esc(f.payer||f.studentName||'—')}</div>
               <div>Student: ${esc(f.studentName||'—')}</div>
               <div>Service: ${esc(f.serviceName||'—')}</div>
-              <div>Amount: ${money(Number(f.amount||0))}</div>
+              <div>Amount: ${money(proposalDisplayAmount(f))}</div>
               ${review.itemType!=='charge'?`<div>Method: ${esc(f.method||'—')}</div>`:''}
               <div>Date: ${esc(f.date||'—')}</div>
             `;
