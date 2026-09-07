@@ -1312,17 +1312,38 @@ async function refreshAll(){
 
   await repairRosterCoreLinksOnce();
 
-  students=await getList('students',false);
-  services=await getList('services',false);
-  obligations=await getList('obligations',false);
-  charterSchools=await getList('charterSchools',false);
-  payments=await getList('payments');
-  expenses=await getList('expenses');
+  /*
+   * These collections don't depend on each other, so fetching them
+   * all at once instead of one at a time cuts most of the page's
+   * load time -- this was the main reason VendorFlow felt slow to
+   * open. Nothing about what gets loaded or in what order the rest
+   * of this function runs has changed, only how these particular
+   * reads are dispatched.
+   */
+  const [
+    studentsResult,
+    servicesResult,
+    obligationsResult,
+    charterSchoolsResult,
+    paymentsResult,
+    expensesResult,
+    ignoredPayerVendorSnap
+  ]=await Promise.all([
+    getList('students',false),
+    getList('services',false),
+    getList('obligations',false),
+    getList('charterSchools',false),
+    getList('payments'),
+    getList('expenses'),
+    getDoc(vendorDoc())
+  ]);
 
-  const ignoredPayerVendorSnap=
-    await getDoc(
-      vendorDoc()
-    );
+  students=studentsResult;
+  services=servicesResult;
+  obligations=obligationsResult;
+  charterSchools=charterSchoolsResult;
+  payments=paymentsResult;
+  expenses=expensesResult;
 
   const ignoredPayerVendorData=
     ignoredPayerVendorSnap.exists()
@@ -1343,19 +1364,25 @@ async function refreshAll(){
           )
       : [];
 
-  certs=await getList('certificates');
-  invoices=await getList('invoices');
+  [certs,invoices]=await Promise.all([
+    getList('certificates'),
+    getList('invoices')
+  ]);
 
   const createdInvoices=
     await createDueInvoices();
 
   if(createdInvoices>0){
-    invoices=await getList('invoices');
-    certs=await getList('certificates');
+    [invoices,certs]=await Promise.all([
+      getList('invoices'),
+      getList('certificates')
+    ]);
   }
 
-  compliance=await getList('compliance');
-  reviews=await getList('review');
+  [compliance,reviews]=await Promise.all([
+    getList('compliance'),
+    getList('review')
+  ]);
 
   const removedLegacyReviews=
     await cleanupLegacyPaymentDuplicateReviews();
@@ -1383,8 +1410,10 @@ async function refreshAll(){
     await repairUnmatchedPayments();
 
   if(repaired>0){
-    payments=await getList('payments');
-    history=await getList('history');
+    [payments,history]=await Promise.all([
+      getList('payments'),
+      getList('history')
+    ]);
   }
 
 
