@@ -4414,6 +4414,19 @@ button.vf-certificate-problem:focus-visible{
   min-width:0;
 }
 
+/*
+ * display:flex above wins over the browser's default [hidden]
+ * behavior (author CSS always beats the UA stylesheet), so setting
+ * the hidden attribute on a .vf-field-label -- like the Payer name
+ * field on a charge -- did nothing. This is the only change: make
+ * [hidden] actually hide it here, same as it already does for
+ * .vf-payment-action-chooser and #paymentStatementWorkspace
+ * elsewhere in this file.
+ */
+.vf-field-label[hidden]{
+  display:none;
+}
+
 .vf-field-label > span{
   font-size:12px;
   font-weight:700;

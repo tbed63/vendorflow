@@ -725,6 +725,23 @@ async function enterApp(){
   $('#userEmail').textContent=user.email||'';
   fillProfile();
   await refreshAll();
+
+  /*
+   * The Email Inbox sidebar badge is only ever set inside
+   * renderInboundInbox(), which only ever ran after visiting the
+   * Email Inbox tab itself -- refreshAll() above never touches
+   * inbound email data. So the badge sat stuck on whatever's
+   * hardcoded in index.html ("0") for the entire session until the
+   * vendor happened to click into Email Inbox, at which point it
+   * would finally show the real count -- Tim saw this as "shows a
+   * zero and then when you click it there is an email there."
+   * Loading it once here at startup, same as refreshAll() above,
+   * keeps the badge accurate from the moment the app opens.
+   */
+  if(typeof loadInboundInbox==='function'){
+    loadInboundInbox();
+  }
+
   switchView('review');
 
   if(typeof vfRenderWizardNudge==='function')vfRenderWizardNudge();
