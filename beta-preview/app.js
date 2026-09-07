@@ -13282,12 +13282,60 @@ function studentAccountTotals(student){
     studentServices(student.id)
       .filter(serviceCountsAsActive);
 
-  const totalDue=
-    serviceList.reduce(
-      (sum,s)=>
-        sum+Number(s.totalPrice||0),
-      0
+  /*
+   * A service's totalPrice is a cached running total that's only
+   * ever updated as a side effect of the charge that created it
+   * (applyChargeProposal, recordTutoringSessionCharge, the manual
+   * charge form, keepDuplicateReview) -- and that side effect gets
+   * silently skipped whenever the charge couldn't be matched to one
+   * specific service, leaving a real, itemized charge that shows up
+   * correctly in Financial Activity but was never actually counted
+   * here. Summing those itemized charge-type obligations directly --
+   * the same source studentFinancialActivity() itemizes from --
+   * instead of only trusting totalPrice keeps this always in sync
+   * with what the vendor sees on the account, with no separate
+   * running total that can quietly drift out of date.
+   */
+  const chargeTypeObligations=
+    new Set([
+      'Charge for service rendered',
+      'Tutoring session',
+      'Manual charge'
+    ]);
+
+  const serviceIdsWithItemizedCharges=
+    new Set(
+      obligations
+        .filter(o=>
+          !o.deleted &&
+          chargeTypeObligations.has(o.obligationType)
+        )
+        .map(o=>o.serviceId)
+        .filter(Boolean)
     );
+
+  const itemizedChargeTotal=
+    obligations
+      .filter(o=>
+        !o.deleted &&
+        o.studentId===student.id &&
+        chargeTypeObligations.has(o.obligationType)
+      )
+      .reduce(
+        (sum,o)=>
+          sum+Number(o.amount||0),
+        0
+      );
+
+  const totalDue=
+    serviceList
+      .filter(s=>!serviceIdsWithItemizedCharges.has(s.id))
+      .reduce(
+        (sum,s)=>
+          sum+Number(s.totalPrice||0),
+        0
+      )+
+    itemizedChargeTotal;
 
 
   /*
