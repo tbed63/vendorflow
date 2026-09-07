@@ -25136,7 +25136,7 @@ function vfProposalEditFormHTML(review){
 
   const serviceOptions=
     services
-      .filter(sv=>!f.studentId || sv.studentId===f.studentId)
+      .filter(sv=>f.studentId && sv.studentId===f.studentId)
       .map(sv=>`<option value="${esc(sv.id)}" ${sv.id===f.serviceId?'selected':''}>${esc(sv.name||sv.className||'Service')}</option>`)
       .join('');
 
@@ -26175,6 +26175,45 @@ function renderReviews(){
         renderReviews();
       };
     });
+
+  $$('select[data-proposal-field="studentId"]')
+    .forEach(select=>{
+
+      select.onchange=()=>{
+
+        const form=
+          select.closest('.vf-proposal-edit-form');
+
+        const serviceSelect=
+          form?.querySelector(
+            'select[data-proposal-field="serviceId"]'
+          );
+
+        if(!serviceSelect){
+          return;
+        }
+
+        const studentId=
+          select.value;
+
+        const matchingServices=
+          services.filter(
+            sv=>
+              studentId &&
+              sv.studentId===studentId
+          );
+
+        serviceSelect.innerHTML=
+          '<option value="">Choose a service…</option>'+
+          matchingServices
+            .map(
+              sv=>
+                `<option value="${esc(sv.id)}">${esc(sv.name||sv.className||'Service')}</option>`
+            )
+            .join('');
+      };
+    });
+
 
   $$('select[data-proposal-field="serviceId"][data-session-count]')
     .forEach(select=>{
