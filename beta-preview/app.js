@@ -29178,7 +29178,8 @@ function switchView(v){
              * this timer somehow outlives a view switch.
              */
             if(
-              $('#reviewView')?.classList.contains('active')
+              $('#reviewView')?.classList.contains('active') &&
+              !vfProposalEditingId
             ){
               refreshReviewsView();
             }
