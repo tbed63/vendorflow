@@ -4022,17 +4022,31 @@ function certificateInvoiceSchedule(
     );
 
 
+  const accountDefaultRaw=
+    profile?.invoiceDaysAfterStartDefault;
+
+  const accountDefaultSet=
+    accountDefaultRaw!==null &&
+    accountDefaultRaw!==undefined &&
+    Number.isFinite(Number(accountDefaultRaw));
+
+
   /*
    * A class's own invoice-timing setting -- if the vendor actually
    * set one -- always wins. This used to only exist for Tutoring
    * classes; the wizard now asks every class for this, so any
    * class type can carry its own override. Falls back to the
-   * charter school's own default otherwise.
+   * charter school's own default next, then the vendor's
+   * account-wide default (Settings > Invoicing), then 14 days.
    */
   const rawDays=
     classDaysSet
       ? Number(classInvoiceDaysRaw)
-      : charterDays;
+      : Number.isFinite(charterDays)
+        ? charterDays
+        : accountDefaultSet
+          ? Number(accountDefaultRaw)
+          : NaN;
 
 
   const days=
@@ -29343,6 +29357,140 @@ if($('#ndRecurringReminder')){
 }
 
 
+function renderLateFeesSettings(){
+
+  const list=$('#lateFeesSettingsList');
+  if(!list)return;
+
+  const activeClasses=
+    classes
+      .filter(c=>!c.archived)
+      .sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+
+  if(!activeClasses.length){
+    list.innerHTML='<p class="muted">No active classes yet.</p>';
+    return;
+  }
+
+  list.innerHTML=activeClasses.map(c=>`
+    <div class="vf-expense-row" data-late-fee-row="${c.id}">
+      <div class="vf-expense-row-main">
+        <strong>${esc(c.name||'Unnamed class')}</strong>
+        ${c.term?`<span class="muted">${esc(c.term)}</span>`:''}
+      </div>
+      <label class="vf-field-label" style="margin:0;min-width:120px;">
+        <span>Late fee ($)</span>
+        <input type="number" min="0" step="0.01" class="input" data-late-fee-input="${c.id}" value="${Number(c.lateFee||0)}">
+      </label>
+      <button type="button" class="vf-secondary-button" data-late-fee-save="${c.id}">Save</button>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('[data-late-fee-save]').forEach(btn=>{
+    btn.onclick=()=>saveClassLateFee(btn.dataset.lateFeeSave);
+  });
+}
+
+async function saveClassLateFee(classId){
+
+  const input=
+    $(`[data-late-fee-input="${classId}"]`);
+
+  const classRecord=
+    classes.find(c=>c.id===classId);
+
+  if(!input || !classRecord)return;
+
+  const newFee=
+    Math.max(0,Number(input.value||0));
+
+  const button=
+    $(`[data-late-fee-save="${classId}"]`);
+
+  const originalLabel=
+    button?button.textContent:'';
+
+  if(button){
+    button.disabled=true;
+    button.textContent='Saving...';
+  }
+
+  try{
+
+    await setDoc(
+      doc(db,'vendors',user.uid,'classes',classId),
+      {lateFee:newFee},
+      {merge:true}
+    );
+
+    classRecord.lateFee=newFee;
+    input.value=newFee;
+
+    await log(
+      'Class late fee updated',
+      `${classRecord.name||'Class'} late fee set to ${money(newFee)}.`,
+      'Manual'
+    );
+
+    toast('Late fee saved.');
+
+  }catch(error){
+
+    toast(
+      error.message ||
+      'Could not save the late fee.'
+    );
+
+  }finally{
+
+    if(button){
+      button.disabled=false;
+      button.textContent=originalLabel;
+    }
+  }
+}
+
+
+function populateInvoicingDefaults(){
+
+  const input=$('#invoicingDefaultDaysAfterStart');
+  if(!input)return;
+
+  const raw=profile?.invoiceDaysAfterStartDefault;
+
+  input.value=
+    (raw===null||raw===undefined||!Number.isFinite(Number(raw)))
+      ? 14
+      : Number(raw);
+}
+
+
+function renderAutomationsSettings(){
+
+  const automations=profile?.automations||{};
+
+  const fields=[
+    ['autoEmailParents','emailParents',false],
+    ['autoImportInboundInfo','importInboundInfo',false],
+    ['autoSendCharterInvoices','sendCharterInvoices',false],
+    ['autoApplyLateFees','applyLateFees',true],
+    ['autoImportCertificates','importCertificates',false],
+    ['autoImportRosters','importRosters',false]
+  ];
+
+  fields.forEach(([elementId,key,defaultOn])=>{
+
+    const checkbox=$(`#${elementId}`);
+    if(!checkbox)return;
+
+    checkbox.checked=
+      automations[key]===undefined
+        ? defaultOn
+        : Boolean(automations[key]);
+  });
+}
+
+
 if($('#saveNotificationDefaults')){
 
   $('#saveNotificationDefaults').onclick=async()=>{
@@ -29406,6 +29554,135 @@ if($('#saveNotificationDefaults')){
       toast(
         error.message ||
         'Could not save notification defaults.'
+      );
+
+    }finally{
+
+      button.disabled=false;
+      button.textContent=originalLabel;
+    }
+  };
+}
+
+
+if($('#saveInvoicingDefaults')){
+
+  $('#saveInvoicingDefaults').onclick=async()=>{
+
+    const button=$('#saveInvoicingDefaults');
+    const originalLabel=button.textContent;
+
+    const input=$('#invoicingDefaultDaysAfterStart');
+
+    const days=
+      Math.max(0,Math.min(365,Math.round(Number(input.value||0))));
+
+    button.disabled=true;
+    button.textContent='Saving...';
+
+    try{
+
+      await setDoc(
+        vendorDoc(),
+        {invoiceDaysAfterStartDefault:days},
+        {merge:true}
+      );
+
+      profile.invoiceDaysAfterStartDefault=days;
+      input.value=days;
+
+      await log(
+        'Invoicing defaults updated',
+        `Default days after certificate start before invoicing set to ${days}.`,
+        'Manual'
+      );
+
+      toast('Invoicing defaults saved.');
+
+    }catch(error){
+
+      toast(
+        error.message ||
+        'Could not save invoicing defaults.'
+      );
+
+    }finally{
+
+      button.disabled=false;
+      button.textContent=originalLabel;
+    }
+  };
+}
+
+
+if($('#goToInvoiceNumberingSettings')){
+
+  $('#goToInvoiceNumberingSettings').onclick=()=>{
+
+    switchView('invoices');
+
+    const openButton=$('#openInvoiceNumberingSettings');
+
+    if(openButton){
+      openButton.click();
+    }
+  };
+}
+
+
+if($('#saveAutomations')){
+
+  $('#saveAutomations').onclick=async()=>{
+
+    const button=$('#saveAutomations');
+    const originalLabel=button.textContent;
+
+    button.disabled=true;
+    button.textContent='Saving...';
+
+    try{
+
+      const automations={
+        emailParents:
+          Boolean($('#autoEmailParents')?.checked),
+
+        importInboundInfo:
+          Boolean($('#autoImportInboundInfo')?.checked),
+
+        sendCharterInvoices:
+          Boolean($('#autoSendCharterInvoices')?.checked),
+
+        applyLateFees:
+          Boolean($('#autoApplyLateFees')?.checked),
+
+        importCertificates:
+          Boolean($('#autoImportCertificates')?.checked),
+
+        importRosters:
+          Boolean($('#autoImportRosters')?.checked)
+      };
+
+      await setDoc(
+        vendorDoc(),
+        {automations},
+        {merge:true}
+      );
+
+      profile.automations=automations;
+
+      await log(
+        'Automation preferences updated',
+        'Saved from Settings.',
+        'Manual'
+      );
+
+      toast('Automations saved.');
+
+    }catch(error){
+
+      toast(
+        error.message ||
+        'Could not save automations.'
       );
 
     }finally{
@@ -30390,6 +30667,12 @@ function switchView(v){
 
   if(v==='taxsummary'){
     renderTaxSummary();
+  }
+
+  if(v==='settings'){
+    renderLateFeesSettings();
+    populateInvoicingDefaults();
+    renderAutomationsSettings();
   }
 
 }
