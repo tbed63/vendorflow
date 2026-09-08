@@ -441,7 +441,7 @@ $('#onboardLogout').onclick=async()=>{
      */
   }
 
-  toast('Progress saved. Pick up where you left off next time you log in.');
+  toast("You're logged out. Your progress was saved -- log back in anytime to pick up where you left off.");
 
   await signOut(auth);
 };
