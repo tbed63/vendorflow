@@ -1472,10 +1472,17 @@ async function refreshAll(){
   const queuedLateFeeNotices=
     await queueLateFeeChargedReviews();
 
+  const queuedLateFeeRemovedNotices=
+    await queueLateFeeRemovedReviews();
+
   const queuedFollowupReminders=
     await queueRecurringPaymentReminders();
 
-  if(queuedLateFeeNotices>0 || queuedFollowupReminders>0){
+  if(
+    queuedLateFeeNotices>0 ||
+    queuedLateFeeRemovedNotices>0 ||
+    queuedFollowupReminders>0
+  ){
     reviews=await getList('review');
   }
 
@@ -9137,6 +9144,9 @@ function editSavedClass(
   $('#classLateFeeChargedReminderEnabled').checked=
     Boolean(c.lateFeeChargedReminderEnabled);
 
+  $('#classLateFeeRemovedReminderEnabled').checked=
+    Boolean(c.lateFeeRemovedReminderEnabled);
+
   $('#classPaymentReceivedEmailEnabled').checked=
     c.paymentReceivedEmailEnabled===undefined
       ? true
@@ -10350,6 +10360,8 @@ function resetClassCreateFormFields(){
     Boolean(profile?.notificationDefaults?.paymentReminders);
   $('#classLateFeeChargedReminderEnabled').checked=
     Boolean(profile?.notificationDefaults?.lateFeeCharged);
+  $('#classLateFeeRemovedReminderEnabled').checked=
+    Boolean(profile?.notificationDefaults?.lateFeeRemoved);
   $('#classPaymentReceivedEmailEnabled').checked=
     profile?.notificationDefaults?.paymentReceivedEmail===undefined
       ? true
@@ -10624,6 +10636,9 @@ $('#saveClass').onclick=async()=>{
 
     lateFeeChargedReminderEnabled:
       Boolean($('#classLateFeeChargedReminderEnabled').checked),
+
+    lateFeeRemovedReminderEnabled:
+      Boolean($('#classLateFeeRemovedReminderEnabled').checked),
 
     paymentReceivedEmailEnabled:
       Boolean($('#classPaymentReceivedEmailEnabled').checked),
@@ -20558,6 +20573,15 @@ async function reverseLateFeeIfPaidOnTime(obligation){
       lateFeeAppliedAt:
         null,
 
+      lateFeeRemovedAt:
+        serverTimestamp(),
+
+      lateFeeLastRemovedAmount:
+        chargedAmount,
+
+      lateFeeRemovalNoticeReviewedAt:
+        null,
+
       updatedAt:
         serverTimestamp()
     },
@@ -20579,6 +20603,19 @@ async function reverseLateFeeIfPaidOnTime(obligation){
 
 
 async function applyLateFees(){
+
+  /*
+   * Nothing here should touch a real balance until the vendor has
+   * explicitly clicked "Ready?" -- same rule already applied to
+   * every automated parent email (see queuePaymentReminderReviews,
+   * queueLateFeeChargedReviews, etc). Before this, applyLateFees()
+   * ran on every refreshAll() regardless of that flag, so a late
+   * fee could get charged to a real balance before the vendor ever
+   * told VendorFlow to start automating anything.
+   */
+  if(profile?.betaSetupComplete===false){
+    return 0;
+  }
 
   if(!obligations.length){
     return 0;
@@ -20732,6 +20769,23 @@ Payment instructions:
 If you've already sent this in and it just hasn't been recorded yet, thank you -- and please let me know so I can double-check.
 
 I'm testing a new tool that's helping me keep payments and charter certificates organized, so these emails may look a little different for now. If anything here doesn't look right, please don't hesitate to let me know and I'll check into it more carefully. Thank you for your understanding as I work through this new way of handling payments and charter funds.
+
+Thank you,
+{{businessName}}`;
+}
+
+
+function defaultLateFeeRemovedSubjectTemplate(){
+  return `The late fee on {{studentName}}'s account has been removed`;
+}
+
+
+function defaultLateFeeRemovedBodyTemplate(){
+  return `Hi {{parentName}},
+
+Good news -- the {{lateFeeAmount}} late fee that was added to {{studentName}}'s account for {{serviceName}} has been removed. The payment (or charter certificate) on file for the {{dueDate}} due date was actually made on time, so the fee didn't apply after all. The balance is now {{newBalance}}.
+
+No action is needed on your part -- I just wanted you to see the corrected balance.
 
 Thank you,
 {{businessName}}`;
@@ -21092,6 +21146,371 @@ async function discardLateFeeChargedReview(
   await log(
     'Parent email discarded',
     'Late fee notice was not sent.',
+    'Manual'
+  );
+
+  if(!silent){
+
+    await refreshAll();
+
+    toast(
+      'Email discarded.'
+    );
+  }
+
+  return true;
+}
+
+
+/*
+ * Mirror of queueLateFeeChargedReviews(), for the opposite event:
+ * reverseLateFeeIfPaidOnTime() just undid a late fee because the
+ * payment or certificate on file turned out to be dated on or
+ * before the due date after all. Parents who already got a
+ * late-fee-charged email deserve to know it was corrected. Gated
+ * per-class on lateFeeRemovedReminderEnabled and per-obligation on
+ * lateFeeRemovalNoticeReviewedAt so it only ever queues once per
+ * removal, exactly like the charged notice's own one-time gate.
+ */
+async function queueLateFeeRemovedReviews(){
+
+  try{
+
+    if(profile?.betaSetupComplete===false){
+      return 0;
+    }
+
+    if(!obligations.length){
+      return 0;
+    }
+
+    let queued=0;
+
+    for(const obligation of obligations){
+
+      if(obligation.deleted){
+        continue;
+      }
+
+      if(obligation.lateFeeApplied){
+        continue;
+      }
+
+      if(!obligation.lateFeeRemovedAt){
+        continue;
+      }
+
+      if(obligation.lateFeeRemovalNoticeReviewedAt){
+        continue;
+      }
+
+      const removedAmount=
+        Number(obligation.lateFeeLastRemovedAmount||0);
+
+      if(removedAmount<=0.009){
+        continue;
+      }
+
+      const classRecord=
+        classes.find(
+          c=>c.id===obligation.classId
+        ) || {};
+
+      if(!classRecord.lateFeeRemovedReminderEnabled){
+        continue;
+      }
+
+      const alreadyQueued=
+        reviews.some(
+          r=>
+            r.reviewType==='late-fee-removed-email' &&
+            r.obligationId===obligation.id
+        );
+
+      if(alreadyQueued){
+        continue;
+      }
+
+      const student=
+        students.find(
+          s=>s.id===obligation.studentId
+        );
+
+      const parentEmail=
+        String(student?.parentEmail||'').trim();
+
+      if(!parentEmail){
+        continue;
+      }
+
+      const remaining=
+        Number(
+          obligation.remainingAmount ??
+          obligation.amount ??
+          0
+        );
+
+      const tokens={
+        studentName:
+          obligation.studentName ||
+          student?.studentName ||
+          '',
+
+        parentName:
+          student?.parentName || '',
+
+        lateFeeAmount:
+          money(removedAmount),
+
+        newBalance:
+          money(remaining),
+
+        dueDate:
+          formatVendorDate(obligation.dueDate) ||
+          obligation.dueDate,
+
+        serviceName:
+          obligation.serviceName ||
+          obligation.className ||
+          '',
+
+        paymentInstructions:
+          vfFormatPaymentInstructions(profile.paymentMethods||{}),
+
+        businessName:
+          profile.businessName || ''
+      };
+
+      const fillTemplate=text=>
+        String(text||'').replace(
+          /\{\{(\w+)\}\}/g,
+          (match,key)=>
+            tokens[key]!==undefined
+              ? tokens[key]
+              : ''
+        );
+
+      const subject=
+        fillTemplate(
+          classRecord.lateFeeRemovedSubject ||
+          defaultLateFeeRemovedSubjectTemplate()
+        );
+
+      const body=
+        fillTemplate(
+          classRecord.lateFeeRemovedBody ||
+          defaultLateFeeRemovedBodyTemplate()
+        )
+          .replace(/
+{3,}/g,'
+
+')
+          .trim();
+
+      await addDoc(
+        sub('review'),
+        {
+          reviewType:
+            'late-fee-removed-email',
+
+          obligationId:
+            obligation.id,
+
+          studentId:
+            obligation.studentId||'',
+
+          classId:
+            obligation.classId||'',
+
+          title:
+            `Parent Email: Late Fee Removed — ${
+              obligation.studentName ||
+              student?.studentName ||
+              'Student'
+            } — Ready to Send`,
+
+          detail:
+            `${money(removedAmount)} late fee removed -- balance now ${money(remaining)}.`,
+
+          to:
+            parentEmail,
+
+          subject,
+
+          body,
+
+          source:
+            'VendorFlow',
+
+          createdAt:
+            serverTimestamp()
+        }
+      );
+
+      queued++;
+    }
+
+    return queued;
+
+  }catch(error){
+
+    console.error(
+      'Could not queue late fee removal notices:',
+      error
+    );
+
+    return 0;
+  }
+}
+
+
+async function sendLateFeeRemovedReview(
+  reviewId,
+  {silent=false}={}
+){
+
+  const review=
+    reviews.find(
+      r=>r.id===reviewId
+    );
+
+  if(
+    !review ||
+    review.reviewType!==
+      'late-fee-removed-email'
+  ){
+    return false;
+  }
+
+  try{
+
+    await sendParentEmailThroughVendorFlow(
+      'late-fee-removed',
+      review.obligationId || review.id,
+      review.to,
+      review.subject,
+      review.body
+    );
+
+  }catch(error){
+
+    console.error(error);
+
+    if(!silent){
+      toast(
+        error.message ||
+        'This email could not be sent.'
+      );
+    }
+
+    return false;
+  }
+
+  if(review.obligationId){
+
+    await setDoc(
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'obligations',
+        review.obligationId
+      ),
+      {
+        lateFeeRemovalNoticeSentAt:
+          serverTimestamp(),
+
+        lateFeeRemovalNoticeReviewedAt:
+          serverTimestamp(),
+
+        updatedAt:
+          serverTimestamp()
+      },
+      {
+        merge:true
+      }
+    );
+  }
+
+  await deleteDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'review',
+      reviewId
+    )
+  );
+
+  await log(
+    'Parent email sent',
+    `Late fee removal notice sent to ${review.to}.`,
+    'Manual',
+    {
+      type:'parent-email',
+      studentId:review.studentId||''
+    }
+  );
+
+  if(!silent){
+
+    await refreshAll();
+
+    toast(
+      'Email sent.'
+    );
+  }
+
+  return true;
+}
+
+
+async function discardLateFeeRemovedReview(
+  reviewId,
+  {silent=false}={}
+){
+
+  const review=
+    reviews.find(
+      r=>r.id===reviewId
+    );
+
+  if(review?.obligationId){
+
+    await setDoc(
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'obligations',
+        review.obligationId
+      ),
+      {
+        lateFeeRemovalNoticeReviewedAt:
+          serverTimestamp(),
+
+        updatedAt:
+          serverTimestamp()
+      },
+      {
+        merge:true
+      }
+    );
+  }
+
+  await deleteDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'review',
+      reviewId
+    )
+  );
+
+  await log(
+    'Parent email discarded',
+    'Late fee removal notice was not sent.',
     'Manual'
   );
 
@@ -21568,6 +21987,8 @@ async function bulkApproveSelectedReviews(reviewIds){
       ok=await sendPaymentReminderReview(reviewId,{silent:true});
     }else if(review.reviewType==='late-fee-charged-email'){
       ok=await sendLateFeeChargedReview(reviewId,{silent:true});
+    }else if(review.reviewType==='late-fee-removed-email'){
+      ok=await sendLateFeeRemovedReview(reviewId,{silent:true});
     }else if(review.reviewType==='payment-reminder-followup-email'){
       ok=await sendRecurringReminderReview(reviewId,{silent:true});
     }else{
@@ -21613,6 +22034,8 @@ async function bulkDiscardSelectedReviews(reviewIds){
       await discardPaymentReminderReview(reviewId,{silent:true});
     }else if(review.reviewType==='late-fee-charged-email'){
       await discardLateFeeChargedReview(reviewId,{silent:true});
+    }else if(review.reviewType==='late-fee-removed-email'){
+      await discardLateFeeRemovedReview(reviewId,{silent:true});
     }else if(review.reviewType==='payment-reminder-followup-email'){
       await discardRecurringReminderReview(reviewId,{silent:true});
     }else{
@@ -25641,6 +26064,7 @@ function vfReviewIsBulkable(review){
     review?.reviewType==='payment-received-email' ||
     review?.reviewType==='payment-reminder-email' ||
     review?.reviewType==='late-fee-charged-email' ||
+    review?.reviewType==='late-fee-removed-email' ||
     review?.reviewType==='payment-reminder-followup-email'
   );
 }
@@ -26318,6 +26742,64 @@ function renderReviews(){
                 type="button"
                 class="vf-secondary-button"
                 data-discard-late-fee-notice="${esc(review.id)}">
+                Discard
+              </button>
+
+            </div>
+
+          </div>
+        `;
+      }
+
+
+      if(
+        review.reviewType===
+        'late-fee-removed-email'
+      ){
+
+        return `
+          <div class="record vf-parent-email-review">
+
+            <label class="vf-review-select-row">
+              <input
+                type="checkbox"
+                class="vf-review-select"
+                data-review-select="${esc(review.id)}"
+                ${selectedReviewIds.has(review.id) ? 'checked' : ''}>
+              <span>Select for bulk action</span>
+            </label>
+
+            <strong>
+              ${esc(review.title)}
+            </strong>
+
+            <div class="meta">
+              ${esc(review.detail||'')}
+            </div>
+
+            <details class="vf-parent-email-preview">
+              <summary>Preview email</summary>
+              <div class="vf-parent-email-preview-body">
+                <div><strong>To:</strong> ${esc(review.to||'')}</div>
+                <div><strong>Subject:</strong> ${esc(review.subject||'')}</div>
+                <div>${esc(review.body||'').replace(/
+/g,'<br>')}</div>
+              </div>
+            </details>
+
+            <div class="vf-review-actions">
+
+              <button
+                type="button"
+                class="primary"
+                data-send-late-fee-removed-notice="${esc(review.id)}">
+                Approve &amp; Send
+              </button>
+
+              <button
+                type="button"
+                class="vf-secondary-button"
+                data-discard-late-fee-removed-notice="${esc(review.id)}">
                 Discard
               </button>
 
@@ -27211,6 +27693,39 @@ function renderReviews(){
 
         discardLateFeeChargedReview(
           button.dataset.discardLateFeeNotice
+        );
+      };
+    });
+
+
+  $$('[data-send-late-fee-removed-notice]')
+    .forEach(button=>{
+
+      button.onclick=async()=>{
+
+        button.disabled=true;
+
+        try{
+
+          await sendLateFeeRemovedReview(
+            button.dataset.sendLateFeeRemovedNotice
+          );
+
+        }finally{
+
+          button.disabled=false;
+        }
+      };
+    });
+
+
+  $$('[data-discard-late-fee-removed-notice]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        discardLateFeeRemovedReview(
+          button.dataset.discardLateFeeRemovedNotice
         );
       };
     });
@@ -28602,6 +29117,13 @@ function vfRenderNotificationDefaults(){
         : Boolean(defaults.certificateReceivedEmail);
   }
 
+  if($('#ndLateFeeRemoved')){
+    $('#ndLateFeeRemoved').checked=
+      defaults.lateFeeRemoved===undefined
+        ? true
+        : Boolean(defaults.lateFeeRemoved);
+  }
+
   updateNdRecurringReminderUI();
 }
 
@@ -28861,6 +29383,11 @@ if($('#saveNotificationDefaults')){
         certificateReceivedEmail:
           $('#ndCertificateReceivedEmail')
             ? Boolean($('#ndCertificateReceivedEmail').checked)
+            : true,
+
+        lateFeeRemoved:
+          $('#ndLateFeeRemoved')
+            ? Boolean($('#ndLateFeeRemoved').checked)
             : true
       };
 
