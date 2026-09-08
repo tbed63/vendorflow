@@ -5434,6 +5434,47 @@ async function createDueInvoices(){
 
 
     created++;
+
+    /*
+     * "Send invoices to charter schools" (Settings > Automations).
+     * Creating the invoice record above always happens automatically
+     * -- this only decides whether VendorFlow also emails it to the
+     * charter school right away, the same send this cert's invoice
+     * would otherwise wait in "Ready to Send" for the vendor to
+     * trigger by hand from the Invoices page. Skips quietly (leaves
+     * it Ready to Send) if there's no billing email on file, rather
+     * than showing an alert() with nobody there to see it.
+     */
+    if(profile?.automations?.sendCharterInvoices){
+
+      const invoiceForAutoSend={
+        id:invoiceRef.id,
+        ...invoice
+      };
+
+      const autoSendFields=
+        buildInvoiceEmailPreview(
+          invoiceForAutoSend
+        );
+
+      if(autoSendFields.to){
+
+        try{
+
+          await sendInvoiceThroughVendorFlow(
+            invoiceForAutoSend,
+            autoSendFields
+          );
+
+        }catch(error){
+
+          console.error(
+            'Could not auto-send invoice:',
+            error
+          );
+        }
+      }
+    }
   }
 
 
@@ -19201,9 +19242,7 @@ ${profile.businessName||''}`;
       `${className?` — ${className}`:''}.`;
 
 
-    await addDoc(
-      sub('review'),
-      {
+    const certificateReceivedEmailData={
         reviewType:
           'certificate-received-email',
 
@@ -19232,8 +19271,34 @@ ${profile.businessName||''}`;
 
         createdAt:
           serverTimestamp()
+    };
+
+    const certificateReceivedEmailRef=
+      await addDoc(
+        sub('review'),
+        certificateReceivedEmailData
+      );
+
+    reviews.push({
+      id:certificateReceivedEmailRef.id,
+      ...certificateReceivedEmailData
+    });
+
+    if(profile?.automations?.emailParents){
+
+      const sent=
+        await sendCertificateReceivedEmailReview(
+          certificateReceivedEmailRef.id,
+          {silent:true}
+        );
+
+      if(sent){
+        reviews=
+          reviews.filter(
+            r=>r.id!==certificateReceivedEmailRef.id
+          );
       }
-    );
+    }
 
   }catch(error){
 
@@ -19352,9 +19417,7 @@ ${profile.businessName||''}`;
       `${className?` — ${className}`:''}.`;
 
 
-    await addDoc(
-      sub('review'),
-      {
+    const paymentReceivedEmailData={
         reviewType:
           'payment-received-email',
 
@@ -19383,8 +19446,34 @@ ${profile.businessName||''}`;
 
         createdAt:
           serverTimestamp()
+    };
+
+    const paymentReceivedEmailRef=
+      await addDoc(
+        sub('review'),
+        paymentReceivedEmailData
+      );
+
+    reviews.push({
+      id:paymentReceivedEmailRef.id,
+      ...paymentReceivedEmailData
+    });
+
+    if(profile?.automations?.emailParents){
+
+      const sent=
+        await sendPaymentReceivedEmailReview(
+          paymentReceivedEmailRef.id,
+          {silent:true}
+        );
+
+      if(sent){
+        reviews=
+          reviews.filter(
+            r=>r.id!==paymentReceivedEmailRef.id
+          );
       }
-    );
+    }
 
   }catch(error){
 
@@ -19631,9 +19720,7 @@ async function queuePaymentReminderReviews(){
           .trim();
 
 
-      await addDoc(
-        sub('review'),
-        {
+      const paymentReminderEmailData={
           reviewType:
             'payment-reminder-email',
 
@@ -19671,8 +19758,34 @@ async function queuePaymentReminderReviews(){
 
           createdAt:
             serverTimestamp()
+      };
+
+      const paymentReminderEmailRef=
+        await addDoc(
+          sub('review'),
+          paymentReminderEmailData
+        );
+
+      reviews.push({
+        id:paymentReminderEmailRef.id,
+        ...paymentReminderEmailData
+      });
+
+      if(profile?.automations?.emailParents){
+
+        const sent=
+          await sendPaymentReminderReview(
+            paymentReminderEmailRef.id,
+            {silent:true}
+          );
+
+        if(sent){
+          reviews=
+            reviews.filter(
+              r=>r.id!==paymentReminderEmailRef.id
+            );
         }
-      );
+      }
 
       queued++;
     }
@@ -21236,9 +21349,7 @@ async function queueLateFeeChargedReviews(){
           .replace(/\n{3,}/g,'\n\n')
           .trim();
 
-      await addDoc(
-        sub('review'),
-        {
+      const lateFeeChargedEmailData={
           reviewType:
             'late-fee-charged-email',
 
@@ -21273,8 +21384,34 @@ async function queueLateFeeChargedReviews(){
 
           createdAt:
             serverTimestamp()
+      };
+
+      const lateFeeChargedEmailRef=
+        await addDoc(
+          sub('review'),
+          lateFeeChargedEmailData
+        );
+
+      reviews.push({
+        id:lateFeeChargedEmailRef.id,
+        ...lateFeeChargedEmailData
+      });
+
+      if(profile?.automations?.emailParents){
+
+        const sent=
+          await sendLateFeeChargedReview(
+            lateFeeChargedEmailRef.id,
+            {silent:true}
+          );
+
+        if(sent){
+          reviews=
+            reviews.filter(
+              r=>r.id!==lateFeeChargedEmailRef.id
+            );
         }
-      );
+      }
 
       queued++;
     }
@@ -21598,9 +21735,7 @@ async function queueLateFeeRemovedReviews(){
           .replace(/\n{3,}/g,'\n\n')
           .trim();
 
-      await addDoc(
-        sub('review'),
-        {
+      const lateFeeRemovedEmailData={
           reviewType:
             'late-fee-removed-email',
 
@@ -21635,8 +21770,34 @@ async function queueLateFeeRemovedReviews(){
 
           createdAt:
             serverTimestamp()
+      };
+
+      const lateFeeRemovedEmailRef=
+        await addDoc(
+          sub('review'),
+          lateFeeRemovedEmailData
+        );
+
+      reviews.push({
+        id:lateFeeRemovedEmailRef.id,
+        ...lateFeeRemovedEmailData
+      });
+
+      if(profile?.automations?.emailParents){
+
+        const sent=
+          await sendLateFeeRemovedReview(
+            lateFeeRemovedEmailRef.id,
+            {silent:true}
+          );
+
+        if(sent){
+          reviews=
+            reviews.filter(
+              r=>r.id!==lateFeeRemovedEmailRef.id
+            );
         }
-      );
+      }
 
       queued++;
     }
@@ -22035,9 +22196,7 @@ async function queueRecurringPaymentReminders(){
           .replace(/\n{3,}/g,'\n\n')
           .trim();
 
-      await addDoc(
-        sub('review'),
-        {
+      const paymentReminderFollowupEmailData={
           reviewType:
             'payment-reminder-followup-email',
 
@@ -22075,8 +22234,34 @@ async function queueRecurringPaymentReminders(){
 
           createdAt:
             serverTimestamp()
+      };
+
+      const paymentReminderFollowupEmailRef=
+        await addDoc(
+          sub('review'),
+          paymentReminderFollowupEmailData
+        );
+
+      reviews.push({
+        id:paymentReminderFollowupEmailRef.id,
+        ...paymentReminderFollowupEmailData
+      });
+
+      if(profile?.automations?.emailParents){
+
+        const sent=
+          await sendRecurringReminderReview(
+            paymentReminderFollowupEmailRef.id,
+            {silent:true}
+          );
+
+        if(sent){
+          reviews=
+            reviews.filter(
+              r=>r.id!==paymentReminderFollowupEmailRef.id
+            );
         }
-      );
+      }
 
       queued++;
     }
