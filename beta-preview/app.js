@@ -63,6 +63,7 @@ let pendingCertificatePdf=null;
 let editingRosterStudentId=null;
 let editingCertificateId='';
 let vfPendingCertificateReceivedEmail=null;
+let vfCommandCenterStudentId=null;
 const questions=[['businessName','What is the name of your business?','This will appear on invoices.'],['ownerName','What name should VendorFlow use for you?','Your name as vendor or owner.'],['address','What is your business mailing address?','Street address.'],['cityStateZip','What city, state, and ZIP go with that address?','Example: Encinitas, CA 92024'],['phone','What business phone number should VendorFlow use?','You can change this later.'],['locations','Where do you teach or conduct business?','Learning centers, campuses, tutoring locations, etc.'],['schools','Which charter schools or organizations do you work with?','List as many as you know now.']];
 const aliases={registrationId:['id','registration id'],status:['status','registration status'],classTitle:['title','class title','class'],studentFirst:['registrant first name','student first name','child first name'],studentLast:['registrant last name','student last name','child last name'],parentFirst:['primary first name','parent first name','guardian first name'],parentLast:['primary last name','parent last name','guardian last name'],parentEmail:['email address','parent email','guardian email'],parentPhone:['phone','parent phone','guardian phone'],grade:['grade level','grade']};
 const vendorDoc=()=>doc(db,'vendors',user.uid),sub=n=>collection(db,'vendors',user.uid,n),toast=m=>{let t=$('#toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)};
@@ -1590,6 +1591,7 @@ function renderAll(){
   renderHistory();
   renderExpenses();
   renderTaxSummary();
+  renderStudentCommandCenterIfActive();
 }
 
 
@@ -15022,70 +15024,18 @@ function upgradeStudentDirectoryRows(){
     const balance=balanceStatus(account.parentBalance);
     const serviceNames=studentDirectoryServiceNames(student);
 
-    const details=document.createElement('div');
-    details.className='vf-student-directory-details hidden';
-
-    while(card.firstChild){
-      details.appendChild(card.firstChild);
-    }
-
-    const accountSummary=
-      details.querySelector('.vf-account-summary');
-
-    if(accountSummary){
-      accountSummary.insertAdjacentHTML('afterend',`
-        <section class="vf-student-financial-activity">
-          <div class="vf-student-financial-heading">
-            <div>
-              <div class="eyebrow">Complete accounting trail</div>
-              <h4>Financial Activity</h4>
-            </div>
-            <span>
-              Charges add to the balance. Payments and certificates reduce it.
-            </span>
-          </div>
-          <div class="vf-student-financial-list">
-            ${studentFinancialActivityHTML(student)}
-          </div>
-        </section>
-
-        <section class="vf-student-financial-activity vf-student-activity-log">
-          <div class="vf-student-financial-heading">
-            <div>
-              <div class="eyebrow">Everything on record</div>
-              <h4>Actions For This Student</h4>
-            </div>
-            <span>
-              Invoices sent to the charter, emails sent to parents, and anything else VendorFlow recorded for this student.
-            </span>
-          </div>
-          <div class="vf-student-financial-list">
-            ${studentHistoryHTML(student)}
-          </div>
-        </section>
-      `);
-
-      details.querySelectorAll('[data-history-evidence]').forEach(button=>{
-        button.onclick=()=>openHistoryEvidence(button.dataset.historyEvidence);
-      });
-    }
-
-    details.insertAdjacentHTML('beforeend',`
-      <div class="vf-student-complete-record">
-        <div class="vf-student-record-actions">
-          <button
-            type="button"
-            data-edit-directory-student="${student.id}">
-            Edit
-          </button>
-        </div>
-      </div>
-    `);
+    /*
+     * Everything the card used to render inline here (account summary,
+     * financial activity, action history, and a broken "Edit" button)
+     * now lives on the full-page Student Command Center instead --
+     * clicking this row opens that page directly, so there's nothing
+     * left to keep in the card itself.
+     */
+    card.innerHTML='';
 
     const row=document.createElement('button');
     row.type='button';
     row.className='vf-student-directory-row';
-    row.setAttribute('aria-expanded','false');
     row.innerHTML=`
       <span class="vf-student-directory-name">
         <strong>${esc(student.studentName||'Unnamed student')}</strong>
@@ -15105,35 +15055,982 @@ function upgradeStudentDirectoryRows(){
         <strong>${money(account.parentBalance)}</strong>
         <small class="${balance.className}">${esc(balance.label)}</small>
       </span>
-      <span class="vf-student-directory-open">View details</span>
+      <span class="vf-student-directory-open">Open account &rarr;</span>
     `;
 
     row.onclick=()=>{
-      const opening=details.classList.contains('hidden');
-      details.classList.toggle('hidden',!opening);
-      row.classList.toggle('open',opening);
-      row.setAttribute('aria-expanded',String(opening));
-      const label=row.querySelector('.vf-student-directory-open');
-      if(label)label.textContent=opening?'Close details':'View details';
+      openStudentCommandCenter(student.id);
     };
 
     card.appendChild(row);
-    card.appendChild(details);
     card.dataset.directoryReady='true';
   });
 
+  filterStudentDirectoryRows();
+}
 
-  if(list.dataset.editStudentHandler!=='true'){
-    list.addEventListener('click',event=>{
+function openStudentCommandCenter(studentId){
+
+  vfCommandCenterStudentId=studentId;
+
+  switchView('studentcenter');
+}
+
+
+function renderStudentCommandCenterIfActive(){
+
+  if(
+    vfCommandCenterStudentId &&
+    $('#studentCommandCenterView')?.classList.contains('active')
+  ){
+    renderStudentCommandCenter(vfCommandCenterStudentId);
+  }
+}
+
+
+function renderStudentCommandCenter(studentId){
+
+  const student=students.find(s=>s.id===studentId);
+
+  if(!student){
+    switchView('students');
+    return;
+  }
+
+  vfCommandCenterStudentId=studentId;
+
+  if($('#ccStudentName')){
+    $('#ccStudentName').textContent=
+      student.studentName||'Unnamed student';
+  }
+
+  if($('#ccStudentFirst'))$('#ccStudentFirst').value=student.studentFirst||'';
+  if($('#ccStudentLast'))$('#ccStudentLast').value=student.studentLast||'';
+  if($('#ccStudentGrade'))$('#ccStudentGrade').value=student.grade||'';
+  if($('#ccParentName'))$('#ccParentName').value=student.parentName||'';
+  if($('#ccParentEmail'))$('#ccParentEmail').value=student.parentEmail||'';
+  if($('#ccParentPhone'))$('#ccParentPhone').value=student.parentPhone||'';
+  if($('#ccStudentAddress'))$('#ccStudentAddress').value=student.address||'';
+  if($('#ccStudentNotes'))$('#ccStudentNotes').value=student.notes||'';
+  if($('#ccEmailTo'))$('#ccEmailTo').value=student.parentEmail||'';
+
+  const today=new Date().toISOString().slice(0,10);
+  if($('#ccChargeDate'))$('#ccChargeDate').value=today;
+  if($('#ccPaymentDate'))$('#ccPaymentDate').value=today;
+
+  const serviceOptions=
+    studentServices(student.id)
+      .filter(serviceKeepsStudentVisible);
+
+  if($('#ccChargeService')){
+    $('#ccChargeService').innerHTML=
+      '<option value="">Choose service</option>'+
+      serviceOptions.map(s=>
+        `<option value="${esc(s.id)}">${esc(s.name||s.serviceType||'Service')}</option>`
+      ).join('');
+  }
+
+  renderStudentCommandCenterServices(student);
+  renderStudentCommandCenterFinancialActivity(student);
+  renderStudentCommandCenterInvoiceActions(student);
+
+  if($('#ccHistoryList')){
+    $('#ccHistoryList').innerHTML=studentHistoryHTML(student);
+  }
+
+  wireStudentCommandCenterButtons();
+}
+
+
+function ccItemizedServiceIds(){
+
+  const chargeTypeObligations=
+    new Set([
+      'Charge for service rendered',
+      'Tutoring session',
+      'Manual charge'
+    ]);
+
+  return new Set(
+    obligations
+      .filter(o=>
+        !o.deleted &&
+        chargeTypeObligations.has(o.obligationType)
+      )
+      .map(o=>o.serviceId)
+      .filter(Boolean)
+  );
+}
+
+
+function renderStudentCommandCenterServices(student){
+
+  const container=$('#ccServicesList');
+  if(!container)return;
+
+  const serviceList=
+    studentServices(student.id)
+      .filter(serviceKeepsStudentVisible);
+
+  if(!serviceList.length){
+    container.innerHTML=
+      `<div class="vf-student-financial-empty">No active services yet.</div>`;
+    return;
+  }
+
+  const itemizedServiceIds=ccItemizedServiceIds();
+
+  container.innerHTML=
+    serviceList.map(service=>{
+
+      const itemized=itemizedServiceIds.has(service.id);
+
+      return `
+        <div class="vf-service-row">
+          <div class="vf-service-main">
+            <div class="vf-service-name">
+              ${esc(service.name||service.serviceType||'Service')}
+            </div>
+            <div class="vf-service-meta">
+              ${service.status?`<span>${esc(service.status)}</span>`:''}
+              ${itemized?'<span>Charges itemized below in Financial Activity</span>':''}
+            </div>
+          </div>
+          <div class="vf-service-money">
+            <div>
+              <small>${itemized?'Itemized total':'Service price'}</small>
+              <strong>${money(service.totalPrice)}</strong>
+            </div>
+          </div>
+          <div class="vf-student-record-actions">
+            <button type="button" data-edit-student-service="${esc(service.id)}">Edit</button>
+            <button type="button" data-remove-student-service="${esc(service.id)}">Remove</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+}
+
+
+function renderStudentCommandCenterFinancialActivity(student){
+
+  const container=$('#ccFinancialActivityList');
+  if(!container)return;
+
+  container.innerHTML=studentFinancialActivityHTML(student);
+
+  container.querySelectorAll('[data-delete-student-charge]').forEach(deleteBtn=>{
+
+    const id=deleteBtn.dataset.deleteStudentCharge;
+
+    const editBtn=document.createElement('button');
+    editBtn.type='button';
+    editBtn.className='vf-delete-ledger-payment';
+    editBtn.textContent='Edit';
+    editBtn.dataset.editStudentCharge=id;
+
+    deleteBtn.insertAdjacentElement('beforebegin',editBtn);
+  });
+
+  container.querySelectorAll('[data-delete-student-payment]').forEach(deleteBtn=>{
+
+    const id=deleteBtn.dataset.deleteStudentPayment;
+    const record=payments.find(p=>p.id===id);
+
+    if(!record || Number(record.amount||0)<0){
+      return;
+    }
+
+    const editBtn=document.createElement('button');
+    editBtn.type='button';
+    editBtn.className='vf-delete-ledger-payment';
+    editBtn.textContent='Edit';
+    editBtn.dataset.editStudentPayment=id;
+
+    deleteBtn.insertAdjacentElement('beforebegin',editBtn);
+  });
+}
+
+
+function renderStudentCommandCenterInvoiceActions(student){
+
+  const container=$('#ccInvoiceActions');
+  if(!container)return;
+
+  if(!profile.invoiceNumberMode){
+    container.innerHTML=
+      `<p class="muted">Set up invoice numbering in Settings before generating invoices.</p>`;
+    return;
+  }
+
+  const readyCerts=
+    invoiceReadyCertificates().filter(cert=>{
+      const linkedStudent=invoiceStudent(cert);
+      return (
+        linkedStudent &&
+        linkedStudent.id===student.id &&
+        !invoices.some(invoice=>invoice.certificateId===cert.id)
+      );
+    });
+
+  if(!readyCerts.length){
+    container.innerHTML=
+      `<p class="muted">No certificate is ready to invoice for this student right now.</p>`;
+    return;
+  }
+
+  container.innerHTML=`
+    <p class="muted">
+      ${readyCerts.length} certificate${readyCerts.length===1?' is':'s are'} ready to invoice for this student.
+    </p>
+    <button type="button" class="primary" data-generate-student-invoices="true">
+      Generate Invoice${readyCerts.length===1?'':'s'}
+    </button>
+  `;
+}
+
+
+async function generateStudentCommandCenterInvoices(){
+
+  const current=students.find(s=>s.id===vfCommandCenterStudentId);
+  if(!current)return;
+
+  if(!profile.invoiceNumberMode){
+    return toast('Set up invoice numbering in Settings before generating invoices.');
+  }
+
+  const beforeIds=new Set(invoices.map(i=>i.id));
+
+  await createDueInvoices();
+  await refreshAll();
+
+  const newlyCreatedForStudent=
+    invoices.filter(i=>
+      !beforeIds.has(i.id) &&
+      i.studentId===current.id
+    );
+
+  if(newlyCreatedForStudent.length){
+    toast(
+      `${newlyCreatedForStudent.length} invoice${newlyCreatedForStudent.length===1?'':'s'} generated.`
+    );
+  }else{
+    toast(
+      'No new invoice was generated -- check that the certificate is linked to both the charter school and the student.'
+    );
+  }
+}
+
+
+async function saveStudentCommandCenterProfile(){
+
+  const current=students.find(s=>s.id===vfCommandCenterStudentId);
+  if(!current)return;
+
+  const first=$('#ccStudentFirst').value.trim();
+  const last=$('#ccStudentLast').value.trim();
+
+  if(!first || !last){
+    return toast('Enter student first and last name.');
+  }
+
+  const updated={
+    studentFirst:first,
+    studentLast:last,
+    studentName:`${first} ${last}`,
+    parentName:$('#ccParentName').value.trim(),
+    parentEmail:$('#ccParentEmail').value.trim(),
+    parentPhone:$('#ccParentPhone').value.trim(),
+    grade:$('#ccStudentGrade').value.trim(),
+    address:$('#ccStudentAddress').value.trim(),
+    updatedAt:serverTimestamp()
+  };
+
+  await setDoc(
+    doc(db,'vendors',user.uid,'students',current.id),
+    updated,
+    {merge:true}
+  );
+
+  for(const c of classes){
+
+    const snap=
+      await getDocs(
+        collection(db,'vendors',user.uid,'classes',c.id,'students')
+      );
+
+    for(const rosterDoc of snap.docs){
+
+      const row=rosterDoc.data();
+
+      if(
+        row.coreStudentId===current.id ||
+        normalizedName(row.studentName)===normalizedName(current.studentName)
+      ){
+
+        await setDoc(
+          rosterDoc.ref,
+          {
+            studentFirst:updated.studentFirst,
+            studentLast:updated.studentLast,
+            studentName:updated.studentName,
+            parentName:updated.parentName,
+            parentEmail:updated.parentEmail,
+            parentPhone:updated.parentPhone,
+            grade:updated.grade,
+            coreStudentId:current.id,
+            updatedAt:serverTimestamp()
+          },
+          {merge:true}
+        );
+      }
+    }
+  }
+
+  const linked=services.filter(service=>service.studentId===current.id);
+
+  for(const service of linked){
+
+    await setDoc(
+      doc(db,'vendors',user.uid,'services',service.id),
+      {
+        studentName:updated.studentName,
+        updatedAt:serverTimestamp()
+      },
+      {merge:true}
+    );
+  }
+
+  await log(
+    'Student updated',
+    `${current.studentName} contact information was updated.`,
+    'Manual'
+  );
+
+  await refreshAll();
+
+  toast('Student updated.');
+}
+
+
+async function saveStudentCommandCenterNotes(){
+
+  const current=students.find(s=>s.id===vfCommandCenterStudentId);
+  if(!current)return;
+
+  const notes=$('#ccStudentNotes').value;
+
+  await setDoc(
+    doc(db,'vendors',user.uid,'students',current.id),
+    {
+      notes,
+      updatedAt:serverTimestamp()
+    },
+    {merge:true}
+  );
+
+  await log(
+    'Student notes updated',
+    `${current.studentName||'Student'} — notes were updated.`,
+    'Manual'
+  );
+
+  await refreshAll();
+
+  toast('Notes saved.');
+}
+
+
+async function saveNewStudentService(){
+
+  const current=students.find(s=>s.id===vfCommandCenterStudentId);
+  if(!current)return;
+
+  const name=$('#ccNewServiceName').value.trim();
+
+  if(!name){
+    return toast('Enter a service name.');
+  }
+
+  const priceRaw=$('#ccNewServicePrice').value;
+  const price=priceRaw?Math.max(0,Number(priceRaw)):0;
+
+  const serviceRef=
+    await addDoc(
+      sub('services'),
+      {
+        studentId:current.id,
+        studentName:current.studentName||'',
+        name,
+        serviceType:'Other',
+        status:'Active',
+        classId:'',
+        className:'',
+        totalPrice:price,
+        source:'Manual',
+        createdAt:serverTimestamp(),
+        updatedAt:serverTimestamp()
+      }
+    );
+
+  await log(
+    'Service added',
+    `${current.studentName} — enrolled in "${name}"${price>0?` at ${money(price)}`:''}. New service record ID: ${serviceRef.id}.`,
+    'Manual'
+  );
+
+  if($('#ccNewServiceName'))$('#ccNewServiceName').value='';
+  if($('#ccNewServicePrice'))$('#ccNewServicePrice').value='';
+  hide($('#ccAddServiceForm'));
+
+  await refreshAll();
+
+  toast('Service added.');
+}
+
+
+async function ccStartEditService(serviceId){
+
+  const service=services.find(s=>s.id===serviceId);
+
+  if(!service){
+    return toast('That service could not be found.');
+  }
+
+  const newName=
+    window.prompt(
+      'Service name:',
+      service.name||service.serviceType||''
+    );
+
+  if(newName===null)return;
+
+  const trimmedName=newName.trim();
+
+  if(!trimmedName){
+    return toast('Enter a service name.');
+  }
+
+  const itemized=ccItemizedServiceIds().has(service.id);
+
+  const updates={
+    name:trimmedName,
+    updatedAt:serverTimestamp()
+  };
+
+  if(!itemized){
+
+    const newPriceRaw=
+      window.prompt(
+        'Total price for this service:',
+        Number(service.totalPrice||0).toFixed(2)
+      );
+
+    if(newPriceRaw!==null){
+
+      const newPrice=Number(newPriceRaw);
+
+      if(newPrice>=0){
+        updates.totalPrice=newPrice;
+      }else{
+        toast('Price left unchanged -- enter a number of $0 or more.');
+      }
+    }
+  }
+
+  await setDoc(
+    doc(db,'vendors',user.uid,'services',service.id),
+    updates,
+    {merge:true}
+  );
+
+  await log(
+    'Service edited',
+    `${service.studentName||'Student'} — service updated to "${trimmedName}"`+
+    `${updates.totalPrice!==undefined?` at ${money(updates.totalPrice)}`:''}. `+
+    `Edited service record ID: ${service.id}.`,
+    'Manual'
+  );
+
+  await refreshAll();
+
+  toast('Service updated.');
+}
+
+
+async function saveStudentCommandCenterCharge(){
+
+  const student=students.find(s=>s.id===vfCommandCenterStudentId);
+  if(!student)return;
+
+  const serviceId=$('#ccChargeService').value;
+  const service=studentServices(student.id).find(s=>s.id===serviceId);
+
+  if(!service){
+    return toast('Choose which service this charge is for.');
+  }
+
+  const amount=Number($('#ccChargeAmount').value);
+
+  if(!(amount>0)){
+    return toast('Enter a charge amount.');
+  }
+
+  const dateVal=
+    $('#ccChargeDate').value ||
+    new Date().toISOString().slice(0,10);
+
+  const note=$('#ccChargeNote').value.trim();
+
+  const classRecord=
+    service.classId
+      ? classes.find(c=>c.id===service.classId)
+      : null;
+
+  const candidateCharge={
+    studentId:student.id,
+    student:student.studentName||'',
+    serviceId:service.id,
+    className:classRecord?.name||service.className||service.name||'Service',
+    amount,
+    date:dateVal,
+    memo:note,
+    source:'Manual charge'
+  };
+
+  const duplicateCharge=findDuplicateCharge(candidateCharge);
+
+  if(duplicateCharge){
+
+    await queueDuplicateReview('charge',candidateCharge,duplicateCharge);
+
+    hide($('#ccAddChargeForm'));
+
+    await refreshAll();
+
+    switchView('review');
+
+    toast('Possible duplicate — not recorded.');
+
+    return;
+  }
+
+  const oldTotal=Number(service.totalPrice||0);
+  const newTotal=Number((oldTotal+amount).toFixed(2));
+
+  const obligationRef=doc(sub('obligations'));
+  const batch=writeBatch(db);
+
+  batch.set(
+    obligationRef,
+    {
+      studentId:student.id,
+      studentName:student.studentName||'',
+      serviceId:service.id,
+      serviceName:service.name||service.className||classRecord?.name||'Service',
+      classId:service.classId||'',
+      className:classRecord?.name||service.className||'',
+      obligationType:'Manual charge',
+      amount,
+      originalAmount:amount,
+      dueDate:dateVal,
+      serviceDate:dateVal,
+      note,
+      parentCreditedAmount:0,
+      certificateCreditedAmount:0,
+      creditedAmount:0,
+      remainingAmount:amount,
+      status:'Scheduled',
+      source:'Manual charge',
+      createdAt:serverTimestamp(),
+      updatedAt:serverTimestamp()
+    }
+  );
+
+  batch.set(
+    doc(db,'vendors',user.uid,'services',service.id),
+    {
+      totalPrice:newTotal,
+      updatedAt:serverTimestamp()
+    },
+    {merge:true}
+  );
+
+  await batch.commit();
+
+  await log(
+    'Charge recorded',
+    `${student.studentName} — ${money(amount)} — `+
+    `${service.name||service.className||classRecord?.name||'Service'}`+
+    `${note?' — '+note:''}.`,
+    'Manual'
+  );
+
+  if($('#ccChargeAmount'))$('#ccChargeAmount').value='';
+  if($('#ccChargeNote'))$('#ccChargeNote').value='';
+  hide($('#ccAddChargeForm'));
+
+  await refreshAll();
+
+  toast(`${money(amount)} charge recorded.`);
+}
+
+
+async function saveStudentCommandCenterPayment(){
+
+  const student=students.find(s=>s.id===vfCommandCenterStudentId);
+  if(!student)return;
+
+  const amount=Number($('#ccPaymentAmount').value);
+
+  if(!amount){
+    return toast('Enter an amount.');
+  }
+
+  const dateVal=
+    $('#ccPaymentDate').value ||
+    new Date().toISOString().slice(0,10);
+
+  const payer=
+    $('#ccPaymentPayer').value.trim() ||
+    student.parentName ||
+    '';
+
+  const method=$('#ccPaymentMethod').value;
+
+  const d={
+    date:dateVal,
+    payer,
+    studentId:student.id,
+    student:student.studentName||'',
+    parentName:student.parentName||'',
+    parentEmail:student.parentEmail||'',
+    className:'',
+    amount,
+    method,
+    source:'Manual',
+    matchedBy:'Student account',
+    createdAt:serverTimestamp(),
+    updatedAt:serverTimestamp()
+  };
+
+  const duplicatePayment=findDuplicatePayment(d);
+
+  if(duplicatePayment){
+
+    await queueDuplicateReview('payment',d,duplicatePayment);
+
+    hide($('#ccAddPaymentForm'));
+
+    await refreshAll();
+
+    switchView('review');
+
+    toast('Possible duplicate — not recorded.');
+
+    return;
+  }
+
+  const paymentRef=await addDoc(sub('payments'),d);
+
+  await log(
+    'Payment recorded',
+    `${student.studentName} — ${money(amount)} via ${method}.`,
+    'Manual',
+    {type:'payment',id:paymentRef.id}
+  );
+
+  await queuePaymentReceivedEmail(paymentRef.id,d,student);
+
+  if($('#ccPaymentAmount'))$('#ccPaymentAmount').value='';
+  if($('#ccPaymentPayer'))$('#ccPaymentPayer').value='';
+  hide($('#ccAddPaymentForm'));
+
+  await refreshAll();
+
+  toast(`${money(amount)} payment recorded.`);
+}
+
+
+async function editStudentCommandCenterCharge(obligationId){
+
+  const charge=obligations.find(o=>o.id===obligationId);
+
+  if(!charge){
+    return toast('That charge record could not be found.');
+  }
+
+  const newAmountRaw=
+    window.prompt(
+      `Edit charge amount for ${charge.studentName||'this student'} `+
+      `(${charge.serviceName||charge.className||'service'}):`,
+      Number(charge.amount||0).toFixed(2)
+    );
+
+  if(newAmountRaw===null)return;
+
+  const newAmount=Number(newAmountRaw);
+
+  if(!(newAmount>0)){
+    return toast('Enter an amount greater than $0.');
+  }
+
+  const newDateRaw=
+    window.prompt(
+      'Edit charge date (YYYY-MM-DD):',
+      charge.serviceDate||charge.dueDate||new Date().toISOString().slice(0,10)
+    );
+
+  if(newDateRaw===null)return;
+
+  const newDate=
+    String(newDateRaw).trim() ||
+    (charge.serviceDate||charge.dueDate);
+
+  const oldAmount=Number(charge.amount||0);
+  const delta=Number((newAmount-oldAmount).toFixed(2));
+
+  await setDoc(
+    doc(db,'vendors',user.uid,'obligations',charge.id),
+    {
+      amount:newAmount,
+      serviceDate:newDate,
+      dueDate:newDate,
+      updatedAt:serverTimestamp()
+    },
+    {merge:true}
+  );
+
+  if(charge.serviceId && delta!==0){
+
+    const service=services.find(s=>s.id===charge.serviceId);
+
+    if(service){
+
+      const newTotal=
+        Math.max(
+          0,
+          Number((Number(service.totalPrice||0)+delta).toFixed(2))
+        );
+
+      await setDoc(
+        doc(db,'vendors',user.uid,'services',service.id),
+        {
+          totalPrice:newTotal,
+          updatedAt:serverTimestamp()
+        },
+        {merge:true}
+      );
+    }
+  }
+
+  await log(
+    'Charge edited',
+    `${charge.studentName||'Student'} — ${charge.serviceName||charge.className||'a service'} `+
+    `changed from ${money(oldAmount)} on ${charge.serviceDate||charge.dueDate||'unknown date'} `+
+    `to ${money(newAmount)} on ${newDate}. Edited charge record ID: ${charge.id}.`,
+    'Manual'
+  );
+
+  await refreshAll();
+
+  showCenteredActionConfirmation(
+    'Charge updated. The service total and student balance have been recalculated.'
+  );
+}
+
+
+async function editStudentCommandCenterPayment(paymentId){
+
+  const payment=payments.find(p=>p.id===paymentId);
+
+  if(!payment){
+    return toast('That payment record could not be found.');
+  }
+
+  const newAmountRaw=
+    window.prompt(
+      `Edit payment amount from ${payment.payer||'this payer'}:`,
+      Number(payment.amount||0).toFixed(2)
+    );
+
+  if(newAmountRaw===null)return;
+
+  const newAmount=Number(newAmountRaw);
+
+  if(!newAmount || newAmount<=0){
+    return toast('Enter an amount greater than $0.');
+  }
+
+  const newDateRaw=
+    window.prompt(
+      'Edit payment date (YYYY-MM-DD):',
+      payment.date||payment.paymentDate||new Date().toISOString().slice(0,10)
+    );
+
+  if(newDateRaw===null)return;
+
+  const newDate=
+    String(newDateRaw).trim() ||
+    (payment.date||payment.paymentDate);
+
+  const oldAmount=Number(payment.amount||0);
+
+  await setDoc(
+    doc(db,'vendors',user.uid,'payments',payment.id),
+    {
+      amount:newAmount,
+      date:newDate,
+      updatedAt:serverTimestamp()
+    },
+    {merge:true}
+  );
+
+  await log(
+    'Payment edited',
+    `${payment.student||'Student'} — payment from ${payment.payer||'unknown payer'} `+
+    `changed from ${money(oldAmount)} on ${payment.date||'unknown date'} `+
+    `to ${money(newAmount)} on ${newDate}. Edited payment record ID: ${payment.id}.`,
+    'Manual'
+  );
+
+  await refreshAll();
+
+  showCenteredActionConfirmation(
+    'Payment updated. The student balance has been recalculated.'
+  );
+}
+
+
+async function sendStudentCommandCenterEmail(){
+
+  const current=students.find(s=>s.id===vfCommandCenterStudentId);
+  if(!current)return;
+
+  const to=$('#ccEmailTo').value.trim();
+  const subject=$('#ccEmailSubject').value.trim();
+  const body=$('#ccEmailBody').value.trim();
+
+  if(!to){
+    return toast('Enter a parent email address.');
+  }
+
+  if(!subject || !body){
+    return toast('Enter a subject and message.');
+  }
+
+  try{
+
+    await sendParentEmailThroughVendorFlow(
+      'manual-note',
+      '',
+      to,
+      subject,
+      body
+    );
+
+  }catch(error){
+
+    return toast(
+      error.message||'Could not send this email.'
+    );
+  }
+
+  await log(
+    'Email sent to parent',
+    `${current.studentName||'Student'} — "${subject}" sent to ${to}.`,
+    'Manual'
+  );
+
+  if($('#ccEmailSubject'))$('#ccEmailSubject').value='';
+  if($('#ccEmailBody'))$('#ccEmailBody').value='';
+
+  await refreshAll();
+
+  toast('Email sent.');
+}
+
+
+function wireStudentCommandCenterButtons(){
+
+  if($('#closeStudentCommandCenter')){
+    $('#closeStudentCommandCenter').onclick=()=>switchView('students');
+  }
+
+  if($('#ccSaveProfile')){
+    $('#ccSaveProfile').onclick=()=>saveStudentCommandCenterProfile();
+  }
+
+  if($('#ccSaveNotes')){
+    $('#ccSaveNotes').onclick=()=>saveStudentCommandCenterNotes();
+  }
+
+  if($('#ccAddServiceToggle')){
+    $('#ccAddServiceToggle').onclick=()=>toggle('#ccAddServiceForm');
+  }
+
+  if($('#ccCancelNewService')){
+    $('#ccCancelNewService').onclick=()=>hide($('#ccAddServiceForm'));
+  }
+
+  if($('#ccSaveNewService')){
+    $('#ccSaveNewService').onclick=()=>saveNewStudentService();
+  }
+
+  if($('#ccAddChargeToggle')){
+    $('#ccAddChargeToggle').onclick=()=>{
+      hide($('#ccAddPaymentForm'));
+      toggle('#ccAddChargeForm');
+    };
+  }
+
+  if($('#ccCancelNewCharge')){
+    $('#ccCancelNewCharge').onclick=()=>hide($('#ccAddChargeForm'));
+  }
+
+  if($('#ccSaveNewCharge')){
+    $('#ccSaveNewCharge').onclick=()=>saveStudentCommandCenterCharge();
+  }
+
+  if($('#ccAddPaymentToggle')){
+    $('#ccAddPaymentToggle').onclick=()=>{
+      hide($('#ccAddChargeForm'));
+      toggle('#ccAddPaymentForm');
+    };
+  }
+
+  if($('#ccCancelNewPayment')){
+    $('#ccCancelNewPayment').onclick=()=>hide($('#ccAddPaymentForm'));
+  }
+
+  if($('#ccSaveNewPayment')){
+    $('#ccSaveNewPayment').onclick=()=>saveStudentCommandCenterPayment();
+  }
+
+  if($('#ccSendEmail')){
+    $('#ccSendEmail').onclick=()=>sendStudentCommandCenterEmail();
+  }
+
+  if($('#ccAddCertificateLink')){
+    $('#ccAddCertificateLink').onclick=()=>{
+      const student=students.find(s=>s.id===vfCommandCenterStudentId);
+      switchView('certificates');
+      toast(`Add the new certificate for ${student?.studentName||'this student'} here.`);
+    };
+  }
+
+  const ccView=$('#studentCommandCenterView');
+
+  if(ccView && ccView.dataset.handlerAttached!=='true'){
+
+    ccView.addEventListener('click',event=>{
+
       const deletePaymentButton=
         event.target.closest('[data-delete-student-payment]');
 
       if(deletePaymentButton){
         event.preventDefault();
-        event.stopPropagation();
-        deleteStudentPaymentFromLedger(
-          deletePaymentButton.dataset.deleteStudentPayment
-        );
+        deleteStudentPaymentFromLedger(deletePaymentButton.dataset.deleteStudentPayment);
         return;
       }
 
@@ -15142,22 +16039,16 @@ function upgradeStudentDirectoryRows(){
 
       if(deleteChargeButton){
         event.preventDefault();
-        event.stopPropagation();
-        deleteStudentChargeFromLedger(
-          deleteChargeButton.dataset.deleteStudentCharge
-        );
+        deleteStudentChargeFromLedger(deleteChargeButton.dataset.deleteStudentCharge);
         return;
       }
 
-      const deleteServiceButton=
+      const deleteServiceLedgerButton=
         event.target.closest('[data-delete-student-service]');
 
-      if(deleteServiceButton){
+      if(deleteServiceLedgerButton){
         event.preventDefault();
-        event.stopPropagation();
-        deleteStudentServiceFromLedger(
-          deleteServiceButton.dataset.deleteStudentService
-        );
+        deleteStudentServiceFromLedger(deleteServiceLedgerButton.dataset.deleteStudentService);
         return;
       }
 
@@ -15166,10 +16057,7 @@ function upgradeStudentDirectoryRows(){
 
       if(deleteCertificateButton){
         event.preventDefault();
-        event.stopPropagation();
-        safeDeleteCertificate(
-          deleteCertificateButton.dataset.deleteStudentCertificate
-        );
+        safeDeleteCertificate(deleteCertificateButton.dataset.deleteStudentCertificate);
         return;
       }
 
@@ -15178,7 +16066,6 @@ function upgradeStudentDirectoryRows(){
 
       if(duplicateButton){
         event.preventDefault();
-        event.stopPropagation();
         resolveCrossIntakeDuplicate(
           duplicateButton.dataset.resolveStudentDuplicate,
           duplicateButton.dataset.duplicatePartner
@@ -15186,21 +16073,64 @@ function upgradeStudentDirectoryRows(){
         return;
       }
 
-      const button=event.target.closest('[data-edit-directory-student]');
-      if(!button){
+      const editChargeButton=
+        event.target.closest('[data-edit-student-charge]');
+
+      if(editChargeButton){
+        event.preventDefault();
+        editStudentCommandCenterCharge(editChargeButton.dataset.editStudentCharge);
         return;
       }
-      event.preventDefault();
-      event.stopPropagation();
-      openCoreStudentEdit(button.dataset.editDirectoryStudent);
+
+      const editPaymentButton=
+        event.target.closest('[data-edit-student-payment]');
+
+      if(editPaymentButton){
+        event.preventDefault();
+        editStudentCommandCenterPayment(editPaymentButton.dataset.editStudentPayment);
+        return;
+      }
+
+      const editServiceButton=
+        event.target.closest('[data-edit-student-service]');
+
+      if(editServiceButton){
+        event.preventDefault();
+        ccStartEditService(editServiceButton.dataset.editStudentService);
+        return;
+      }
+
+      const removeServiceButton=
+        event.target.closest('[data-remove-student-service]');
+
+      if(removeServiceButton){
+        event.preventDefault();
+        deleteStudentServiceFromLedger(removeServiceButton.dataset.removeStudentService);
+        return;
+      }
+
+      const historyEvidenceButton=
+        event.target.closest('[data-history-evidence]');
+
+      if(historyEvidenceButton){
+        event.preventDefault();
+        openHistoryEvidence(historyEvidenceButton.dataset.historyEvidence);
+        return;
+      }
+
+      const genInvoiceButton=
+        event.target.closest('[data-generate-student-invoices]');
+
+      if(genInvoiceButton){
+        event.preventDefault();
+        generateStudentCommandCenterInvoices();
+        return;
+      }
     });
-    list.dataset.editStudentHandler='true';
+
+    ccView.dataset.handlerAttached='true';
   }
-
-  filterStudentDirectoryRows();
 }
-
-
 function renderStudentsServices(){
 
   refreshStudentServiceSelectors();
@@ -31112,7 +32042,8 @@ function switchView(v){
     history:'History',
     account:'Account',
     profile:'Business Profile',
-    settings:'Settings'
+    settings:'Settings',
+    studentcenter:'Student Account'
   };
 
   $('#title').textContent=names[v];
@@ -31184,6 +32115,10 @@ function switchView(v){
     renderLateFeesSettings();
     populateInvoicingDefaults();
     renderAutomationsSettings();
+  }
+
+  if(v==='studentcenter'){
+    renderStudentCommandCenter(vfCommandCenterStudentId);
   }
 
 }

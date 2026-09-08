@@ -7,7 +7,7 @@
   <title>VendorFlow</title>
   <link rel="stylesheet" href="styles.css?v=navreorderbetafeedback-20260908-110000">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="modulepreload" href="app.js?v=autosendparentsinvoices-20260908-100000">
+  <link rel="modulepreload" href="app.js?v=studentcommandcenter-20260908-120000">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA</div>
@@ -1035,6 +1035,142 @@ Thank you,
       </div>
 
     </section>
+
+
+<section id="studentCommandCenterView" class="view">
+
+  <div class="card">
+    <div class="row between">
+      <div>
+        <div class="eyebrow">Student account</div>
+        <h2 id="ccStudentName">Student</h2>
+      </div>
+      <button type="button" id="closeStudentCommandCenter">&larr; Back to Students</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="eyebrow">Personal &amp; family information</div>
+    <h3>Edit details</h3>
+    <div class="formgrid vf-form-2">
+      <input id="ccStudentFirst" class="input" placeholder="Student first name">
+      <input id="ccStudentLast" class="input" placeholder="Student last name">
+      <input id="ccStudentGrade" class="input" placeholder="Grade">
+      <input id="ccParentName" class="input" placeholder="Parent / guardian">
+      <input id="ccParentEmail" class="input" type="email" placeholder="Parent email">
+      <input id="ccParentPhone" class="input" placeholder="Parent phone">
+      <input id="ccStudentAddress" class="input" placeholder="Address">
+    </div>
+    <div class="row">
+      <button type="button" id="ccSaveProfile" class="primary">Save details</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="eyebrow">Notes</div>
+    <h3>Private notes for this student</h3>
+    <textarea id="ccStudentNotes" class="input" rows="4" placeholder="Anything you want to remember about this family..."></textarea>
+    <div class="row">
+      <button type="button" id="ccSaveNotes" class="primary">Save notes</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row between">
+      <div>
+        <div class="eyebrow">Services</div>
+        <h3>What this student is enrolled in</h3>
+      </div>
+      <button type="button" id="ccAddServiceToggle">+ Add service</button>
+    </div>
+    <div id="ccAddServiceForm" class="hidden">
+      <div class="formgrid vf-form-2">
+        <input id="ccNewServiceName" class="input" placeholder="Service name (e.g. Piano Lessons)">
+        <input id="ccNewServicePrice" class="input" type="number" min="0" step="0.01" placeholder="Starting price (optional)">
+      </div>
+      <div class="row">
+        <button type="button" id="ccSaveNewService" class="primary">Add service</button>
+        <button type="button" id="ccCancelNewService">Cancel</button>
+      </div>
+    </div>
+    <div id="ccServicesList"></div>
+  </div>
+
+  <div class="card">
+    <div class="row between">
+      <div>
+        <div class="eyebrow">Complete accounting trail</div>
+        <h3>Financial Activity</h3>
+      </div>
+      <div class="row">
+        <button type="button" id="ccAddChargeToggle">+ Add charge</button>
+        <button type="button" id="ccAddPaymentToggle">+ Add payment</button>
+      </div>
+    </div>
+
+    <div id="ccAddChargeForm" class="hidden">
+      <div class="formgrid vf-form-2">
+        <select id="ccChargeService" class="input"></select>
+        <input id="ccChargeAmount" class="input" type="number" min="0" step="0.01" placeholder="Amount">
+        <input id="ccChargeDate" class="input" type="date">
+        <input id="ccChargeNote" class="input" placeholder="Note (optional)">
+      </div>
+      <div class="row">
+        <button type="button" id="ccSaveNewCharge" class="primary">Add charge</button>
+        <button type="button" id="ccCancelNewCharge">Cancel</button>
+      </div>
+    </div>
+
+    <div id="ccAddPaymentForm" class="hidden">
+      <div class="formgrid vf-form-2">
+        <input id="ccPaymentAmount" class="input" type="number" min="0" step="0.01" placeholder="Amount">
+        <input id="ccPaymentDate" class="input" type="date">
+        <select id="ccPaymentMethod" class="input">
+          <option value="Check">Check</option>
+          <option value="Cash">Cash</option>
+          <option value="Venmo">Venmo</option>
+          <option value="Zelle">Zelle</option>
+          <option value="Card">Card</option>
+          <option value="Other">Other</option>
+        </select>
+        <input id="ccPaymentPayer" class="input" placeholder="Payer (optional)">
+      </div>
+      <div class="row">
+        <button type="button" id="ccSaveNewPayment" class="primary">Add payment</button>
+        <button type="button" id="ccCancelNewPayment">Cancel</button>
+      </div>
+    </div>
+
+    <div id="ccFinancialActivityList"></div>
+  </div>
+
+  <div class="card">
+    <div class="eyebrow">Actions</div>
+    <h3>Send an email or generate an invoice</h3>
+
+    <div class="formgrid vf-form-2">
+      <input id="ccEmailTo" class="input" type="email" placeholder="Parent email">
+      <input id="ccEmailSubject" class="input" placeholder="Subject">
+    </div>
+    <textarea id="ccEmailBody" class="input" rows="4" placeholder="Message"></textarea>
+    <div class="row">
+      <button type="button" id="ccSendEmail" class="primary">Send email</button>
+    </div>
+
+    <div id="ccInvoiceActions" class="vf-invoice-timing-field"></div>
+
+    <div class="row">
+      <button type="button" id="ccAddCertificateLink" class="linkbtn">+ Add a certificate for this student &rarr;</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="eyebrow">Everything on record</div>
+    <h3>Actions For This Student</h3>
+    <div id="ccHistoryList"></div>
+  </div>
+
+</section>
 
 
 <section id="chartersView" class="view">
@@ -3376,5 +3512,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=autosendparentsinvoices-20260908-100000"></script>
+<script type="module" src="app.js?v=studentcommandcenter-20260908-120000"></script>
 </body></html>
