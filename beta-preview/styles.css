@@ -4967,7 +4967,7 @@ button.vf-certificate-problem:focus-visible{
 
 .vf-beta-feedback-button{
   position:fixed;
-  left:20px;
+  right:20px;
   bottom:20px;
   z-index:239000;
   background:var(--navy);
