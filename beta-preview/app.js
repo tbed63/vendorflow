@@ -1469,6 +1469,10 @@ async function refreshAll(){
   }
 
 
+  const queuedLateFeeApprovals=
+    await queueLateFeeChargeApprovals();
+
+
   const queuedLateFeeNotices=
     await queueLateFeeChargedReviews();
 
@@ -1479,6 +1483,7 @@ async function refreshAll(){
     await queueRecurringPaymentReminders();
 
   if(
+    queuedLateFeeApprovals>0 ||
     queuedLateFeeNotices>0 ||
     queuedLateFeeRemovedNotices>0 ||
     queuedFollowupReminders>0
@@ -20635,6 +20640,11 @@ async function applyLateFees(){
     return 0;
   }
 
+  const autoApply=
+    profile?.automations?.applyLateFees===undefined
+      ? true
+      : Boolean(profile.automations.applyLateFees);
+
   const todayMs=
     Date.now();
 
@@ -20711,6 +20721,10 @@ async function applyLateFees(){
       );
 
     if(lateFee<=0){
+      continue;
+    }
+
+    if(!autoApply){
       continue;
     }
 
@@ -20803,6 +20817,272 @@ No action is needed on your part -- I just wanted you to see the corrected balan
 
 Thank you,
 {{businessName}}`;
+}
+
+
+/*
+ * When "Apply late fees to family accounts" is turned off in
+ * Settings > Automations, applyLateFees() itself never touches a
+ * real balance -- this proposes the exact same charge instead, as
+ * a Notifications card the vendor has to approve or decline.
+ * Once approved (approveLateFeeChargeReview), the actual balance
+ * change is identical to what applyLateFees() would have done
+ * automatically.
+ */
+async function queueLateFeeChargeApprovals(){
+
+  try{
+
+    const autoApply=
+      profile?.automations?.applyLateFees===undefined
+        ? true
+        : Boolean(profile.automations.applyLateFees);
+
+    if(autoApply){
+      return 0;
+    }
+
+    if(profile?.betaSetupComplete===false){
+      return 0;
+    }
+
+    if(!obligations.length){
+      return 0;
+    }
+
+    const todayMs=Date.now();
+    let queued=0;
+
+    for(const obligation of obligations){
+
+      if(obligation.deleted)continue;
+      if(obligation.lateFeeApplied)continue;
+      if(obligation.lateFeeWaived)continue;
+      if(!obligation.lateFeeDate)continue;
+
+      const feeMs=
+        new Date(`${obligation.lateFeeDate}T00:00:00`).getTime();
+
+      if(Number.isNaN(feeMs) || feeMs>todayMs)continue;
+
+      const remaining=
+        Number(obligation.remainingAmount ?? obligation.amount ?? 0);
+
+      if(remaining<=0.009)continue;
+
+      if(
+        obligation.dueDate &&
+        timelyRemainingForObligation(obligation,obligation.dueDate)<=0.009
+      ){
+        continue;
+      }
+
+      const classRecord=
+        classes.find(c=>c.id===obligation.classId) || {};
+
+      const lateFee=
+        resolvedLateFeeForObligation(obligation,classRecord);
+
+      if(lateFee<=0)continue;
+
+      /*
+       * The vendor already said no to this exact charge -- don't
+       * ask again unless the late-fee date itself changes (e.g. a
+       * grace-period edit), which means it's really a new charge.
+       */
+      if(
+        obligation.lateFeeChargeDeclinedForDate &&
+        obligation.lateFeeChargeDeclinedForDate===obligation.lateFeeDate
+      ){
+        continue;
+      }
+
+      const alreadyQueued=
+        reviews.some(
+          r=>
+            r.reviewType==='late-fee-charge-approval' &&
+            r.obligationId===obligation.id
+        );
+
+      if(alreadyQueued)continue;
+
+      const newRemaining=
+        Number((remaining+lateFee).toFixed(2));
+
+      await addDoc(
+        sub('review'),
+        {
+          reviewType:'late-fee-charge-approval',
+
+          obligationId:obligation.id,
+          studentId:obligation.studentId||'',
+          classId:obligation.classId||'',
+
+          lateFeeAmount:lateFee,
+          currentBalance:remaining,
+          newBalance:newRemaining,
+          lateFeeDate:obligation.lateFeeDate,
+
+          title:
+            `Late Fee: ${obligation.studentName||'Student'} — Approval Needed`,
+
+          detail:
+            `${obligation.serviceName||obligation.className||'A payment'} is past due. A ${money(lateFee)} late fee is ready to add -- the balance would become ${money(newRemaining)}.`,
+
+          createdAt:serverTimestamp()
+        }
+      );
+
+      queued++;
+    }
+
+    return queued;
+
+  }catch(error){
+
+    console.error('Could not queue late fee approvals:',error);
+    return 0;
+  }
+}
+
+
+async function approveLateFeeChargeReview(reviewId,{silent=false}={}){
+
+  const review=
+    reviews.find(r=>r.id===reviewId);
+
+  if(!review || review.reviewType!=='late-fee-charge-approval'){
+    return false;
+  }
+
+  const obligation=
+    obligations.find(o=>o.id===review.obligationId);
+
+  if(!obligation){
+
+    await deleteDoc(doc(db,'vendors',user.uid,'review',reviewId));
+
+    if(!silent){
+      await refreshAll();
+      toast('That late fee no longer applies.');
+    }
+
+    return false;
+  }
+
+  const remaining=
+    Number(obligation.remainingAmount ?? obligation.amount ?? 0);
+
+  const classRecord=
+    classes.find(c=>c.id===obligation.classId) || {};
+
+  const lateFee=
+    resolvedLateFeeForObligation(obligation,classRecord);
+
+  if(lateFee<=0){
+
+    await deleteDoc(doc(db,'vendors',user.uid,'review',reviewId));
+
+    if(!silent){
+      await refreshAll();
+      toast('That late fee no longer applies.');
+    }
+
+    return false;
+  }
+
+  const newRemaining=
+    Number((remaining+lateFee).toFixed(2));
+
+  try{
+
+    await setDoc(
+      doc(db,'vendors',user.uid,'obligations',obligation.id),
+      {
+        remainingAmount:newRemaining,
+        lateFeeApplied:true,
+        lateFeeAppliedAt:serverTimestamp(),
+        lateFeeChargedAmount:lateFee,
+        updatedAt:serverTimestamp()
+      },
+      {merge:true}
+    );
+
+    await deleteDoc(
+      doc(db,'vendors',user.uid,'review',reviewId)
+    );
+
+    await log(
+      'Late fee charged',
+      `${money(lateFee)} late fee added to ${obligation.studentName||'a student'}'s account for ${obligation.serviceName||obligation.className||'a payment'} -- balance is now ${money(newRemaining)}.`,
+      'Manual',
+      {type:'obligation',id:obligation.id}
+    );
+
+  }catch(error){
+
+    if(!silent){
+      toast(error.message || 'Could not apply the late fee.');
+    }
+
+    return false;
+  }
+
+  if(!silent){
+    await refreshAll();
+    toast('Late fee applied.');
+  }
+
+  return true;
+}
+
+
+async function declineLateFeeChargeReview(reviewId){
+
+  const review=
+    reviews.find(r=>r.id===reviewId);
+
+  if(!review || review.reviewType!=='late-fee-charge-approval'){
+    return false;
+  }
+
+  const obligation=
+    obligations.find(o=>o.id===review.obligationId);
+
+  try{
+
+    if(obligation){
+
+      await setDoc(
+        doc(db,'vendors',user.uid,'obligations',obligation.id),
+        {
+          lateFeeChargeDeclinedForDate:obligation.lateFeeDate||null,
+          updatedAt:serverTimestamp()
+        },
+        {merge:true}
+      );
+    }
+
+    await deleteDoc(
+      doc(db,'vendors',user.uid,'review',reviewId)
+    );
+
+    await log(
+      'Late fee not applied',
+      `${obligation?.studentName||'A student'}'s late fee was not applied -- skipped for this due date.`,
+      'Manual'
+    );
+
+  }catch(error){
+
+    toast(error.message || 'Could not update that request.');
+    return false;
+  }
+
+  await refreshAll();
+  toast('Late fee not applied.');
+
+  return true;
 }
 
 
@@ -26463,6 +26743,27 @@ function renderReviews(){
         `;
       }
 
+      if(
+        review.reviewType===
+          'late-fee-charge-approval'
+      ){
+
+        return `
+          <div class="record vf-late-fee-approval-review">
+            <strong>${esc(review.title)}</strong>
+            <div class="meta">${esc(review.detail||'')}</div>
+            <div class="vf-review-actions">
+              <button type="button" class="primary" data-approve-late-fee-charge="${esc(review.id)}">
+                Apply late fee
+              </button>
+              <button type="button" class="vf-secondary-button" data-decline-late-fee-charge="${esc(review.id)}">
+                Don't apply this time
+              </button>
+            </div>
+          </div>
+        `;
+      }
+
 
       if(
         review.reviewType===
@@ -27407,6 +27708,39 @@ function renderReviews(){
         switchView('compliance');
         openTodoEditor(
           button.dataset.openNotificationTodo
+        );
+      };
+    });
+
+
+  $$('[data-approve-late-fee-charge]')
+    .forEach(button=>{
+
+      button.onclick=async()=>{
+
+        button.disabled=true;
+
+        try{
+
+          await approveLateFeeChargeReview(
+            button.dataset.approveLateFeeCharge
+          );
+
+        }finally{
+
+          button.disabled=false;
+        }
+      };
+    });
+
+
+  $$('[data-decline-late-fee-charge]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        declineLateFeeChargeReview(
+          button.dataset.declineLateFeeCharge
         );
       };
     });
