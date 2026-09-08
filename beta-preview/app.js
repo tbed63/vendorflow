@@ -29276,7 +29276,7 @@ $('#saveProfile').onclick=async()=>{
 
 if($('#pmGoToProfile')){
   $('#pmGoToProfile').onclick=()=>{
-    switchView('profile');
+    switchView('settings');
     window.requestAnimationFrame(()=>{
       $('#pPaymentMethods')?.scrollIntoView({
         behavior:'smooth',
@@ -30327,7 +30327,8 @@ function switchView(v){
     review:'Notifications',
     history:'History',
     account:'Account',
-    profile:'Business Profile'
+    profile:'Business Profile',
+    settings:'Settings'
   };
 
   $('#title').textContent=names[v];
