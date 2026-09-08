@@ -29807,9 +29807,7 @@ function renderAutomationsSettings(){
     ['autoEmailParents','emailParents',false],
     ['autoImportInboundInfo','importInboundInfo',false],
     ['autoSendCharterInvoices','sendCharterInvoices',false],
-    ['autoApplyLateFees','applyLateFees',true],
-    ['autoImportCertificates','importCertificates',false],
-    ['autoImportRosters','importRosters',false]
+    ['autoApplyLateFees','applyLateFees',true]
   ];
 
   fields.forEach(([elementId,key,defaultOn])=>{
@@ -29987,13 +29985,7 @@ if($('#saveAutomations')){
           Boolean($('#autoSendCharterInvoices')?.checked),
 
         applyLateFees:
-          Boolean($('#autoApplyLateFees')?.checked),
-
-        importCertificates:
-          Boolean($('#autoImportCertificates')?.checked),
-
-        importRosters:
-          Boolean($('#autoImportRosters')?.checked)
+          Boolean($('#autoApplyLateFees')?.checked)
       };
 
       await setDoc(
