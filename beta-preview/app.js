@@ -21301,10 +21301,7 @@ async function queueLateFeeRemovedReviews(){
           classRecord.lateFeeRemovedBody ||
           defaultLateFeeRemovedBodyTemplate()
         )
-          .replace(/
-{3,}/g,'
-
-')
+          .replace(/\n{3,}/g,'\n\n')
           .trim();
 
       await addDoc(
@@ -26782,8 +26779,7 @@ function renderReviews(){
               <div class="vf-parent-email-preview-body">
                 <div><strong>To:</strong> ${esc(review.to||'')}</div>
                 <div><strong>Subject:</strong> ${esc(review.subject||'')}</div>
-                <div>${esc(review.body||'').replace(/
-/g,'<br>')}</div>
+                <div>${esc(review.body||'').replace(/\n/g,'<br>')}</div>
               </div>
             </details>
 
