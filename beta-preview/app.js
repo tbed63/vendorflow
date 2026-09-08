@@ -15073,7 +15073,7 @@ function openStudentCommandCenter(studentId){
 
   vfCommandCenterStudentId=studentId;
 
-  switchView('studentcenter');
+  switchView('studentCommandCenter');
 }
 
 
@@ -32043,7 +32043,7 @@ function switchView(v){
     account:'Account',
     profile:'Business Profile',
     settings:'Settings',
-    studentcenter:'Student Account'
+    studentCommandCenter:'Student Account'
   };
 
   $('#title').textContent=names[v];
@@ -32117,7 +32117,7 @@ function switchView(v){
     renderAutomationsSettings();
   }
 
-  if(v==='studentcenter'){
+  if(v==='studentCommandCenter'){
     renderStudentCommandCenter(vfCommandCenterStudentId);
   }
 
