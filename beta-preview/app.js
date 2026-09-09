@@ -37973,6 +37973,145 @@ function wireBulkCharterMatchSuggestions(){
 }
 
 
+/*
+ * The certificate viewer used to ask the vendor to TYPE the student's
+ * name here, which is the one place a typo silently detaches a
+ * certificate from its student -- and the case that prompted this was
+ * a child whose certificate says "Maverick" while the roster says
+ * "Ryder". A dropdown makes it a multiple-choice question instead.
+ * The free-text box survives behind a "not on my roster" option, so a
+ * certificate for a child who has not been added yet is not blocked.
+ */
+function vfCertificateStudentMatch(name){
+
+  const target=normalizedName(name);
+
+  if(!target){
+    return null;
+  }
+
+  return students.find(
+    student=>vfStudentAllNames(student).includes(target)
+  ) || null;
+}
+
+
+function vfCertificateStudentOptions(currentName){
+
+  const match=
+    vfCertificateStudentMatch(currentName);
+
+  return [...students]
+    .sort(
+      (a,b)=>
+        String(a.studentName||'')
+          .localeCompare(String(b.studentName||''))
+    )
+    .map(student=>
+      `<option value="${esc(student.studentName||'')}" ${
+        match && student.id===match.id ? 'selected' : ''
+      }>${esc(student.studentName||'Unnamed student')}${
+        vfStudentIsArchived(student) ? ' (archived)' : ''
+      }</option>`
+    )
+    .join('');
+}
+
+
+/*
+ * When the vendor's pick differs from the name actually printed on
+ * the certificate, say so plainly. That difference is the whole
+ * problem this screen exists to resolve, so it should be visible
+ * rather than something the vendor has to notice for themselves.
+ */
+function vfCertificateOriginalStudentNote(item,currentName){
+
+  const original=
+    String(
+      (bulkCertificateExtraction(item) || {}).studentName || ''
+    ).trim();
+
+  if(
+    !original ||
+    normalizedName(original)===normalizedName(currentName)
+  ){
+    return '';
+  }
+
+  return `<small class="vf-cert-read-note">The certificate reads &ldquo;${
+    esc(original)
+  }&rdquo;.</small>`;
+}
+
+
+function vfWireCertificateStudentPicker(currentName){
+
+  const select=
+    $('#bulkCertificateReviewFields select[data-bulk-edit="studentName"]');
+
+  const other=
+    $('#bulkCertificateOtherStudent');
+
+  if(!select || !other){
+    return;
+  }
+
+  const otherOption=
+    select.querySelector('option[value="__vf_other__"]');
+
+  /*
+   * A name VendorFlow read off the PDF that matches nobody on the
+   * roster starts in the free-text box, so it is never silently
+   * discarded just because there is no matching student yet.
+   */
+  const unmatched=
+    Boolean(
+      String(currentName||'').trim() &&
+      !vfCertificateStudentMatch(currentName)
+    );
+
+  const syncOther=()=>{
+
+    const typed=other.value.trim();
+
+    if(otherOption){
+      otherOption.value=typed || '__vf_other__';
+      otherOption.textContent=
+        typed
+          ? `${typed} (not on my roster)`
+          : 'Someone not on my roster (type a name)';
+    }
+
+    select.value=typed || '__vf_other__';
+  };
+
+  if(unmatched){
+    show(other);
+    syncOther();
+  }
+
+  select.onchange=()=>{
+
+    if(select.value==='__vf_other__'){
+      show(other);
+      other.focus();
+      return;
+    }
+
+    hide(other);
+    other.value='';
+
+    if(otherOption){
+      otherOption.value='__vf_other__';
+      otherOption.textContent=
+        'Someone not on my roster (type a name)';
+    }
+  };
+
+  other.oninput=syncOther;
+}
+
+
 function renderBulkCertificateReviewFields(
   item
 ){
@@ -37997,12 +38136,23 @@ function renderBulkCertificateReviewFields(
 
       <label>
         <span>Student</span>
+        <select class="input" data-bulk-edit="studentName">
+          <option value="">Choose a student…</option>
+          ${vfCertificateStudentOptions(x.studentName)}
+          <option value="__vf_other__">Someone not on my roster (type a name)</option>
+        </select>
         <input
-          class="input"
-          data-bulk-edit="studentName"
-          value="${esc(
-            x.studentName || ''
-          )}">
+          class="input hidden"
+          id="bulkCertificateOtherStudent"
+          placeholder="Type the student's name"
+          value="${
+            vfCertificateStudentMatch(x.studentName)
+              ? ''
+              : esc(x.studentName || '')
+          }">
+        ${
+          vfCertificateOriginalStudentNote(item,x.studentName)
+        }
       </label>
 
       <label>
@@ -38130,6 +38280,8 @@ function renderBulkCertificateReviewFields(
       </label>
 
     `;
+
+    vfWireCertificateStudentPicker(x.studentName);
 
     return;
   }

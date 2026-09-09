@@ -8720,3 +8720,12 @@ body.vf-wizard-open .vf-modal-overlay{
   font-size:.76rem;
   line-height:1.45;
 }
+
+/* VF_CERT_READ_NOTE */
+.vf-cert-read-note{
+  display:block;
+  margin-top:5px;
+  color:var(--gold);
+  font-size:.74rem;
+  font-weight:700;
+}
