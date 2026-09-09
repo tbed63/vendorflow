@@ -13133,7 +13133,8 @@ function refreshStudentServiceSelectors(){
 
     studentSelect.innerHTML=
       '<option value="">Choose student</option>'+
-      [...students]
+      students
+        .filter(student=>!vfStudentIsArchived(student))
         .sort(
           (a,b)=>
             (a.studentName||'')
@@ -15475,6 +15476,28 @@ function vfStudentIsArchived(student){
 }
 
 
+/*
+ * Archiving means "stop acting on this student's behalf". VendorFlow
+ * still recognises their paperwork -- an archived family that comes
+ * back with a new certificate is matched and the vendor is offered a
+ * restore -- but it stops reaching out to them or touching their
+ * balance on its own: no payment reminders, no late fees, and they
+ * are not offered in the pickers used to start new work.
+ */
+function vfObligationStudentIsArchived(obligation){
+
+  if(!obligation?.studentId){
+    return false;
+  }
+
+  return vfStudentIsArchived(
+    students.find(
+      student=>student.id===obligation.studentId
+    )
+  );
+}
+
+
 function vfStudentAliasList(student){
 
   const raw=
@@ -15636,9 +15659,28 @@ async function archiveStudent(studentId){
     return toast('That student could not be found.');
   }
 
+  /*
+   * Tim's own rule: a family you still intend to collect from should
+   * not be archived. Archiving silently stops reminders and late
+   * fees, so an outstanding balance would just quietly stop being
+   * chased -- which is the one way this action can cost real money.
+   */
+  const owed=
+    Number(
+      studentAccountTotals(student).parentBalance || 0
+    );
+
   const confirmed=
     window.confirm(
       `Archive ${student.studentName||'this student'}?\n\n`+
+      (
+        owed>.009
+          ? `HEADS UP: this family still owes ${money(owed)}. Archiving `+
+            `stops payment reminders and late fees for them, so that `+
+            `balance will stop being chased. If you still plan to collect `+
+            `it, cancel and leave them on your roster.\n\n`
+          : ''
+      )+
       `They stop showing in your student directory, but nothing is deleted -- `+
       `every payment, charge, certificate and invoice stays exactly as it is, `+
       `and you can restore them at any time using the "Archived" filter on the `+
@@ -21901,6 +21943,10 @@ async function queuePaymentReminderReviews(){
         continue;
       }
 
+      if(vfObligationStudentIsArchived(obligation)){
+        continue;
+      }
+
       if(!obligation.parentReminderEnabled){
         continue;
       }
@@ -23138,6 +23184,10 @@ async function applyLateFees(){
   for(const obligation of obligations){
 
     if(obligation.deleted){
+      continue;
+    }
+
+    if(vfObligationStudentIsArchived(obligation)){
       continue;
     }
 
@@ -29085,7 +29135,7 @@ function vfProposalEditFormHTML(review){
   const studentOptions=
     students
       .sort((a,b)=>String(a.studentName||'').localeCompare(String(b.studentName||'')))
-      .map(s=>`<option value="${esc(s.id)}" ${s.id===f.studentId?'selected':''}>${esc(s.studentName||'')}</option>`)
+      .map(s=>`<option value="${esc(s.id)}" ${s.id===f.studentId?'selected':''}>${esc(s.studentName||'')}${vfStudentIsArchived(s)?' (archived)':''}</option>`)
       .join('');
 
   const serviceOptions=
@@ -30865,7 +30915,33 @@ async function approveEmailProposal(
 
       const studentMatch=
         students.find(s=>s.id===data.studentId) ||
+        students.find(
+          s=>
+            data.studentName &&
+            vfStudentAllNames(s).includes(
+              normalizedName(data.studentName)
+            )
+        ) ||
         {id:data.studentId,studentName:data.studentName};
+
+      /*
+       * A returning family. VendorFlow matched their paperwork even
+       * though they were archived; now that the vendor has approved
+       * it, put them back on the active roster so scheduling and
+       * billing work again without re-entering anything.
+       */
+      if(
+        studentMatch?.id &&
+        vfStudentIsArchived(studentMatch)
+      ){
+
+        await restoreStudent(studentMatch.id);
+
+        toast(
+          `${studentMatch.studentName||'That student'} was archived -- `+
+          `VendorFlow put them back on your roster.`
+        );
+      }
 
       if(data.itemType==='payment'){
 
@@ -44178,7 +44254,6 @@ function vfRenderReadySetupButton(){
   const existing=$('#vfReadyNudge');
   if(existing)existing.remove();
 
-  if(profile?.betaSetupComplete===true)return;
   if($('#vfWizard'))return;
 
   const app=$('#app');
@@ -44190,13 +44265,62 @@ function vfRenderReadySetupButton(){
   const nudge=document.createElement('div');
   nudge.id='vfReadyNudge';
   nudge.className='vf-ready-nudge';
+  /*
+   * This used to disappear the moment automation was switched on,
+   * which left no indication anywhere that VendorFlow had started
+   * emailing families and charging late fees on its own. It now
+   * stays put and reports the state, and doubles as the way to pause
+   * automation again.
+   */
+  const automationOn=
+    profile?.betaSetupComplete===true;
+
   nudge.innerHTML=`
-    <button type="button" id="vfReadyNudgeOpen">Ready?</button>`;
+    <button type="button" id="vfReadyNudgeOpen"${automationOn?' class="vf-automation-on"':''}>${
+      automationOn ? 'Automation on' : 'Start Automating'
+    }</button>`;
   host.insertAdjacentElement('beforebegin',nudge);
 
-  $('#vfReadyNudgeOpen').onclick=()=>{
-    const modal=$('#vfReadyModal');
-    if(modal)show(modal);
+  $('#vfReadyNudgeOpen').onclick=async()=>{
+
+    if(!automationOn){
+      const modal=$('#vfReadyModal');
+      if(modal)show(modal);
+      return;
+    }
+
+    const pause=
+      window.confirm(
+        `Pause automation?\n\n`+
+        `VendorFlow will stop charging late fees, generating invoices `+
+        `and emailing families on its own. Nothing already recorded `+
+        `changes, and anything waiting for your approval stays in `+
+        `Notifications. You can switch it back on here at any time.`
+      );
+
+    if(!pause){
+      return;
+    }
+
+    await setDoc(
+      vendorDoc(),
+      {
+        betaSetupComplete:false,
+        updatedAt:serverTimestamp()
+      },
+      {merge:true}
+    );
+
+    await log(
+      'Automation paused',
+      'The vendor paused VendorFlow automation from the header.',
+      'Manual'
+    );
+
+    await refreshAll();
+    vfRenderReadySetupButton();
+
+    toast('Automation paused.');
   };
 }
 

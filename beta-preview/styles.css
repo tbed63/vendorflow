@@ -8676,3 +8676,13 @@ body.vf-wizard-open .vf-modal-overlay{
   text-transform:uppercase;
   letter-spacing:.05em;
 }
+
+/* VF_AUTOMATION_ON_STYLES */
+.vf-ready-nudge .vf-automation-on{
+  background:#e8f3ec;
+  border:1px solid #b9d8c5;
+  color:#2f6b45;
+}
+.vf-ready-nudge .vf-automation-on:hover{
+  background:#d9ecdf;
+}
