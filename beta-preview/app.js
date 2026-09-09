@@ -8268,6 +8268,18 @@ function serviceKeepsStudentVisible(service){
 function studentVisibleInServices(student){
 
   /*
+   * A student the vendor explicitly removed from the roster stays
+   * hidden, full stop. This used to fall through to the service
+   * checks below, which meant a manually-added student with no
+   * service record kept showing in the directory even after being
+   * marked inactive -- the one existing "mark inactive" path (roster
+   * reconciliation) silently did nothing for those students.
+   */
+  if(student && student.active===false){
+    return false;
+  }
+
+  /*
    * An active student always shows up in the directory, no matter
    * what any individual service record says -- a bad or stale
    * service status should never be able to hide a real, active
@@ -13347,8 +13359,31 @@ function studentCertificates(studentName){
 
   const target=normalizedName(studentName);
 
+  if(!target){
+    return [];
+  }
+
+  /*
+   * A charter's certificate is often filed under a different form of
+   * the child's name than the roster uses ("Mike" vs "Michael"). If
+   * the name we were handed belongs to a student who has other names
+   * on file, match the certificate against all of them, so the
+   * paperwork lands on the right account either way.
+   */
+  const owner=
+    students.find(
+      student=>vfStudentAllNames(student).includes(target)
+    );
+
+  const names=
+    new Set(
+      owner
+        ? vfStudentAllNames(owner)
+        : [target]
+    );
+
   return certs.filter(
-    c=>normalizedName(c.student)===target
+    c=>names.has(normalizedName(c.student))
   );
 }
 
@@ -13556,6 +13591,7 @@ function studentSearchHaystack(student){
     student.studentName,
     student.studentFirst,
     student.studentLast,
+    ...vfStudentAliasList(student),
     student.parentName,
     student.parentEmail,
     student.parentPhone,
@@ -14332,7 +14368,8 @@ const VF_DIRECTORY_CHIPS=[
   {key:'credit',    label:'Has a credit'},
   {key:'latefee',   label:'Charged a late fee'},
   {key:'charter',   label:'Uses charter funds'},
-  {key:'receivable',label:'Charter owes me'}
+  {key:'receivable',label:'Charter owes me'},
+  {key:'removed',   label:'Removed from roster'}
 ];
 
 let vfDirectoryFilters={
@@ -14592,7 +14629,7 @@ function filterStudentDirectoryRows(){
    */
   const needsAccounts=
     Boolean(
-      filters.chips.size ||
+      [...filters.chips].some(chip=>chip!=='removed') ||
       filters.group ||
       filters.charter ||
       filters.sort.startsWith('balance') ||
@@ -14601,11 +14638,15 @@ function filterStudentDirectoryRows(){
 
   const accountCache=new Map();
 
+  const showingRemoved=
+    filters.chips.has('removed');
+
   const cards=
     [...list.querySelectorAll('.vf-student-account')];
 
   const rows=[];
   let visible=0;
+  let inScopeTotal=0;
 
   cards.forEach(card=>{
 
@@ -14618,6 +14659,25 @@ function filterStudentDirectoryRows(){
       card.classList.add('hidden');
       return;
     }
+
+    /*
+     * "Removed from roster" is not an ordinary filter -- it swaps
+     * which set of students the directory is looking at. Removed
+     * students are rendered so they can be restored, but they stay
+     * out of every other view unless this chip is on.
+     */
+    const isRemoved=
+      student.active===false;
+
+    const inScope=
+      showingRemoved ? isRemoved : !isRemoved;
+
+    if(!inScope){
+      card.classList.add('hidden');
+      return;
+    }
+
+    inScopeTotal+=1;
 
     const matchesSearch=
       !query ||
@@ -14699,12 +14759,17 @@ function filterStudentDirectoryRows(){
 
   if(result){
 
-    const total=cards.length;
+    const total=inScopeTotal;
+
+    const noun=
+      showingRemoved
+        ? (total===1?'removed student':'removed students')
+        : (total===1?'student':'students');
 
     result.textContent=
       visible===total
-        ? `${total} student${total===1?'':'s'}`
-        : `${visible} of ${total} student${total===1?'':'s'}`;
+        ? `${total} ${noun}`
+        : `${visible} of ${total} ${noun}`;
   }
 }
 
@@ -15356,6 +15421,472 @@ function studentHistoryHTML(student){
 }
 
 
+/*
+ * ==========================================================
+ * Removing and deleting a student
+ * ==========================================================
+ *
+ * Two different actions, deliberately:
+ *
+ *   Remove from roster  -- reversible. Sets active:false. Every
+ *                          payment, charge, certificate and invoice
+ *                          stays exactly where it is.
+ *
+ *   Delete permanently  -- irreversible. Actually destroys the
+ *                          student and the records that belong to
+ *                          them. This exists because a vendor who
+ *                          entered the same child twice needs a way
+ *                          to clean that up, and a soft-delete just
+ *                          leaves the mess sitting there.
+ *
+ * The dangerous half of a permanent delete is that VendorFlow links
+ * some records to a student by id (services, obligations, most
+ * payments) and others only by NAME (certificates, and payments that
+ * arrived from a bank statement without an id). Deleting by name is
+ * exactly wrong for the case this feature is FOR -- a duplicated
+ * child -- because both copies answer to the same name, so a
+ * name-based delete would take the surviving copy's certificate with
+ * it. So anything matched only by name is deleted only when no other
+ * remaining student answers to that name too; otherwise it is left
+ * alone and the vendor is told so before they confirm.
+ */
+
+function vfStudentAliasList(student){
+
+  const raw=
+    student?.alsoKnownAs;
+
+  const values=
+    Array.isArray(raw)
+      ? raw
+      : String(raw||'').split(',');
+
+  return values
+    .map(value=>String(value||'').trim())
+    .filter(Boolean);
+}
+
+
+function vfStudentAllNames(student){
+
+  return [
+    student?.studentName,
+    ...vfStudentAliasList(student)
+  ]
+    .map(name=>normalizedName(name))
+    .filter(Boolean);
+}
+
+
+function vfStudentRemovalImpact(student){
+
+  const studentId=student?.id||'';
+
+  const ownNames=
+    new Set(vfStudentAllNames(student));
+
+  /*
+   * Every other student still on the account, so we can tell an
+   * unambiguous name match from one that two records share.
+   */
+  const otherNames=
+    new Set(
+      students
+        .filter(other=>other.id!==studentId)
+        .flatMap(other=>vfStudentAllNames(other))
+    );
+
+  const nameIsShared=
+    name=>otherNames.has(normalizedName(name));
+
+  const ownedServices=
+    services.filter(
+      service=>service.studentId===studentId
+    );
+
+  const ownedObligations=
+    obligations.filter(
+      obligation=>obligation.studentId===studentId
+    );
+
+  const ownedPayments=
+    payments.filter(
+      payment=>payment.studentId===studentId
+    );
+
+  /*
+   * Payments with no studentId that only match on the name written
+   * on them. Safe to delete only when this student is the only one
+   * answering to that name.
+   */
+  const namedPayments=
+    payments.filter(payment=>{
+
+      if(payment.studentId){
+        return false;
+      }
+
+      const name=normalizedName(payment.student||'');
+
+      return Boolean(name) && ownNames.has(name);
+    });
+
+  const deletablePayments=
+    namedPayments.filter(
+      payment=>!nameIsShared(payment.student)
+    );
+
+  const keptPayments=
+    namedPayments.filter(
+      payment=>nameIsShared(payment.student)
+    );
+
+  const matchedCertificates=
+    certs.filter(cert=>{
+
+      const name=normalizedName(cert.student||'');
+
+      return Boolean(name) && ownNames.has(name);
+    });
+
+  const deletableCertificates=
+    matchedCertificates.filter(
+      cert=>!nameIsShared(cert.student)
+    );
+
+  const keptCertificates=
+    matchedCertificates.filter(
+      cert=>nameIsShared(cert.student)
+    );
+
+  const deletableCertificateIds=
+    new Set(
+      deletableCertificates.map(cert=>cert.id)
+    );
+
+  const deletableInvoices=
+    invoices.filter(
+      invoice=>
+        invoice.certificateId &&
+        deletableCertificateIds.has(invoice.certificateId)
+    );
+
+  return {
+    student,
+    services:ownedServices,
+    obligations:ownedObligations,
+    payments:[...ownedPayments,...deletablePayments],
+    certificates:deletableCertificates,
+    invoices:deletableInvoices,
+    keptPayments,
+    keptCertificates
+  };
+}
+
+
+function vfStudentRemovalImpactSummary(impact){
+
+  const line=(count,singular,plural)=>
+    count
+      ? `  - ${count} ${count===1?singular:plural}`
+      : '';
+
+  return [
+    line(impact.services.length,'service / enrollment','services / enrollments'),
+    line(impact.obligations.length,'charge','charges'),
+    line(impact.payments.length,'payment','payments'),
+    line(impact.certificates.length,'certificate','certificates'),
+    line(impact.invoices.length,'invoice','invoices')
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+
+async function removeStudentFromRoster(studentId){
+
+  const student=
+    students.find(item=>item.id===studentId);
+
+  if(!student){
+    return toast('That student could not be found.');
+  }
+
+  const confirmed=
+    window.confirm(
+      `Remove ${student.studentName||'this student'} from your roster?\n\n`+
+      `They stop showing in your student directory, but nothing is deleted -- `+
+      `every payment, charge, certificate and invoice stays exactly as it is, `+
+      `and you can put them back at any time using the "Removed from roster" `+
+      `filter on the Students page.`
+    );
+
+  if(!confirmed){
+    return;
+  }
+
+  await setDoc(
+    doc(db,'vendors',user.uid,'students',studentId),
+    {
+      active:false,
+      updatedAt:serverTimestamp()
+    },
+    {merge:true}
+  );
+
+  await log(
+    'Student removed from roster',
+    `${student.studentName||'A student'} was removed from the active roster. `+
+    `No financial records were changed.`,
+    'Manual'
+  );
+
+  vfCommandCenterStudentId='';
+
+  await refreshAll();
+
+  switchView('students');
+
+  toast('Removed from your roster.');
+}
+
+
+async function restoreStudentToRoster(studentId){
+
+  const student=
+    students.find(item=>item.id===studentId);
+
+  if(!student){
+    return toast('That student could not be found.');
+  }
+
+  await setDoc(
+    doc(db,'vendors',user.uid,'students',studentId),
+    {
+      active:true,
+      updatedAt:serverTimestamp()
+    },
+    {merge:true}
+  );
+
+  await log(
+    'Student restored to roster',
+    `${student.studentName||'A student'} was put back on the active roster.`,
+    'Manual'
+  );
+
+  await refreshAll();
+
+  toast('Back on your roster.');
+}
+
+
+async function deleteStudentPermanently(studentId){
+
+  const student=
+    students.find(item=>item.id===studentId);
+
+  if(!student){
+    return toast('That student could not be found.');
+  }
+
+  const impact=
+    vfStudentRemovalImpact(student);
+
+  const summary=
+    vfStudentRemovalImpactSummary(impact);
+
+  const keptNotes=[];
+
+  if(impact.keptCertificates.length){
+    keptNotes.push(
+      `${impact.keptCertificates.length} certificate`+
+      `${impact.keptCertificates.length===1?'':'s'}`
+    );
+  }
+
+  if(impact.keptPayments.length){
+    keptNotes.push(
+      `${impact.keptPayments.length} payment`+
+      `${impact.keptPayments.length===1?'':'s'}`
+    );
+  }
+
+  /*
+   * Certificates are named individually rather than just counted.
+   * They are usually the most valuable thing on the account, and the
+   * exact situation this feature exists for -- cleaning up a child
+   * entered twice under two spellings -- is also the situation where
+   * a vendor is most likely to destroy the certificate they meant to
+   * keep. Seeing "Arete Charter Academy -- $500.00" is what makes
+   * that obvious before they confirm rather than after.
+   */
+  const certificateDetail=
+    impact.certificates
+      .slice(0,6)
+      .map(cert=>
+        `  - ${cert.school||'Certificate'} `+
+        `${cert.number?'#'+cert.number+' ':''}`+
+        `${money(cert.amount)}`
+      )
+      .join('\n');
+
+  const certificateOverflow=
+    impact.certificates.length>6
+      ? `\n  ...and ${impact.certificates.length-6} more`
+      : '';
+
+  const confirmed=
+    window.confirm(
+      `PERMANENTLY DELETE ${student.studentName||'this student'}?\n\n`+
+      (
+        summary
+          ? `This will also delete:\n${summary}\n\n`
+          : `This student has no financial records attached.\n\n`
+      )+
+      (
+        impact.certificates.length
+          ? `Certificates being destroyed:\n${certificateDetail}${certificateOverflow}\n\n`
+          : ''
+      )+
+      (
+        keptNotes.length
+          ? `Kept, because another student on your account answers to the `+
+            `same name: ${keptNotes.join(' and ')}. Those stay attached to `+
+            `that student.\n\n`
+          : ''
+      )+
+      `This cannot be undone. If you only want them off your roster, `+
+      `cancel and use "Remove from roster" instead.`
+    );
+
+  if(!confirmed){
+    return;
+  }
+
+  const paths=[];
+
+  impact.services.forEach(
+    item=>paths.push(['services',item.id])
+  );
+
+  impact.obligations.forEach(
+    item=>paths.push(['obligations',item.id])
+  );
+
+  impact.payments.forEach(
+    item=>paths.push(['payments',item.id])
+  );
+
+  impact.certificates.forEach(
+    item=>paths.push(['certificates',item.id])
+  );
+
+  impact.invoices.forEach(
+    item=>paths.push(['invoices',item.id])
+  );
+
+  for(const [collectionName,recordId] of paths){
+
+    try{
+
+      await deleteDoc(
+        doc(db,'vendors',user.uid,collectionName,recordId)
+      );
+
+    }catch(error){
+
+      console.error(
+        `Could not delete ${collectionName}/${recordId}:`,
+        error
+      );
+    }
+  }
+
+  /*
+   * Class roster entries live in a subcollection per class, so they
+   * have to be swept separately rather than filtered out of a list
+   * already in memory.
+   */
+  for(const classRecord of classes){
+
+    try{
+
+      const snapshot=
+        await getDocs(
+          collection(
+            db,
+            'vendors',
+            user.uid,
+            'classes',
+            classRecord.id,
+            'students'
+          )
+        );
+
+      for(const rosterDoc of snapshot.docs){
+
+        const rosterName=
+          normalizedName(
+            rosterDoc.data()?.studentName ||
+            rosterDoc.data()?.name ||
+            ''
+          );
+
+        const matchesStudent=
+          rosterDoc.id===studentId ||
+          (
+            rosterName &&
+            vfStudentAllNames(student).includes(rosterName) &&
+            !students.some(
+              other=>
+                other.id!==studentId &&
+                vfStudentAllNames(other).includes(rosterName)
+            )
+          );
+
+        if(matchesStudent){
+          await deleteDoc(rosterDoc.ref);
+        }
+      }
+
+    }catch(error){
+
+      console.error(
+        `Could not clean the roster for class ${classRecord.id}:`,
+        error
+      );
+    }
+  }
+
+  await deleteDoc(
+    doc(db,'vendors',user.uid,'students',studentId)
+  );
+
+  /*
+   * The Actions log is deliberately NOT deleted -- it is the audit
+   * trail, and a deletion that erases its own record is worse than
+   * no record at all.
+   */
+  await log(
+    'Student permanently deleted',
+    `${student.studentName||'A student'} was permanently deleted, along with `+
+    `${impact.services.length} service(s), ${impact.obligations.length} charge(s), `+
+    `${impact.payments.length} payment(s), ${impact.certificates.length} certificate(s) `+
+    `and ${impact.invoices.length} invoice(s). This cannot be undone.`,
+    'Manual'
+  );
+
+  vfCommandCenterStudentId='';
+
+  await refreshAll();
+
+  switchView('students');
+
+  toast('Student permanently deleted.');
+}
+
+
 function upgradeStudentDirectoryRows(){
 
   const list=$('#studentsServicesList');
@@ -15554,7 +16085,11 @@ function upgradeStudentDirectoryRows(){
         <strong>${money(account.parentBalance)}</strong>
         <small class="${balance.className}">${esc(balance.label)}</small>
       </span>
-      <span class="vf-student-directory-open">Open account &rarr;</span>
+      <span class="vf-student-directory-open">${
+        student.active===false
+          ? '<span class="vf-removed-badge">Removed</span>'
+          : 'Open account &rarr;'
+      }</span>
     `;
 
     row.onclick=()=>{
@@ -15655,6 +16190,15 @@ function renderStudentCommandCenter(studentId){
   if($('#ccParentEmail'))$('#ccParentEmail').value=student.parentEmail||'';
   if($('#ccParentPhone'))$('#ccParentPhone').value=student.parentPhone||'';
   if($('#ccStudentAddress'))$('#ccStudentAddress').value=student.address||'';
+  if($('#ccAlsoKnownAs'))$('#ccAlsoKnownAs').value=vfStudentAliasList(student).join(', ');
+
+  if($('#ccRemoveStudent')){
+    $('#ccRemoveStudent').classList.toggle('hidden',student.active===false);
+  }
+
+  if($('#ccRestoreStudent')){
+    $('#ccRestoreStudent').classList.toggle('hidden',student.active!==false);
+  }
   if($('#ccStudentNotes'))$('#ccStudentNotes').value=student.notes||'';
   if($('#ccEmailTo'))$('#ccEmailTo').value=student.parentEmail||'';
 
@@ -15892,6 +16436,13 @@ async function saveStudentCommandCenterProfile(){
     parentPhone:$('#ccParentPhone').value.trim(),
     grade:$('#ccStudentGrade').value.trim(),
     address:$('#ccStudentAddress').value.trim(),
+    alsoKnownAs:
+      $('#ccAlsoKnownAs')
+        ? $('#ccAlsoKnownAs').value
+            .split(',')
+            .map(name=>name.trim())
+            .filter(Boolean)
+        : (current.alsoKnownAs||[]),
     updatedAt:serverTimestamp()
   };
 
@@ -16764,6 +17315,21 @@ function wireStudentCommandCenterButtons(){
     $('#ccSaveProfile').onclick=()=>saveStudentCommandCenterProfile();
   }
 
+  if($('#ccRemoveStudent')){
+    $('#ccRemoveStudent').onclick=()=>
+      removeStudentFromRoster(vfCommandCenterStudentId);
+  }
+
+  if($('#ccRestoreStudent')){
+    $('#ccRestoreStudent').onclick=()=>
+      restoreStudentToRoster(vfCommandCenterStudentId);
+  }
+
+  if($('#ccDeleteStudent')){
+    $('#ccDeleteStudent').onclick=()=>
+      deleteStudentPermanently(vfCommandCenterStudentId);
+  }
+
   if($('#ccSaveNotes')){
     $('#ccSaveNotes').onclick=()=>saveStudentCommandCenterNotes();
   }
@@ -17002,7 +17568,11 @@ function renderStudentsServices(){
 
   list.innerHTML=
     students
-      .filter(studentVisibleInServices)
+      .filter(
+        student=>
+          studentVisibleInServices(student) ||
+          student.active===false
+      )
       .sort(
         (a,b)=>
           (a.studentName||'')

@@ -8606,3 +8606,73 @@ body.vf-wizard-open .vf-modal-overlay{
     flex-basis:100%;
   }
 }
+
+/* VF_STUDENT_DELETE_STYLES */
+.vf-cc-danger{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  margin-top:18px;
+  padding:14px 16px;
+  border:1px solid #f0d4d1;
+  border-radius:14px;
+  background:#fdf7f6;
+}
+.vf-cc-danger-text{
+  display:grid;
+  gap:3px;
+  min-width:220px;
+  flex:1 1 260px;
+}
+.vf-cc-danger-text strong{
+  font-size:.9rem;
+  color:var(--ink);
+}
+.vf-cc-danger-text small{
+  color:var(--muted);
+  font-size:.76rem;
+  line-height:1.45;
+}
+.vf-cc-remove-btn{
+  border:1px solid var(--line);
+  background:#fff;
+  color:var(--navy);
+  border-radius:10px;
+  padding:9px 14px;
+  font-size:.82rem;
+  font-weight:700;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.vf-cc-remove-btn:hover{
+  background:#f8f9fb;
+}
+.vf-cc-delete-btn{
+  border:1px solid #e5b3ae;
+  background:#fff;
+  color:var(--danger);
+  border-radius:10px;
+  padding:9px 14px;
+  font-size:.82rem;
+  font-weight:700;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.vf-cc-delete-btn:hover{
+  background:var(--danger);
+  border-color:var(--danger);
+  color:#fff;
+}
+.vf-removed-badge{
+  display:inline-block;
+  background:#f1f3f5;
+  color:var(--muted);
+  border-radius:999px;
+  padding:3px 10px;
+  font-size:.7rem;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
