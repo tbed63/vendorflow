@@ -44355,34 +44355,26 @@ function vfRenderSetupChecklist(){
           return `
             <div class="vf-setup-item${done?' vf-setup-done':''}${open?' vf-setup-open':''}">
 
-              <div class="vf-setup-row-wrap">
-                <button type="button" class="vf-setup-row" data-setup-open="${esc(item.key)}">
-                  <span class="vf-setup-check">${done?'&#10003;':''}</span>
-                  <span class="vf-setup-title">${esc(item.title)}</span>
-                </button>
-                <button
-                  type="button"
-                  class="vf-setup-jump"
-                  data-setup-go="${esc(item.key)}"
-                  title="${esc(item.action)}"
-                  aria-label="${esc(item.action)}">&rarr;</button>
-              </div>
+              <button type="button" class="vf-setup-row" data-setup-open="${esc(item.key)}">
+                <span class="vf-setup-check">${done?'&#10003;':''}</span>
+                <span class="vf-setup-title">${esc(item.title)}</span>
+              </button>
 
               ${
                 open
                   ? `
-                    <div class="vf-setup-body">
+                    <div
+                      class="vf-setup-body"
+                      role="button"
+                      tabindex="0"
+                      data-setup-go="${esc(item.key)}">
                       ${item.body}
-                      <div class="vf-setup-actions">
-                        <button type="button" class="primary" data-setup-go="${esc(item.key)}">
-                          ${esc(item.action)}
-                        </button>
-                        ${
-                          item.skippable && !done
-                            ? `<button type="button" data-setup-skip="${esc(item.key)}">Skip this</button>`
-                            : ''
-                        }
-                      </div>
+                      <div class="vf-setup-go-line">${esc(item.action)} &rarr;</div>
+                      ${
+                        item.skippable && !done
+                          ? `<button type="button" class="vf-setup-skip" data-setup-skip="${esc(item.key)}">Skip this</button>`
+                          : ''
+                      }
                     </div>`
                   : ''
               }
@@ -44455,6 +44447,18 @@ function vfRenderSetupChecklist(){
   });
 
   panel.querySelectorAll('[data-setup-go]').forEach(button=>{
+
+    /*
+     * The whole explanation is the link now, so a keyboard user gets
+     * the same thing a mouse user does.
+     */
+    button.onkeydown=event=>{
+      if(event.key==='Enter' || event.key===' '){
+        event.preventDefault();
+        button.click();
+      }
+    };
+
     button.onclick=()=>{
 
       const item=
@@ -44486,7 +44490,14 @@ function vfRenderSetupChecklist(){
   });
 
   panel.querySelectorAll('[data-setup-skip]').forEach(button=>{
-    button.onclick=()=>{
+    button.onclick=event=>{
+
+      /*
+       * Skip sits inside the clickable explanation, so it has to stop
+       * the click reaching it -- otherwise skipping would also
+       * navigate away.
+       */
+      event.stopPropagation();
 
       vfSetupSaveState({
         skipped:{
