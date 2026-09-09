@@ -8508,11 +8508,12 @@ body.vf-wizard-open .vf-modal-overlay{
 .vf-cc-collapsible-body{padding:0 20px 20px}
 .vf-cc-count-badge{color:var(--muted);font-weight:700;font-size:12px;margin-left:4px}
 .vf-cc-cert-upload{margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
-.vf-cc-cert-split{display:grid;grid-template-columns:1fr 1.2fr;gap:16px}
+.vf-cc-cert-split{display:grid;grid-template-columns:.85fr 1.35fr;gap:16px}
 .vf-cc-cert-pdf-pane{border:1px solid var(--line);border-radius:12px;padding:12px;background:#f8f9fb;min-height:320px;display:flex;flex-direction:column}
 .vf-cc-cert-pdf-placeholder{color:var(--muted);font-size:13px;padding:24px;text-align:center}
 .vf-cc-cert-pdf-frame{flex:1;width:100%;min-height:300px;border:0;border-radius:8px;background:#fff}
 .vf-cc-cert-form-pane .vf-certificate-form{margin:0}
+.vf-cc-cert-form-pane .formgrid{grid-template-columns:repeat(2,1fr)}
 .vf-cc-cert-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer}
 .vf-cc-cert-row:last-child{border-bottom:0}
 .vf-cc-cert-amount{font-weight:800;white-space:nowrap}
