@@ -27899,11 +27899,47 @@ function vfProposalEditFormHTML(review){
 
   if(review.itemType==='certificate'){
 
+    /*
+     * VendorFlow's certificate extraction only ever produces a raw
+     * name string (studentName) -- it has no roster to match against
+     * at read time, unlike charges/payments. Give the vendor an
+     * actual dropdown here (never a typed name) so there's zero
+     * chance of a typo/misspelling creating a mismatch, and make a
+     * best-guess selection if the extracted name happens to exactly
+     * match one student on file -- still just a starting point, the
+     * vendor picks the real one either way.
+     */
+    const certGuessedStudentId=
+      f.studentId ||
+      (
+        students.find(
+          s=>
+            String(s.studentName||'').trim().toLowerCase() &&
+            String(s.studentName||'').trim().toLowerCase()===
+              String(f.studentName||'').trim().toLowerCase()
+        )?.id ||
+        ''
+      );
+
+    const certStudentOptions=
+      [...students]
+        .sort((a,b)=>String(a.studentName||'').localeCompare(String(b.studentName||'')))
+        .map(s=>`<option value="${esc(s.id)}" ${s.id===certGuessedStudentId?'selected':''}>${esc(s.studentName||'Unnamed student')}</option>`)
+        .join('');
+
     return `
       <div class="vf-proposal-edit-form">
 
-        <label class="vf-field-label"><span>Student name</span>
-          <input class="input" data-proposal-field="studentName" value="${esc(f.studentName||'')}">
+        <label class="vf-field-label"><span>Student</span>
+          <select class="input" data-proposal-field="studentId">
+            <option value="">Choose a student…</option>
+            ${certStudentOptions}
+          </select>
+          ${
+            f.studentName
+              ? `<small>VendorFlow read the name as "${esc(f.studentName)}" -- pick the matching student above.</small>`
+              : ''
+          }
         </label>
 
         <label class="vf-field-label"><span>Charter school</span>
@@ -27933,6 +27969,7 @@ function vfProposalEditFormHTML(review){
         <div class="vf-review-actions">
           <button type="button" class="primary" data-submit-proposal-edit="${esc(review.id)}">Save &amp; Approve</button>
           <button type="button" class="vf-secondary-button" data-cancel-proposal-edit="${esc(review.id)}">Cancel</button>
+          <button type="button" class="vf-secondary-button" data-dismiss-proposal="${esc(review.id)}">Dismiss</button>
         </div>
 
       </div>
@@ -28013,6 +28050,7 @@ function vfProposalEditFormHTML(review){
       <div class="vf-review-actions">
         <button type="button" class="primary" data-submit-proposal-edit="${esc(review.id)}">Save &amp; Approve</button>
         <button type="button" class="vf-secondary-button" data-cancel-proposal-edit="${esc(review.id)}">Cancel</button>
+        <button type="button" class="vf-secondary-button" data-dismiss-proposal="${esc(review.id)}">Dismiss</button>
       </div>
 
     </div>
@@ -28122,8 +28160,22 @@ function renderReviews(){
         const isCertificate=
           review.itemType==='certificate';
 
+        /*
+         * Tim's ask: when VendorFlow genuinely couldn't pin down
+         * which student this email belongs to, put the student
+         * dropdown right on the card instead of making him click
+         * "Edit and approve" first to find it. A missing studentId
+         * on the proposal is exactly that signal for all three
+         * itemTypes (certificates never carry one from extraction
+         * alone; charges/payments only carry one when the roster
+         * cross-check at intake was confident).
+         */
+        const hasConfidentStudentMatch=
+          Boolean(f.studentId);
+
         const editing=
-          vfProposalEditingId===review.id;
+          vfProposalEditingId===review.id ||
+          !hasConfidentStudentMatch;
 
         const detailsHTML=
           isCertificate
