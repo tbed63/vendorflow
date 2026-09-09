@@ -14370,7 +14370,8 @@ const VF_DIRECTORY_CHIPS=[
   {key:'latefee',   label:'Charged a late fee'},
   {key:'charter',   label:'Uses charter funds'},
   {key:'receivable',label:'Charter owes me'},
-  {key:'archived',  label:'Archived'}
+  {key:'archived',  label:'Archived'},
+  {key:'notenrolled',label:'Not enrolled'}
 ];
 
 let vfDirectoryFilters={
@@ -14630,7 +14631,9 @@ function filterStudentDirectoryRows(){
    */
   const needsAccounts=
     Boolean(
-      [...filters.chips].some(chip=>chip!=='archived') ||
+      [...filters.chips].some(
+        chip=>chip!=='archived' && chip!=='notenrolled'
+      ) ||
       filters.group ||
       filters.charter ||
       filters.sort.startsWith('balance') ||
@@ -14679,6 +14682,20 @@ function filterStudentDirectoryRows(){
     }
 
     inScopeTotal+=1;
+
+    /*
+     * Checked here rather than in vfDirectoryStudentMatchesFilters
+     * so that filtering on it never triggers the expensive per
+     * student balance walk -- it is a flag on the record, nothing
+     * more.
+     */
+    if(
+      filters.chips.has('notenrolled') &&
+      !vfStudentIsNotEnrolled(student)
+    ){
+      card.classList.add('hidden');
+      return;
+    }
 
     const matchesSearch=
       !query ||
@@ -15484,6 +15501,22 @@ function vfStudentIsArchived(student){
  * balance on its own: no payment reminders, no late fees, and they
  * are not offered in the pickers used to start new work.
  */
+/*
+ * "Not enrolled" is deliberately a LABEL, not a state. Tim's spec:
+ * it "keeps all balances due, leaves them in the directory, and
+ * basically does nothing different with them except mark them as
+ * inactive so the vendor can remember that this student isn't
+ * currently taking any classes." Payment reminders keep going out,
+ * because a family that stopped taking classes can still owe money.
+ * Nothing here should ever gate behaviour on it -- that is what
+ * Archive is for.
+ */
+function vfStudentIsNotEnrolled(student){
+
+  return Boolean(student?.notEnrolled);
+}
+
+
 function vfObligationStudentIsArchived(obligation){
 
   if(!obligation?.studentId){
@@ -16143,7 +16176,11 @@ function upgradeStudentDirectoryRows(){
       <span class="vf-student-directory-name">
         <strong>${esc(student.studentName||'Unnamed student')}</strong>
         <small>
-          ${student.grade?'Grade '+esc(student.grade):'Grade not entered'}
+          ${student.grade?'Grade '+esc(student.grade):'Grade not entered'}${
+            vfStudentIsNotEnrolled(student)
+              ? ' &middot; <span class="vf-notenrolled-tag">Not enrolled</span>'
+              : ''
+          }
         </small>
       </span>
       <span class="vf-student-directory-parent">
@@ -16264,6 +16301,7 @@ function renderStudentCommandCenter(studentId){
   if($('#ccParentPhone'))$('#ccParentPhone').value=student.parentPhone||'';
   if($('#ccStudentAddress'))$('#ccStudentAddress').value=student.address||'';
   if($('#ccAlsoKnownAs'))$('#ccAlsoKnownAs').value=vfStudentAliasList(student).join(', ');
+  if($('#ccNotEnrolled'))$('#ccNotEnrolled').checked=vfStudentIsNotEnrolled(student);
 
   if($('#ccArchiveStudent')){
     $('#ccArchiveStudent').classList.toggle('hidden',vfStudentIsArchived(student));
@@ -16516,6 +16554,10 @@ async function saveStudentCommandCenterProfile(){
             .map(name=>name.trim())
             .filter(Boolean)
         : (current.alsoKnownAs||[]),
+    notEnrolled:
+      $('#ccNotEnrolled')
+        ? Boolean($('#ccNotEnrolled').checked)
+        : Boolean(current.notEnrolled),
     updatedAt:serverTimestamp()
   };
 

@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>VendorFlow</title>
-  <link rel="stylesheet" href="styles.css?v=automationrules2-20260910-223000">
+  <link rel="stylesheet" href="styles.css?v=notenrolled-20260910-234500">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="modulepreload" href="app.js?v=automationrules2-20260910-223000">
+  <link rel="modulepreload" href="app.js?v=notenrolled-20260910-234500">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA</div>
@@ -1184,6 +1184,17 @@ Thank you,
         <input id="ccStudentAddress" class="input" placeholder="Address">
         <input id="ccAlsoKnownAs" class="input" placeholder="Also goes by (comma separated)">
       </div>
+
+      <label class="vf-notenrolled-toggle">
+        <input type="checkbox" id="ccNotEnrolled">
+        <span>
+          <strong>Not enrolled right now</strong>
+          <small>
+            Just a reminder to you that they aren't taking a class at the moment.
+            Nothing changes -- their balance stands and payment reminders keep going out.
+          </small>
+        </span>
+      </label>
       <div class="row">
         <button type="button" id="ccSaveProfile" class="primary">Save details</button>
       </div>
@@ -3585,5 +3596,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=automationrules2-20260910-223000"></script>
+<script type="module" src="app.js?v=notenrolled-20260910-234500"></script>
 </body></html>
