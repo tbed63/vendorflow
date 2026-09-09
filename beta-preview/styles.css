@@ -8776,6 +8776,11 @@ body.vf-wizard-open .vf-modal-overlay{
   display:block;
   font-size:1rem;
   color:var(--ink);
+}
+.vf-setup-head span{
+  display:block;
+  font-size:.76rem;
+  color:var(--muted);
   margin-top:2px;
 }
 #vfSetupMinimize{
@@ -8826,15 +8831,47 @@ body.vf-wizard-open .vf-modal-overlay{
   font-weight:600;
 }
 .vf-setup-row:hover{background:#f8f9fb;border-radius:8px}
+.vf-setup-row-wrap{
+  display:flex;
+  align-items:center;
+  gap:2px;
+}
+.vf-setup-row-wrap .vf-setup-row{flex:1 1 auto;min-width:0}
+.vf-setup-row-wrap .vf-setup-title{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.vf-setup-jump{
+  flex:0 0 auto;
+  border:1px solid var(--line);
+  background:#fff;
+  color:var(--navy);
+  border-radius:8px;
+  width:26px;
+  height:26px;
+  font-size:.85rem;
+  line-height:1;
+  cursor:pointer;
+  display:grid;
+  place-items:center;
+}
+.vf-setup-jump:hover{
+  background:var(--navy);
+  border-color:var(--navy);
+  color:#fff;
+}
 .vf-setup-check{
   flex:0 0 18px;
   width:18px;
   height:18px;
-  border:1.5px solid var(--line);
+  border:2px solid var(--muted);
+  background:#fff;
   border-radius:50%;
   display:grid;
   place-items:center;
   font-size:.65rem;
+  font-weight:700;
   color:#fff;
 }
 .vf-setup-done .vf-setup-check{

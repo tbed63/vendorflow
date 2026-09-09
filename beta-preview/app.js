@@ -44318,7 +44318,7 @@ function vfRenderSetupChecklist(){
 
     panel.innerHTML=`
       <button type="button" id="vfSetupExpand" class="vf-setup-pill">
-        Setup ${progress.done} of ${progress.total}
+        Setup Checklist &middot; ${progress.done} of ${progress.total}
       </button>`;
 
     document.body.appendChild(panel);
@@ -44335,8 +44335,8 @@ function vfRenderSetupChecklist(){
 
     <div class="vf-setup-head">
       <div>
-        <div class="eyebrow">Setup</div>
-        <strong>${progress.done} of ${progress.total} done</strong>
+        <strong>Setup Checklist</strong>
+        <span>${progress.done} of ${progress.total} done</span>
       </div>
       <button type="button" id="vfSetupMinimize" title="Minimize">&minus;</button>
     </div>
@@ -44355,10 +44355,18 @@ function vfRenderSetupChecklist(){
           return `
             <div class="vf-setup-item${done?' vf-setup-done':''}${open?' vf-setup-open':''}">
 
-              <button type="button" class="vf-setup-row" data-setup-open="${esc(item.key)}">
-                <span class="vf-setup-check">${done?'&#10003;':''}</span>
-                <span class="vf-setup-title">${esc(item.title)}</span>
-              </button>
+              <div class="vf-setup-row-wrap">
+                <button type="button" class="vf-setup-row" data-setup-open="${esc(item.key)}">
+                  <span class="vf-setup-check">${done?'&#10003;':''}</span>
+                  <span class="vf-setup-title">${esc(item.title)}</span>
+                </button>
+                <button
+                  type="button"
+                  class="vf-setup-jump"
+                  data-setup-go="${esc(item.key)}"
+                  title="${esc(item.action)}"
+                  aria-label="${esc(item.action)}">&rarr;</button>
+              </div>
 
               ${
                 open
