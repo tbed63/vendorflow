@@ -29077,7 +29077,7 @@ function vfProposalEditFormHTML(review){
     const certStudentOptions=
       [...students]
         .sort((a,b)=>String(a.studentName||'').localeCompare(String(b.studentName||'')))
-        .map(s=>`<option value="${esc(s.id)}" ${s.id===certGuessedStudentId?'selected':''}>${esc(s.studentName||'Unnamed student')}</option>`)
+        .map(s=>`<option value="${esc(s.id)}" ${s.id===certGuessedStudentId?'selected':''}>${esc(s.studentName||'Unnamed student')}${vfStudentIsArchived(s)?' (archived)':''}</option>`)
         .join('');
 
     return `
