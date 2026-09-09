@@ -7203,7 +7203,7 @@ button.history.vf-history-evidence:focus-visible{
 /* VENDORFLOW CLICKABLE STUDENT DIRECTORY */
 .vf-student-directory-controls{
   display:grid;
-  grid-template-columns:minmax(170px,1fr) minmax(260px,420px) auto;
+  grid-template-columns:1fr auto;
   align-items:end;
   gap:18px;
   margin:22px 0 12px;
@@ -8520,4 +8520,89 @@ body.vf-wizard-open .vf-modal-overlay{
 @media(max-width:900px){
   .vf-cc-stats{grid-template-columns:1fr}
   .vf-cc-cert-split{grid-template-columns:1fr}
+}
+
+/* VF_DIRECTORY_FILTER_STYLES */
+.vf-dir-filters{
+  display:grid;
+  gap:12px;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:14px 16px;
+  margin:0 0 12px;
+}
+.vf-dir-chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.vf-dir-chip{
+  border:1px solid var(--line);
+  background:#fff;
+  color:var(--ink);
+  border-radius:999px;
+  padding:7px 14px;
+  font-size:.8rem;
+  font-weight:700;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.vf-dir-chip:hover{
+  border-color:var(--vf-light-gray);
+  background:#f8f9fb;
+}
+.vf-dir-chip.active{
+  background:var(--navy);
+  border-color:var(--navy);
+  color:#fff;
+}
+.vf-dir-selects{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:end;
+  gap:12px;
+  padding-top:12px;
+  border-top:1px solid var(--line);
+}
+.vf-dir-select{
+  display:grid;
+  gap:3px;
+  min-width:170px;
+  flex:1 1 170px;
+  max-width:240px;
+  font-size:.68rem;
+  font-weight:800;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.vf-dir-select .input{
+  margin:0;
+  padding:9px 10px;
+  font-size:.85rem;
+  font-weight:400;
+  letter-spacing:normal;
+  text-transform:none;
+  color:var(--ink);
+}
+.vf-dir-clear{
+  border:1px solid var(--line);
+  background:#fff;
+  color:var(--navy);
+  border-radius:10px;
+  padding:9px 14px;
+  font-size:.8rem;
+  font-weight:700;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.vf-dir-clear:hover{
+  background:#f8f9fb;
+}
+@media(max-width:700px){
+  .vf-dir-select{
+    max-width:none;
+    flex-basis:100%;
+  }
 }

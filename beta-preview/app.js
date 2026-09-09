@@ -14315,22 +14315,396 @@ function studentDirectoryCertificateHistory(student){
 }
 
 
+/*
+ * ==========================================================
+ * Student directory filtering, sorting and search
+ * ==========================================================
+ *
+ * Every value these filters test comes from studentAccountTotals()
+ * -- the same function the Command Center header and the directory
+ * rows already display -- so a student can never be filtered by one
+ * number while showing another.
+ */
+
+const VF_DIRECTORY_CHIPS=[
+  {key:'balance',   label:'Has a balance'},
+  {key:'paid',      label:'Paid in full'},
+  {key:'credit',    label:'Has a credit'},
+  {key:'latefee',   label:'Charged a late fee'},
+  {key:'charter',   label:'Uses charter funds'},
+  {key:'receivable',label:'Charter owes me'}
+];
+
+let vfDirectoryFilters={
+  chips:new Set(),
+  group:'',
+  charter:'',
+  sort:'name-asc'
+};
+
+
+function vfDirectoryAccountFor(student,cache){
+
+  if(cache.has(student.id)){
+    return cache.get(student.id);
+  }
+
+  const account=studentAccountTotals(student);
+  cache.set(student.id,account);
+
+  return account;
+}
+
+
+function vfDirectoryStudentMatchesFilters(student,cache){
+
+  const filters=vfDirectoryFilters;
+
+  const account=
+    vfDirectoryAccountFor(student,cache);
+
+  const balance=
+    Number(account.parentBalance||0);
+
+  const activeCertificates=
+    Array.isArray(account.activeCertificates)
+      ? account.activeCertificates
+      : [];
+
+  if(
+    filters.chips.has('balance') &&
+    !(balance>.009)
+  ){
+    return false;
+  }
+
+  if(
+    filters.chips.has('paid') &&
+    !(Math.abs(balance)<=.009)
+  ){
+    return false;
+  }
+
+  if(
+    filters.chips.has('credit') &&
+    !(balance< -.009)
+  ){
+    return false;
+  }
+
+  if(
+    filters.chips.has('latefee') &&
+    !(Number(account.lateFeeTotal||0)>.009)
+  ){
+    return false;
+  }
+
+  if(
+    filters.chips.has('charter') &&
+    !(
+      activeCertificates.length>0 ||
+      Number(account.charterPayments||0)>.009
+    )
+  ){
+    return false;
+  }
+
+  if(
+    filters.chips.has('receivable') &&
+    !(Number(account.charterReceivable||0)>.009)
+  ){
+    return false;
+  }
+
+  if(filters.group){
+
+    const groupNames=
+      studentDirectoryServiceNames(student)
+        .map(name=>String(name||'').toLowerCase());
+
+    if(!groupNames.includes(filters.group.toLowerCase())){
+      return false;
+    }
+  }
+
+  if(filters.charter){
+
+    const schoolNames=
+      activeCertificates
+        .map(cert=>String(cert.school||'').toLowerCase());
+
+    if(!schoolNames.includes(filters.charter.toLowerCase())){
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
+function vfDirectoryHasActiveFilters(){
+
+  return Boolean(
+    vfDirectoryFilters.chips.size ||
+    vfDirectoryFilters.group ||
+    vfDirectoryFilters.charter ||
+    vfDirectoryFilters.sort!=='name-asc' ||
+    String($('#globalStudentSearch')?.value||'').trim()
+  );
+}
+
+
+function vfDirectoryClearFilters(){
+
+  vfDirectoryFilters.chips.clear();
+  vfDirectoryFilters.group='';
+  vfDirectoryFilters.charter='';
+  vfDirectoryFilters.sort='name-asc';
+
+  const search=$('#globalStudentSearch');
+
+  if(search){
+    search.value='';
+    renderGlobalStudentSearch();
+  }
+
+  const groupSelect=$('#studentDirectoryGroup');
+  if(groupSelect)groupSelect.value='';
+
+  const charterSelect=$('#studentDirectoryCharter');
+  if(charterSelect)charterSelect.value='';
+
+  const sortSelect=$('#studentDirectorySort');
+  if(sortSelect)sortSelect.value='name-asc';
+
+  filterStudentDirectoryRows();
+}
+
+
+/*
+ * Rebuilds the Group and Charter school dropdowns from whatever is
+ * actually on the vendor's account right now, keeping the current
+ * selection if that option still exists. Called on every directory
+ * render so a newly added class or charter shows up without a
+ * reload -- and so a group that no longer exists can't leave the
+ * vendor stuck looking at an empty list with no obvious reason.
+ */
+function vfDirectoryRefreshFilterOptions(){
+
+  const visibleStudents=
+    students.filter(studentVisibleInServices);
+
+  const groupNames=
+    [...new Set(
+      visibleStudents
+        .flatMap(student=>studentDirectoryServiceNames(student))
+        .map(name=>String(name||'').trim())
+        .filter(Boolean)
+    )].sort((a,b)=>a.localeCompare(b));
+
+  const charterNames=
+    [...new Set(
+      certs
+        .filter(cert=>!cert.deleted)
+        .map(cert=>String(cert.school||'').trim())
+        .filter(Boolean)
+    )].sort((a,b)=>a.localeCompare(b));
+
+  const fill=(select,values,allLabel,current)=>{
+
+    if(!select){
+      return current;
+    }
+
+    const stillExists=
+      values.some(
+        value=>
+          value.toLowerCase()===
+            String(current||'').toLowerCase()
+      );
+
+    const nextValue=
+      stillExists ? current : '';
+
+    select.innerHTML=
+      `<option value="">${esc(allLabel)}</option>`+
+      values
+        .map(value=>
+          `<option value="${esc(value)}">${esc(value)}</option>`
+        )
+        .join('');
+
+    select.value=nextValue;
+
+    return nextValue;
+  };
+
+  vfDirectoryFilters.group=
+    fill(
+      $('#studentDirectoryGroup'),
+      groupNames,
+      'All groups',
+      vfDirectoryFilters.group
+    );
+
+  vfDirectoryFilters.charter=
+    fill(
+      $('#studentDirectoryCharter'),
+      charterNames,
+      'All charter schools',
+      vfDirectoryFilters.charter
+    );
+
+  const sortSelect=$('#studentDirectorySort');
+
+  if(sortSelect){
+    sortSelect.value=vfDirectoryFilters.sort;
+  }
+}
+
+
 function filterStudentDirectoryRows(){
 
-  const input=$('#studentDirectorySearch');
-  const query=String(input?.value||'').trim().toLowerCase();
+  const list=$('#studentsServicesList');
+
+  if(!list){
+    return;
+  }
+
+  /*
+   * The page's own search box is the directory's search box -- an
+   * earlier version of this function looked for #studentDirectory
+   * Search, an id that has never existed in index.html, so the
+   * query was always empty and typing filtered nothing.
+   */
+  const query=
+    String($('#globalStudentSearch')?.value||'')
+      .trim()
+      .toLowerCase();
+
+  const filters=vfDirectoryFilters;
+
+  /*
+   * studentAccountTotals() walks every obligation, payment and
+   * certificate for a student, so it is far too expensive to run
+   * for the whole roster on each keystroke. Only reach for it when
+   * a filter or sort actually depends on those numbers.
+   */
+  const needsAccounts=
+    Boolean(
+      filters.chips.size ||
+      filters.group ||
+      filters.charter ||
+      filters.sort.startsWith('balance') ||
+      filters.sort.startsWith('latefee')
+    );
+
+  const accountCache=new Map();
+
+  const cards=
+    [...list.querySelectorAll('.vf-student-account')];
+
+  const rows=[];
   let visible=0;
 
-  $$('#studentsServicesList .vf-student-account').forEach(card=>{
-    const student=students.find(item=>item.id===card.dataset.studentAccountId);
-    const matches=!query || (student && studentSearchHaystack(student).includes(query));
-    card.classList.toggle('hidden',!matches);
-    if(matches)visible+=1;
+  cards.forEach(card=>{
+
+    const student=
+      students.find(
+        item=>item.id===card.dataset.studentAccountId
+      );
+
+    if(!student){
+      card.classList.add('hidden');
+      return;
+    }
+
+    const matchesSearch=
+      !query ||
+      studentSearchHaystack(student).includes(query);
+
+    const matchesFilters=
+      matchesSearch &&
+      (
+        !needsAccounts ||
+        vfDirectoryStudentMatchesFilters(student,accountCache)
+      );
+
+    card.classList.toggle('hidden',!matchesFilters);
+
+    if(matchesFilters){
+      visible+=1;
+    }
+
+    rows.push({card,student});
   });
 
+  const sortValue=(student)=>{
+
+    if(!needsAccounts){
+      return 0;
+    }
+
+    const account=
+      vfDirectoryAccountFor(student,accountCache);
+
+    return filters.sort.startsWith('latefee')
+      ? Number(account.lateFeeTotal||0)
+      : Number(account.parentBalance||0);
+  };
+
+  rows.sort((a,b)=>{
+
+    if(filters.sort==='name-desc'){
+      return String(b.student.studentName||'')
+        .localeCompare(String(a.student.studentName||''));
+    }
+
+    if(filters.sort==='balance-desc' || filters.sort==='latefee-desc'){
+      return sortValue(b.student)-sortValue(a.student);
+    }
+
+    if(filters.sort==='balance-asc'){
+      return sortValue(a.student)-sortValue(b.student);
+    }
+
+    return String(a.student.studentName||'')
+      .localeCompare(String(b.student.studentName||''));
+  });
+
+  const fragment=document.createDocumentFragment();
+  rows.forEach(row=>fragment.appendChild(row.card));
+  list.appendChild(fragment);
+
+  $$('#studentDirectoryFilters [data-dir-chip]')
+    .forEach(button=>{
+
+      const active=
+        filters.chips.has(button.dataset.dirChip);
+
+      button.classList.toggle('active',active);
+      button.setAttribute('aria-pressed',active?'true':'false');
+    });
+
+  const clearButton=$('#studentDirectoryClear');
+
+  if(clearButton){
+    clearButton.classList.toggle(
+      'hidden',
+      !vfDirectoryHasActiveFilters()
+    );
+  }
+
   const result=$('#studentDirectoryResultCount');
+
   if(result){
-    result.textContent=`${visible} student${visible===1?'':'s'}`;
+
+    const total=cards.length;
+
+    result.textContent=
+      visible===total
+        ? `${total} student${total===1?'':'s'}`
+        : `${visible} of ${total} student${total===1?'':'s'}`;
   }
 }
 
@@ -15009,6 +15383,131 @@ function upgradeStudentDirectoryRows(){
       pageSearch.dataset.directoryFilter='true';
     }
   }
+
+  /*
+   * The filter bar lives between the heading and the list, as its own
+   * element rather than inside #studentsServicesList -- renderStudents
+   * Services() replaces that list's innerHTML on every refresh, so
+   * anything built inside it would lose the vendor's current filter
+   * selection every time a charge or payment landed.
+   */
+  let filterBar=$('#studentDirectoryFilters');
+
+  if(!filterBar){
+
+    filterBar=document.createElement('div');
+    filterBar.id='studentDirectoryFilters';
+    filterBar.className='vf-dir-filters';
+
+    filterBar.innerHTML=`
+
+      <div class="vf-dir-chips">
+        ${
+          VF_DIRECTORY_CHIPS
+            .map(chip=>`
+              <button
+                type="button"
+                class="vf-dir-chip"
+                data-dir-chip="${esc(chip.key)}"
+                aria-pressed="false">
+                ${esc(chip.label)}
+              </button>
+            `)
+            .join('')
+        }
+      </div>
+
+      <div class="vf-dir-selects">
+
+        <label class="vf-dir-select">
+          <span>Group</span>
+          <select id="studentDirectoryGroup" class="input">
+            <option value="">All groups</option>
+          </select>
+        </label>
+
+        <label class="vf-dir-select">
+          <span>Charter school</span>
+          <select id="studentDirectoryCharter" class="input">
+            <option value="">All charter schools</option>
+          </select>
+        </label>
+
+        <label class="vf-dir-select">
+          <span>Sort by</span>
+          <select id="studentDirectorySort" class="input">
+            <option value="name-asc">Name (A-Z)</option>
+            <option value="name-desc">Name (Z-A)</option>
+            <option value="balance-desc">Balance (most owed first)</option>
+            <option value="balance-asc">Balance (credits first)</option>
+            <option value="latefee-desc">Late fees (highest first)</option>
+          </select>
+        </label>
+
+        <button type="button" id="studentDirectoryClear" class="vf-dir-clear hidden">
+          Clear filters
+        </button>
+
+      </div>
+    `;
+
+    controls.insertAdjacentElement('afterend',filterBar);
+
+    filterBar
+      .querySelectorAll('[data-dir-chip]')
+      .forEach(button=>{
+
+        button.onclick=()=>{
+
+          const key=button.dataset.dirChip;
+
+          if(vfDirectoryFilters.chips.has(key)){
+            vfDirectoryFilters.chips.delete(key);
+          }else{
+            vfDirectoryFilters.chips.add(key);
+          }
+
+          filterStudentDirectoryRows();
+        };
+      });
+
+    const groupSelect=filterBar.querySelector('#studentDirectoryGroup');
+
+    if(groupSelect){
+      groupSelect.onchange=()=>{
+        vfDirectoryFilters.group=groupSelect.value;
+        filterStudentDirectoryRows();
+      };
+    }
+
+    const charterSelect=filterBar.querySelector('#studentDirectoryCharter');
+
+    if(charterSelect){
+      charterSelect.onchange=()=>{
+        vfDirectoryFilters.charter=charterSelect.value;
+        filterStudentDirectoryRows();
+      };
+    }
+
+    const sortSelect=filterBar.querySelector('#studentDirectorySort');
+
+    if(sortSelect){
+      sortSelect.onchange=()=>{
+        vfDirectoryFilters.sort=sortSelect.value;
+        filterStudentDirectoryRows();
+      };
+    }
+
+    const clearButton=filterBar.querySelector('#studentDirectoryClear');
+
+    if(clearButton){
+      clearButton.onclick=()=>{
+        vfDirectoryClearFilters();
+      };
+    }
+  }
+
+  vfDirectoryRefreshFilterOptions();
 
   $$('#studentsServicesList .vf-student-account').forEach(card=>{
     if(card.dataset.directoryReady==='true'){
