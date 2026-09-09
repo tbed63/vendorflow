@@ -8268,14 +8268,14 @@ function serviceKeepsStudentVisible(service){
 function studentVisibleInServices(student){
 
   /*
-   * A student the vendor explicitly removed from the roster stays
-   * hidden, full stop. This used to fall through to the service
-   * checks below, which meant a manually-added student with no
-   * service record kept showing in the directory even after being
-   * marked inactive -- the one existing "mark inactive" path (roster
-   * reconciliation) silently did nothing for those students.
+   * An archived student stays hidden, full stop. This used to fall
+   * through to the service checks below, which meant a manually
+   * added student with no service record kept showing in the
+   * directory even after being archived -- the one existing path
+   * for this (roster reconciliation) silently did nothing for those
+   * students.
    */
-  if(student && student.active===false){
+  if(vfStudentIsArchived(student)){
     return false;
   }
 
@@ -14369,7 +14369,7 @@ const VF_DIRECTORY_CHIPS=[
   {key:'latefee',   label:'Charged a late fee'},
   {key:'charter',   label:'Uses charter funds'},
   {key:'receivable',label:'Charter owes me'},
-  {key:'removed',   label:'Removed from roster'}
+  {key:'archived',  label:'Archived'}
 ];
 
 let vfDirectoryFilters={
@@ -14629,7 +14629,7 @@ function filterStudentDirectoryRows(){
    */
   const needsAccounts=
     Boolean(
-      [...filters.chips].some(chip=>chip!=='removed') ||
+      [...filters.chips].some(chip=>chip!=='archived') ||
       filters.group ||
       filters.charter ||
       filters.sort.startsWith('balance') ||
@@ -14638,8 +14638,8 @@ function filterStudentDirectoryRows(){
 
   const accountCache=new Map();
 
-  const showingRemoved=
-    filters.chips.has('removed');
+  const showingArchived=
+    filters.chips.has('archived');
 
   const cards=
     [...list.querySelectorAll('.vf-student-account')];
@@ -14661,16 +14661,16 @@ function filterStudentDirectoryRows(){
     }
 
     /*
-     * "Removed from roster" is not an ordinary filter -- it swaps
-     * which set of students the directory is looking at. Removed
-     * students are rendered so they can be restored, but they stay
-     * out of every other view unless this chip is on.
+     * "Archived" is not an ordinary filter -- it swaps which set of
+     * students the directory is looking at. Archived students are
+     * rendered so they can be restored, but they stay out of every
+     * other view unless this chip is on.
      */
-    const isRemoved=
-      student.active===false;
+    const isArchived=
+      vfStudentIsArchived(student);
 
     const inScope=
-      showingRemoved ? isRemoved : !isRemoved;
+      showingArchived ? isArchived : !isArchived;
 
     if(!inScope){
       card.classList.add('hidden');
@@ -14762,8 +14762,8 @@ function filterStudentDirectoryRows(){
     const total=inScopeTotal;
 
     const noun=
-      showingRemoved
-        ? (total===1?'removed student':'removed students')
+      showingArchived
+        ? (total===1?'archived student':'archived students')
         : (total===1?'student':'students');
 
     result.textContent=
@@ -15428,9 +15428,10 @@ function studentHistoryHTML(student){
  *
  * Two different actions, deliberately:
  *
- *   Remove from roster  -- reversible. Sets active:false. Every
- *                          payment, charge, certificate and invoice
- *                          stays exactly where it is.
+ *   Archive            -- reversible. Every payment, charge,
+ *                          certificate and invoice stays exactly
+ *                          where it is. Matches the wording already
+ *                          used for charter schools.
  *
  *   Delete permanently  -- irreversible. Actually destroys the
  *                          student and the records that belong to
@@ -15450,6 +15451,29 @@ function studentHistoryHTML(student){
  * remaining student answers to that name too; otherwise it is left
  * alone and the vendor is told so before they confirm.
  */
+
+/*
+ * VendorFlow had two different flags meaning almost the same thing and
+ * neither half of the app read the other's. The website hid a student
+ * with active:false; the email worker filtered students on archived
+ * instead, and never looked at active at all -- so a student archived
+ * from the website was still a live candidate when the worker matched
+ * an incoming certificate to a child, which is exactly wrong for the
+ * duplicate this feature exists to clean up. Archiving now writes both
+ * flags, and anything that asks "is this student archived?" accepts
+ * either, so a record archived by any path stays archived everywhere.
+ */
+function vfStudentIsArchived(student){
+
+  return Boolean(
+    student &&
+    (
+      student.active===false ||
+      student.archived===true
+    )
+  );
+}
+
 
 function vfStudentAliasList(student){
 
@@ -15603,7 +15627,7 @@ function vfStudentRemovalImpactSummary(impact){
 }
 
 
-async function removeStudentFromRoster(studentId){
+async function archiveStudent(studentId){
 
   const student=
     students.find(item=>item.id===studentId);
@@ -15614,11 +15638,11 @@ async function removeStudentFromRoster(studentId){
 
   const confirmed=
     window.confirm(
-      `Remove ${student.studentName||'this student'} from your roster?\n\n`+
+      `Archive ${student.studentName||'this student'}?\n\n`+
       `They stop showing in your student directory, but nothing is deleted -- `+
       `every payment, charge, certificate and invoice stays exactly as it is, `+
-      `and you can put them back at any time using the "Removed from roster" `+
-      `filter on the Students page.`
+      `and you can restore them at any time using the "Archived" filter on the `+
+      `Students page.`
     );
 
   if(!confirmed){
@@ -15629,14 +15653,16 @@ async function removeStudentFromRoster(studentId){
     doc(db,'vendors',user.uid,'students',studentId),
     {
       active:false,
+      archived:true,
+      archivedAt:serverTimestamp(),
       updatedAt:serverTimestamp()
     },
     {merge:true}
   );
 
   await log(
-    'Student removed from roster',
-    `${student.studentName||'A student'} was removed from the active roster. `+
+    'Student archived',
+    `${student.studentName||'A student'} was archived. `+
     `No financial records were changed.`,
     'Manual'
   );
@@ -15647,11 +15673,11 @@ async function removeStudentFromRoster(studentId){
 
   switchView('students');
 
-  toast('Removed from your roster.');
+  toast('Student archived.');
 }
 
 
-async function restoreStudentToRoster(studentId){
+async function restoreStudent(studentId){
 
   const student=
     students.find(item=>item.id===studentId);
@@ -15664,20 +15690,21 @@ async function restoreStudentToRoster(studentId){
     doc(db,'vendors',user.uid,'students',studentId),
     {
       active:true,
+      archived:false,
       updatedAt:serverTimestamp()
     },
     {merge:true}
   );
 
   await log(
-    'Student restored to roster',
-    `${student.studentName||'A student'} was put back on the active roster.`,
+    'Student restored',
+    `${student.studentName||'A student'} was restored from the archive.`,
     'Manual'
   );
 
   await refreshAll();
 
-  toast('Back on your roster.');
+  toast('Student restored.');
 }
 
 
@@ -15760,8 +15787,8 @@ async function deleteStudentPermanently(studentId){
             `that student.\n\n`
           : ''
       )+
-      `This cannot be undone. If you only want them off your roster, `+
-      `cancel and use "Remove from roster" instead.`
+      `This cannot be undone. If you only want them out of your `+
+      `directory, cancel and use "Archive" instead.`
     );
 
   if(!confirmed){
@@ -16090,8 +16117,8 @@ function upgradeStudentDirectoryRows(){
         <small class="${balance.className}">${esc(balance.label)}</small>
       </span>
       <span class="vf-student-directory-open">${
-        student.active===false
-          ? '<span class="vf-removed-badge">Removed</span>'
+        vfStudentIsArchived(student)
+          ? '<span class="vf-archived-badge">Archived</span>'
           : 'Open account &rarr;'
       }</span>
     `;
@@ -16196,12 +16223,12 @@ function renderStudentCommandCenter(studentId){
   if($('#ccStudentAddress'))$('#ccStudentAddress').value=student.address||'';
   if($('#ccAlsoKnownAs'))$('#ccAlsoKnownAs').value=vfStudentAliasList(student).join(', ');
 
-  if($('#ccRemoveStudent')){
-    $('#ccRemoveStudent').classList.toggle('hidden',student.active===false);
+  if($('#ccArchiveStudent')){
+    $('#ccArchiveStudent').classList.toggle('hidden',vfStudentIsArchived(student));
   }
 
   if($('#ccRestoreStudent')){
-    $('#ccRestoreStudent').classList.toggle('hidden',student.active!==false);
+    $('#ccRestoreStudent').classList.toggle('hidden',!vfStudentIsArchived(student));
   }
   if($('#ccStudentNotes'))$('#ccStudentNotes').value=student.notes||'';
   if($('#ccEmailTo'))$('#ccEmailTo').value=student.parentEmail||'';
@@ -17319,14 +17346,14 @@ function wireStudentCommandCenterButtons(){
     $('#ccSaveProfile').onclick=()=>saveStudentCommandCenterProfile();
   }
 
-  if($('#ccRemoveStudent')){
-    $('#ccRemoveStudent').onclick=()=>
-      removeStudentFromRoster(vfCommandCenterStudentId);
+  if($('#ccArchiveStudent')){
+    $('#ccArchiveStudent').onclick=()=>
+      archiveStudent(vfCommandCenterStudentId);
   }
 
   if($('#ccRestoreStudent')){
     $('#ccRestoreStudent').onclick=()=>
-      restoreStudentToRoster(vfCommandCenterStudentId);
+      restoreStudent(vfCommandCenterStudentId);
   }
 
   if($('#ccDeleteStudent')){
@@ -17575,7 +17602,7 @@ function renderStudentsServices(){
       .filter(
         student=>
           studentVisibleInServices(student) ||
-          student.active===false
+          vfStudentIsArchived(student)
       )
       .sort(
         (a,b)=>
@@ -18138,10 +18165,11 @@ async function removeStudentFromReconciliation(studentId){
 
   const ok=
     confirm(
-      `Mark ${student.studentName||'this student'} as no longer active?\n\n`+
+      `Archive ${student.studentName||'this student'}?\n\n`+
       `This won't delete any of their payment, certificate, or invoice history -- `+
-      `it just takes them off your active roster, the same as if a roster import `+
-      `had shown them as dropped.`
+      `it just takes them out of your directory, the same as if a roster import `+
+      `had shown them as dropped. You can restore them from the "Archived" filter `+
+      `on the Students page.`
     );
 
   if(!ok){
@@ -18158,6 +18186,8 @@ async function removeStudentFromReconciliation(studentId){
     ),
     {
       active:false,
+      archived:true,
+      archivedAt:serverTimestamp(),
       updatedAt:serverTimestamp()
     },
     {
@@ -18166,8 +18196,8 @@ async function removeStudentFromReconciliation(studentId){
   );
 
   await log(
-    'Student marked inactive',
-    `${student.studentName||'A student'} marked inactive during a roster CSV reconciliation.`,
+    'Student archived',
+    `${student.studentName||'A student'} was archived during a roster CSV reconciliation.`,
     'Manual'
   );
 
@@ -18179,7 +18209,7 @@ async function removeStudentFromReconciliation(studentId){
   await refreshAll();
   renderRosterReconcileReport();
 
-  toast('Student marked inactive.');
+  toast('Student archived.');
 }
 
 if($('#rosterReconcileCsv')){

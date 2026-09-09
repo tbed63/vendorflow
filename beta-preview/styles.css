@@ -8665,7 +8665,7 @@ body.vf-wizard-open .vf-modal-overlay{
   border-color:var(--danger);
   color:#fff;
 }
-.vf-removed-badge{
+.vf-archived-badge{
   display:inline-block;
   background:#f1f3f5;
   color:var(--muted);
