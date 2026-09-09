@@ -747,6 +747,8 @@ async function enterApp(){
 
   if(typeof vfRenderWizardNudge==='function')vfRenderWizardNudge();
   if(typeof vfRenderReadySetupButton==='function')vfRenderReadySetupButton();
+  if(typeof vfSetupClearSnooze==='function')vfSetupClearSnooze();
+  if(typeof vfRenderSetupChecklist==='function')vfRenderSetupChecklist();
 }
 
 async function log(
@@ -43965,6 +43967,549 @@ function vfRenderTutorial(){
 function vfCloseRealInteractiveTutorial(){
   $('#vfRealTutorial')?.remove();
 }
+
+/* ==========================================================
+   SETUP CHECKLIST
+   A floating, dismissible list of everything that should be
+   true before a vendor turns automation on. It only ever
+   POINTS at real pages -- it never borrows or moves them the
+   way the setup wizard does, so restructuring a page can't
+   break onboarding.
+
+   Every item works out whether it's done from the vendor's
+   actual data, so there is nothing to tick by hand.
+   ========================================================== */
+
+const VF_SETUP_ITEMS=[
+
+  {
+    key:'email',
+    title:'How VendorFlow reads your email',
+    view:'inbox',
+    action:'Open Email Inbox',
+    body:`
+      <p>VendorFlow has its own email address, just for you. Forward
+      a charter's certificate, a receipt, or a parent's note and
+      VendorFlow reads it and queues it for your approval.</p>
+      <p>You can also just tell it what to do. Email it
+      <em>"Charge Wesley $60 for tutoring"</em> or <em>"Add a new
+      student, Maya Chen, her mom is Ana"</em> and it handles that
+      too.</p>
+      <p>Nothing is recorded until you approve it. Your address is on
+      your account, top right.</p>`,
+    done:()=>
+      vfSetupVisited('email')
+  },
+
+  {
+    key:'business',
+    title:'Your business details',
+    view:'profile',
+    action:'Open Business Profile',
+    body:`
+      <p>Fill in:</p>
+      <ul>
+        <li>Business name</li>
+        <li>Your contact email and phone</li>
+        <li>Business address</li>
+      </ul>
+      <p>This is what shows at the top of your invoices and emails.</p>`,
+    done:()=>
+      Boolean(String(profile?.businessName||'').trim())
+  },
+
+  {
+    key:'paymentMethods',
+    title:'How families can pay you',
+    view:'settings',
+    action:'Open Settings',
+    body:`
+      <p>Check every way you take money and add the details -- your
+      Venmo handle, who to make checks out to.</p>
+      <p>This gets printed into payment reminders. Skip it and
+      families get an email saying they owe you, with no way to
+      pay.</p>`,
+    done:()=>
+      Object.values(profile?.paymentMethods||{})
+        .some(value=>
+          typeof value==='string'
+            ? value.trim()
+            : Boolean(value)
+        )
+  },
+
+  {
+    key:'charters',
+    title:'Your charter schools',
+    view:'charters',
+    action:'Open Charter Schools',
+    body:`
+      <p>Add each charter you work with: the billing email their
+      invoices go to, and how long they take to pay.</p>
+      <p>No billing email means VendorFlow can't invoice them. It's
+      usually printed on the certificate.</p>`,
+    done:()=>
+      charterSchools.some(
+        charter=>
+          !charter.archived &&
+          String(charter.billingEmail||'').trim()
+      )
+  },
+
+  {
+    key:'students',
+    title:'Add your students',
+    view:'students',
+    action:'Open Students',
+    body:`
+      <p>Most learning centers let you download your roster as a CSV.
+      Upload it and VendorFlow reads the names, parents and
+      emails.</p>
+      <p>If your file lists a class name or period, upload everyone at
+      once -- VendorFlow will sort them into groups for you.</p>
+      <p>No roster? Make your own spreadsheet, save it as a CSV,
+      upload that. You can fix anything afterward.</p>`,
+    done:()=>
+      students.some(student=>!vfStudentIsArchived(student))
+  },
+
+  {
+    key:'groups',
+    title:'Set up your groups',
+    view:'classes',
+    action:'Open Class Rosters',
+    body:`
+      <p>A group is whatever you bill for -- a class, tutoring, a
+      camp. It holds the price, late fee, due dates and invoice
+      timing, so you set those once instead of per student.</p>
+      <p>Uploaded a roster? Your groups are already suggested. Just
+      add the money side.</p>
+      <p>Three classes that cost the same? Keep them as one group.</p>`,
+    done:()=>
+      classes.some(item=>!item.archived) ||
+      services.some(service=>!service.deleted)
+  },
+
+  {
+    key:'certificates',
+    title:'Certificates you already have',
+    view:'certificates',
+    action:'Open Certificates',
+    skippable:true,
+    body:`
+      <p>You probably don't need this. From now on, forward the
+      charter's certificate email and it gets read, matched to the
+      student, and queued for approval.</p>
+      <p>This step is only for certificates already sitting on your
+      computer from before VendorFlow. Got a pile? Upload them here.
+      Otherwise skip it.</p>`,
+    done:()=>
+      certs.some(cert=>!cert.deleted)
+  },
+
+  {
+    key:'payments',
+    title:"Payments you've already received",
+    view:'payments',
+    action:'Open Payments',
+    skippable:true,
+    body:`
+      <p>Same idea. From now on VendorFlow picks payments up from your
+      email and from bank statements.</p>
+      <p>This is for catching up on money that came in before you
+      started. Upload a bank or Venmo CSV and confirm who each payment
+      came from. Starting fresh? Skip.</p>`,
+    done:()=>
+      payments.length>0
+  },
+
+  {
+    key:'invoiceNumbering',
+    title:'Invoice numbering',
+    view:'settings',
+    action:'Open Settings',
+    body:`
+      <p>Already invoicing charters? Tell VendorFlow the number you're
+      up to -- some charters reject a number they've seen before.</p>
+      <p>New to it? Let VendorFlow number them for you.</p>`,
+    done:()=>
+      Boolean(String(profile?.invoiceNumberMode||'').trim())
+  },
+
+  {
+    key:'communications',
+    title:'When VendorFlow emails families',
+    view:'settings',
+    action:'Open Settings',
+    body:`
+      <p>Pick which emails go out for you: payment receipts, due
+      reminders, late fee notices.</p>
+      <p>These are the defaults for new groups -- you can change them
+      for one group later. Nothing sends until you turn automation
+      on.</p>`,
+    done:()=>
+      Object.keys(profile?.notificationDefaults||{}).length>0
+  },
+
+  {
+    key:'lateFees',
+    title:'Late fees',
+    view:'settings',
+    action:'Open Settings',
+    body:`
+      <p>Set the fee for each group and how long after the due date it
+      applies. Zero is fine -- plenty of vendors don't charge
+      them.</p>
+      <p>This is the one setting that moves money on its own. You can
+      have VendorFlow ask you first instead.</p>`,
+    done:()=>
+      vfSetupVisited('lateFees')
+  },
+
+  {
+    key:'automations',
+    title:'What VendorFlow may do without asking',
+    view:'settings',
+    action:'Open Settings',
+    body:`
+      <p>Four switches: emailing families, importing what arrives by
+      email, sending charter invoices, applying late fees.</p>
+      <p><strong>Off</strong> means VendorFlow proposes it in
+      Notifications and waits for you. <strong>On</strong> means it
+      just does it.</p>
+      <p>New to this? Leave them off for a couple of weeks and watch
+      what it proposes.</p>`,
+    done:()=>
+      Object.keys(profile?.automations||{}).length>0
+  }
+
+];
+
+
+/*
+ * All checklist state is per-account and lives in localStorage --
+ * it is a UI preference, not vendor data, and it should never be
+ * able to affect anything financial.
+ */
+function vfSetupStorageKey(){
+  return user && user.uid
+    ? `vf-setup-checklist-${user.uid}`
+    : 'vf-setup-checklist';
+}
+
+
+function vfSetupState(){
+
+  try{
+
+    const raw=
+      localStorage.getItem(vfSetupStorageKey());
+
+    const parsed=
+      raw ? JSON.parse(raw) : {};
+
+    return {
+      removed:Boolean(parsed.removed),
+      snoozed:Boolean(parsed.snoozed),
+      minimized:Boolean(parsed.minimized),
+      openItem:parsed.openItem||'',
+      skipped:parsed.skipped||{},
+      visited:parsed.visited||{}
+    };
+
+  }catch{
+
+    return {
+      removed:false,
+      snoozed:false,
+      minimized:false,
+      openItem:'',
+      skipped:{},
+      visited:{}
+    };
+  }
+}
+
+
+function vfSetupSaveState(changes){
+
+  try{
+
+    localStorage.setItem(
+      vfSetupStorageKey(),
+      JSON.stringify({
+        ...vfSetupState(),
+        ...changes
+      })
+    );
+
+  }catch(error){
+
+    console.error(
+      'Could not save your setup checklist preference:',
+      error
+    );
+  }
+}
+
+
+function vfSetupVisited(key){
+  return Boolean(vfSetupState().visited[key]);
+}
+
+
+function vfSetupItemDone(item){
+
+  if(vfSetupState().skipped[item.key]){
+    return true;
+  }
+
+  try{
+    return Boolean(item.done());
+  }catch(error){
+    console.error(`Checklist item "${item.key}" could not be checked:`,error);
+    return false;
+  }
+}
+
+
+function vfSetupProgress(){
+
+  const done=
+    VF_SETUP_ITEMS.filter(vfSetupItemDone).length;
+
+  return {
+    done,
+    total:VF_SETUP_ITEMS.length,
+    complete:done===VF_SETUP_ITEMS.length
+  };
+}
+
+
+function vfRenderSetupChecklist(){
+
+  const existing=$('#vfSetupChecklist');
+  if(existing)existing.remove();
+
+  const app=$('#app');
+
+  if(
+    !app ||
+    app.classList.contains('hidden') ||
+    !user
+  ){
+    return;
+  }
+
+  const state=vfSetupState();
+
+  if(state.removed || state.snoozed){
+    return;
+  }
+
+  const progress=vfSetupProgress();
+
+  const panel=document.createElement('div');
+  panel.id='vfSetupChecklist';
+  panel.className=
+    `vf-setup-checklist${state.minimized?' vf-setup-min':''}`;
+
+  if(state.minimized){
+
+    panel.innerHTML=`
+      <button type="button" id="vfSetupExpand" class="vf-setup-pill">
+        Setup ${progress.done} of ${progress.total}
+      </button>`;
+
+    document.body.appendChild(panel);
+
+    $('#vfSetupExpand').onclick=()=>{
+      vfSetupSaveState({minimized:false});
+      vfRenderSetupChecklist();
+    };
+
+    return;
+  }
+
+  panel.innerHTML=`
+
+    <div class="vf-setup-head">
+      <div>
+        <div class="eyebrow">Setup</div>
+        <strong>${progress.done} of ${progress.total} done</strong>
+      </div>
+      <button type="button" id="vfSetupMinimize" title="Minimize">&minus;</button>
+    </div>
+
+    <div class="vf-setup-bar">
+      <span style="width:${Math.round((progress.done/progress.total)*100)}%"></span>
+    </div>
+
+    <div class="vf-setup-items">
+      ${
+        VF_SETUP_ITEMS.map(item=>{
+
+          const done=vfSetupItemDone(item);
+          const open=state.openItem===item.key;
+
+          return `
+            <div class="vf-setup-item${done?' vf-setup-done':''}${open?' vf-setup-open':''}">
+
+              <button type="button" class="vf-setup-row" data-setup-open="${esc(item.key)}">
+                <span class="vf-setup-check">${done?'&#10003;':''}</span>
+                <span class="vf-setup-title">${esc(item.title)}</span>
+              </button>
+
+              ${
+                open
+                  ? `
+                    <div class="vf-setup-body">
+                      ${item.body}
+                      <div class="vf-setup-actions">
+                        <button type="button" class="primary" data-setup-go="${esc(item.key)}">
+                          ${esc(item.action)}
+                        </button>
+                        ${
+                          item.skippable && !done
+                            ? `<button type="button" data-setup-skip="${esc(item.key)}">Skip this</button>`
+                            : ''
+                        }
+                      </div>
+                    </div>`
+                  : ''
+              }
+
+            </div>`;
+        }).join('')
+      }
+    </div>
+
+    ${
+      progress.complete
+        ? `
+          <div class="vf-setup-ready">
+            <strong>You're ready to let VendorFlow work</strong>
+            <p>Nothing has been sent or charged yet. Press
+            <strong>Start Automating</strong> in the header when
+            you're ready.</p>
+          </div>`
+        : ''
+    }
+
+    <div class="vf-setup-foot">
+      <button type="button" id="vfSetupSnooze">Remind me to complete the checklist later</button>
+      <button type="button" id="vfSetupRemove">Don't show this again</button>
+    </div>`;
+
+  document.body.appendChild(panel);
+
+  $('#vfSetupMinimize').onclick=()=>{
+    vfSetupSaveState({minimized:true});
+    vfRenderSetupChecklist();
+  };
+
+  $('#vfSetupSnooze').onclick=()=>{
+    vfSetupSaveState({snoozed:true});
+    vfRenderSetupChecklist();
+    toast('The checklist will be back next time you sign in.');
+  };
+
+  $('#vfSetupRemove').onclick=()=>{
+
+    const sure=
+      window.confirm(
+        'Remove the setup checklist?\n\n'+
+        'It stops appearing on this browser. Use "Remind me to '+
+        'complete the checklist later" instead if you just want it '+
+        'out of the way for now.'
+      );
+
+    if(!sure){
+      return;
+    }
+
+    vfSetupSaveState({removed:true});
+    vfRenderSetupChecklist();
+    toast('Checklist removed.');
+  };
+
+  panel.querySelectorAll('[data-setup-open]').forEach(button=>{
+    button.onclick=()=>{
+
+      const key=button.dataset.setupOpen;
+
+      vfSetupSaveState({
+        openItem:state.openItem===key ? '' : key
+      });
+
+      vfRenderSetupChecklist();
+    };
+  });
+
+  panel.querySelectorAll('[data-setup-go]').forEach(button=>{
+    button.onclick=()=>{
+
+      const item=
+        VF_SETUP_ITEMS.find(
+          entry=>entry.key===button.dataset.setupGo
+        );
+
+      if(!item){
+        return;
+      }
+
+      /*
+       * Visiting is what ticks off the two items that have no single
+       * saved field to read -- reading about the email address, and
+       * looking at late fees.
+       */
+      vfSetupSaveState({
+        visited:{
+          ...vfSetupState().visited,
+          [item.key]:true
+        },
+        minimized:true,
+        openItem:''
+      });
+
+      switchView(item.view);
+      vfRenderSetupChecklist();
+    };
+  });
+
+  panel.querySelectorAll('[data-setup-skip]').forEach(button=>{
+    button.onclick=()=>{
+
+      vfSetupSaveState({
+        skipped:{
+          ...vfSetupState().skipped,
+          [button.dataset.setupSkip]:true
+        },
+        openItem:''
+      });
+
+      vfRenderSetupChecklist();
+    };
+  });
+}
+
+
+/*
+ * "Remind me later" only hides it for this session, so clearing the
+ * snooze on sign-in is what makes it come back next time.
+ */
+function vfSetupClearSnooze(){
+  if(vfSetupState().snoozed){
+    vfSetupSaveState({snoozed:false});
+  }
+}
+
+
+function vfReopenSetupChecklist(){
+  vfSetupSaveState({removed:false,snoozed:false,minimized:false});
+  vfRenderSetupChecklist();
+}
+
 
 function vfOpenRealInteractiveTutorial(){
   vfCloseRealInteractiveTutorial();
