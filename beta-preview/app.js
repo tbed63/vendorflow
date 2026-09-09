@@ -15099,9 +15099,54 @@ function renderStudentCommandCenter(studentId){
 
   vfCommandCenterStudentId=studentId;
 
+  if(
+    vfCcCertFormAdopted &&
+    $('#certificateForm')?.classList.contains('hidden')
+  ){
+    vfCcRestoreCertificateForm();
+  }
+
   if($('#ccStudentName')){
     $('#ccStudentName').textContent=
       student.studentName||'Unnamed student';
+  }
+
+  const ccAccount=studentAccountTotals(student);
+  const ccBalanceInfo=balanceStatus(ccAccount.parentBalance);
+
+  if($('#ccBalanceAmount')){
+    $('#ccBalanceAmount').textContent=money(ccAccount.parentBalance);
+  }
+
+  if($('#ccBalanceStatus')){
+    $('#ccBalanceStatus').textContent=ccBalanceInfo.label;
+    $('#ccBalanceStatus').className=ccBalanceInfo.className;
+  }
+
+  if($('#ccGradeStat')){
+    $('#ccGradeStat').textContent=student.grade||'Not entered';
+  }
+
+  if($('#ccParentStat')){
+    $('#ccParentStat').textContent=student.parentName||'Not entered';
+  }
+
+  if($('#ccParentContactStat')){
+    $('#ccParentContactStat').textContent=
+      [student.parentEmail,student.parentPhone]
+        .filter(Boolean)
+        .join(' · ');
+  }
+
+  if($('#ccStudentSubline')){
+
+    const serviceNames=
+      studentDirectoryServiceNames(student);
+
+    $('#ccStudentSubline').textContent=
+      serviceNames.length
+        ? serviceNames.join(' · ')
+        : 'No active service';
   }
 
   if($('#ccStudentFirst'))$('#ccStudentFirst').value=student.studentFirst||'';
@@ -15133,6 +15178,7 @@ function renderStudentCommandCenter(studentId){
   renderStudentCommandCenterServices(student);
   renderStudentCommandCenterFinancialActivity(student);
   renderStudentCommandCenterInvoiceActions(student);
+  renderStudentCommandCenterCertificates(student);
 
   if($('#ccHistoryList')){
     $('#ccHistoryList').innerHTML=studentHistoryHTML(student);
@@ -15140,7 +15186,6 @@ function renderStudentCommandCenter(studentId){
 
   wireStudentCommandCenterButtons();
 }
-
 
 function ccItemizedServiceIds(){
 
@@ -15171,6 +15216,11 @@ function renderStudentCommandCenterServices(student){
   const serviceList=
     studentServices(student.id)
       .filter(serviceKeepsStudentVisible);
+
+  if($('#ccServicesCountBadge')){
+    $('#ccServicesCountBadge').textContent=
+      serviceList.length ? `(${serviceList.length})` : '';
+  }
 
   if(!serviceList.length){
     container.innerHTML=
@@ -15951,10 +16001,264 @@ async function sendStudentCommandCenterEmail(){
 }
 
 
+function renderStudentCommandCenterCertificates(student){
+
+  const container=$('#ccCertificatesList');
+  if(!container)return;
+
+  const list=
+    studentCertificates(student.studentName)
+      .filter(cert=>!cert.deleted);
+
+  if(!list.length){
+    container.innerHTML=
+      `<div class="vf-student-financial-empty">No certificates yet.</div>`;
+    return;
+  }
+
+  container.innerHTML=
+    list.map(cert=>`
+      <div
+        class="vf-cc-cert-row"
+        data-cc-view-cert="${esc(cert.id)}"
+        role="button"
+        tabindex="0">
+        <div>
+          <strong>${esc(cert.school||'Certificate')}</strong>
+          <div class="meta">
+            ${esc(cert.number||'No PO#')}${cert.status?' · '+esc(cert.status):''}
+          </div>
+        </div>
+        <div class="vf-cc-cert-amount">${money(cert.amount)}</div>
+      </div>
+    `).join('');
+}
+
+
+let vfCcCertFormAdopted=false;
+let vfCcCertFormSlot=null;
+let vfCcCertPreviewUrl=null;
+
+
+function vfCcResetCertPreview(){
+
+  const frame=$('#ccCertPdfFrame');
+  const placeholder=$('#ccCertPdfPlaceholder');
+
+  if(vfCcCertPreviewUrl){
+    URL.revokeObjectURL(vfCcCertPreviewUrl);
+    vfCcCertPreviewUrl=null;
+  }
+
+  if(frame){
+    frame.src='about:blank';
+    hide(frame);
+  }
+
+  if(placeholder){
+    show(placeholder);
+  }
+}
+
+
+function vfCcWireCertUploadOneTime(){
+
+  const pdfInput=$('#certPdf');
+
+  if(pdfInput && pdfInput.dataset.ccPreviewWired!=='true'){
+
+    pdfInput.addEventListener('change',()=>{
+
+      const file=pdfInput.files?.[0];
+      const frame=$('#ccCertPdfFrame');
+      const placeholder=$('#ccCertPdfPlaceholder');
+
+      if(vfCcCertPreviewUrl){
+        URL.revokeObjectURL(vfCcCertPreviewUrl);
+        vfCcCertPreviewUrl=null;
+      }
+
+      if(file && frame){
+
+        vfCcCertPreviewUrl=URL.createObjectURL(file);
+        frame.src=vfCcCertPreviewUrl;
+        show(frame);
+
+        if(placeholder){
+          hide(placeholder);
+        }
+
+      }else{
+
+        if(frame){
+          frame.src='about:blank';
+          hide(frame);
+        }
+
+        if(placeholder){
+          show(placeholder);
+        }
+      }
+    });
+
+    pdfInput.dataset.ccPreviewWired='true';
+  }
+
+  const cancelButton=$('#cancelCertificate');
+
+  if(cancelButton && cancelButton.dataset.ccWrapped!=='true'){
+
+    const originalCancel=cancelButton.onclick;
+
+    cancelButton.onclick=(...args)=>{
+
+      if(typeof originalCancel==='function'){
+        originalCancel.apply(cancelButton,args);
+      }
+
+      vfCcRestoreCertificateForm();
+    };
+
+    cancelButton.dataset.ccWrapped='true';
+  }
+}
+
+
+function vfCcRestoreCertificateForm(){
+
+  if(!vfCcCertFormAdopted){
+    return;
+  }
+
+  const form=$('#certificateForm');
+
+  if(form && vfCcCertFormSlot){
+
+    try{
+
+      vfCcCertFormSlot.parent.insertBefore(
+        form,
+        vfCcCertFormSlot.next
+      );
+
+    }catch(error){
+
+      console.error(
+        'Could not put the certificate form back in its usual spot:',
+        error
+      );
+    }
+  }
+
+  vfCcCertFormAdopted=false;
+  vfCcCertFormSlot=null;
+
+  vfCcResetCertPreview();
+
+  hide($('#ccCertUploadArea'));
+  show($('#ccUploadCertificateToggle'));
+}
+
+
+function vfCcOpenCertificateUpload(){
+
+  const student=
+    students.find(s=>s.id===vfCommandCenterStudentId);
+
+  if(!student){
+    return;
+  }
+
+  const form=$('#certificateForm');
+  const mount=$('#ccCertFormMount');
+
+  if(!form || !mount){
+    return;
+  }
+
+  if(!vfCcCertFormAdopted){
+
+    vfCcCertFormSlot={
+      parent:form.parentNode,
+      next:form.nextSibling
+    };
+
+    mount.appendChild(form);
+    vfCcCertFormAdopted=true;
+  }
+
+  editingCertificateId='';
+  pendingCertificatePdf=null;
+
+  [
+    '#certStudent',
+    '#certSchool',
+    '#certAmount',
+    '#certNumber',
+    '#certIssueDate',
+    '#certServiceStart',
+    '#certServiceEnd',
+    '#certBillingEmail',
+    '#certServiceDescription',
+    '#certInvoiceInstructions',
+    '#certNotes'
+  ].forEach(id=>{
+
+    const el=$(id);
+
+    if(el){
+      el.value='';
+    }
+  });
+
+  if($('#certPdf')){
+    $('#certPdf').value='';
+  }
+
+  if($('#certPdfStatus')){
+    $('#certPdfStatus').textContent='No PDF selected.';
+  }
+
+  if($('#certStudentLater')){
+    $('#certStudentLater').checked=false;
+  }
+
+  if($('#certExtractionReview')){
+    hide($('#certExtractionReview'));
+    $('#certExtractionReview').innerHTML='';
+  }
+
+  clearCertificateCharterLink(false);
+  clearCertificateStudentLink(false);
+
+  if($('#saveCertificate')){
+    $('#saveCertificate').textContent='Save certificate';
+  }
+
+  linkCertificateStudent(student);
+
+  vfCcResetCertPreview();
+
+  show(form);
+  show($('#ccCertUploadArea'));
+  hide($('#ccUploadCertificateToggle'));
+
+  vfCcWireCertUploadOneTime();
+
+  form.scrollIntoView({
+    behavior:'smooth',
+    block:'start'
+  });
+}
+
+
 function wireStudentCommandCenterButtons(){
 
   if($('#closeStudentCommandCenter')){
-    $('#closeStudentCommandCenter').onclick=()=>switchView('students');
+    $('#closeStudentCommandCenter').onclick=()=>{
+      vfCcRestoreCertificateForm();
+      switchView('students');
+    };
   }
 
   if($('#ccSaveProfile')){
@@ -15977,9 +16281,25 @@ function wireStudentCommandCenterButtons(){
     $('#ccSaveNewService').onclick=()=>saveNewStudentService();
   }
 
+  const ccInlineFormIds=[
+    '#ccAddChargeForm',
+    '#ccAddPaymentForm',
+    '#ccQuickInvoiceForm',
+    '#ccQuickEmailForm'
+  ];
+
+  const ccHideOtherInlineForms=exceptId=>{
+    ccInlineFormIds
+      .filter(id=>id!==exceptId)
+      .forEach(id=>{
+        const el=$(id);
+        if(el)hide(el);
+      });
+  };
+
   if($('#ccAddChargeToggle')){
     $('#ccAddChargeToggle').onclick=()=>{
-      hide($('#ccAddPaymentForm'));
+      ccHideOtherInlineForms('#ccAddChargeForm');
       toggle('#ccAddChargeForm');
     };
   }
@@ -15994,7 +16314,7 @@ function wireStudentCommandCenterButtons(){
 
   if($('#ccAddPaymentToggle')){
     $('#ccAddPaymentToggle').onclick=()=>{
-      hide($('#ccAddChargeForm'));
+      ccHideOtherInlineForms('#ccAddPaymentForm');
       toggle('#ccAddPaymentForm');
     };
   }
@@ -16007,16 +16327,26 @@ function wireStudentCommandCenterButtons(){
     $('#ccSaveNewPayment').onclick=()=>saveStudentCommandCenterPayment();
   }
 
+  if($('#ccQuickInvoiceToggle')){
+    $('#ccQuickInvoiceToggle').onclick=()=>{
+      ccHideOtherInlineForms('#ccQuickInvoiceForm');
+      toggle('#ccQuickInvoiceForm');
+    };
+  }
+
+  if($('#ccQuickEmailToggle')){
+    $('#ccQuickEmailToggle').onclick=()=>{
+      ccHideOtherInlineForms('#ccQuickEmailForm');
+      toggle('#ccQuickEmailForm');
+    };
+  }
+
   if($('#ccSendEmail')){
     $('#ccSendEmail').onclick=()=>sendStudentCommandCenterEmail();
   }
 
-  if($('#ccAddCertificateLink')){
-    $('#ccAddCertificateLink').onclick=()=>{
-      const student=students.find(s=>s.id===vfCommandCenterStudentId);
-      switchView('certificates');
-      toast(`Add the new certificate for ${student?.studentName||'this student'} here.`);
-    };
+  if($('#ccUploadCertificateToggle')){
+    $('#ccUploadCertificateToggle').onclick=()=>vfCcOpenCertificateUpload();
   }
 
   const ccView=$('#studentCommandCenterView');
@@ -16058,6 +16388,15 @@ function wireStudentCommandCenterButtons(){
       if(deleteCertificateButton){
         event.preventDefault();
         safeDeleteCertificate(deleteCertificateButton.dataset.deleteStudentCertificate);
+        return;
+      }
+
+      const viewCertButton=
+        event.target.closest('[data-cc-view-cert]');
+
+      if(viewCertButton){
+        event.preventDefault();
+        openSavedCertificateEvidence(viewCertButton.dataset.ccViewCert);
         return;
       }
 
