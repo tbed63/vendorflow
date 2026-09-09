@@ -15746,7 +15746,11 @@ async function deleteStudentPermanently(studentId){
       )+
       (
         impact.certificates.length
-          ? `Certificates being destroyed:\n${certificateDetail}${certificateOverflow}\n\n`
+          ? `Certificates being destroyed:\n${certificateDetail}${certificateOverflow}\n\n`+
+            `If this is a duplicate of another student on your account, cancel, `+
+            `open the student you are KEEPING, and add "${student.studentName||'this name'}" `+
+            `to their "Also goes by" field first. These certificates will then `+
+            `belong to that student instead of being destroyed here.\n\n`
           : ''
       )+
       (
