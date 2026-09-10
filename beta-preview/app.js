@@ -34,7 +34,7 @@ const VENDORFLOW_API =
   "https://vendorflow-api.tbed63.workers.dev";
 
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),$=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],show=e=>e.classList.remove("hidden"),hide=e=>e.classList.add("hidden"),esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
-let user=null,profile={},classes=[],roster=[],students=[],services=[],obligations=[],charterSchools=[],payments=[],certs=[],invoices=[],compliance=[],reviews=[],history=[],ignoredStatementPayers=[],expenses=[],income=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
+let user=null,profile={},classes=[],roster=[],students=[],services=[],obligations=[],charterSchools=[],payments=[],certs=[],invoices=[],compliance=[],reviews=[],history=[],ignoredStatementPayers=[],expenses=[],income=[],recurrences=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
 let invoiceStatusFilter='all';
 let invoiceSearchQuery='';
 
@@ -1348,6 +1348,7 @@ async function refreshAll(){
     paymentsResult,
     expensesResult,
     incomeResult,
+    recurrencesResult,
     ignoredPayerVendorSnap
   ]=await Promise.all([
     getList('students',false),
@@ -1357,6 +1358,7 @@ async function refreshAll(){
     getList('payments'),
     getList('expenses'),
     getList('income'),
+    getList('recurrences',false),
     getDoc(vendorDoc())
   ]);
 
@@ -1367,6 +1369,7 @@ async function refreshAll(){
   payments=paymentsResult;
   expenses=expensesResult;
   income=incomeResult;
+  recurrences=recurrencesResult;
 
   const ignoredPayerVendorData=
     ignoredPayerVendorSnap.exists()
@@ -1578,6 +1581,7 @@ async function repairRosterCoreLinksOnce(){
 
 
 function renderAll(){
+  vfRenderAllRepeatLists();
   renderClassSelect();
   renderDashboard();
   renderAccountPage();
@@ -13063,6 +13067,996 @@ async function vfArchiveSelectedGroup(){
  * because "where did $9,400 come from" is a question worth being
  * able to answer in April.
  */
+/* ==========================================================
+   RECURRENCE ENGINE
+   ==========================================================
+
+   One rule shape, three kinds of thing it can repeat: a to-do,
+   an expense, a charge.
+
+   Everything here is pure date arithmetic on YYYY-MM-DD strings.
+   No Date-with-timezone anywhere: a rule that says "the 8th"
+   means the 8th wherever the vendor is, and running this on a
+   Cloudflare worker in UTC must not turn that into the 7th.
+   ========================================================== */
+
+function vfRecurParseDate(value){
+
+  const match=
+    /^(\d{4})-(\d{2})-(\d{2})$/.exec(
+      String(value||'').trim()
+    );
+
+  if(!match){
+    return null;
+  }
+
+  const year=Number(match[1]);
+  const month=Number(match[2]);
+  const day=Number(match[3]);
+
+  if(month<1 || month>12 || day<1 || day>31){
+    return null;
+  }
+
+  if(day>vfRecurDaysInMonth(year,month)){
+    return null;
+  }
+
+  return {year,month,day};
+}
+
+
+function vfRecurFormatDate(parts){
+
+  return (
+    String(parts.year).padStart(4,'0')+'-'+
+    String(parts.month).padStart(2,'0')+'-'+
+    String(parts.day).padStart(2,'0')
+  );
+}
+
+
+function vfRecurDaysInMonth(year,month){
+
+  return [
+    31,
+    (year%4===0 && year%100!==0) || year%400===0 ? 29 : 28,
+    31,30,31,30,31,31,30,31,30,31
+  ][month-1];
+}
+
+
+/* Days since 1970-01-01, so two dates can be compared and stepped
+   without constructing a Date and inheriting a timezone. */
+function vfRecurDayNumber(parts){
+
+  let days=0;
+
+  for(let y=1970;y<parts.year;y++){
+    days += ((y%4===0 && y%100!==0) || y%400===0) ? 366 : 365;
+  }
+
+  for(let m=1;m<parts.month;m++){
+    days += vfRecurDaysInMonth(parts.year,m);
+  }
+
+  return days + parts.day - 1;
+}
+
+
+function vfRecurFromDayNumber(dayNumber){
+
+  let remaining=dayNumber;
+  let year=1970;
+
+  for(;;){
+
+    const size=
+      ((year%4===0 && year%100!==0) || year%400===0) ? 366 : 365;
+
+    if(remaining<size){
+      break;
+    }
+
+    remaining-=size;
+    year++;
+  }
+
+  let month=1;
+
+  for(;;){
+
+    const size=vfRecurDaysInMonth(year,month);
+
+    if(remaining<size){
+      break;
+    }
+
+    remaining-=size;
+    month++;
+  }
+
+  return {year,month,day:remaining+1};
+}
+
+
+/* 0 = Sunday. 1970-01-01 was a Thursday. */
+function vfRecurWeekday(parts){
+
+  return ((vfRecurDayNumber(parts)+4)%7+7)%7;
+}
+
+
+function vfRecurAddDays(parts,count){
+
+  return vfRecurFromDayNumber(
+    vfRecurDayNumber(parts)+count
+  );
+}
+
+
+/*
+ * Add months, clamping the day to the end of the target month.
+ *
+ * This is the classic recurrence bug. "The 31st of every month"
+ * has no meaning in February, and rolling over to March 3rd is
+ * wrong in a way nobody notices until an insurance payment lands
+ * in the wrong month. Clamp to the last real day instead, and --
+ * importantly -- clamp from the rule's ORIGINAL day each time, so
+ * a January 31st rule gives Feb 28, Mar 31, Apr 30 rather than
+ * collapsing to the 28th forever.
+ */
+function vfRecurAddMonths(parts,count,anchorDay){
+
+  const target=
+    (parts.year*12 + (parts.month-1)) + count;
+
+  const year=Math.floor(target/12);
+  const month=(target%12)+1;
+
+  const wanted=
+    anchorDay || parts.day;
+
+  return {
+    year,
+    month,
+    day:Math.min(wanted,vfRecurDaysInMonth(year,month))
+  };
+}
+
+
+function vfRecurCompare(a,b){
+
+  return vfRecurDayNumber(a)-vfRecurDayNumber(b);
+}
+
+
+/*
+ * The first occurrence on or after `from`.
+ *
+ * Deliberately "on or after" rather than "after": a rule created
+ * today, starting today, should fire today, not in a month.
+ */
+function vfRecurFirstOnOrAfter(rule,from){
+
+  const start=
+    vfRecurParseDate(rule.startDate);
+
+  const after=
+    vfRecurParseDate(from) || start;
+
+  if(!start || !after){
+    return null;
+  }
+
+  const interval=
+    Math.max(1,Number(rule.interval||1));
+
+  const floor=
+    vfRecurCompare(start,after)>=0 ? start : after;
+
+  if(rule.freq==='daily'){
+
+    const gap=
+      vfRecurDayNumber(floor)-vfRecurDayNumber(start);
+
+    const steps=
+      Math.max(0,Math.ceil(gap/interval));
+
+    return vfRecurAddDays(start,steps*interval);
+  }
+
+  if(rule.freq==='weekly'){
+
+    /*
+     * Anchor on the requested weekday, not on whatever day the
+     * rule happened to be created. "Every Sunday" set up on a
+     * Wednesday means this coming Sunday.
+     */
+    const wanted=
+      Number.isInteger(rule.weekday)
+        ? rule.weekday
+        : vfRecurWeekday(start);
+
+    const startShift=
+      (wanted-vfRecurWeekday(start)+7)%7;
+
+    const firstHit=
+      vfRecurAddDays(start,startShift);
+
+    const gapWeeks=
+      Math.ceil(
+        (vfRecurDayNumber(floor)-vfRecurDayNumber(firstHit))/7
+      );
+
+    const steps=
+      Math.max(0,Math.ceil(gapWeeks/interval));
+
+    return vfRecurAddDays(firstHit,steps*interval*7);
+  }
+
+  if(rule.freq==='monthly'){
+
+    const anchorDay=
+      Number.isInteger(rule.monthDay) && rule.monthDay>0
+        ? rule.monthDay
+        : start.day;
+
+    let candidate=
+      vfRecurAddMonths(
+        {year:start.year,month:start.month,day:1},
+        0,
+        anchorDay
+      );
+
+    if(vfRecurCompare(candidate,start)<0){
+      candidate=vfRecurAddMonths(candidate,interval,anchorDay);
+    }
+
+    let guard=0;
+
+    while(vfRecurCompare(candidate,floor)<0 && guard<1200){
+      candidate=vfRecurAddMonths(candidate,interval,anchorDay);
+      guard++;
+    }
+
+    return candidate;
+  }
+
+  return null;
+}
+
+
+function vfRecurNextAfter(rule,current){
+
+  const parts=
+    vfRecurParseDate(current);
+
+  if(!parts){
+    return null;
+  }
+
+  return vfRecurFirstOnOrAfter(
+    rule,
+    vfRecurFormatDate(vfRecurAddDays(parts,1))
+  );
+}
+
+
+/*
+ * Has this rule finished? Checked before creating anything, so a
+ * rule that has run its course never produces one extra.
+ */
+function vfRecurIsFinished(rule,occurrenceDate){
+
+  if(rule.endMode==='afterCount'){
+
+    const limit=
+      Number(rule.maxOccurrences||0);
+
+    if(limit>0 && Number(rule.occurrencesCreated||0)>=limit){
+      return true;
+    }
+  }
+
+  if(rule.endMode==='onDate'){
+
+    const end=vfRecurParseDate(rule.endDate);
+    const when=vfRecurParseDate(occurrenceDate);
+
+    if(end && when && vfRecurCompare(when,end)>0){
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+/*
+ * Every occurrence a rule owes between its nextRunAt and today,
+ * inclusive. Returns them in order so a vendor who has been away
+ * for two months gets each month's expense on its own date rather
+ * than two months of them stamped today.
+ *
+ * Capped, because a daily rule left alone for years should not
+ * produce thousands of rows in one pass.
+ */
+function vfRecurDueOccurrences(rule,today,cap){
+
+  const limit=
+    Number.isInteger(cap) ? cap : 60;
+
+  if(rule.active===false){
+    return [];
+  }
+
+  const out=[];
+
+  let cursor=
+    rule.nextRunAt ||
+    rule.startDate;
+
+  let created=
+    Number(rule.occurrencesCreated||0);
+
+  const todayParts=
+    vfRecurParseDate(today);
+
+  if(!todayParts){
+    return [];
+  }
+
+  let guard=0;
+
+  while(out.length<limit && guard<5000){
+
+    guard++;
+
+    const parts=
+      vfRecurParseDate(cursor);
+
+    if(!parts){
+      break;
+    }
+
+    if(vfRecurCompare(parts,todayParts)>0){
+      break;
+    }
+
+    const probe={
+      ...rule,
+      occurrencesCreated:created
+    };
+
+    if(vfRecurIsFinished(probe,cursor)){
+      break;
+    }
+
+    out.push(cursor);
+    created++;
+
+    const next=
+      vfRecurNextAfter(rule,cursor);
+
+    if(!next){
+      break;
+    }
+
+    cursor=vfRecurFormatDate(next);
+  }
+
+  return out;
+}
+
+
+/* ==========================================================
+   REPEAT CONTROLS
+   ==========================================================
+
+   The same block of markup appears on the expense form and the
+   to-do form, with an id prefix. One set of functions drives both.
+
+   The engine above is a byte-for-byte copy of the one in the
+   worker. It has to be: the browser decides what nextRunAt should
+   be when a rule is created or edited, and the worker advances it
+   every night afterwards. If the two disagreed about what "the
+   31st" means in February, a rule would drift the moment it was
+   saved. The shared test suite is run against BOTH copies.
+   ========================================================== */
+
+const VF_REPEAT_FORMS={
+  exp:{
+    type:'expense',
+    listId:'#expenseRepeatList',
+    noun:'expense'
+  },
+  comp:{
+    type:'task',
+    listId:'#complianceRepeatList',
+    noun:'task'
+  }
+};
+
+
+let vfEditingRecurrenceId=null;
+
+
+function vfRepeatEl(prefix,suffix){
+  return $(`#${prefix}Repeat${suffix}`);
+}
+
+
+function vfRepeatReadForm(prefix,startDate){
+
+  const on=
+    vfRepeatEl(prefix,'On')?.checked;
+
+  if(!on){
+    return null;
+  }
+
+  const freq=
+    vfRepeatEl(prefix,'Freq')?.value || 'monthly';
+
+  const endMode=
+    vfRepeatEl(prefix,'EndMode')?.value || 'never';
+
+  const rule={
+    freq,
+    interval:
+      Math.max(1,Number(vfRepeatEl(prefix,'Interval')?.value||1)),
+    startDate,
+    endMode
+  };
+
+  if(freq==='weekly'){
+    rule.weekday=
+      Number(vfRepeatEl(prefix,'Weekday')?.value||0);
+  }
+
+  if(freq==='monthly'){
+    rule.monthDay=
+      Math.min(
+        31,
+        Math.max(
+          1,
+          Number(vfRepeatEl(prefix,'MonthDay')?.value||1)
+        )
+      );
+  }
+
+  if(endMode==='onDate'){
+    rule.endDate=
+      vfRepeatEl(prefix,'EndDate')?.value || '';
+  }
+
+  if(endMode==='afterCount'){
+    rule.maxOccurrences=
+      Math.max(1,Number(vfRepeatEl(prefix,'Count')?.value||1));
+  }
+
+  return rule;
+}
+
+
+function vfRepeatDescribe(rule){
+
+  const every=
+    Number(rule.interval||1);
+
+  const unit=
+    rule.freq==='daily'
+      ? (every===1?'day':`${every} days`)
+      : rule.freq==='weekly'
+        ? (every===1?'week':`${every} weeks`)
+        : (every===1?'month':`${every} months`);
+
+  let text=`Every ${unit}`;
+
+  if(rule.freq==='weekly'){
+
+    text+=
+      ` on ${
+        ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+          [Number(rule.weekday||0)]
+      }`;
+  }
+
+  if(rule.freq==='monthly'){
+    text+=` on day ${Number(rule.monthDay||1)}`;
+  }
+
+  if(rule.endMode==='onDate' && rule.endDate){
+    text+=`, until ${rule.endDate}`;
+  }
+
+  if(rule.endMode==='afterCount' && rule.maxOccurrences){
+    text+=`, ${rule.maxOccurrences} times`;
+  }
+
+  return text;
+}
+
+
+/*
+ * Live preview under the controls. Showing the next three real
+ * dates is the cheapest way to catch a misunderstanding before it
+ * becomes a year of wrong entries -- "day 31" quietly reading
+ * Feb 28 is much easier to accept when you can see it.
+ */
+function vfRepeatUpdatePreview(prefix,startDate){
+
+  const preview=
+    vfRepeatEl(prefix,'Preview');
+
+  if(!preview){
+    return;
+  }
+
+  const rule=
+    vfRepeatReadForm(prefix,startDate);
+
+  if(!rule){
+    preview.textContent='';
+    return;
+  }
+
+  const dates=[];
+  let cursor=rule.startDate;
+
+  for(let i=0;i<3;i++){
+
+    const next=
+      i===0
+        ? vfRecurFirstOnOrAfter(rule,cursor)
+        : vfRecurNextAfter(rule,cursor);
+
+    if(!next){
+      break;
+    }
+
+    cursor=vfRecurFormatDate(next);
+
+    if(vfRecurIsFinished({...rule,occurrencesCreated:i},cursor)){
+      break;
+    }
+
+    dates.push(cursor);
+  }
+
+  preview.textContent=
+    dates.length
+      ? `${vfRepeatDescribe(rule)} — next: ${dates.join(', ')}`
+      : `${vfRepeatDescribe(rule)} — no dates match this yet.`;
+}
+
+
+function vfRepeatSyncVisibility(prefix,startDate){
+
+  const on=
+    vfRepeatEl(prefix,'On')?.checked;
+
+  const options=
+    vfRepeatEl(prefix,'Options');
+
+  if(options){
+    options.classList.toggle('hidden',!on);
+  }
+
+  const freq=
+    vfRepeatEl(prefix,'Freq')?.value || 'monthly';
+
+  const endMode=
+    vfRepeatEl(prefix,'EndMode')?.value || 'never';
+
+  const toggle=(suffix,show)=>{
+    const el=vfRepeatEl(prefix,suffix);
+    if(el)el.classList.toggle('hidden',!show);
+  };
+
+  toggle('WeekdayWrap',freq==='weekly');
+  toggle('MonthDayWrap',freq==='monthly');
+  toggle('EndDateWrap',endMode==='onDate');
+  toggle('CountWrap',endMode==='afterCount');
+
+  vfRepeatUpdatePreview(prefix,startDate);
+}
+
+
+function vfRepeatClear(prefix){
+
+  const on=vfRepeatEl(prefix,'On');
+
+  if(on){
+    on.checked=false;
+  }
+
+  const set=(suffix,value)=>{
+    const el=vfRepeatEl(prefix,suffix);
+    if(el)el.value=value;
+  };
+
+  set('Interval',1);
+  set('Freq','monthly');
+  set('Weekday','0');
+  set('MonthDay',new Date().getDate());
+  set('EndMode','never');
+  set('EndDate','');
+  set('Count',12);
+
+  vfRepeatSyncVisibility(prefix,new Date().toISOString().slice(0,10));
+}
+
+
+function vfRepeatLoadRule(prefix,rule){
+
+  const on=vfRepeatEl(prefix,'On');
+
+  if(on){
+    on.checked=true;
+  }
+
+  const set=(suffix,value)=>{
+    const el=vfRepeatEl(prefix,suffix);
+    if(el && value!==undefined && value!==null && value!==''){
+      el.value=value;
+    }
+  };
+
+  set('Interval',rule.interval||1);
+  set('Freq',rule.freq||'monthly');
+  set('Weekday',String(rule.weekday??0));
+  set('MonthDay',rule.monthDay||1);
+  set('EndMode',rule.endMode||'never');
+  set('EndDate',rule.endDate||'');
+  set('Count',rule.maxOccurrences||12);
+
+  vfRepeatSyncVisibility(prefix,rule.startDate);
+}
+
+
+/*
+ * Saves the rule for whatever was just entered.
+ *
+ * The item the vendor just filled in IS the first occurrence -- it
+ * was created by the normal save path a moment ago -- so nextRunAt
+ * is the next date AFTER today. Anything else would create today's
+ * entry twice, once by hand and once by the cron tonight.
+ */
+async function vfRepeatSaveRule(prefix,template,startDate){
+
+  const config=VF_REPEAT_FORMS[prefix];
+
+  const rule=
+    vfRepeatReadForm(prefix,startDate);
+
+  if(!config || !rule){
+
+    /*
+     * Unticking Repeat while editing an existing rule means "stop
+     * repeating this" -- the rule is removed rather than silently
+     * left running.
+     */
+    if(vfEditingRecurrenceId){
+
+      await deleteDoc(
+        doc(db,'vendors',user.uid,'recurrences',vfEditingRecurrenceId)
+      );
+
+      await log(
+        'Repeat cancelled',
+        `A scheduled ${config?config.noun:'item'} was set to stop repeating.`,
+        'Manual'
+      );
+
+      vfEditingRecurrenceId=null;
+    }
+
+    return;
+  }
+
+  const next=
+    vfRecurNextAfter(rule,startDate);
+
+  const record={
+    type:config.type,
+    label:
+      String(
+        template.task ||
+        template.note ||
+        vfExpenseCategoryLabel(template.category) ||
+        'Scheduled item'
+      ).slice(0,120),
+    active:true,
+    freq:rule.freq,
+    interval:rule.interval,
+    weekday:
+      rule.freq==='weekly' ? Number(rule.weekday||0) : null,
+    monthDay:
+      rule.freq==='monthly' ? Number(rule.monthDay||1) : null,
+    startDate:rule.startDate,
+    endMode:rule.endMode,
+    endDate:rule.endDate||'',
+    maxOccurrences:Number(rule.maxOccurrences||0),
+    nextRunAt:
+      next ? vfRecurFormatDate(next) : '',
+    lastRunAt:startDate,
+
+    /*
+     * Counts the one just created by hand, so an "after 12 times"
+     * rule really does produce twelve in total.
+     */
+    occurrencesCreated:1,
+    template:JSON.stringify(template),
+    updatedAt:serverTimestamp()
+  };
+
+  if(vfEditingRecurrenceId){
+
+    await setDoc(
+      doc(db,'vendors',user.uid,'recurrences',vfEditingRecurrenceId),
+      record,
+      {merge:true}
+    );
+
+    await log(
+      'Repeat updated',
+      `${record.label} — ${vfRepeatDescribe(rule)}.`,
+      'Manual'
+    );
+
+    vfEditingRecurrenceId=null;
+
+  }else{
+
+    await addDoc(
+      sub('recurrences'),
+      {
+        ...record,
+        createdAt:serverTimestamp()
+      }
+    );
+
+    await log(
+      'Repeat scheduled',
+      `${record.label} — ${vfRepeatDescribe(rule)}. `+
+      `Next on ${record.nextRunAt||'—'}.`,
+      'Manual'
+    );
+  }
+}
+
+
+function vfRenderRepeatList(prefix){
+
+  const config=VF_REPEAT_FORMS[prefix];
+  const host=config ? $(config.listId) : null;
+
+  if(!host){
+    return;
+  }
+
+  const mine=
+    recurrences.filter(r=>r.type===config.type);
+
+  if(!mine.length){
+    host.innerHTML='';
+    return;
+  }
+
+  host.innerHTML=`
+    <div class="vf-repeat-list">
+      <strong>Scheduled repeats</strong>
+      ${
+        mine.map(rule=>`
+          <div class="vf-repeat-list-row ${rule.active===false?'vf-repeat-paused':''}">
+            <div>
+              <strong>${esc(rule.label||'Scheduled item')}</strong>
+              <div class="muted">
+                ${esc(vfRepeatDescribe(rule))}
+                ${
+                  rule.active===false
+                    ? ' · paused'
+                    : (
+                        rule.nextRunAt
+                          ? ` · next ${esc(rule.nextRunAt)}`
+                          : ' · finished'
+                      )
+                }
+              </div>
+            </div>
+            <div class="vf-repeat-list-actions">
+              <button type="button" class="vf-secondary-button" data-repeat-edit="${esc(rule.id)}">Edit</button>
+              <button type="button" class="vf-secondary-button" data-repeat-toggle="${esc(rule.id)}">
+                ${rule.active===false?'Resume':'Pause'}
+              </button>
+              <button type="button" class="vf-secondary-button" data-repeat-delete="${esc(rule.id)}">Stop</button>
+            </div>
+          </div>
+        `).join('')
+      }
+    </div>
+  `;
+
+  host.querySelectorAll('[data-repeat-toggle]').forEach(button=>{
+    button.onclick=()=>vfToggleRecurrence(button.dataset.repeatToggle);
+  });
+
+  host.querySelectorAll('[data-repeat-delete]').forEach(button=>{
+    button.onclick=()=>vfDeleteRecurrence(button.dataset.repeatDelete);
+  });
+
+  host.querySelectorAll('[data-repeat-edit]').forEach(button=>{
+    button.onclick=()=>vfEditRecurrence(prefix,button.dataset.repeatEdit);
+  });
+}
+
+
+async function vfToggleRecurrence(ruleId){
+
+  const rule=
+    recurrences.find(r=>r.id===ruleId);
+
+  if(!rule){
+    return;
+  }
+
+  const nowActive=
+    rule.active===false;
+
+  await setDoc(
+    doc(db,'vendors',user.uid,'recurrences',ruleId),
+    {
+      active:nowActive,
+      updatedAt:serverTimestamp()
+    },
+    {merge:true}
+  );
+
+  await log(
+    nowActive ? 'Repeat resumed' : 'Repeat paused',
+    `${rule.label||'A scheduled item'} — ${
+      nowActive ? 'will run again' : 'will not run until resumed'
+    }.`,
+    'Manual'
+  );
+
+  await refreshAll();
+  vfRenderAllRepeatLists();
+
+  toast(nowActive ? 'Repeat resumed.' : 'Repeat paused.');
+}
+
+
+async function vfDeleteRecurrence(ruleId){
+
+  const rule=
+    recurrences.find(r=>r.id===ruleId);
+
+  if(!rule){
+    return;
+  }
+
+  const ok=
+    confirm(
+      `Stop repeating "${rule.label||'this item'}"?\n\n`+
+      `${vfRepeatDescribe(rule)}\n\n`+
+      `Nothing already created is removed -- this only stops future `+
+      `ones. Pause instead if you might want it back.`
+    );
+
+  if(!ok){
+    return;
+  }
+
+  await deleteDoc(
+    doc(db,'vendors',user.uid,'recurrences',ruleId)
+  );
+
+  await log(
+    'Repeat stopped',
+    `${rule.label||'A scheduled item'} will no longer repeat. `+
+    `Entries already created were kept.`,
+    'Manual'
+  );
+
+  await refreshAll();
+  vfRenderAllRepeatLists();
+
+  toast('Stopped repeating.');
+}
+
+
+function vfEditRecurrence(prefix,ruleId){
+
+  const rule=
+    recurrences.find(r=>r.id===ruleId);
+
+  if(!rule){
+    return;
+  }
+
+  vfEditingRecurrenceId=ruleId;
+
+  let template={};
+
+  try{
+    template=JSON.parse(rule.template||'{}');
+  }catch{
+    template={};
+  }
+
+  if(prefix==='exp'){
+
+    if($('#expCategory'))$('#expCategory').value=template.category||'other';
+    if($('#expAmount'))$('#expAmount').value=template.amount||'';
+    if($('#expDate'))$('#expDate').value=rule.nextRunAt||rule.startDate||'';
+    if($('#expNote'))$('#expNote').value=template.note||'';
+    show($('#expenseForm'));
+
+  }else{
+
+    if($('#compTask'))$('#compTask').value=template.task||'';
+    if($('#compSchool'))$('#compSchool').value=template.school||'';
+    if($('#compDue'))$('#compDue').value=rule.nextRunAt||rule.startDate||'';
+    if($('#compNotes'))$('#compNotes').value=template.notes||'';
+    show($('#complianceForm'));
+  }
+
+  vfRepeatLoadRule(prefix,rule);
+
+  toast('Editing this repeat. Saving updates the schedule.');
+}
+
+
+function vfRenderAllRepeatLists(){
+  vfRenderRepeatList('exp');
+  vfRenderRepeatList('comp');
+}
+
+
+/*
+ * Wiring. Every control re-runs the preview so the next dates are
+ * always current.
+ */
+Object.keys(VF_REPEAT_FORMS).forEach(prefix=>{
+
+  const startFor=()=>
+    (prefix==='exp'
+      ? $('#expDate')?.value
+      : $('#compDue')?.value) ||
+    new Date().toISOString().slice(0,10);
+
+  [
+    'On','Freq','Interval','Weekday','MonthDay',
+    'EndMode','EndDate','Count'
+  ].forEach(suffix=>{
+
+    const el=vfRepeatEl(prefix,suffix);
+
+    if(el){
+      el.addEventListener('change',()=>
+        vfRepeatSyncVisibility(prefix,startFor())
+      );
+      el.addEventListener('input',()=>
+        vfRepeatUpdatePreview(prefix,startFor())
+      );
+    }
+  });
+
+  const dateField=
+    prefix==='exp' ? $('#expDate') : $('#compDue');
+
+  if(dateField){
+    dateField.addEventListener('change',()=>
+      vfRepeatUpdatePreview(prefix,startFor())
+    );
+  }
+});
+
+
 const VF_INCOME_CATEGORIES=[
   {key:'classes',    label:'Classes & programs'},
   {key:'tutoring',   label:'Tutoring'},
@@ -14030,12 +15024,16 @@ if($('#saveExpense')){
       'Manual'
     );
 
+    await vfRepeatSaveRule('exp',d,d.date);
+
     clearExpenseForm();
+    vfRepeatClear('exp');
     hide($('#expenseForm'));
 
     await refreshAll();
     renderExpenses();
     renderTaxSummary();
+    vfRenderAllRepeatLists();
 
     toast('Expense saved.');
   };
@@ -29089,10 +30087,14 @@ $('#saveCompliance').onclick=async()=>{
   const wasEditing=
     Boolean(editingComplianceId);
 
+  await vfRepeatSaveRule('comp',d,d.due||new Date().toISOString().slice(0,10));
+
   clearTodoForm();
+  vfRepeatClear('comp');
   hide($('#complianceForm'));
 
   await refreshAll();
+  vfRenderAllRepeatLists();
 
   showCenteredActionConfirmation(
     wasEditing

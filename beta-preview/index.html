@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>VendorFlow</title>
-  <link rel="stylesheet" href="styles.css?v=groupbuttons-20260912-084500">
+  <link rel="stylesheet" href="styles.css?v=repeats-20260912-101500">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="modulepreload" href="app.js?v=groupbuttons-20260912-084500">
+  <link rel="modulepreload" href="app.js?v=repeats-20260912-101500">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA</div>
@@ -1947,11 +1947,105 @@ Thank you,
         <span>Note (optional)</span>
         <textarea id="expNote" class="input" rows="2" placeholder="What was this for?"></textarea>
       </label>
+
+      <div class="vf-repeat-block vf-todo-notes-field">
+
+        <label class="vf-repeat-toggle">
+          <input type="checkbox" id="expRepeatOn">
+          <span>Repeat this automatically</span>
+        </label>
+
+        <div id="expRepeatOptions" class="vf-repeat-options hidden">
+
+          <div class="vf-repeat-row">
+
+            <label class="vf-field-label">
+              <span>Every</span>
+              <input
+                id="expRepeatInterval"
+                class="input"
+                type="number"
+                min="1"
+                step="1"
+                value="1">
+            </label>
+
+            <label class="vf-field-label">
+              <span>Period</span>
+              <select id="expRepeatFreq" class="input">
+                <option value="daily">day(s)</option>
+                <option value="weekly">week(s)</option>
+                <option value="monthly" selected>month(s)</option>
+              </select>
+            </label>
+
+            <label class="vf-field-label hidden" id="expRepeatWeekdayWrap">
+              <span>On</span>
+              <select id="expRepeatWeekday" class="input">
+                <option value="0">Sunday</option>
+                <option value="1">Monday</option>
+                <option value="2">Tuesday</option>
+                <option value="3">Wednesday</option>
+                <option value="4">Thursday</option>
+                <option value="5">Friday</option>
+                <option value="6">Saturday</option>
+              </select>
+            </label>
+
+            <label class="vf-field-label" id="expRepeatMonthDayWrap">
+              <span>Day of month</span>
+              <input
+                id="expRepeatMonthDay"
+                class="input"
+                type="number"
+                min="1"
+                max="31"
+                value="1">
+            </label>
+
+          </div>
+
+          <div class="vf-repeat-row">
+
+            <label class="vf-field-label">
+              <span>Ends</span>
+              <select id="expRepeatEndMode" class="input">
+                <option value="never">Never</option>
+                <option value="onDate">On a date</option>
+                <option value="afterCount">After a number of times</option>
+              </select>
+            </label>
+
+            <label class="vf-field-label hidden" id="expRepeatEndDateWrap">
+              <span>End date</span>
+              <input id="expRepeatEndDate" class="input" type="date">
+            </label>
+
+            <label class="vf-field-label hidden" id="expRepeatCountWrap">
+              <span>How many times</span>
+              <input
+                id="expRepeatCount"
+                class="input"
+                type="number"
+                min="1"
+                step="1"
+                value="12">
+            </label>
+
+          </div>
+
+          <div id="expRepeatPreview" class="vf-repeat-preview"></div>
+
+        </div>
+      </div>
+
       <div class="vf-todo-form-actions">
         <button id="saveExpense" class="primary" type="button">Save expense</button>
         <button id="cancelExpense" type="button">Cancel</button>
       </div>
     </div>
+
+    <div id="expenseRepeatList"></div>
     <div id="expenseList"></div>
   </div>
 </section>
@@ -3088,11 +3182,103 @@ Thank you,
     <span>Notes and details</span>
     <textarea id="compNotes" class="input" rows="4" placeholder="Instructions, links, contact information, or other details"></textarea>
   </label>
+
+      <div class="vf-repeat-block vf-todo-notes-field">
+
+        <label class="vf-repeat-toggle">
+          <input type="checkbox" id="compRepeatOn">
+          <span>Repeat this automatically</span>
+        </label>
+
+        <div id="compRepeatOptions" class="vf-repeat-options hidden">
+
+          <div class="vf-repeat-row">
+
+            <label class="vf-field-label">
+              <span>Every</span>
+              <input
+                id="compRepeatInterval"
+                class="input"
+                type="number"
+                min="1"
+                step="1"
+                value="1">
+            </label>
+
+            <label class="vf-field-label">
+              <span>Period</span>
+              <select id="compRepeatFreq" class="input">
+                <option value="daily">day(s)</option>
+                <option value="weekly">week(s)</option>
+                <option value="monthly" selected>month(s)</option>
+              </select>
+            </label>
+
+            <label class="vf-field-label hidden" id="compRepeatWeekdayWrap">
+              <span>On</span>
+              <select id="compRepeatWeekday" class="input">
+                <option value="0">Sunday</option>
+                <option value="1">Monday</option>
+                <option value="2">Tuesday</option>
+                <option value="3">Wednesday</option>
+                <option value="4">Thursday</option>
+                <option value="5">Friday</option>
+                <option value="6">Saturday</option>
+              </select>
+            </label>
+
+            <label class="vf-field-label" id="compRepeatMonthDayWrap">
+              <span>Day of month</span>
+              <input
+                id="compRepeatMonthDay"
+                class="input"
+                type="number"
+                min="1"
+                max="31"
+                value="1">
+            </label>
+
+          </div>
+
+          <div class="vf-repeat-row">
+
+            <label class="vf-field-label">
+              <span>Ends</span>
+              <select id="compRepeatEndMode" class="input">
+                <option value="never">Never</option>
+                <option value="onDate">On a date</option>
+                <option value="afterCount">After a number of times</option>
+              </select>
+            </label>
+
+            <label class="vf-field-label hidden" id="compRepeatEndDateWrap">
+              <span>End date</span>
+              <input id="compRepeatEndDate" class="input" type="date">
+            </label>
+
+            <label class="vf-field-label hidden" id="compRepeatCountWrap">
+              <span>How many times</span>
+              <input
+                id="compRepeatCount"
+                class="input"
+                type="number"
+                min="1"
+                step="1"
+                value="12">
+            </label>
+
+          </div>
+
+          <div id="compRepeatPreview" class="vf-repeat-preview"></div>
+
+        </div>
+      </div>
+
   <div class="vf-todo-form-actions">
     <button id="saveCompliance" class="primary" type="button">Save task</button>
     <button id="cancelCompliance" type="button">Cancel</button>
   </div>
-</div><div id="complianceList"></div></div></section>
+</div><div id="complianceRepeatList"></div><div id="complianceList"></div></div></section>
 
     <section id="inboxView" class="view">
       <div class="card">
@@ -3701,5 +3887,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=groupbuttons-20260912-084500"></script>
+<script type="module" src="app.js?v=repeats-20260912-101500"></script>
 </body></html>
