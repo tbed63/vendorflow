@@ -9319,3 +9319,23 @@ body.vf-wizard-open .vf-modal-overlay{
     height:340px;
   }
 }
+
+
+/* VF_CONNECT_LATER_BTN */
+.vf-connect-later-btn{
+  display:inline-block;
+  margin:4px 0 0;
+  border:1px solid currentColor;
+  border-radius:8px;
+  padding:3px 9px;
+  background:#fff;
+  color:inherit;
+  font-size:.72rem;
+  font-weight:700;
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+.vf-connect-later-btn:hover{
+  background:#fff6f5;
+}

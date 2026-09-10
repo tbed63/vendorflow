@@ -42847,7 +42847,7 @@ async function importSelectedStatementPayments(){
       if(!student && !vfDeferPaymentStudentMatch){
 
         tx._importError=
-          'Choose the correct student, or check "I will connect any unconnected payments to students later" above, before importing.';
+          'Choose the correct student, or use "Connect later" on this row, before importing.';
 
         needsMatch++;
         continue;
@@ -43429,6 +43429,12 @@ function renderPaymentStatementResults(){
                                         ? `<div class="vf-statement-match-note">Will connect to a student later</div>`
                                         : `<div class="vf-statement-row-warning">
                                              Student match required
+                                             <button
+                                               type="button"
+                                               data-payment-connect-later="1"
+                                               class="vf-connect-later-btn">
+                                               Connect later
+                                             </button>
                                            </div>`
                                     )
                                   : ''
@@ -43734,20 +43740,31 @@ function vfButtonByExactText(text){
  * the three manual-entry buttons below it are the same real buttons
  * as always, just no longer hidden behind a proxy.
  */
-if($('#paymentDeferStudentMatch')){
+/*
+ * The up-front "I will connect any unconnected payments later"
+ * checkbox is gone -- like its certificate twin, it asked the vendor
+ * to decide before importing anything how they wanted to handle a
+ * problem they had not hit yet.
+ *
+ * Its replacement is the "Connect later" button that appears on the
+ * rows that actually need it, which is where the decision belongs.
+ * Delegated from the document because
+ * renderPaymentStatementResults() rebuilds those rows on every
+ * change, so a directly-bound handler would not survive.
+ */
+document.addEventListener('click',event=>{
 
-  $('#paymentDeferStudentMatch')
-    .addEventListener(
-      'change',
-      e=>{
+  const button=
+    event.target?.closest?.('[data-payment-connect-later]');
 
-        vfDeferPaymentStudentMatch=
-          e.target.checked;
+  if(!button){
+    return;
+  }
 
-        renderPaymentStatementResults();
-      }
-    );
-}
+  vfDeferPaymentStudentMatch=true;
+
+  renderPaymentStatementResults();
+});
 
 
 
