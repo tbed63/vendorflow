@@ -18524,7 +18524,7 @@ function renderStudentCommandCenterServices(student){
           </div>
           <div class="vf-service-money">
             <div>
-              <small>${itemized?'Itemized total':'Group price'}</small>
+              <small>${itemized?'Itemized total':'Group charge'}</small>
               <strong>${money(service.totalPrice)}</strong>
             </div>
           </div>
@@ -18871,7 +18871,7 @@ function vfApplyCcGroupChoice(){
   if(!group){
 
     if(priceLabel){
-      priceLabel.textContent='Group price';
+      priceLabel.textContent='Group charge';
     }
 
     if(hint){
@@ -18895,7 +18895,7 @@ function vfApplyCcGroupChoice(){
     priceLabel.textContent=
       tutoring
         ? 'Starting balance'
-        : 'Group price';
+        : 'Group charge';
   }
 
   if(hint){
@@ -20134,7 +20134,7 @@ function renderStudentsServices(){
                         ${
                           tutoringClassForService(service)
                             ? 'Tutoring charges'
-                            : 'Group price'
+                            : 'Group charge'
                         }
                       </small>
 
