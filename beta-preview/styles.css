@@ -8973,3 +8973,126 @@ body.vf-wizard-open .vf-modal-overlay{
   font-size:.8rem;
   color:var(--muted);
 }
+
+
+/* VF_HEADER_TIGHTEN */
+/*
+ * The page header was a fixed 185px band with three absolutely
+ * positioned pieces inside it: a title block bottom-left, the logo
+ * floated over the middle, and the account bottom-right. Roughly a
+ * fifth of every screen before any content, and the title block was
+ * dead weight -- its h1 is set to display:none further up this file,
+ * so all it ever showed was the words "VendorFlow Beta", repeated on
+ * every single page.
+ *
+ * This is one flex row instead: logo on the left, then Start
+ * Automating and the account together on the right, on that same
+ * line. Height is whatever the row needs.
+ *
+ * Deliberately last in the file. The rules above are a pile of
+ * competing !important overrides built up over time; untangling them
+ * risks breaking layouts nobody is complaining about. Equal
+ * specificity later in the file wins, so this simply has the last
+ * word. Deleting this block restores the old header exactly.
+ */
+.vf-app-header{
+  position:relative !important;
+  display:flex !important;
+  flex-wrap:wrap !important;
+  align-items:center !important;
+  justify-content:flex-start !important;
+  gap:12px 16px !important;
+
+  width:100% !important;
+  height:auto !important;
+  min-height:0 !important;
+  max-height:none !important;
+
+  margin:0 0 14px 0 !important;
+  padding:0 !important;
+
+  overflow:visible !important;
+}
+
+/*
+ * The h1 inside this stays in the DOM -- switchView() writes the
+ * current page name into #title on every navigation, so removing it
+ * would throw. It is only hidden.
+ */
+.vf-header-title{
+  display:none !important;
+}
+
+.vf-header-brand{
+  position:static !important;
+
+  order:0 !important;
+  flex:0 1 auto !important;
+
+  min-width:0 !important;
+
+  justify-content:flex-start !important;
+
+  transform:none !important;
+}
+
+/*
+ * The logo <img> itself is absolutely positioned by a rule further up
+ * (left:872px), which is why the flex container around it collapsed to
+ * zero width and the logo landed on the far right of the row. Put it
+ * back in normal flow.
+ */
+.vf-header-brand-logo{
+  position:static !important;
+
+  left:auto !important;
+  right:auto !important;
+  top:auto !important;
+  bottom:auto !important;
+
+  width:min(260px,30vw) !important;
+  max-width:100% !important;
+  max-height:58px !important;
+}
+
+/*
+ * Start Automating / the setup nudge and the account block share the
+ * right-hand end of the same row.
+ */
+/*
+ * margin-left:auto packs Start Automating and the account together at
+ * the right-hand end, instead of space-between parking the button in
+ * the middle of the header, directly under the centred BETA pill.
+ */
+.vf-ready-nudge,
+.vf-wizard-nudge{
+  position:static !important;
+
+  order:2 !important;
+  flex:0 0 auto !important;
+
+  margin:0 0 0 auto !important;
+}
+
+.vf-header-account{
+  position:static !important;
+
+  order:3 !important;
+  flex:0 0 auto !important;
+
+  right:auto !important;
+  bottom:auto !important;
+  top:auto !important;
+  left:auto !important;
+
+  margin:0 !important;
+}
+
+@media(max-width:760px){
+  .vf-app-header{
+    justify-content:flex-start !important;
+  }
+  .vf-header-brand-logo{
+    max-height:44px !important;
+  }
+}
