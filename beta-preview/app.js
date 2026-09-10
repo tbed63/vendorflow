@@ -1565,7 +1565,7 @@ async function repairRosterCoreLinksOnce(){
 
   await log(
     'Roster accounts synchronized',
-    'Existing class roster students were linked to Students & Services.',
+    'Existing group roster students were linked to Students & Services.',
     'VendorFlow'
   );
 
@@ -4116,8 +4116,8 @@ function certificateInvoiceSchedule(
       studentClass && classDaysSet
         ? (
             studentClass.classType==='Tutoring'
-              ? 'Tutoring class'
-              : 'Class settings'
+              ? 'Tutoring group'
+              : 'Group settings'
           )
         : 'Charter school settings',
 
@@ -8731,7 +8731,7 @@ function renderSelectedClassDetails(){
         </div>
 
         <h3>
-          ${esc(c.name||'Unnamed class')}
+          ${esc(c.name||'Unnamed group')}
         </h3>
 
         <div class="vf-class-details-sub">
@@ -8969,7 +8969,7 @@ function duplicateSavedClass(classId){
   editingClassId='';
 
   if($('#classCreateFormTitle')){
-    $('#classCreateFormTitle').textContent='Duplicate class';
+    $('#classCreateFormTitle').textContent='Duplicate group';
   }
 
   if($('#className')){
@@ -8981,7 +8981,7 @@ function duplicateSavedClass(classId){
     $('#className').select();
   }
 
-  $('#saveClass').textContent='Save as new class';
+  $('#saveClass').textContent='Save as new group';
 
   /*
    * A duplicated class needs its own roster -- clear out whatever
@@ -9002,7 +9002,7 @@ function duplicateSavedClass(classId){
 
   hide($('#warnings'));
 
-  toast(`Duplicating ${original?.name||'class'} as a new class.`);
+  toast(`Duplicating ${original?.name||'group'} as a new group.`);
 }
 
 
@@ -9141,7 +9141,7 @@ function editSavedClass(
 
   if(!c){
     return toast(
-      'Class could not be found.'
+      'Group could not be found.'
     );
   }
 
@@ -9154,7 +9154,7 @@ function editSavedClass(
   show($('#classCreateFormWrap'));
 
   if($('#classCreateFormTitle')){
-    $('#classCreateFormTitle').textContent='Edit class';
+    $('#classCreateFormTitle').textContent='Edit group';
   }
 
 
@@ -10487,7 +10487,7 @@ function resetClassCreateFormFields(){
     $('#classCreateFormTitle').textContent='Create a new group';
   }
 
-  $('#saveClass').textContent='Save class';
+  $('#saveClass').textContent='Save group';
 }
 
 
@@ -10518,7 +10518,7 @@ $('#saveClass').onclick=async()=>{
   if(!name){
 
     showClassSaveError(
-      'Enter a class name before saving.'
+      'Enter a group name before saving.'
     );
 
     return;
@@ -10791,7 +10791,7 @@ $('#saveClass').onclick=async()=>{
       );
 
       await log(
-        'Class updated',
+        'Group updated',
         name,
         'Manual'
       );
@@ -10808,7 +10808,7 @@ $('#saveClass').onclick=async()=>{
         r.id;
 
       await log(
-        'Class created',
+        'Group created',
         name,
         'Manual'
       );
@@ -10823,7 +10823,7 @@ $('#saveClass').onclick=async()=>{
 
     showClassSaveError(
       error.message ||
-      'VendorFlow could not save this class. Please try again.'
+      'VendorFlow could not save this group. Please try again.'
     );
 
     return;
@@ -10856,13 +10856,13 @@ $('#saveClass').onclick=async()=>{
 
   toast(
     wasEditing
-      ? 'Class updated.'
-      : 'Class saved.'
+      ? 'Group updated.'
+      : 'Group saved.'
   );
 
   setTimeout(()=>{
     saveClassButton.disabled=false;
-    saveClassButton.textContent='Save class';
+    saveClassButton.textContent='Save group';
   },1200);
 };
 
@@ -10989,7 +10989,7 @@ function updateRosterUploadTarget(){
     <div class="vf-roster-target-label">
       UPLOADING ROSTER TO
     </div>
-    <strong>${esc(selected.name||'Selected class')}</strong>
+    <strong>${esc(selected.name||'Selected group')}</strong>
     ${details ? `<span>${esc(details)}</span>` : ''}
     <div class="vf-roster-target-confirm">
       Any roster selected below will be imported into this class.
@@ -11077,7 +11077,7 @@ $('#csv').onchange=e=>{
 
   if(!f)return;
 
-  if(!currentClass())return toast('Choose a class first.');
+  if(!currentClass())return toast('Choose a group first.');
 
   Papa.parse(f,{
     header:true,
@@ -11286,7 +11286,7 @@ function renderArchivedClasses(){
         <div>
 
           <strong>
-            ${esc(c.name||'Unnamed class')}
+            ${esc(c.name||'Unnamed group')}
           </strong>
 
           <div class="meta">
@@ -11508,7 +11508,7 @@ async function unarchiveClass(classId){
 
 
   await log(
-    'Class unarchived',
+    'Group unarchived',
     `${c.name} returned to active Groups.`,
     'Manual'
   );
@@ -11724,7 +11724,7 @@ async function dropStudentFromClass(id){
   }
 
   await log(
-    'Student dropped from class',
+    'Student dropped from group',
     `${s.studentName} removed from ${c.name}. Financial history preserved.`,
     'Manual'
   );
@@ -11992,7 +11992,7 @@ function openAddStudentForCertificate(certificateId){
     $('#addStudent')?.click();
   }else{
     toast(
-      'Choose the class this student belongs to, then click "Add student manually" to add them.'
+      'Choose the group this student belongs to, then click "Add student manually" to add them.'
     );
   }
 }
@@ -12031,7 +12031,7 @@ function openAddStudentForPayment(paymentId){
     $('#addStudent')?.click();
   }else{
     toast(
-      'Choose the class this student belongs to, then click "Add student manually" to add them. Afterward, come back to Notifications to match this payment.'
+      'Choose the group this student belongs to, then click "Add student manually" to add them. Afterward, come back to Notifications to match this payment.'
     );
   }
 }
@@ -12637,7 +12637,7 @@ $('#saveStudent').onclick=async()=>{
       confirm(
         'Mark this student Inactive?\n\n' +
         'The student will no longer be participating, but their ' +
-        'existing class payment obligation will remain.'
+        'existing group payment obligation will remain.'
       );
 
     if(!ok){
@@ -12653,8 +12653,8 @@ $('#saveStudent').onclick=async()=>{
 
     const ok=
       confirm(
-        'Remove this student from the class?\n\n' +
-        'VendorFlow will remove the remaining unpaid class obligation. ' +
+        'Remove this student from the group?\n\n' +
+        'VendorFlow will remove the remaining unpaid group obligation. ' +
         'Prior payments, certificates and history will be preserved.'
       );
 
@@ -12944,10 +12944,10 @@ $('#archiveClass').onclick=async()=>{
     confirm(
       `Archive ${c.name}?\n\n` +
       `This will remove the group from your active Groups. ` +
-      `Students whose only active service is this class will no longer ` +
+      `Students whose only active service is this group will no longer ` +
       `appear in Students & Services.\n\n` +
       `Payments, certificates, financial history and the full roster ` +
-      `will NOT be deleted. You can unarchive the class later.`
+      `will NOT be deleted. You can unarchive the group later.`
     );
 
 
@@ -12973,7 +12973,7 @@ $('#archiveClass').onclick=async()=>{
 
 
   await log(
-    'Class archived',
+    'Group archived',
     `${c.name} was archived. Roster and financial history preserved.`,
     'Manual'
   );
@@ -13321,7 +13321,7 @@ function refreshStudentServiceSelectors(){
     const selected=classSelect.value;
 
     classSelect.innerHTML=
-      '<option value="">Not linked to a roster class</option>'+
+      '<option value="">Not linked to a group</option>'+
       [...classes]
         .sort(
           (a,b)=>
@@ -13914,7 +13914,7 @@ function studentHiddenFromAccountsReason(student){
     if(status==='removed' || status==='dropped'){
 
       droppedOrRemovedNames.push(
-        service.name || service.serviceType || 'a class'
+        service.name || service.serviceType || 'a group'
       );
 
     }else if(
@@ -13923,7 +13923,7 @@ function studentHiddenFromAccountsReason(student){
     ){
 
       archivedClassNames.push(
-        service.name || service.serviceType || 'a class'
+        service.name || service.serviceType || 'a group'
       );
     }
   });
@@ -13939,7 +13939,7 @@ function studentHiddenFromAccountsReason(student){
     return `${name}'s enrollment in ${droppedOrRemovedNames.join(', ')} is marked Dropped or Removed, so there's no account card to show.`;
   }
 
-  return `${name} doesn't have an active class linked right now, so there's no account card to show.`;
+  return `${name} doesn't have an active group linked right now, so there's no account card to show.`;
 }
 
 
@@ -18713,7 +18713,7 @@ function classPaymentItemsForObligations(
     return {
       items:[],
       reason:
-        'This service is not linked to a class payment plan.'
+        'This service is not linked to a group payment plan.'
     };
   }
 
@@ -18740,7 +18740,7 @@ function classPaymentItemsForObligations(
     return {
       items:[],
       reason:
-        `Service price ${money(total)} differs from class tuition `+
+        `Service price ${money(total)} differs from group tuition `+
         `${money(classTuition)}. Set this student's payment schedule manually.`
     };
   }
@@ -18821,7 +18821,7 @@ function classPaymentItemsForObligations(
     return {
       items:[],
       reason:
-        'The class does not yet have a complete dated payment schedule.'
+        'The group does not yet have a complete dated payment schedule.'
     };
   }
 
@@ -18843,7 +18843,7 @@ function classPaymentItemsForObligations(
     return {
       items:[],
       reason:
-        `The class payment schedule totals ${money(itemTotal)}, `+
+        `The group payment schedule totals ${money(itemTotal)}, `+
         `but this service is ${money(total)}. Review before creating obligations.`
     };
   }
@@ -19082,7 +19082,7 @@ async function createServiceObligations(
           ),
 
         source:
-          'Class payment plan',
+          'Group payment plan',
 
         createdAt:
           serverTimestamp(),
@@ -19101,7 +19101,7 @@ async function createServiceObligations(
     serviceRef,
     {
       paymentScheduleSource:
-        'Class payment plan',
+        'Group payment plan',
 
       paymentScheduleSnapshot:
         classRecord.paymentSchedule||'Full',
@@ -28769,8 +28769,8 @@ function openInboundStudentChange(
 
   showCenteredActionConfirmation(
     review.changeType==='drop'
-      ? 'Choose the class and use Edit student to complete the drop.'
-      : 'Choose the class and review the requested student change.'
+      ? 'Choose the group and use Edit student to complete the drop.'
+      : 'Choose the group and review the requested student change.'
   );
 }
 
@@ -29399,7 +29399,7 @@ function vfProposalEditFormHTML(review){
         </select>
       </label>
 
-      <label class="vf-field-label"><span>Service / class</span>
+      <label class="vf-field-label"><span>Service / group</span>
         <select class="input" data-proposal-field="serviceId" data-session-count="${sessionCount}">
           <option value="">Choose a service…</option>
           ${serviceOptions}
@@ -29410,7 +29410,7 @@ function vfProposalEditFormHTML(review){
         <input class="input" type="number" step="0.01" data-proposal-field="amount" value="${esc(String(initialAmount||0))}">
         ${
           sessionCount>0
-            ? `<small>Calculated as ${sessionCount} session${sessionCount===1?'':'s'} x the class's rate per session -- adjust if needed.</small>`
+            ? `<small>Calculated as ${sessionCount} session${sessionCount===1?'':'s'} x the group's rate per session -- adjust if needed.</small>`
             : ''
         }
       </label>
@@ -31823,7 +31823,7 @@ function historyCategory(item){
     action.includes('service') ||
     action.includes('expense')
   ){
-    return 'Students & Classes';
+    return 'Students & Groups';
   }
 
   if(action.includes('charter school')){
@@ -32614,14 +32614,14 @@ function renderLateFeesSettings(){
       .sort((a,b)=>(a.name||'').localeCompare(b.name||''));
 
   if(!activeClasses.length){
-    list.innerHTML='<p class="muted">No active classes yet.</p>';
+    list.innerHTML='<p class="muted">No active groups yet.</p>';
     return;
   }
 
   list.innerHTML=activeClasses.map(c=>`
     <div class="vf-expense-row" data-late-fee-row="${c.id}">
       <div class="vf-expense-row-main">
-        <strong>${esc(c.name||'Unnamed class')}</strong>
+        <strong>${esc(c.name||'Unnamed group')}</strong>
         ${c.term?`<span class="muted">${esc(c.term)}</span>`:''}
       </div>
       <label class="vf-field-label" style="margin:0;min-width:120px;">
@@ -32673,7 +32673,7 @@ async function saveClassLateFee(classId){
     input.value=newFee;
 
     await log(
-      'Class late fee updated',
+      'Group late fee updated',
       `${classRecord.name||'Class'} late fee set to ${money(newFee)}.`,
       'Manual'
     );
@@ -40691,7 +40691,7 @@ async function recordTutoringSessionCharge(
   if(!classRecord){
 
     return toast(
-      'This service is not linked to a tutoring class.'
+      'This service is not linked to a tutoring group.'
     );
   }
 
@@ -40721,7 +40721,7 @@ async function recordTutoringSessionCharge(
   if(!(rate>0)){
 
     return toast(
-      'Enter a rate per session in the tutoring class first.'
+      'Enter a rate per session in the tutoring group first.'
     );
   }
 
@@ -41041,7 +41041,7 @@ function refreshChargeServiceOptions(){
   if(!student){
 
     select.innerHTML=
-      '<option value="">Choose service / class</option>';
+      '<option value="">Choose service / group</option>';
 
     updateChargeSessionUI();
 
@@ -41061,7 +41061,7 @@ function refreshChargeServiceOptions(){
 
 
   select.innerHTML=
-    '<option value="">Choose service / class</option>'+
+    '<option value="">Choose service / group</option>'+
     list.map(
       service=>`
         <option value="${esc(service.id)}">
@@ -41299,7 +41299,7 @@ function resetChargeForm(){
       .slice(0,10);
 
   $('#chargeService').innerHTML=
-    '<option value="">Choose service / class</option>';
+    '<option value="">Choose service / group</option>';
 
   $('#chargeSessions').value='';
   $('#chargeAmount').value='';
@@ -41479,7 +41479,7 @@ if($('#saveCharge')){
     if(!service){
 
       return toast(
-        'Choose the service or class for this charge.'
+        'Choose the service or group for this charge.'
       );
     }
 

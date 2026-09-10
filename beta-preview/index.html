@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>VendorFlow</title>
-  <link rel="stylesheet" href="styles.css?v=groups-20260911-183000">
+  <link rel="stylesheet" href="styles.css?v=grouplang-20260911-194500">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="modulepreload" href="app.js?v=groups-20260911-183000">
+  <link rel="modulepreload" href="app.js?v=grouplang-20260911-194500">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA</div>
@@ -232,7 +232,7 @@
 
 </div>
       <div class="stats">
-        <div class="stat"><span>Classes</span><strong id="statClasses">0</strong></div>
+        <div class="stat"><span>Groups</span><strong id="statClasses">0</strong></div>
         <div class="stat"><span>Active students</span><strong id="statStudents">0</strong></div>
         <div class="stat"><span>Needs review</span><strong id="statReview">0</strong></div>
         <div class="stat"><span>Actions</span><strong id="statHistory">0</strong></div>
@@ -282,7 +282,7 @@
         <input id="className" class="input" placeholder="Group name">
 
           <label class="vf-field-label vf-class-type-field">
-            <span>Class type</span>
+            <span>Group type</span>
 
             <select
               id="classType"
@@ -366,7 +366,7 @@
           <div class="vf-class-section vf-invoice-timing-field">
 
             <label class="vf-field-label">
-              <span>When should VendorFlow generate the invoice for this class?</span>
+              <span>When should VendorFlow generate the invoice for this group?</span>
 
               <div class="vf-number-suffix">
 
@@ -385,7 +385,7 @@
             </label>
 
             <p class="muted">
-              VendorFlow puts the invoice in your Notifications outbox on this schedule. Applies to every student in this class -- set it now so it's not overlooked. Defaults to 14 days if left alone.
+              VendorFlow puts the invoice in your Notifications outbox on this schedule. Applies to every student in this group -- set it now so it's not overlooked. Defaults to 14 days if left alone.
             </p>
 
           </div>
@@ -727,7 +727,7 @@ Thank you,
                 </label>
 
                 <p class="muted">
-                  Sent when VendorFlow records a payment for a student in this class, whether it arrived by email or was entered manually.
+                  Sent when VendorFlow records a payment for a student in this group, whether it arrived by email or was entered manually.
                 </p>
 
               </div>
@@ -746,7 +746,7 @@ Thank you,
                 </label>
 
                 <p class="muted">
-                  Sent when VendorFlow records a charter certificate for a student in this class.
+                  Sent when VendorFlow records a charter certificate for a student in this group.
                 </p>
 
               </div>
@@ -762,7 +762,7 @@ Thank you,
             role="alert">
           </div>
 
-          <button id="saveClass" class="primary full">Save class</button>
+          <button id="saveClass" class="primary full">Save group</button>
 
           <button
             id="cancelClassCreateForm"
@@ -778,7 +778,7 @@ Thank you,
 <option>Removed</option>
 </select>
 <div id="studentStatusHelp" class="vf-student-status-help"></div>
-<button id="saveStudent" class="primary">Save student</button><button id="cancelStudent">Cancel</button></div><div id="rosterEmpty" class="empty">Choose a class.</div><div id="rosterWrap" class="tablewrap hidden"><table><thead><tr><th>Student</th><th>Parent</th><th>Email</th><th>Phone</th><th>Status</th><th>Grade</th><th>Action</th></tr></thead><tbody id="rosterBody"></tbody></table></div></div>
+<button id="saveStudent" class="primary">Save student</button><button id="cancelStudent">Cancel</button></div><div id="rosterEmpty" class="empty">Choose a group.</div><div id="rosterWrap" class="tablewrap hidden"><table><thead><tr><th>Student</th><th>Parent</th><th>Email</th><th>Phone</th><th>Status</th><th>Grade</th><th>Action</th></tr></thead><tbody id="rosterBody"></tbody></table></div></div>
     
 
       <div class="card vf-archive-card" id="archivedClassesCard">
@@ -957,9 +957,9 @@ Thank you,
           </label>
 
           <label id="serviceClassWrap" class="vf-field-label vf-service-wide">
-            <span>Link to a saved class <small>Optional</small></span>
+            <span>Link to a group <small>Optional</small></span>
             <select id="serviceClass" class="input">
-              <option value="">Not linked to a roster class</option>
+              <option value="">Not linked to a group</option>
             </select>
           </label>
 
@@ -1202,7 +1202,7 @@ Thank you,
         <span>
           <strong>Not enrolled right now</strong>
           <small>
-            Just a reminder to you that they aren't taking a class at the moment.
+            Just a reminder to you that they aren't in a group at the moment.
             Nothing changes -- their balance stands and payment reminders keep going out.
           </small>
         </span>
@@ -1603,7 +1603,7 @@ Thank you,
     id="payStudentMatches"
     class="vf-student-matches hidden"></div>
 
-</div><input id="payClass" class="input" placeholder="Class"><input id="payAmount" class="input" type="number" step=".01" placeholder="Amount"><select id="payMethod" class="input"><option>Venmo</option><option>Zelle</option><option>Cash</option><option>Check</option><option>Charter payment</option><option>Other</option></select><button id="savePayment" class="primary">Save payment</button></div>
+</div><input id="payClass" class="input" placeholder="Group"><input id="payAmount" class="input" type="number" step=".01" placeholder="Amount"><select id="payMethod" class="input"><option>Venmo</option><option>Zelle</option><option>Cash</option><option>Check</option><option>Charter payment</option><option>Other</option></select><button id="savePayment" class="primary">Save payment</button></div>
 
 <div
   id="chargeForm"
@@ -1618,7 +1618,7 @@ Thank you,
     <h3>Record a charge</h3>
 
     <p>
-      Add tutoring, an extra class session, or another amount
+      Add tutoring, an extra session, or another amount
       this student owes.
     </p>
 
@@ -1650,7 +1650,7 @@ Thank you,
     <select
       id="chargeService"
       class="input">
-      <option value="">Choose service / class</option>
+      <option value="">Choose service / group</option>
     </select>
 
     <div
@@ -1755,7 +1755,7 @@ Thank you,
       id="refundReason"
       class="input">
       <option>Overpayment</option>
-      <option>Class withdrawal</option>
+      <option>Group withdrawal</option>
       <option>Duplicate payment</option>
       <option>Vendor adjustment</option>
       <option>Other</option>
@@ -3622,5 +3622,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=groups-20260911-183000"></script>
+<script type="module" src="app.js?v=grouplang-20260911-194500"></script>
 </body></html>
