@@ -43777,7 +43777,13 @@ $('#nextBtn').onclick=async()=>{
     await log('Business setup completed',`${profile.businessName} workspace created with ${vfOnboardingSelectedCharters.length} charter affiliation${vfOnboardingSelectedCharters.length===1?'':'s'}.`,'Onboarding');
     hide($('#onboarding'));
     await enterApp();
-    window.setTimeout(()=>vfOpenWizard(),350);
+    /*
+     * The guided wizard is retired in favour of the setup checklist
+     * (vfRenderSetupChecklist), which points at pages instead of
+     * relocating them into an overlay. Its code is left in place and
+     * intact -- it is simply no longer reachable. Restoring it is
+     * this one line.
+     */
   }catch(error){
     console.error('Preview charter onboarding failed:',error);
     toast(error.message||'VendorFlow could not finish setup. Please try again.');
@@ -44966,11 +44972,15 @@ function vfRenderWizardNudge(){
   nudge.id='vfWizardNudge';
   nudge.className='vf-wizard-nudge';
   nudge.innerHTML=`
-    <button type="button" id="vfWizardNudgeOpen">Finish Setup Wizard</button>
+    <button type="button" id="vfWizardNudgeOpen">Setup Checklist</button>
     <button type="button" id="vfWizardNudgeDismiss" title="Dismiss">&times;</button>`;
   host.insertAdjacentElement('beforebegin',nudge);
 
-  $('#vfWizardNudgeOpen').onclick=vfOpenWizard;
+  $('#vfWizardNudgeOpen').onclick=()=>{
+    if(typeof vfReopenSetupChecklist==='function'){
+      vfReopenSetupChecklist();
+    }
+  };
   $('#vfWizardNudgeDismiss').onclick=async()=>{
     nudge.remove();
     try{
