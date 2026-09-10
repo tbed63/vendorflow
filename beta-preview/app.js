@@ -12247,6 +12247,137 @@ $('#cancelStudent').onclick=()=>{
 };
 
 
+/*
+ * The Students action row.
+ *
+ * Uploading a roster and reconciling one are things a vendor does
+ * occasionally, so they open on demand instead of sitting on the page
+ * permanently pushing the directory below the fold. Each one closes
+ * the others, so only one panel is ever open.
+ */
+function vfCloseStudentPanels(){
+
+  [
+    '#rosterCsvCard',
+    '#previewCard',
+    '#rosterReconcileCard',
+    '#coreStudentForm'
+  ].forEach(selector=>{
+
+    const panel=$(selector);
+
+    if(panel){
+      panel.classList.add('hidden');
+    }
+  });
+}
+
+
+/*
+ * The roster CSV upload moved here from Class Rosters, but the code
+ * behind it still asks currentClass() which group to import into, and
+ * currentClass() reads #classSelect over on that page. Rather than
+ * rewrite that shared path -- it is the same code that saves the
+ * roster, so getting it wrong loses student data -- this picker
+ * mirrors #classSelect: same options, cloned straight from it, and
+ * choosing here sets the value there and fires its change handler, so
+ * the app behaves exactly as if the vendor had picked the group on the
+ * old page.
+ */
+function vfSyncRosterUploadGroup(){
+
+  const source=$('#classSelect');
+  const picker=$('#rosterUploadGroup');
+
+  if(!source || !picker){
+    return;
+  }
+
+  picker.innerHTML=source.innerHTML;
+  picker.value=source.value;
+}
+
+
+if($('#vfRosterUploadToggle')){
+
+  $('#vfRosterUploadToggle').onclick=()=>{
+
+    const card=$('#rosterCsvCard');
+
+    if(!card){
+      return;
+    }
+
+    const wasOpen=!card.classList.contains('hidden');
+
+    vfCloseStudentPanels();
+
+    if(wasOpen){
+      return;
+    }
+
+    vfSyncRosterUploadGroup();
+    card.classList.remove('hidden');
+    card.scrollIntoView({behavior:'smooth',block:'nearest'});
+  };
+}
+
+
+if($('#rosterUploadGroup')){
+
+  $('#rosterUploadGroup').onchange=()=>{
+
+    const source=$('#classSelect');
+    const picker=$('#rosterUploadGroup');
+
+    if(!source || !picker){
+      return;
+    }
+
+    source.value=picker.value;
+    source.dispatchEvent(new Event('change'));
+  };
+}
+
+
+if($('#vfRosterReconcileToggle')){
+
+  $('#vfRosterReconcileToggle').onclick=()=>{
+
+    const card=$('#rosterReconcileCard');
+
+    if(!card){
+      return;
+    }
+
+    const wasOpen=!card.classList.contains('hidden');
+
+    vfCloseStudentPanels();
+
+    if(wasOpen){
+      return;
+    }
+
+    card.classList.remove('hidden');
+    card.scrollIntoView({behavior:'smooth',block:'nearest'});
+  };
+}
+
+
+/*
+ * Added as a listener rather than folded into #addCoreStudent's own
+ * onclick, so that handler stays exactly as it was.
+ */
+if($('#addCoreStudent')){
+
+  $('#addCoreStudent').addEventListener('click',()=>{
+
+    ['#rosterCsvCard','#previewCard','#rosterReconcileCard']
+      .forEach(selector=>$(selector)?.classList.add('hidden'));
+  });
+}
+
+
 $('#addStudent').onclick=()=>{
 
   resetRosterStudentForm();
@@ -16025,11 +16156,16 @@ function upgradeStudentDirectoryRows(){
     controls=document.createElement('div');
     controls.id='studentDirectoryControls';
     controls.className='vf-student-directory-controls';
+    /*
+     * No heading here any more. "Student accounts / Students" at the
+     * top of the page, "Find a student / Search students & families"
+     * over the search box, and "Student directory / All Students"
+     * here all said the same thing on one screen. The page has a
+     * single "Student Directory" heading now; this keeps only the
+     * result count, which is the part that carries information.
+     */
     controls.innerHTML=`
-      <div>
-        <div class="eyebrow">Student directory</div>
-        <h3>All Students</h3>
-      </div>
+      <div></div>
       <div id="studentDirectoryResultCount" class="muted"></div>
     `;
     list.insertAdjacentElement('beforebegin',controls);
@@ -20148,7 +20284,16 @@ function openServiceEditor(studentId=''){
 }
 
 
-$('#addService').onclick=()=>openServiceEditor();
+/*
+ * The page-level "Add service" button is gone. A service IS a group --
+ * what a set of students is signed up for -- so creating one belongs
+ * on the Groups page, not on the student list.
+ *
+ * openServiceEditor() is untouched and still reachable two ways: the
+ * per-student "Add service" button on each directory row
+ * (data-add-service-student), and automatically right after a new
+ * student is saved.
+ */
 
 
 function closeServiceEditor(){

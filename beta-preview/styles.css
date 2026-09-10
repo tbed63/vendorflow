@@ -9096,3 +9096,64 @@ body.vf-wizard-open .vf-modal-overlay{
     max-height:44px !important;
   }
 }
+
+
+/* VF_STUDENTS_TOPBAR */
+.vf-students-topbar{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px 18px;
+  margin:0 0 16px;
+}
+
+.vf-page-heading{
+  margin:0;
+  font-size:34px;
+  font-weight:800;
+  letter-spacing:-.03em;
+  line-height:1.05;
+  color:var(--navy);
+}
+
+.vf-student-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+.vf-student-actions button{
+  border:1px solid var(--line);
+  background:#fff;
+  color:var(--navy);
+  border-radius:10px;
+  padding:9px 15px;
+  font-size:.85rem;
+  font-weight:700;
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+.vf-student-actions button:hover{
+  background:#f8f9fb;
+  border-color:var(--muted);
+}
+
+.vf-roster-group-picker{
+  display:block;
+  margin:0 0 14px;
+  max-width:420px;
+}
+
+.vf-search-hint{
+  margin:0 0 8px;
+  color:var(--muted);
+  font-size:.85rem;
+}
+
+@media(max-width:640px){
+  .vf-page-heading{
+    font-size:27px;
+  }
+}
