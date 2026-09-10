@@ -13757,8 +13757,34 @@ async function vfRepeatSaveRule(prefix,template,startDate){
     return;
   }
 
+  /*
+   * Where the schedule resumes from.
+   *
+   * Creating: the item the vendor just filled in IS the first
+   * occurrence, so the next one is the next date AFTER it.
+   *
+   * Editing: nothing was created just now, and startDate is the
+   * rule's own pending nextRunAt. Advancing past it would silently
+   * drop the occurrence the vendor is still waiting for -- edit a
+   * monthly rule on the 2nd and October would never arrive. Take
+   * the first date on or after today under the NEW schedule
+   * instead.
+   */
+  const editing=
+    Boolean(vfEditingRecurrenceId);
+
+  const existing=
+    editing
+      ? recurrences.find(r=>r.id===vfEditingRecurrenceId)
+      : null;
+
   const next=
-    vfRecurNextAfter(rule,startDate);
+    editing
+      ? vfRecurFirstOnOrAfter(
+          rule,
+          new Date().toISOString().slice(0,10)
+        )
+      : vfRecurNextAfter(rule,startDate);
 
   const record={
     type:config.type,
@@ -13782,13 +13808,21 @@ async function vfRepeatSaveRule(prefix,template,startDate){
     maxOccurrences:Number(rule.maxOccurrences||0),
     nextRunAt:
       next ? vfRecurFormatDate(next) : '',
-    lastRunAt:startDate,
+    lastRunAt:
+      editing
+        ? (existing?.lastRunAt || startDate)
+        : startDate,
 
     /*
-     * Counts the one just created by hand, so an "after 12 times"
-     * rule really does produce twelve in total.
+     * Creating counts the one just made by hand, so an "after 12
+     * times" rule really does produce twelve in total. Editing must
+     * carry the running total forward -- resetting it to 1 would
+     * hand the rule eleven more goes every time it was edited.
      */
-    occurrencesCreated:1,
+    occurrencesCreated:
+      editing
+        ? Number(existing?.occurrencesCreated||1)
+        : 1,
     template:JSON.stringify(template),
     updatedAt:serverTimestamp()
   };
@@ -15009,6 +15043,28 @@ if($('#saveExpense')){
       note:$('#expNote').value.trim(),
       updatedAt:serverTimestamp()
     };
+
+    /*
+     * Editing a repeat, not adding an expense. The form is being
+     * used to change the rule's own settings and template, so no
+     * expense is created -- doing so added a duplicate every time a
+     * schedule was adjusted.
+     */
+    if(vfEditingRecurrenceId){
+
+      await vfRepeatSaveRule('exp',d,d.date);
+
+      clearExpenseForm();
+      vfRepeatClear('exp');
+      hide($('#expenseForm'));
+
+      await refreshAll();
+      renderExpenses();
+      renderTaxSummary();
+      vfRenderAllRepeatLists();
+
+      return toast('Repeat updated.');
+    }
 
     await addDoc(
       sub('expenses'),
@@ -30022,6 +30078,29 @@ $('#saveCompliance').onclick=async()=>{
     return toast(
       'Enter the task.'
     );
+  }
+
+  /*
+   * Editing a repeat, not adding a task -- same reasoning as the
+   * expense form above. Without this, changing a schedule left a
+   * second to-do behind every time.
+   */
+  if(vfEditingRecurrenceId){
+
+    await vfRepeatSaveRule(
+      'comp',
+      d,
+      d.due || new Date().toISOString().slice(0,10)
+    );
+
+    clearTodoForm();
+    vfRepeatClear('comp');
+    hide($('#complianceForm'));
+
+    await refreshAll();
+    vfRenderAllRepeatLists();
+
+    return showCenteredActionConfirmation('Repeat updated.');
   }
 
   if(editingComplianceId){
