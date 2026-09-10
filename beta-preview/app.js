@@ -29369,6 +29369,96 @@ function proposalDisplayAmount(f){
 }
 
 
+/*
+ * A review with no title used to render as the words "Needs review"
+ * and an Ignore button, with nothing else at all -- no way to tell
+ * what it was about or whether ignoring it was safe. Tim hit exactly
+ * that and had to guess.
+ *
+ * Every writer in this file and in the worker sets a real title, so
+ * the ones he saw are almost certainly records left by older code.
+ * That does not make them harmless: they sit in Notifications looking
+ * like something needing attention, forever, because nobody dares
+ * dismiss a message they cannot read.
+ *
+ * These two build a description out of whatever the record does
+ * carry, so an unreadable item can at least be identified and
+ * cleared with confidence -- and so a future record written without
+ * a title is visible as a defect instead of a blank.
+ */
+function vfReviewFallbackTitle(review){
+
+  const label=
+    String(
+      review?.reviewType ||
+      review?.itemType ||
+      ''
+    )
+      .replace(/[-_]+/g,' ')
+      .trim();
+
+  if(!label){
+    return 'Item with no details';
+  }
+
+  return (
+    label.charAt(0).toUpperCase() +
+    label.slice(1) +
+    ' (no details recorded)'
+  );
+}
+
+
+function vfReviewFallbackDetail(review){
+
+  const parts=[];
+
+  if(review?.source){
+    parts.push(`From ${review.source}.`);
+  }
+
+  if(review?.createdAt){
+
+    const when=
+      vfReviewCreatedDate(review);
+
+    if(when){
+      parts.push(`Recorded ${when}.`);
+    }
+  }
+
+  parts.push(
+    'VendorFlow saved this without a description, so there is '+
+    'nothing to act on. Ignore is safe.'
+  );
+
+  return parts.join(' ');
+}
+
+
+function vfReviewCreatedDate(review){
+
+  const raw=review?.createdAt;
+
+  try{
+
+    const date=
+      raw?.toDate
+        ? raw.toDate()
+        : new Date(raw);
+
+    if(Number.isNaN(date.getTime())){
+      return '';
+    }
+
+    return date.toLocaleDateString();
+
+  }catch{
+    return '';
+  }
+}
+
+
 function vfProposalEditFormHTML(review){
 
   const f=review.proposalFields||{};
@@ -30228,7 +30318,10 @@ function renderReviews(){
           }">
 
             <strong>
-              ${esc(review.title||'Needs review')}
+              ${esc(
+                review.title ||
+                vfReviewFallbackTitle(review)
+              )}
             </strong>
 
             ${
@@ -30238,7 +30331,10 @@ function renderReviews(){
             }
 
             <div class="meta">
-              ${esc(review.detail||'')}
+              ${esc(
+                review.detail ||
+                vfReviewFallbackDetail(review)
+              )}
             </div>
 
             ${
@@ -31258,9 +31354,28 @@ async function approveEmailProposal(
        * Tim can use Edit and approve to fix whatever was wrong
        * instead of the item silently disappearing.
        */
+      /*
+       * Every blocker, not just the first one.
+       *
+       * The worker returns all of them, and this used to show
+       * reasons[0] alone -- so fixing the named problem just revealed
+       * the next one, one save at a time. That is what made approving
+       * a certificate feel glitchy: it was not failing randomly, it
+       * was reporting a queue one item deep.
+       */
+      const blockers=
+        Array.isArray(data.reasons)
+          ? data.reasons.filter(Boolean)
+          : [];
+
       toast(
-        (data.reasons && data.reasons[0]) ||
-        'VendorFlow could not complete this -- the item is still in Needs Review so you can fix and retry it.'
+        blockers.length
+          ? (
+              blockers.length===1
+                ? blockers[0]
+                : `Fix these first: ${blockers.join(' ')}`
+            )
+          : 'VendorFlow could not complete this -- the item is still in Needs Review so you can fix and retry it.'
       );
 
       return;
