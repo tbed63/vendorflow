@@ -13902,7 +13902,19 @@ function vfRenderRepeatList(prefix){
 
   host.innerHTML=`
     <div class="vf-repeat-list">
-      <strong>Scheduled repeats</strong>
+      <div class="vf-repeat-list-head">
+        <strong>Scheduled repeats</strong>
+        <button
+          type="button"
+          class="vf-secondary-button"
+          data-repeat-run-now="1">
+          Run now
+        </button>
+      </div>
+      <div class="muted vf-repeat-list-note">
+        These run on their own once a day. "Run now" catches up
+        anything already due without waiting.
+      </div>
       ${
         mine.map(rule=>`
           <div class="vf-repeat-list-row ${rule.active===false?'vf-repeat-paused':''}">
@@ -13945,6 +13957,92 @@ function vfRenderRepeatList(prefix){
   host.querySelectorAll('[data-repeat-edit]').forEach(button=>{
     button.onclick=()=>vfEditRecurrence(prefix,button.dataset.repeatEdit);
   });
+
+  host.querySelectorAll('[data-repeat-run-now]').forEach(button=>{
+    button.onclick=()=>vfRunScheduledNow(button);
+  });
+}
+
+
+/*
+ * Asks the worker to run this vendor's due rules immediately -- the
+ * same code the nightly job runs, not a browser-side reimplementation
+ * of it. Anything else would risk the two disagreeing, which is the
+ * whole reason the engine is kept byte-identical in both places.
+ */
+async function vfRunScheduledNow(button){
+
+  if(!user){
+    return;
+  }
+
+  const original=button.textContent;
+
+  button.disabled=true;
+  button.textContent='Running…';
+
+  try{
+
+    const token=
+      await user.getIdToken();
+
+    const response=
+      await fetch(
+        `${VENDORFLOW_API}/recurrences/run`,
+        {
+          method:'POST',
+          headers:{
+            Authorization:`Bearer ${token}`
+          }
+        }
+      );
+
+    let data={};
+
+    try{
+      data=await response.json();
+    }catch{}
+
+    if(!response.ok){
+      throw new Error(
+        data?.detail ||
+        data?.error ||
+        `Scheduler returned ${response.status}.`
+      );
+    }
+
+    const created=Number(data.created||0);
+    const failed=Number(data.failed||0);
+
+    await refreshAll();
+    renderAll();
+
+    if(failed){
+      toast(
+        `Created ${created}. ${failed} could not be created -- they will be retried.`
+      );
+    }else if(created){
+      toast(
+        `Created ${created} scheduled item${created===1?'':'s'}.`
+      );
+    }else{
+      toast('Nothing was due. Everything is up to date.');
+    }
+
+  }catch(error){
+
+    console.error('Manual recurrence run failed:',error);
+
+    toast(
+      error.message ||
+      'Could not run your scheduled items.'
+    );
+
+  }finally{
+
+    button.disabled=false;
+    button.textContent=original;
+  }
 }
 
 

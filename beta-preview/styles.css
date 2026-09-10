@@ -9540,3 +9540,24 @@ body.vf-wizard-open .vf-modal-overlay{
   padding:5px 11px;
   font-size:.75rem;
 }
+
+
+/* VF_REPEAT_RUN_NOW */
+.vf-repeat-list-head{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.vf-repeat-list-head button{
+  padding:5px 12px;
+  font-size:.75rem;
+}
+
+.vf-repeat-list-note{
+  margin:2px 0 8px;
+  font-size:.75rem;
+  line-height:1.45;
+}
