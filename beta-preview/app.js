@@ -26380,6 +26380,102 @@ async function openCertificatePdf(objectKey){
 }
 
 
+/*
+ * Blob URLs for certificates already fetched, so reopening the same
+ * proposal does not re-download the PDF. The R2 file needs an
+ * Authorization header, so it cannot simply be an <iframe src> to the
+ * API -- it has to be fetched and handed over as a blob.
+ */
+const vfProposalPdfUrls=new Map();
+
+
+async function vfMountProposalPdfViewers(){
+
+  const frames=
+    $$('[data-proposal-pdf]');
+
+  for(const frame of frames){
+
+    if(frame.dataset.pdfMounted==='true'){
+      continue;
+    }
+
+    const objectKey=
+      frame.dataset.proposalPdf;
+
+    if(!objectKey || !user){
+      continue;
+    }
+
+    frame.dataset.pdfMounted='true';
+
+    try{
+
+      let url=
+        vfProposalPdfUrls.get(objectKey);
+
+      if(!url){
+
+        const token=
+          await user.getIdToken();
+
+        const response=
+          await fetch(
+            `${VENDORFLOW_API}/certificate/file/` +
+            encodeURIComponent(objectKey),
+            {
+              headers:{
+                Authorization:`Bearer ${token}`
+              }
+            }
+          );
+
+        if(!response.ok){
+          throw new Error('Could not load the certificate PDF.');
+        }
+
+        url=
+          URL.createObjectURL(
+            await response.blob()
+          );
+
+        vfProposalPdfUrls.set(objectKey,url);
+      }
+
+      /*
+       * Re-check the element is still on the page. The vendor can
+       * collapse the form or approve the item while the fetch is in
+       * flight, and renderReviews() replaces this markup wholesale.
+       */
+      if(!frame.isConnected){
+        continue;
+      }
+
+      frame.innerHTML=
+        `<iframe
+           class="vf-proposal-pdf-iframe"
+           title="Certificate PDF"
+           src="${url}#toolbar=1&navpanes=0"></iframe>`;
+
+    }catch(error){
+
+      console.error('Certificate PDF preview failed:',error);
+
+      if(frame.isConnected){
+
+        frame.innerHTML=
+          `<div class="vf-proposal-pdf-status">
+             VendorFlow could not load this PDF. Use "Open in a new
+             tab" to see it.
+           </div>`;
+      }
+
+      frame.dataset.pdfMounted='false';
+    }
+  }
+}
+
+
 function wireCertificatePdfButtons(){
 
   $$('[data-cert-pdf]').forEach(button=>{
@@ -29307,8 +29403,48 @@ function vfProposalEditFormHTML(review){
         .map(s=>`<option value="${esc(s.id)}" ${s.id===certGuessedStudentId?'selected':''}>${esc(s.studentName||'Unnamed student')}${vfStudentIsArchived(s)?' (archived)':''}</option>`)
         .join('');
 
+    /*
+     * The certificate itself, shown with the fields VendorFlow read
+     * off it. Without this there is no way to tell a correct
+     * extraction from a wrong one without leaving the page -- and
+     * these are the fields that decide what a family gets billed.
+     *
+     * The worker already stores the PDF in R2 and passes its
+     * objectKey through on the proposal, so nothing new has to be
+     * kept; it was simply never surfaced.
+     */
+    const certificatePdfPane=
+      f.objectKey
+        ? `
+          <div class="vf-proposal-pdf">
+
+            <div class="vf-proposal-pdf-bar">
+              <strong>The certificate VendorFlow read</strong>
+              <button
+                type="button"
+                class="vf-secondary-button"
+                data-cert-pdf-open="${esc(f.objectKey)}">
+                Open in a new tab
+              </button>
+            </div>
+
+            <div
+              class="vf-proposal-pdf-frame"
+              data-proposal-pdf="${esc(f.objectKey)}">
+              <div class="vf-proposal-pdf-status">Loading the certificate…</div>
+            </div>
+
+          </div>`
+        : `
+          <div class="vf-proposal-pdf-missing">
+            This certificate arrived without a PDF VendorFlow could
+            keep, so there is nothing to check the fields against.
+          </div>`;
+
     return `
       <div class="vf-proposal-edit-form">
+
+        ${certificatePdfPane}
 
         <label class="vf-field-label"><span>Student</span>
           <select class="input" data-proposal-field="studentId">
@@ -30455,6 +30591,15 @@ function renderReviews(){
         renderReviews();
       };
     });
+
+  $$('[data-cert-pdf-open]')
+    .forEach(button=>{
+      button.onclick=()=>{
+        openCertificatePdf(button.dataset.certPdfOpen);
+      };
+    });
+
+  vfMountProposalPdfViewers();
 
   $$('select[data-proposal-type-select]')
     .forEach(select=>{
