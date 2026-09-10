@@ -13197,6 +13197,460 @@ function vfIncomeDuplicateWarning(matches,amount){
 }
 
 
+/*
+ * IMPORTING INCOME FROM A STATEMENT
+ *
+ * Reuses /payment-statement/extract, the same reader behind the
+ * Payments page. Its output already carries everything income needs
+ * -- date, payer, description, memo, amount, direction, method --
+ * so no worker change was required.
+ *
+ * Nothing is written until the vendor presses Import. Every row is
+ * checked against existing income AND existing payments first
+ * (vfFindIncomeDuplicates), because a statement is the single most
+ * likely way to import money that VendorFlow already recorded from
+ * the family side. Rows that look like duplicates arrive UNTICKED,
+ * so double-counting takes a deliberate click rather than being the
+ * default.
+ */
+let vfIncomeImportRows=[];
+let vfIncomeImportBusy=false;
+
+
+function vfIncomeImportDirection(tx){
+
+  const raw=
+    String(tx?.direction||'').toLowerCase();
+
+  if(raw==='incoming' || raw==='outgoing'){
+    return raw;
+  }
+
+  return 'uncertain';
+}
+
+
+function vfBuildIncomeImportRows(data){
+
+  const list=
+    Array.isArray(data?.transactions)
+      ? data.transactions
+      : [];
+
+  return list
+    .map((tx,index)=>{
+
+      const amount=
+        Math.abs(Number(tx.amount||0));
+
+      const direction=
+        vfIncomeImportDirection(tx);
+
+      const entry={
+        amount,
+        dateEarned:
+          String(tx.date||'').slice(0,10),
+        payer:
+          String(tx.payer||'').trim()
+      };
+
+      const duplicates=
+        amount>0
+          ? vfFindIncomeDuplicates(entry)
+          : [];
+
+      return {
+        id:`inc-import-${index}`,
+        amount,
+        dateEarned:entry.dateEarned,
+        payer:entry.payer,
+        memo:
+          String(
+            tx.memo ||
+            tx.description ||
+            ''
+          ).trim(),
+        method:
+          String(tx.method||'').trim(),
+        direction,
+        duplicates,
+
+        /*
+         * Outgoing money is not income, and a possible duplicate is
+         * money already counted. Both start unticked; an uncertain
+         * direction does too, because guessing in the direction of
+         * overstating income is the wrong way to be wrong.
+         */
+        include:
+          direction==='incoming' &&
+          amount>0 &&
+          duplicates.length===0,
+
+        category:'other'
+      };
+    })
+    .filter(row=>row.amount>0);
+}
+
+
+function vfRenderIncomeImportResults(){
+
+  const host=$('#incomeStatementResults');
+
+  if(!host){
+    return;
+  }
+
+  if(!vfIncomeImportRows.length){
+    host.innerHTML='';
+    return;
+  }
+
+  const categoryOptions=
+    row=>
+      VF_INCOME_CATEGORIES
+        .map(c=>
+          `<option value="${esc(c.key)}" ${
+            c.key===row.category ? 'selected' : ''
+          }>${esc(c.label)}</option>`
+        )
+        .join('');
+
+  const incoming=
+    vfIncomeImportRows.filter(r=>r.direction==='incoming').length;
+
+  const flagged=
+    vfIncomeImportRows.filter(r=>r.duplicates.length).length;
+
+  host.innerHTML=`
+    <div class="vf-income-import-summary">
+      <strong>${vfIncomeImportRows.length} transaction${
+        vfIncomeImportRows.length===1?'':'s'
+      } found</strong>
+      <span class="muted">
+        ${incoming} coming in${
+          flagged
+            ? ` · ${flagged} may already be recorded`
+            : ''
+        }
+      </span>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Import</th>
+            <th>Date</th>
+            <th>Payer</th>
+            <th>Amount</th>
+            <th>Category</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${
+            vfIncomeImportRows.map(row=>`
+              <tr class="${row.duplicates.length?'vf-income-import-dup':''}">
+                <td>
+                  <input
+                    type="checkbox"
+                    data-income-import-pick="${esc(row.id)}"
+                    ${row.include?'checked':''}>
+                </td>
+                <td>${esc(row.dateEarned||'—')}</td>
+                <td>${esc(row.payer||'—')}</td>
+                <td>${money(row.amount)}</td>
+                <td>
+                  <select class="input" data-income-import-category="${esc(row.id)}">
+                    ${categoryOptions(row)}
+                  </select>
+                </td>
+                <td>
+                  ${
+                    row.direction==='outgoing'
+                      ? '<div class="vf-income-import-note">Money going out — not income</div>'
+                      : ''
+                  }
+                  ${
+                    row.direction==='uncertain'
+                      ? '<div class="vf-income-import-note">VendorFlow could not tell which way this went</div>'
+                      : ''
+                  }
+                  ${
+                    row.duplicates.length
+                      ? `<div class="vf-income-import-warning">
+                           May already be recorded: ${esc(row.duplicates[0].label)}
+                         </div>`
+                      : ''
+                  }
+                  ${
+                    row.memo
+                      ? `<div class="muted">${esc(row.memo)}</div>`
+                      : ''
+                  }
+                </td>
+              </tr>
+            `).join('')
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="row">
+      <button type="button" id="vfIncomeImportRun" class="primary">
+        Import selected
+      </button>
+      <button type="button" id="vfIncomeImportCancel">Cancel</button>
+    </div>
+  `;
+
+  host.querySelectorAll('[data-income-import-pick]').forEach(box=>{
+    box.onchange=()=>{
+      const row=
+        vfIncomeImportRows.find(
+          r=>r.id===box.dataset.incomeImportPick
+        );
+      if(row){
+        row.include=box.checked;
+      }
+    };
+  });
+
+  host.querySelectorAll('[data-income-import-category]').forEach(select=>{
+    select.onchange=()=>{
+      const row=
+        vfIncomeImportRows.find(
+          r=>r.id===select.dataset.incomeImportCategory
+        );
+      if(row){
+        row.category=select.value;
+      }
+    };
+  });
+
+  const cancel=$('#vfIncomeImportCancel');
+
+  if(cancel){
+    cancel.onclick=()=>{
+      vfIncomeImportRows=[];
+      vfRenderIncomeImportResults();
+      if($('#incomeStatementFile'))$('#incomeStatementFile').value='';
+      if($('#incomeStatementStatus'))$('#incomeStatementStatus').textContent='';
+    };
+  }
+
+  const run=$('#vfIncomeImportRun');
+
+  if(run){
+    run.onclick=()=>vfRunIncomeImport();
+  }
+}
+
+
+async function vfRunIncomeImport(){
+
+  if(vfIncomeImportBusy){
+    return;
+  }
+
+  const chosen=
+    vfIncomeImportRows.filter(r=>r.include);
+
+  if(!chosen.length){
+    return toast('Tick at least one transaction to import.');
+  }
+
+  const flagged=
+    chosen.filter(r=>r.duplicates.length).length;
+
+  if(flagged){
+
+    const proceed=
+      confirm(
+        `${flagged} of the ${chosen.length} selected `+
+        `${flagged===1?'transaction looks':'transactions look'} like `+
+        `money VendorFlow has already recorded.\n\n`+
+        `Gross income counts recorded payments and income together, `+
+        `so importing ${flagged===1?'it':'them'} would count that `+
+        `money twice.\n\nImport anyway?`
+      );
+
+    if(!proceed){
+      return;
+    }
+  }
+
+  vfIncomeImportBusy=true;
+
+  const run=$('#vfIncomeImportRun');
+
+  if(run){
+    run.disabled=true;
+    run.textContent='Importing…';
+  }
+
+  let saved=0;
+
+  try{
+
+    for(const row of chosen){
+
+      await addDoc(
+        sub('income'),
+        {
+          amount:row.amount,
+          dateEarned:
+            row.dateEarned ||
+            new Date().toISOString().slice(0,10),
+          payer:row.payer,
+          category:row.category||'other',
+          memo:row.memo,
+          method:row.method,
+          source:'Statement import',
+          createdAt:serverTimestamp(),
+          updatedAt:serverTimestamp()
+        }
+      );
+
+      saved++;
+    }
+
+    const total=
+      chosen.reduce((sum,r)=>sum+r.amount,0);
+
+    await log(
+      'Income imported',
+      `${saved} transaction${saved===1?'':'s'} imported from a `+
+      `statement, ${money(total)} in total.`+
+      `${flagged?` ${flagged} were flagged as possible duplicates and imported anyway.`:''}`,
+      'Imported'
+    );
+
+    vfIncomeImportRows=[];
+    vfRenderIncomeImportResults();
+
+    if($('#incomeStatementFile'))$('#incomeStatementFile').value='';
+
+    if($('#incomeStatementStatus')){
+      $('#incomeStatementStatus').textContent=
+        `Imported ${saved} transaction${saved===1?'':'s'}.`;
+    }
+
+    await refreshAll();
+    renderIncome();
+    renderTaxSummary();
+
+    toast(`Imported ${saved} into income.`);
+
+  }catch(error){
+
+    console.error('Income import failed:',error);
+
+    toast(
+      `Imported ${saved} before this failed: ${
+        error.message || 'something went wrong'
+      }`
+    );
+
+    if(saved){
+      await refreshAll();
+      renderIncome();
+      renderTaxSummary();
+    }
+
+  }finally{
+
+    vfIncomeImportBusy=false;
+
+    if(run){
+      run.disabled=false;
+      run.textContent='Import selected';
+    }
+  }
+}
+
+
+if($('#incomeStatementFile')){
+
+  $('#incomeStatementFile').addEventListener('change',async event=>{
+
+    const file=event.target.files?.[0];
+
+    if(!file || !user){
+      return;
+    }
+
+    const status=$('#incomeStatementStatus');
+
+    vfIncomeImportRows=[];
+    vfRenderIncomeImportResults();
+
+    if(status){
+      status.textContent=`Reading ${file.name}…`;
+    }
+
+    try{
+
+      const token=
+        await user.getIdToken();
+
+      const form=new FormData();
+      form.append('file',file,file.name);
+
+      const response=
+        await fetch(
+          `${VENDORFLOW_API}/payment-statement/extract`,
+          {
+            method:'POST',
+            headers:{Authorization:`Bearer ${token}`},
+            body:form
+          }
+        );
+
+      let data={};
+
+      try{
+        data=await response.json();
+      }catch{}
+
+      if(!response.ok){
+        throw new Error(
+          data?.detail ||
+          data?.error ||
+          `Statement reader returned ${response.status}.`
+        );
+      }
+
+      vfIncomeImportRows=
+        vfBuildIncomeImportRows(data);
+
+      vfRenderIncomeImportResults();
+
+      if(status){
+
+        status.textContent=
+          vfIncomeImportRows.length
+            ? `Read ${file.name}. Nothing has been imported yet — choose what to keep.`
+            : `Read ${file.name}, but found no transactions to import.`;
+      }
+
+    }catch(error){
+
+      console.error('Income statement read failed:',error);
+
+      if(status){
+        status.textContent=
+          error.message ||
+          'Could not read that statement.';
+      }
+
+      toast('Could not read that statement.');
+    }
+  });
+}
+
+
 function renderIncome(){
 
   const list=$('#incomeList');

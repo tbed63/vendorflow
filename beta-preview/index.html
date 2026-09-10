@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>VendorFlow</title>
-  <link rel="stylesheet" href="styles.css?v=summary-20260912-060000">
+  <link rel="stylesheet" href="styles.css?v=incomeimport-20260912-072000">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="modulepreload" href="app.js?v=summary-20260912-060000">
+  <link rel="modulepreload" href="app.js?v=incomeimport-20260912-072000">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA</div>
@@ -1870,6 +1870,32 @@ Thank you,
       </div>
     </div>
 
+    <div class="vf-income-import">
+
+      <div class="row between">
+        <div>
+          <strong>Import a statement</strong>
+          <p class="muted">
+            Upload a Venmo, bank or similar statement and VendorFlow
+            will pull out the money coming in. Nothing is saved until
+            you choose what to import.
+          </p>
+        </div>
+      </div>
+
+      <label class="vf-field-label">
+        <span>Statement PDF or CSV</span>
+        <input
+          id="incomeStatementFile"
+          type="file"
+          accept="application/pdf,text/csv,.pdf,.csv">
+      </label>
+
+      <div id="incomeStatementStatus" class="muted"></div>
+      <div id="incomeStatementResults"></div>
+
+    </div>
+
     <div id="incomeList"></div>
   </div>
 
@@ -3677,5 +3703,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=summary-20260912-060000"></script>
+<script type="module" src="app.js?v=incomeimport-20260912-072000"></script>
 </body></html>

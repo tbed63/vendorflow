@@ -9366,3 +9366,40 @@ body.vf-wizard-open .vf-modal-overlay{
   margin:22px 0 8px;
   font-size:1rem;
 }
+
+
+/* VF_INCOME_IMPORT */
+.vf-income-import{
+  margin:18px 0 6px;
+  padding:14px 16px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:#f8f9fb;
+}
+
+.vf-income-import-summary{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:baseline;
+  gap:10px;
+  margin:12px 0 8px;
+}
+
+.vf-income-import-note{
+  font-size:.75rem;
+  color:var(--muted);
+}
+
+.vf-income-import-warning{
+  font-size:.75rem;
+  font-weight:700;
+  color:var(--gold);
+}
+
+.vf-income-import-dup{
+  background:#fffaf0;
+}
+
+.vf-income-import .tablewrap{
+  background:#fff;
+}
