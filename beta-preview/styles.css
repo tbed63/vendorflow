@@ -9208,3 +9208,57 @@ body.vf-wizard-open .vf-modal-overlay{
 .vf-dir-selects{
   padding-top:10px;
 }
+
+
+/* VF_GROUPS_PAGE */
+/*
+ * Same heading-plus-actions row the Students page uses, under names
+ * that are not specific to students, since Groups is the second page
+ * to use the pattern.
+ */
+.vf-page-topbar{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px 18px;
+  margin:0 0 12px;
+}
+
+.vf-page-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+.vf-page-actions button{
+  border:1px solid var(--line);
+  background:#fff;
+  color:var(--navy);
+  border-radius:10px;
+  padding:9px 15px;
+  font-size:.85rem;
+  font-weight:700;
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+.vf-page-actions button:hover{
+  background:#f8f9fb;
+  border-color:var(--muted);
+}
+
+.vf-page-actions button.danger{
+  border-color:#fecdca;
+  background:#fff1f0;
+  color:var(--danger);
+}
+
+.vf-page-actions button.danger:hover{
+  background:#ffe4e1;
+  border-color:var(--danger);
+}
+
+#chooseClassCard{
+  padding:14px 16px;
+}

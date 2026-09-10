@@ -2805,9 +2805,9 @@ function renderCertificateStudentMatches(){
       <div class="vf-cert-student-no-match">
         <strong>No student found.</strong>
         <span>
-          Add the student in Class Rosters or Students & Services,
-          or check "connect them later" below to save this certificate
-          now and match it once the student exists.
+          Add the student on the Students page, or choose
+          "I'll match this student later" to save this certificate
+          now and connect it once the student exists.
         </span>
       </div>
     `;
@@ -7771,7 +7771,7 @@ function wireDashboardStatCards(){
     {
       value:'#statClasses',
       view:'classes',
-      title:'Open Class Rosters'
+      title:'Open Groups'
     },
     {
       value:'#statStudents',
@@ -8026,7 +8026,7 @@ function renderDashboard(){
 
 
     text.textContent=
-      'Start by setting up your first class. Go to Class Rosters to create the class and add or upload the roster.';
+      'Start by setting up your first group. Go to Groups to create it, then upload your roster from the Students page.';
 
 
     hide(
@@ -8197,7 +8197,7 @@ function renderDashboard(){
 function renderClassSelect(){
   let sel=$('#classSelect'),v=sel.value;
 
-  sel.innerHTML='<option value="">Choose a class</option>'+
+  sel.innerHTML='<option value="">Choose a group</option>'+
     classes
       .filter(c=>!c.archived)
       .sort((a,b)=>(a.name||'').localeCompare(b.name||''))
@@ -10484,7 +10484,7 @@ function resetClassCreateFormFields(){
   clearClassSaveError();
 
   if($('#classCreateFormTitle')){
-    $('#classCreateFormTitle').textContent='Create a new class';
+    $('#classCreateFormTitle').textContent='Create a new group';
   }
 
   $('#saveClass').textContent='Save class';
@@ -10922,6 +10922,16 @@ function updateRosterUploadTarget(){
     return;
   }
 
+  /*
+   * The group picker on the Students page mirrors #classSelect. This
+   * function already runs everywhere the selected group can change,
+   * so syncing here keeps the two in step even when the group was
+   * chosen on the Groups page rather than in the upload panel.
+   */
+  if(typeof vfSyncRosterUploadGroup==='function'){
+    vfSyncRosterUploadGroup();
+  }
+
   const selected=
     classes.find(c=>c.id===select.value) || null;
 
@@ -11262,7 +11272,7 @@ function renderArchivedClasses(){
   if(!archived.length){
 
     list.innerHTML=
-      '<div class="empty">No archived classes.</div>';
+      '<div class="empty">No archived groups.</div>';
 
     return;
   }
@@ -11471,7 +11481,7 @@ async function unarchiveClass(classId){
   const ok=
     confirm(
       `Unarchive ${c.name}?\n\n` +
-      `The class will return to your active Class Rosters and its ` +
+      `The group will return to your active Groups and its ` +
       `students/services will become active in VendorFlow again.`
     );
 
@@ -11499,7 +11509,7 @@ async function unarchiveClass(classId){
 
   await log(
     'Class unarchived',
-    `${c.name} returned to active Class Rosters.`,
+    `${c.name} returned to active Groups.`,
     'Manual'
   );
 
@@ -11536,13 +11546,13 @@ if($('#toggleArchivedClasses')){
 
       $('#toggleArchivedClasses')
         .textContent=
-          'Hide archived classes';
+          'Hide archived groups';
 
     }else{
 
       $('#toggleArchivedClasses')
         .textContent=
-          'Show archived classes';
+          'Show archived groups';
     }
   };
 }
@@ -12933,7 +12943,7 @@ $('#archiveClass').onclick=async()=>{
   const ok=
     confirm(
       `Archive ${c.name}?\n\n` +
-      `This will remove the class from your active Class Rosters. ` +
+      `This will remove the group from your active Groups. ` +
       `Students whose only active service is this class will no longer ` +
       `appear in Students & Services.\n\n` +
       `Payments, certificates, financial history and the full roster ` +
@@ -13922,7 +13932,7 @@ function studentHiddenFromAccountsReason(student){
     student.studentName || 'This student';
 
   if(archivedClassNames.length){
-    return `${name}'s class (${archivedClassNames.join(', ')}) is archived, so there's no account card to show. Unarchive it on Class Rosters to bring it back.`;
+    return `${name}'s group (${archivedClassNames.join(', ')}) is archived, so there's no account card to show. Unarchive it on Groups to bring it back.`;
   }
 
   if(droppedOrRemovedNames.length){
@@ -28908,7 +28918,7 @@ function inboundReviewActionsHTML(
           type="button"
           class="primary"
           data-open-student-review="${esc(review.id)}">
-          Open Class Rosters
+          Open Groups
         </button>
         <button
           type="button"
@@ -33862,7 +33872,7 @@ function switchView(v){
 
   let names={
     dashboard:'Dashboard',
-    classes:'Class Rosters',
+    classes:'Groups',
     charters:'Charter Schools',
     students:'Students',
     payments:'Payments',
@@ -44057,13 +44067,13 @@ function vfTutorialSlides(){
       summary:'Start by giving VendorFlow the information you already maintain at your learning center.',
       task:'Add a class and its students',
       steps:[
-        'Open Class Rosters and create the class with its price, schedule, and payment terms.',
+        'Open Groups and create the group with its price, schedule, and payment terms.',
         'At your learning center, choose Download CSV where you see that class roster.',
         'Save the CSV somewhere easy to find, then upload that same file to the saved class in VendorFlow.',
         'Repeat for every class. Add tutoring-only students manually when needed.'
       ],
       result:'VendorFlow creates the student directory and connects every student to the correct service and charges.',
-      actionView:'classes',actionLabel:'Open Class Rosters'
+      actionView:'classes',actionLabel:'Open Groups'
     },
     {
       eyebrow:'Record payments',
@@ -44303,7 +44313,7 @@ const VF_SETUP_ITEMS=[
     key:'groups',
     title:'Set up your groups',
     view:'classes',
-    action:'Open Class Rosters',
+    action:'Open Groups',
     body:`
       <p>A group is whatever you bill for -- a class, tutoring, a
       camp. It holds the price, late fee, due dates and invoice
