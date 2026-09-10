@@ -9403,3 +9403,46 @@ body.vf-wizard-open .vf-modal-overlay{
 .vf-income-import .tablewrap{
   background:#fff;
 }
+
+
+/* VF_GROUP_DETAIL_ACTIONS */
+/*
+ * Edit / Duplicate / Archive as one block on the right.
+ *
+ * The head is justify-content:space-between and used to hold the
+ * title and the two buttons as three separate children, which spread
+ * them across the whole width -- Edit ended up floating in the middle
+ * of the card. Wrapping the buttons makes it two children again.
+ */
+.vf-class-details-actions{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:8px;
+  flex:0 0 auto;
+}
+
+.vf-class-details-actions button{
+  white-space:nowrap;
+}
+
+.vf-class-details-actions .danger{
+  border:1px solid #fecdca;
+  background:#fff1f0;
+  color:var(--danger);
+  border-radius:11px;
+  padding:11px 15px;
+  font-weight:700;
+  cursor:pointer;
+}
+
+.vf-class-details-actions .danger:hover{
+  background:#ffe4e1;
+  border-color:var(--danger);
+}
+
+@media(max-width:700px){
+  .vf-class-details-actions{
+    width:100%;
+  }
+}

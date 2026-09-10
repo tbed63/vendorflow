@@ -8747,19 +8747,30 @@ function renderSelectedClassDetails(){
         </div>
       </div>
 
-      <button
-        type="button"
-        class="primary"
-        id="editSelectedClass">
-        Edit group
-      </button>
+      <div class="vf-class-details-actions">
 
-      <button
-        type="button"
-        class="vf-secondary-button"
-        id="duplicateSelectedClass">
-        Duplicate group
-      </button>
+        <button
+          type="button"
+          class="primary"
+          id="editSelectedClass">
+          Edit group
+        </button>
+
+        <button
+          type="button"
+          class="vf-secondary-button"
+          id="duplicateSelectedClass">
+          Duplicate group
+        </button>
+
+        <button
+          type="button"
+          class="danger"
+          id="archiveClass">
+          Archive group
+        </button>
+
+      </div>
 
     </div>
 
@@ -8953,6 +8964,19 @@ function renderSelectedClassDetails(){
   if($('#duplicateSelectedClass')){
     $('#duplicateSelectedClass').onclick=()=>{
       duplicateSavedClass(c.id);
+    };
+  }
+
+  /*
+   * Archive moved into this row from the page header, so it is
+   * rebound here on every render alongside the other two. It used to
+   * be a static element in index.html bound once at load; that would
+   * now bind to nothing, because this markup is replaced wholesale
+   * each time a group is selected.
+   */
+  if($('#archiveClass')){
+    $('#archiveClass').onclick=()=>{
+      vfArchiveSelectedGroup();
     };
   }
 }
@@ -11569,12 +11593,19 @@ function renderRoster(){
     show($('#rosterEmpty'));
     hide($('#rosterWrap'));
     hide($('#addStudent'));
-    hide($('#archiveClass'));
+
+    /*
+     * #archiveClass now lives inside the group details card, which is
+     * only rendered when a group is selected -- so it is legitimately
+     * absent here. Null-guarded rather than removed, because this
+     * function runs on every group change and show(null) throws.
+     */
+    if($('#archiveClass'))hide($('#archiveClass'));
     return;
   }
 
   show($('#addStudent'));
-  show($('#archiveClass'));
+  if($('#archiveClass'))show($('#archiveClass'));
 
   if(!roster.length){
     $('#rosterEmpty').textContent='No saved roster yet.';
@@ -12933,7 +12964,13 @@ $('#saveStudent').onclick=async()=>{
 
 
 
-$('#archiveClass').onclick=async()=>{
+/*
+ * Was an inline handler assigned at module load. It is a function now
+ * because the button it belongs to is rendered fresh with the group
+ * details card, so the binding has to be reapplied rather than made
+ * once. The body is unchanged.
+ */
+async function vfArchiveSelectedGroup(){
 
   const c=
     currentClass();
@@ -12994,7 +13031,7 @@ $('#archiveClass').onclick=async()=>{
   toast(
     `${c.name} archived.`
   );
-};
+}
 
 
 
