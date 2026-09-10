@@ -9339,3 +9339,11 @@ body.vf-wizard-open .vf-modal-overlay{
 .vf-connect-later-btn:hover{
   background:#fff6f5;
 }
+
+
+/* VF_CC_SERVICE_HINT */
+.vf-cc-service-hint{
+  margin:2px 0 10px;
+  font-size:.8rem;
+  line-height:1.45;
+}

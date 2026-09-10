@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>VendorFlow</title>
-  <link rel="stylesheet" href="styles.css?v=reviewfix-20260912-004500">
+  <link rel="stylesheet" href="styles.css?v=addgroup-20260912-020000">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="modulepreload" href="app.js?v=reviewfix-20260912-004500">
+  <link rel="modulepreload" href="app.js?v=addgroup-20260912-020000">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA</div>
@@ -927,10 +927,10 @@ Thank you,
 
         <div class="row between vf-service-editor-heading">
           <div>
-            <div class="eyebrow">Service setup</div>
-            <h2>Add Service</h2>
+            <div class="eyebrow">Group setup</div>
+            <h2>Add Group</h2>
           </div>
-          <button id="cancelServiceTop" type="button" aria-label="Close Add Service">Close</button>
+          <button id="cancelServiceTop" type="button" aria-label="Close Add Group">Close</button>
         </div>
 
         <div class="vf-service-editor-grid">
@@ -1229,19 +1229,35 @@ Thank you,
   </details>
 
   <details class="vf-cc-collapsible">
-    <summary>Services <span id="ccServicesCountBadge" class="vf-cc-count-badge"></span></summary>
+    <summary>Groups <span id="ccServicesCountBadge" class="vf-cc-count-badge"></span></summary>
     <div class="vf-cc-collapsible-body">
       <div class="row between">
         <div class="muted">What this student is enrolled in</div>
-        <button type="button" id="ccAddServiceToggle">+ Add service</button>
+        <button type="button" id="ccAddServiceToggle">+ Add group</button>
       </div>
       <div id="ccAddServiceForm" class="hidden">
-        <div class="formgrid vf-form-2">
-          <input id="ccNewServiceName" class="input" placeholder="Service name (e.g. Piano Lessons)">
-          <input id="ccNewServicePrice" class="input" type="number" min="0" step="0.01" placeholder="Starting price (optional)">
-        </div>
+
+        <label class="vf-field-label">
+          <span>Group</span>
+          <select id="ccNewServiceGroup" class="input">
+            <option value="">Choose a group…</option>
+          </select>
+        </label>
+
+        <label class="vf-field-label hidden" id="ccNewServiceNameWrap">
+          <span>Name</span>
+          <input id="ccNewServiceName" class="input" placeholder="Example: Piano Lessons">
+        </label>
+
+        <label class="vf-field-label">
+          <span id="ccNewServicePriceLabel">Group price</span>
+          <input id="ccNewServicePrice" class="input" type="number" min="0" step="0.01" placeholder="0.00">
+        </label>
+
+        <div id="ccNewServiceHint" class="muted vf-cc-service-hint"></div>
+
         <div class="row">
-          <button type="button" id="ccSaveNewService" class="primary">Add service</button>
+          <button type="button" id="ccSaveNewService" class="primary">Add group</button>
           <button type="button" id="ccCancelNewService">Cancel</button>
         </div>
       </div>
@@ -3617,5 +3633,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=reviewfix-20260912-004500"></script>
+<script type="module" src="app.js?v=addgroup-20260912-020000"></script>
 </body></html>

@@ -16578,7 +16578,7 @@ function renderStudentCommandCenterServices(student){
           </div>
           <div class="vf-service-money">
             <div>
-              <small>${itemized?'Itemized total':'Service price'}</small>
+              <small>${itemized?'Itemized total':'Group price'}</small>
               <strong>${money(service.totalPrice)}</strong>
             </div>
           </div>
@@ -16832,51 +16832,249 @@ async function saveStudentCommandCenterNotes(){
 }
 
 
+/*
+ * The student profile's quick-add used to be a free-text "Service
+ * name" box. Whatever the vendor typed was saved with classId:'' and
+ * serviceType:'Other', so it matched no group at all -- none of the
+ * group's price, schedule, late fee or reminders came with it. Tim
+ * hit this adding tutoring to a student who was already in a class:
+ * "It's having me enter the service in field box and that probably
+ * wont match up with the actual group that has prices and the like
+ * associated with it."
+ *
+ * It is a dropdown of real groups now. Typing a name is still
+ * possible for a genuine one-off, but it is the explicit last option
+ * rather than the only path.
+ */
+function vfRenderCcGroupOptions(){
+
+  const select=$('#ccNewServiceGroup');
+
+  if(!select){
+    return;
+  }
+
+  const previous=select.value;
+
+  select.innerHTML=
+    '<option value="">Choose a group…</option>' +
+    [...classes]
+      .filter(c=>!c.archived)
+      .sort((x,y)=>String(x.name||'').localeCompare(String(y.name||'')))
+      .map(c=>
+        `<option value="${esc(c.id)}">${esc(c.name||'Unnamed group')}${
+          c.classType==='Tutoring' ? ' (tutoring)' : ''
+        }</option>`
+      )
+      .join('') +
+    '<option value="__other__">Something else — type a name</option>';
+
+  if(previous){
+    select.value=previous;
+  }
+}
+
+
+/*
+ * Mirrors what the full service editor does when a group is chosen
+ * there ($('#serviceClass').onchange), so both routes produce the
+ * same record.
+ *
+ * The one that matters for money: a tutoring group's price is 0, not
+ * its per-session rate. Tutoring is billed per session as charges as
+ * they happen -- putting the rate in here would drop a balance on the
+ * family the moment they were added to the group, for sessions
+ * nobody has taught yet.
+ */
+function vfApplyCcGroupChoice(){
+
+  const select=$('#ccNewServiceGroup');
+  const nameWrap=$('#ccNewServiceNameWrap');
+  const priceInput=$('#ccNewServicePrice');
+  const priceLabel=$('#ccNewServicePriceLabel');
+  const hint=$('#ccNewServiceHint');
+
+  if(!select){
+    return;
+  }
+
+  const value=select.value;
+
+  if(nameWrap){
+    nameWrap.classList.toggle('hidden',value!=='__other__');
+  }
+
+  if(value==='__other__'){
+
+    if(priceLabel){
+      priceLabel.textContent='Starting price (optional)';
+    }
+
+    if(hint){
+      hint.textContent=
+        'This will not be linked to a group, so it carries no price, '+
+        'schedule or reminders of its own.';
+    }
+
+    return;
+  }
+
+  const group=
+    classes.find(c=>c.id===value);
+
+  if(!group){
+
+    if(priceLabel){
+      priceLabel.textContent='Group price';
+    }
+
+    if(hint){
+      hint.textContent='';
+    }
+
+    return;
+  }
+
+  const tutoring=
+    group.classType==='Tutoring';
+
+  if(priceInput){
+    priceInput.value=
+      tutoring
+        ? 0
+        : (Number(group.tuition||0)>0 ? Number(group.tuition) : 0);
+  }
+
+  if(priceLabel){
+    priceLabel.textContent=
+      tutoring
+        ? 'Starting balance'
+        : 'Group price';
+  }
+
+  if(hint){
+
+    hint.textContent=
+      tutoring
+        ? (
+            Number(group.ratePerSession||0)>0
+              ? `Tutoring is billed per session at ${money(group.ratePerSession)}. `+
+                `Nothing is owed until a session is logged, so the starting balance is $0.`
+              : 'Tutoring is billed per session as you log them, so the starting balance is $0.'
+          )
+        : `Taken from the group. Change it here if this student pays something different.`;
+  }
+}
+
+
 async function saveNewStudentService(){
 
   const current=students.find(s=>s.id===vfCommandCenterStudentId);
   if(!current)return;
 
-  const name=$('#ccNewServiceName').value.trim();
+  const choice=
+    $('#ccNewServiceGroup')?.value || '';
 
-  if(!name){
-    return toast('Enter a service name.');
+  if(!choice){
+    return toast('Choose a group.');
   }
 
+  const group=
+    choice==='__other__'
+      ? null
+      : classes.find(c=>c.id===choice);
+
+  if(choice!=='__other__' && !group){
+    return toast('That group could not be found.');
+  }
+
+  const name=
+    group
+      ? (group.name||'Unnamed group')
+      : $('#ccNewServiceName').value.trim();
+
+  if(!name){
+    return toast('Enter a name for this one-off.');
+  }
+
+  const tutoring=
+    group?.classType==='Tutoring';
+
   const priceRaw=$('#ccNewServicePrice').value;
-  const price=priceRaw?Math.max(0,Number(priceRaw)):0;
+
+  /*
+   * Tutoring never starts with a balance -- see vfApplyCcGroupChoice.
+   * Forced here as well as in the form, so it holds even if the field
+   * was edited before the group was picked.
+   */
+  const price=
+    tutoring
+      ? 0
+      : (priceRaw?Math.max(0,Number(priceRaw)):0);
+
+  const record={
+    studentId:current.id,
+    studentName:current.studentName||'',
+    name,
+    serviceType:
+      group
+        ? (tutoring ? 'Tutoring' : 'Class')
+        : 'Other',
+    status:'Active',
+    classId:group?group.id:'',
+    className:group?(group.name||''):'',
+    totalPrice:price,
+    source:'Manual',
+    createdAt:serverTimestamp(),
+    updatedAt:serverTimestamp()
+  };
+
+  if(group){
+
+    record.paymentSchedule=
+      tutoring
+        ? 'Per Session'
+        : (group.paymentSchedule||'Full');
+
+    record.lateFee=
+      Number(group.lateFee||0);
+
+    record.dueDay=
+      Number(group.dueDay||4);
+
+    if(tutoring && Number(group.ratePerSession||0)>0){
+      record.tutoringRate=Number(group.ratePerSession);
+    }
+  }
 
   const serviceRef=
     await addDoc(
       sub('services'),
-      {
-        studentId:current.id,
-        studentName:current.studentName||'',
-        name,
-        serviceType:'Other',
-        status:'Active',
-        classId:'',
-        className:'',
-        totalPrice:price,
-        source:'Manual',
-        createdAt:serverTimestamp(),
-        updatedAt:serverTimestamp()
-      }
+      record
     );
 
   await log(
-    'Service added',
-    `${current.studentName} — enrolled in "${name}"${price>0?` at ${money(price)}`:''}. New service record ID: ${serviceRef.id}.`,
+    'Group added',
+    `${current.studentName} — added to "${name}"${
+      group ? '' : ' (one-off, not linked to a group)'
+    }${
+      tutoring
+        ? ', billed per session so the starting balance is $0'
+        : (price>0?` at ${money(price)}`:'')
+    }. New service record ID: ${serviceRef.id}.`,
     'Manual'
   );
 
+  if($('#ccNewServiceGroup'))$('#ccNewServiceGroup').value='';
   if($('#ccNewServiceName'))$('#ccNewServiceName').value='';
   if($('#ccNewServicePrice'))$('#ccNewServicePrice').value='';
+  if($('#ccNewServiceHint'))$('#ccNewServiceHint').textContent='';
+  if($('#ccNewServiceNameWrap'))$('#ccNewServiceNameWrap').classList.add('hidden');
   hide($('#ccAddServiceForm'));
 
   await refreshAll();
 
-  toast('Service added.');
+  toast('Added to the group.');
 }
 
 
@@ -17625,8 +17823,17 @@ function wireStudentCommandCenterButtons(){
     $('#ccSaveNotes').onclick=()=>saveStudentCommandCenterNotes();
   }
 
+  if($('#ccNewServiceGroup')){
+    vfRenderCcGroupOptions();
+    $('#ccNewServiceGroup').onchange=vfApplyCcGroupChoice;
+  }
+
   if($('#ccAddServiceToggle')){
-    $('#ccAddServiceToggle').onclick=()=>toggle('#ccAddServiceForm');
+    $('#ccAddServiceToggle').onclick=()=>{
+      vfRenderCcGroupOptions();
+      vfApplyCcGroupChoice();
+      toggle('#ccAddServiceForm');
+    };
   }
 
   if($('#ccCancelNewService')){
@@ -17951,7 +18158,7 @@ function renderStudentsServices(){
                         ${
                           tutoringClassForService(service)
                             ? 'Tutoring charges'
-                            : 'Service price'
+                            : 'Group price'
                         }
                       </small>
 
@@ -18022,7 +18229,7 @@ function renderStudentsServices(){
               <button
                 class="vf-small-button"
                 data-add-service-student="${student.id}">
-                Add service
+                Add group
               </button>
 
             </div>
@@ -18031,7 +18238,7 @@ function renderStudentsServices(){
             <div class="vf-account-summary">
 
               <div>
-                <small>Services</small>
+                <small>Groups</small>
                 <strong>
                   ${money(account.totalDue)}
                 </strong>
