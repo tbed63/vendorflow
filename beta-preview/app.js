@@ -35425,7 +35425,7 @@ function bulkCertificateImportReadiness(
   if(!student && !vfDeferCertStudentMatch){
 
     problems.push(
-      'Student does not exactly match one saved VendorFlow student. Either match a student below, or check "I will connect any unconnected certificates to students later" above.'
+      'Student does not match a saved VendorFlow student. Match one below, or choose "I\'ll match this student later".'
     );
   }
 
