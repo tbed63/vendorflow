@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>VendorFlow</title>
-  <link rel="stylesheet" href="styles.css?v=groupprice-20260912-033000">
+  <link rel="stylesheet" href="styles.css?v=income-20260912-051500">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="modulepreload" href="app.js?v=groupprice-20260912-033000">
+  <link rel="modulepreload" href="app.js?v=income-20260912-051500">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA</div>
@@ -105,7 +105,7 @@
       <button data-view="charters">Charter Schools</button>
       <button data-view="compliance">To-do List</button>
       <button data-view="profile">Business Profile</button>
-      <button data-view="expenses">Expenses</button>
+      <button data-view="expenses">Income/Expenses</button>
       <button data-view="taxsummary">Tax Summary</button>
       <button data-view="settings">
         <svg
@@ -1827,10 +1827,55 @@ Thank you,
 </div></section>
 
 <section id="expensesView" class="view">
+
   <div class="card">
     <div class="row between">
       <div>
-        <div class="eyebrow">Operating expenses</div>
+        <h2>Income</h2>
+        <p>Money you earned that VendorFlow did not already record — helping at a learning center, tutoring with no certificate, anything you took in before you started using VendorFlow.</p>
+      </div>
+      <button id="addIncome" class="primary" type="button">Add income</button>
+    </div>
+
+    <div id="incomeForm" class="formgrid hidden vf-todo-form">
+
+      <label class="vf-field-label">
+        <span>Date earned</span>
+        <input id="incDateEarned" class="input" type="date">
+      </label>
+
+      <label class="vf-field-label">
+        <span>Amount</span>
+        <input id="incAmount" class="input" type="number" min="0" step="0.01" placeholder="0.00">
+      </label>
+
+      <label class="vf-field-label">
+        <span>Payer</span>
+        <input id="incPayer" class="input" placeholder="Who paid you">
+      </label>
+
+      <label class="vf-field-label">
+        <span>Category</span>
+        <select id="incCategory" class="input"></select>
+      </label>
+
+      <label class="vf-field-label vf-todo-notes-field">
+        <span>Memo (optional)</span>
+        <textarea id="incMemo" class="input" rows="2" placeholder="Example: helped set up the learning center"></textarea>
+      </label>
+
+      <div class="vf-todo-form-actions">
+        <button id="saveIncome" class="primary" type="button">Save income</button>
+        <button id="cancelIncome" type="button">Cancel</button>
+      </div>
+    </div>
+
+    <div id="incomeList"></div>
+  </div>
+
+  <div class="card">
+    <div class="row between">
+      <div>
         <h2>Expenses</h2>
         <p>Track what you spend running your business, organized the same way the IRS wants it -- so at tax time, every category total is ready to use.</p>
       </div>
@@ -3633,5 +3678,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=groupprice-20260912-033000"></script>
+<script type="module" src="app.js?v=income-20260912-051500"></script>
 </body></html>

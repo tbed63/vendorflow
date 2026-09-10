@@ -34,7 +34,7 @@ const VENDORFLOW_API =
   "https://vendorflow-api.tbed63.workers.dev";
 
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),$=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],show=e=>e.classList.remove("hidden"),hide=e=>e.classList.add("hidden"),esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
-let user=null,profile={},classes=[],roster=[],students=[],services=[],obligations=[],charterSchools=[],payments=[],certs=[],invoices=[],compliance=[],reviews=[],history=[],ignoredStatementPayers=[],expenses=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
+let user=null,profile={},classes=[],roster=[],students=[],services=[],obligations=[],charterSchools=[],payments=[],certs=[],invoices=[],compliance=[],reviews=[],history=[],ignoredStatementPayers=[],expenses=[],income=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
 let invoiceStatusFilter='all';
 let invoiceSearchQuery='';
 
@@ -1347,6 +1347,7 @@ async function refreshAll(){
     charterSchoolsResult,
     paymentsResult,
     expensesResult,
+    incomeResult,
     ignoredPayerVendorSnap
   ]=await Promise.all([
     getList('students',false),
@@ -1355,6 +1356,7 @@ async function refreshAll(){
     getList('charterSchools',false),
     getList('payments'),
     getList('expenses'),
+    getList('income'),
     getDoc(vendorDoc())
   ]);
 
@@ -1364,6 +1366,7 @@ async function refreshAll(){
   charterSchools=charterSchoolsResult;
   payments=paymentsResult;
   expenses=expensesResult;
+  income=incomeResult;
 
   const ignoredPayerVendorData=
     ignoredPayerVendorSnap.exists()
@@ -13002,6 +13005,395 @@ $('#archiveClass').onclick=async()=>{
    STUDENTS, SERVICES & FUNDING
    ========================================================== */
 
+/*
+ * INCOME RECORDED BY HAND
+ *
+ * Everything VendorFlow bills through students, services and
+ * certificates already lands in `payments`, and the Tax Summary's
+ * gross income is a sum of that collection. This is for the money
+ * that never went through any of it: an afternoon helping at a
+ * learning center, a tutoring session with no certificate behind it,
+ * anything earned before VendorFlow existed.
+ *
+ * Kept in its own collection rather than written into `payments` as
+ * a fake one. A payment with no student is something the matching,
+ * reminder and statement-import machinery would all have to be
+ * taught to ignore, and one of them would eventually forget.
+ *
+ * Schedule C has no categories for income -- it is one line, gross
+ * receipts -- so these exist for the vendor's own recall, not the
+ * IRS's. They still get summed by category in the Tax Summary,
+ * because "where did $9,400 come from" is a question worth being
+ * able to answer in April.
+ */
+const VF_INCOME_CATEGORIES=[
+  {key:'classes',    label:'Classes & programs'},
+  {key:'tutoring',   label:'Tutoring'},
+  {key:'charter',    label:'Charter school funds'},
+  {key:'workshops',  label:'Workshops & events'},
+  {key:'materials',  label:'Materials & supplies'},
+  {key:'consulting', label:'Consulting & contract work'},
+  {key:'other',      label:'Other income'}
+];
+
+
+function vfIncomeCategoryLabel(key){
+
+  const found=
+    VF_INCOME_CATEGORIES.find(c=>c.key===key);
+
+  return found ? found.label : 'Other income';
+}
+
+
+function vfRenderIncomeCategoryOptions(){
+
+  const select=$('#incCategory');
+
+  if(!select || select.options.length){
+    return;
+  }
+
+  select.innerHTML=
+    VF_INCOME_CATEGORIES
+      .map(c=>`<option value="${esc(c.key)}">${esc(c.label)}</option>`)
+      .join('');
+}
+
+
+function vfClearIncomeForm(){
+
+  vfRenderIncomeCategoryOptions();
+
+  if($('#incDateEarned'))$('#incDateEarned').value=new Date().toISOString().slice(0,10);
+  if($('#incAmount'))$('#incAmount').value='';
+  if($('#incPayer'))$('#incPayer').value='';
+  if($('#incCategory'))$('#incCategory').value='other';
+  if($('#incMemo'))$('#incMemo').value='';
+}
+
+
+/*
+ * Possible duplicates, across BOTH places money can already exist.
+ *
+ * Checking income against income alone would miss the case that
+ * actually matters: a Venmo transfer already imported as a family
+ * payment, then entered here by hand. Gross income sums payments AND
+ * income, so that double-counts on a tax figure -- silently, and in
+ * the direction that overstates what the vendor owes.
+ *
+ * Same amount to the cent, within three days either way. The payer
+ * is used to raise confidence, never to rule a match out, because
+ * the same person is written a dozen ways across statements.
+ */
+function vfFindIncomeDuplicates(entry){
+
+  const amount=
+    Number(entry.amount||0);
+
+  if(!(amount>0)){
+    return [];
+  }
+
+  const earned=
+    Date.parse(`${entry.dateEarned}T12:00:00`);
+
+  const withinThreeDays=
+    other=>{
+
+      if(Number.isNaN(earned)){
+        return true;
+      }
+
+      const when=
+        Date.parse(`${other}T12:00:00`);
+
+      if(Number.isNaN(when)){
+        return false;
+      }
+
+      return Math.abs(when-earned) <= 3*24*60*60*1000;
+    };
+
+  const samePayer=
+    other=>{
+
+      const a=String(entry.payer||'').trim().toLowerCase();
+      const b=String(other||'').trim().toLowerCase();
+
+      return Boolean(a) && Boolean(b) && a===b;
+    };
+
+  const matches=[];
+
+  income.forEach(item=>{
+
+    if(entry.id && item.id===entry.id){
+      return;
+    }
+
+    if(
+      Math.abs(Number(item.amount||0)-amount)<0.005 &&
+      withinThreeDays(item.dateEarned)
+    ){
+      matches.push({
+        kind:'income',
+        label:
+          `${vfIncomeCategoryLabel(item.category)}${
+            item.payer ? ` from ${item.payer}` : ''
+          } on ${item.dateEarned||'an unknown date'}`,
+        confident:samePayer(item.payer)
+      });
+    }
+  });
+
+  payments.forEach(item=>{
+
+    if(
+      Math.abs(Number(item.amount||0)-amount)<0.005 &&
+      withinThreeDays(item.date||item.paymentDate)
+    ){
+      matches.push({
+        kind:'payment',
+        label:
+          `a recorded payment${
+            item.student ? ` for ${item.student}` : ''
+          }${
+            item.payer ? ` from ${item.payer}` : ''
+          } on ${item.date||item.paymentDate||'an unknown date'}`,
+        confident:samePayer(item.payer||item.student)
+      });
+    }
+  });
+
+  return matches.sort(
+    (x,y)=>Number(y.confident)-Number(x.confident)
+  );
+}
+
+
+function vfIncomeDuplicateWarning(matches,amount){
+
+  const lines=
+    matches
+      .slice(0,4)
+      .map(m=>`  - ${m.label}`)
+      .join('\n');
+
+  const more=
+    matches.length>4
+      ? `\n  ...and ${matches.length-4} more`
+      : '';
+
+  return (
+    `${money(amount)} may already be recorded.\n\n`+
+    `VendorFlow found ${matches.length} `+
+    `${matches.length===1?'entry':'entries'} for the same amount `+
+    `within three days:\n\n${lines}${more}\n\n`+
+    `Gross income counts recorded payments and income together, so `+
+    `saving this anyway would count the money twice.\n\n`+
+    `Save it anyway?`
+  );
+}
+
+
+function renderIncome(){
+
+  const list=$('#incomeList');
+
+  if(!list){
+    return;
+  }
+
+  vfRenderIncomeCategoryOptions();
+
+  if(!income.length){
+    list.innerHTML='<p class="muted">No income recorded here yet.</p>';
+    return;
+  }
+
+  const sorted=
+    [...income].sort(
+      (a,b)=>
+        String(b.dateEarned||'').localeCompare(String(a.dateEarned||''))
+    );
+
+  list.innerHTML=
+    sorted.map(item=>`
+      <div class="vf-expense-row">
+        <div class="vf-expense-row-main">
+          <strong>${esc(vfIncomeCategoryLabel(item.category))}</strong>
+          <span class="muted">
+            Earned ${esc(item.dateEarned||'—')}${
+              item.payer ? ` · ${esc(item.payer)}` : ''
+            }
+          </span>
+          ${
+            item.memo
+              ? `<p class="muted">${esc(item.memo)}</p>`
+              : ''
+          }
+          <span class="muted vf-income-recorded">
+            Recorded ${esc(vfIncomeRecordedDate(item))}
+          </span>
+        </div>
+        <div class="vf-expense-row-amount">${money(Number(item.amount||0))}</div>
+        <button type="button" class="vf-secondary-button" data-delete-income="${esc(item.id)}">Delete</button>
+      </div>
+    `).join('');
+
+  list.querySelectorAll('[data-delete-income]').forEach(btn=>{
+    btn.onclick=()=>deleteIncome(btn.dataset.deleteIncome);
+  });
+}
+
+
+function vfIncomeRecordedDate(item){
+
+  const raw=item?.createdAt;
+
+  try{
+
+    const d=
+      raw?.toDate ? raw.toDate() : new Date(raw);
+
+    return Number.isNaN(d.getTime())
+      ? '—'
+      : d.toLocaleDateString();
+
+  }catch{
+    return '—';
+  }
+}
+
+
+async function deleteIncome(incomeId){
+
+  const item=
+    income.find(i=>i.id===incomeId);
+
+  if(!item){
+    return;
+  }
+
+  const ok=
+    confirm(
+      `Delete this income entry?\n\n`+
+      `${vfIncomeCategoryLabel(item.category)} — `+
+      `${money(Number(item.amount||0))}`+
+      `${item.payer?` from ${item.payer}`:''}`
+    );
+
+  if(!ok){
+    return;
+  }
+
+  await deleteDoc(
+    doc(db,'vendors',user.uid,'income',incomeId)
+  );
+
+  await log(
+    'Income deleted',
+    `${vfIncomeCategoryLabel(item.category)} — `+
+    `${money(Number(item.amount||0))} removed from income.`,
+    'Manual'
+  );
+
+  await refreshAll();
+  renderIncome();
+  renderTaxSummary();
+
+  toast('Income entry deleted.');
+}
+
+
+if($('#addIncome')){
+  $('#addIncome').onclick=()=>{
+    vfClearIncomeForm();
+    show($('#incomeForm'));
+  };
+}
+
+
+if($('#cancelIncome')){
+  $('#cancelIncome').onclick=()=>{
+    vfClearIncomeForm();
+    hide($('#incomeForm'));
+  };
+}
+
+
+if($('#saveIncome')){
+
+  $('#saveIncome').onclick=async()=>{
+
+    const amount=
+      Number($('#incAmount').value);
+
+    if(!(amount>0)){
+      return toast('Enter an amount.');
+    }
+
+    const entry={
+      amount,
+      dateEarned:
+        $('#incDateEarned').value ||
+        new Date().toISOString().slice(0,10),
+      payer:
+        $('#incPayer').value.trim(),
+      category:
+        $('#incCategory').value || 'other',
+      memo:
+        $('#incMemo').value.trim()
+    };
+
+    const duplicates=
+      vfFindIncomeDuplicates(entry);
+
+    if(duplicates.length){
+
+      const proceed=
+        confirm(
+          vfIncomeDuplicateWarning(duplicates,amount)
+        );
+
+      if(!proceed){
+        return;
+      }
+    }
+
+    await addDoc(
+      sub('income'),
+      {
+        ...entry,
+        source:'Manual',
+        createdAt:serverTimestamp(),
+        updatedAt:serverTimestamp()
+      }
+    );
+
+    await log(
+      'Income added',
+      `${vfIncomeCategoryLabel(entry.category)} — ${money(amount)}`+
+      `${entry.payer?` from ${entry.payer}`:''}`+
+      ` earned ${entry.dateEarned}.`+
+      `${entry.memo?` ${entry.memo}`:''}`+
+      `${duplicates.length?` Saved despite ${duplicates.length} possible duplicate(s).`:''}`,
+      'Manual'
+    );
+
+    vfClearIncomeForm();
+    hide($('#incomeForm'));
+
+    await refreshAll();
+    renderIncome();
+    renderTaxSummary();
+
+    toast('Income saved.');
+  };
+}
+
+
 const VF_EXPENSE_CATEGORIES=[
   {key:'advertising',label:'Advertising',line:'Line 8'},
   {key:'carMileage',label:'Car & Mileage',line:'Line 9'},
@@ -13214,11 +13606,53 @@ function renderTaxSummary(){
       .reduce((sum,e)=>sum+Number(e.amount||0),0)
   }));
 
+  /*
+   * Gross income is what VendorFlow billed PLUS what was recorded by
+   * hand on the Income page. Kept as two visible figures rather than
+   * one merged number, because they answer different questions: the
+   * recorded side is auditable back to a student and a certificate,
+   * the added side is the vendor's own word. A preparer looking at
+   * this in April should be able to see which is which.
+   */
+  const yearIncome=
+    income.filter(
+      item=>
+        String(item.dateEarned||'').startsWith(year)
+    );
+
+  const addedIncome=
+    yearIncome.reduce(
+      (sum,item)=>sum+Number(item.amount||0),
+      0
+    );
+
+  const grossIncome=
+    totalIncome+addedIncome;
+
+  const incomeCategoryTotals=
+    VF_INCOME_CATEGORIES
+      .map(cat=>({
+        ...cat,
+        total:
+          yearIncome
+            .filter(item=>item.category===cat.key)
+            .reduce((sum,item)=>sum+Number(item.amount||0),0)
+      }))
+      .filter(cat=>cat.total>0);
+
   body.innerHTML=`
     <div class="vf-tax-summary-totals">
       <div class="vf-tax-summary-tile">
-        <div class="eyebrow">Total income</div>
-        <div class="vf-tax-summary-figure">${money(totalIncome)}</div>
+        <div class="eyebrow">Gross income</div>
+        <div class="vf-tax-summary-figure">${money(grossIncome)}</div>
+        ${
+          addedIncome>0
+            ? `<div class="muted vf-tax-summary-split">
+                 ${money(totalIncome)} recorded by VendorFlow +
+                 ${money(addedIncome)} you added
+               </div>`
+            : ''
+        }
       </div>
       <div class="vf-tax-summary-tile">
         <div class="eyebrow">Total expenses</div>
@@ -13226,9 +13660,32 @@ function renderTaxSummary(){
       </div>
       <div class="vf-tax-summary-tile">
         <div class="eyebrow">Net</div>
-        <div class="vf-tax-summary-figure">${money(totalIncome-totalExpenses)}</div>
+        <div class="vf-tax-summary-figure">${money(grossIncome-totalExpenses)}</div>
       </div>
     </div>
+    ${
+      incomeCategoryTotals.length
+        ? `
+          <h3 class="vf-tax-summary-section">Income you added</h3>
+          <table class="vf-tax-summary-table">
+            <thead>
+              <tr><th>Category</th><th>Total</th></tr>
+            </thead>
+            <tbody>
+              ${
+                incomeCategoryTotals.map(c=>`
+                  <tr>
+                    <td>${esc(c.label)}</td>
+                    <td>${money(c.total)}</td>
+                  </tr>
+                `).join('')
+              }
+            </tbody>
+          </table>`
+        : ''
+    }
+
+    <h3 class="vf-tax-summary-section">Expenses</h3>
     <table class="vf-tax-summary-table">
       <thead>
         <tr><th>Category</th><th>IRS line</th><th>Total</th></tr>
@@ -34373,7 +34830,7 @@ function switchView(v){
     charters:'Charter Schools',
     students:'Students',
     payments:'Payments',
-    expenses:'Expenses',
+    expenses:'Income/Expenses',
     taxsummary:'Tax Summary',
     certificates:'Certificates',
     invoices:'Invoices',
@@ -34446,6 +34903,7 @@ function switchView(v){
 
   if(v==='expenses'){
     renderExpenses();
+    renderIncome();
   }
 
   if(v==='taxsummary'){
