@@ -9157,3 +9157,54 @@ body.vf-wizard-open .vf-modal-overlay{
     font-size:27px;
   }
 }
+
+
+/* VF_STUDENTS_TIGHTEN */
+/*
+ * Everything above the student list, packed down. Measured on the
+ * live page: the first student row moved from 503px to 385px, so
+ * 118px of empty space is gone and the list starts on screen.
+ *
+ * The biggest single offender was the old controls row: once its
+ * heading was removed it still reserved 22px above and 12px below to
+ * hold nothing but the student count. That row is now hidden and the
+ * count sits on the chip row instead.
+ */
+.vf-student-directory-controls{
+  display:none;
+}
+
+.vf-dir-count{
+  margin-left:auto;
+  align-self:center;
+  white-space:nowrap;
+  font-size:.8rem;
+}
+
+.vf-students-topbar{
+  margin:0 0 8px;
+}
+
+#studentsView > .card{
+  padding:14px 16px;
+}
+
+.vf-global-student-search{
+  margin:0 0 10px;
+  padding:10px 12px;
+}
+
+.vf-global-student-search p,
+.vf-search-hint{
+  margin:0 0 6px;
+}
+
+.vf-dir-filters{
+  margin:0;
+  padding:10px 12px;
+  gap:10px;
+}
+
+.vf-dir-selects{
+  padding-top:10px;
+}

@@ -16164,10 +16164,15 @@ function upgradeStudentDirectoryRows(){
      * single "Student Directory" heading now; this keeps only the
      * result count, which is the part that carries information.
      */
-    controls.innerHTML=`
-      <div></div>
-      <div id="studentDirectoryResultCount" class="muted"></div>
-    `;
+    /*
+     * Nothing lives here now. The heading it used to hold was one of
+     * five saying the same thing, and the result count moved down
+     * into the filter bar's chip row, where it reads as part of the
+     * filters it describes instead of floating alone on a line of its
+     * own. The element itself stays as the insertion anchor for the
+     * filter bar and the search listener below.
+     */
+    controls.innerHTML='';
     list.insertAdjacentElement('beforebegin',controls);
     const pageSearch=$('#globalStudentSearch');
     if(pageSearch && pageSearch.dataset.directoryFilter!=='true'){
@@ -16207,6 +16212,12 @@ function upgradeStudentDirectoryRows(){
             `)
             .join('')
         }
+
+        <div
+          id="studentDirectoryResultCount"
+          class="muted vf-dir-count">
+        </div>
+
       </div>
 
       <div class="vf-dir-selects">
