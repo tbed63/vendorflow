@@ -16958,9 +16958,10 @@ function vfApplyCcGroupChoice(){
       tutoring
         ? (
             Number(group.ratePerSession||0)>0
-              ? `Tutoring is billed per session at ${money(group.ratePerSession)}. `+
-                `Nothing is owed until a session is logged, so the starting balance is $0.`
-              : 'Tutoring is billed per session as you log them, so the starting balance is $0.'
+              ? `Tutoring is billed per session at ${money(group.ratePerSession)} as you log them, `+
+                `so this starts at $0. Enter an amount only if they already owe something.`
+              : 'Tutoring is billed per session as you log them, so this starts at $0. '+
+                'Enter an amount only if they already owe something.'
           )
         : `Taken from the group. Change it here if this student pays something different.`;
   }
@@ -17000,17 +17001,30 @@ async function saveNewStudentService(){
   const tutoring=
     group?.classType==='Tutoring';
 
-  const priceRaw=$('#ccNewServicePrice').value;
+  const priceRaw=
+    String($('#ccNewServicePrice').value||'').trim();
 
   /*
-   * Tutoring never starts with a balance -- see vfApplyCcGroupChoice.
-   * Forced here as well as in the form, so it holds even if the field
-   * was edited before the group was picked.
+   * Whatever is in the box is what gets saved, for every kind of
+   * group.
+   *
+   * This used to force 0 for tutoring, which was a misreading of what
+   * Tim asked for. He did not want a tutoring group to AUTOMATICALLY
+   * put its per-session rate on the family -- "i don't want to add
+   * them to tutoring and automatically have 80 added to their balance
+   * due." Defaulting the field to 0 is what achieves that. Discarding
+   * a figure he typed on purpose is something else entirely, and it
+   * silently swallowed a real 320 balance: the service saved at 0,
+   * totalDue never moved, and the money vanished with no error.
+   *
+   * The default still comes from vfApplyCcGroupChoice -- 0 for
+   * tutoring, the tuition for a class -- so nothing is added on its
+   * own. This only stops the save from overriding a deliberate edit.
    */
   const price=
-    tutoring
+    priceRaw===''
       ? 0
-      : (priceRaw?Math.max(0,Number(priceRaw)):0);
+      : Math.max(0,Number(priceRaw)||0);
 
   const record={
     studentId:current.id,
@@ -17053,16 +17067,32 @@ async function saveNewStudentService(){
       record
     );
 
+  /*
+   * evidence.studentId is what puts this entry in the student's own
+   * History -- studentHistoryEntries() filters on exactly that field,
+   * so an entry logged without it only ever appears in the global
+   * Actions list. Adding a student to a group never showed up on the
+   * student for this reason.
+   */
   await log(
     'Group added',
     `${current.studentName} — added to "${name}"${
       group ? '' : ' (one-off, not linked to a group)'
     }${
-      tutoring
-        ? ', billed per session so the starting balance is $0'
-        : (price>0?` at ${money(price)}`:'')
+      price>0
+        ? ` at ${money(price)}`
+        : (
+            tutoring
+              ? ', billed per session so it starts at $0'
+              : ''
+          )
     }. New service record ID: ${serviceRef.id}.`,
-    'Manual'
+    'Manual',
+    {
+      type:'service',
+      studentId:current.id,
+      serviceId:serviceRef.id
+    }
   );
 
   if($('#ccNewServiceGroup'))$('#ccNewServiceGroup').value='';
