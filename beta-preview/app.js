@@ -1785,6 +1785,23 @@ if($('#retryInboundEmail')){
 }
 
 
+/*
+ * The only way back to a setup checklist the vendor removed. The
+ * header nudge used to do this job; the checklist floats on its own
+ * now, so this lives somewhere permanent instead.
+ */
+if($('#vfShowSetupChecklist')){
+
+  $('#vfShowSetupChecklist').onclick=()=>{
+
+    if(typeof vfReopenSetupChecklist==='function'){
+      vfReopenSetupChecklist();
+      toast('Setup checklist is back, bottom right.');
+    }
+  };
+}
+
+
 async function ensureInboundVendorEmail(){
 
   if(!user){
@@ -44947,6 +44964,18 @@ function vfRenderWizardNudge(){
 
   const existing=$('#vfWizardNudge');
   if(existing)existing.remove();
+
+  /*
+   * Retired. The setup checklist floats over every page and is
+   * visible on its own, so a second reminder in the header was just
+   * clutter. The function is left intact -- it now only cleans up
+   * any nudge left over from a previous build. Bringing the button
+   * back is deleting this one return.
+   *
+   * The way back to a checklist the vendor removed is the "Show
+   * setup checklist" button on Account & Settings.
+   */
+  return;
 
   if(profile?.betaWizardCompleted===true)return;
   if(profile?.betaWizardDismissed===true)return;
