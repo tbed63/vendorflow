@@ -13729,8 +13729,31 @@ async function vfRepeatSaveRule(prefix,template,startDate){
 
   const config=VF_REPEAT_FORMS[prefix];
 
+  const editingRule=
+    vfEditingRecurrenceId
+      ? recurrences.find(r=>r.id===vfEditingRecurrenceId)
+      : null;
+
+  /*
+   * startDate is the rule's ORIGIN and is set once, when the rule is
+   * created. It must not be re-read from the form on an edit.
+   *
+   * vfEditRecurrence() puts the rule's pending nextRunAt into the
+   * date field so the vendor can see when it next runs -- which
+   * meant every edit quietly moved the origin forward to that date.
+   * For "day 20 of every month" that is invisible, because the
+   * anchor day governs. For "every 3 months" or "every 2 weeks" it
+   * shifts the phase of the whole schedule each time it is touched.
+   *
+   * Caught live: a rule edited on 2026-09-10 reported its next run
+   * as 2026-10-20 instead of 2026-09-20, because the origin had
+   * already drifted to a previous nextRunAt of 2026-10-11.
+   */
   const rule=
-    vfRepeatReadForm(prefix,startDate);
+    vfRepeatReadForm(
+      prefix,
+      editingRule?.startDate || startDate
+    );
 
   if(!config || !rule){
 
@@ -13773,10 +13796,7 @@ async function vfRepeatSaveRule(prefix,template,startDate){
   const editing=
     Boolean(vfEditingRecurrenceId);
 
-  const existing=
-    editing
-      ? recurrences.find(r=>r.id===vfEditingRecurrenceId)
-      : null;
+  const existing=editingRule;
 
   const next=
     editing
