@@ -13009,7 +13009,7 @@ $('#archiveClass').onclick=async()=>{
  * INCOME RECORDED BY HAND
  *
  * Everything VendorFlow bills through students, services and
- * certificates already lands in `payments`, and the Tax Summary's
+ * certificates already lands in `payments`, and the Summary page's
  * gross income is a sum of that collection. This is for the money
  * that never went through any of it: an afternoon helping at a
  * learning center, a tutoring session with no certificate behind it,
@@ -13022,7 +13022,7 @@ $('#archiveClass').onclick=async()=>{
  *
  * Schedule C has no categories for income -- it is one line, gross
  * receipts -- so these exist for the vendor's own recall, not the
- * IRS's. They still get summed by category in the Tax Summary,
+ * IRS's. They still get summed by category on the Summary page,
  * because "where did $9,400 come from" is a question worth being
  * able to answer in April.
  */
@@ -34831,7 +34831,7 @@ function switchView(v){
     students:'Students',
     payments:'Payments',
     expenses:'Income/Expenses',
-    taxsummary:'Tax Summary',
+    taxsummary:'Summary',
     certificates:'Certificates',
     invoices:'Invoices',
     compliance:'To-do List',
