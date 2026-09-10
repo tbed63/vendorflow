@@ -8727,7 +8727,7 @@ function renderSelectedClassDetails(){
 
       <div>
         <div class="eyebrow">
-          Class details
+          Group details
         </div>
 
         <h3>
@@ -8748,14 +8748,14 @@ function renderSelectedClassDetails(){
         type="button"
         class="primary"
         id="editSelectedClass">
-        Edit class
+        Edit group
       </button>
 
       <button
         type="button"
         class="vf-secondary-button"
         id="duplicateSelectedClass">
-        Duplicate class
+        Duplicate group
       </button>
 
     </div>
@@ -8767,7 +8767,7 @@ function renderSelectedClassDetails(){
           <div class="vf-tutoring-class-summary">
 
             <div>
-              <small>Class type</small>
+              <small>Group type</small>
               <strong>Tutoring</strong>
             </div>
 
@@ -10962,9 +10962,9 @@ function updateRosterUploadTarget(){
       <div class="vf-roster-target-label">
         ROSTER DESTINATION
       </div>
-      <strong>Choose a class before uploading</strong>
+      <strong>Choose a group before uploading</strong>
       <span>
-        VendorFlow will not accept a roster until the target class is selected.
+        VendorFlow will not accept a roster until the target group is selected.
       </span>
     `;
 
@@ -10992,7 +10992,7 @@ function updateRosterUploadTarget(){
     <strong>${esc(selected.name||'Selected group')}</strong>
     ${details ? `<span>${esc(details)}</span>` : ''}
     <div class="vf-roster-target-confirm">
-      Any roster selected below will be imported into this class.
+      Any roster selected below will be imported into this group.
     </div>
   `;
 
@@ -11913,7 +11913,7 @@ function updateStudentStatusHelp(){
     box.innerHTML=`
       <strong>Inactive:</strong>
       The student is no longer participating, but the existing
-      class payment obligation remains.
+      group payment obligation remains.
     `;
 
     return;
@@ -11927,8 +11927,8 @@ function updateStudentStatusHelp(){
 
     box.innerHTML=`
       <strong>Removed:</strong>
-      The student leaves the active class roster and VendorFlow
-      removes the remaining unpaid class obligation.
+      The student leaves the active group roster and VendorFlow
+      removes the remaining unpaid group obligation.
       Prior payments, certificates and history are preserved.
     `;
 
@@ -11941,7 +11941,7 @@ function updateStudentStatusHelp(){
 
   box.innerHTML=`
     <strong>Active:</strong>
-    The student is participating and the normal class
+    The student is participating and the normal group
     payment obligation remains.
   `;
 }
@@ -13331,7 +13331,7 @@ function refreshStudentServiceSelectors(){
         .map(
           c=>
             `<option value="${c.id}">
-              ${esc(c.name||'Class')}
+              ${esc(c.name||'Group')}
               ${c.term?' — '+esc(c.term):''}
             </option>`
         )
@@ -20811,7 +20811,7 @@ async function syncRosterToCoreRecords(
               : 'Class',
 
           name:
-            classRecord.name||'Class',
+            classRecord.name||'Group',
 
           classId:
             classRecord.id,
@@ -28152,7 +28152,7 @@ function showPaymentDetail(
         payment.class
           ? `
             <div>
-              <small>Class</small>
+              <small>Group</small>
               <strong>
                 ${esc(
                   payment.className ||
@@ -32819,7 +32819,7 @@ async function saveClassLateFee(classId){
 
     await log(
       'Group late fee updated',
-      `${classRecord.name||'Class'} late fee set to ${money(newFee)}.`,
+      `${classRecord.name||'Group'} late fee set to ${money(newFee)}.`,
       'Manual'
     );
 
@@ -43791,8 +43791,8 @@ function closeBetaGettingStartedGuide(){
 const vfBetaTutorialSteps=[
   {view:'dashboard',target:'#dashboardView',title:'Your VendorFlow Home',text:'Start with Notifications. VendorFlow puts decisions, warnings, reminders, and anything needing your attention there.'},
   {view:'review',target:'[data-view="review"]',title:'You Stay In Control',text:'VendorFlow never quietly guesses. Review uncertain items here, correct them, ignore them, or open the original source information.'},
-  {view:'classes',target:'[data-view="classes"]',title:'Create Every Class and Service',text:'Create each class, tutoring service, or other service. Each one can have its own price, schedule, payment terms, and roster.'},
-  {view:'classes',target:'#classSelect',title:'One Roster Per Class',text:'Choose a class, upload or enter its students, then choose the next class and repeat until every roster is entered.'},
+  {view:'classes',target:'[data-view="classes"]',title:'Create Every Group and Service',text:'Create each group, tutoring service, or other service. Each one can have its own price, schedule, payment terms, and roster.'},
+  {view:'classes',target:'#classSelect',title:'One Roster Per Group',text:'Choose a group, upload or enter its students, then choose the next group and repeat until every roster is entered.'},
   {view:'payments',target:'[data-view="payments"]',title:'Payments: Two Ways',text:'Enter payments directly here or import a statement. You can also forward a detailed payment email to your private VendorFlow address.'},
   {view:'certificates',target:'[data-view="certificates"]',title:'Certificates: Two Ways',text:'Upload one certificate, bulk upload saved PDFs, or forward a certificate email to VendorFlow.'},
   {view:'inbox',target:'[data-view="inbox"]',title:'Your VendorFlow Email',text:'VendorFlow reads trusted forwarded messages, processes clear information, and sends uncertain information to Notifications instead of guessing.'},
@@ -43856,8 +43856,8 @@ function installBetaGettingStartedGuide(){
       <div class="vf-setup-guide-steps">
         <button type="button" data-setup-view="account"><strong>1. Business Profile</strong><span>Check your business name, address, contact information, and payment instructions.</span></button>
         <button type="button" data-setup-view="charters"><strong>2. Charter Schools</strong><span>Add every charter school or organization your business works with.</span></button>
-        <button type="button" data-setup-view="classes"><strong>3. Create All Classes and Services</strong><span>Create each class, tutoring service, or other service you currently provide.</span></button>
-        <button type="button" data-setup-view="classes"><strong>4. Add Each Class Roster</strong><span>Choose one class, upload or enter its students, then repeat for every other class.</span></button>
+        <button type="button" data-setup-view="classes"><strong>3. Create All Groups and Services</strong><span>Create each group, tutoring service, or other service you currently provide.</span></button>
+        <button type="button" data-setup-view="classes"><strong>4. Add Each Group Roster</strong><span>Choose one group, upload or enter its students, then repeat for every other group.</span></button>
         <button type="button" data-setup-view="payments"><strong>5. Previous Payments</strong><span>Import a payment statement or record payments already received before using VendorFlow.</span></button>
         <button type="button" data-setup-view="certificates"><strong>6. Existing Certificates</strong><span>Bulk upload certificate PDFs already saved on your computer or cloud drive.</span></button>
         <button type="button" data-setup-view="students"><strong>7. Check Student Accounts</strong><span>Confirm each student's services, payments, certificates, and balance.</span></button>
@@ -43935,14 +43935,14 @@ function installBetaGettingStartedGuide(){
     help.className='vf-roster-beginner-help';
     help.innerHTML=`
       <div class="eyebrow">Bring in your student roster</div>
-      <h3>Upload the roster for the class you selected</h3>
+      <h3>Upload the roster for the group you selected</h3>
       <ol>
         <li>Open your roster on your learning center's website.</li>
         <li>Choose <strong>Download</strong>, <strong>Export</strong>, or <strong>Download CSV</strong>.</li>
         <li>Save the file in <strong>Downloads</strong> so it is easy to find.</li>
         <li>Choose that same file below. VendorFlow will show you the students before anything is saved.</li>
       </ol>
-      <p><strong>More than one class?</strong> Finish this roster, choose the next class, and repeat these steps for that class.</p>
+      <p><strong>More than one group?</strong> Finish this roster, choose the next group, and repeat these steps for that group.</p>
       <p><strong>What is a CSV?</strong> It is a spreadsheet file. Its name usually ends in <strong>.csv</strong>.</p>
       <div class="vf-roster-help-actions">
         <button type="button" data-download-roster-template>Download a Sample CSV</button>
@@ -44216,7 +44216,7 @@ function vfTutorialSlides(){
       summary:'VendorFlow organizes your classes and students, records payments and charter certificates, prepares invoices, watches deadlines, and tells you what needs attention.',
       task:'Your work becomes one connected system',
       steps:[
-        'Set up each class and upload its student roster.',
+        'Set up each group and upload its student roster.',
         'Add payments and certificates directly—or forward the emails you already receive.',
         'Review Notifications, then let VendorFlow update balances, prepare invoices, and preserve the evidence.'
       ],
@@ -44227,12 +44227,12 @@ function vfTutorialSlides(){
       eyebrow:'Set up once',
       title:'Create classes and load each roster',
       summary:'Start by giving VendorFlow the information you already maintain at your learning center.',
-      task:'Add a class and its students',
+      task:'Add a group and its students',
       steps:[
         'Open Groups and create the group with its price, schedule, and payment terms.',
-        'At your learning center, choose Download CSV where you see that class roster.',
-        'Save the CSV somewhere easy to find, then upload that same file to the saved class in VendorFlow.',
-        'Repeat for every class. Add tutoring-only students manually when needed.'
+        'At your learning center, choose Download CSV where you see that group roster.',
+        'Save the CSV somewhere easy to find, then upload that same file to the saved group in VendorFlow.',
+        'Repeat for every group. Add tutoring-only students manually when needed.'
       ],
       result:'VendorFlow creates the student directory and connects every student to the correct service and charges.',
       actionView:'classes',actionLabel:'Open Groups'
@@ -44463,7 +44463,7 @@ const VF_SETUP_ITEMS=[
       <p>Most learning centers let you download your roster as a CSV.
       Upload it and VendorFlow reads the names, parents and
       emails.</p>
-      <p>If your file lists a class name or period, upload everyone at
+      <p>If your file lists a group name or period, upload everyone at
       once -- VendorFlow will sort them into groups for you.</p>
       <p>No roster? Make your own spreadsheet, save it as a CSV,
       upload that. You can fix anything afterward.</p>`,
