@@ -33647,15 +33647,62 @@ function switchView(v){
 
   selectedView.classList.add('active');
 
-  /* Keep the selected section visible even when the previous
-     section or tutorial left the document at another position. */
-  window.requestAnimationFrame(()=>{
-    selectedView.scrollIntoView({
-      behavior:'auto',
-      block:'start',
-      inline:'start'
+  /*
+   * Start every page at the top.
+   *
+   * Two things were wrong with the scrollIntoView() call this
+   * replaces, and both were measured on the live site:
+   *
+   *   1. block:'start' puts the SECTION's top edge at the top of the
+   *      window. The logo, page title and account header live above
+   *      that section -- 203px of them -- so a successful scroll
+   *      pushed the whole header off screen, and the page arrived
+   *      looking as if it had already been scrolled down.
+   *
+   *   2. It ran a frame after the view was shown but before the
+   *      view's data had rendered, so the document was often still
+   *      too short to scroll at all. The call then did nothing and
+   *      the page kept the PREVIOUS page's scroll position. Switching
+   *      to Students from 247px down left it sitting at 247px down
+   *      with the header 237px above the viewport.
+   *
+   * Scrolling to an absolute position fixes both. It needs no layout
+   * to settle, so it is done synchronously rather than waiting for a
+   * frame; and it cannot fail on a short document, because the target
+   * is the top. A section that grows underneath afterwards cannot
+   * drag the page away from there either.
+   *
+   * The target is the top of the content column, not the top of the
+   * document. On a desktop layout the sidebar is a sticky grid column
+   * that starts at document top, so this is plain scroll-to-top. On a
+   * narrow layout the sidebar stacks above the content, so this still
+   * skips past the navigation the way the old call did -- it just
+   * stops one header earlier.
+   */
+  const vfScrollToPageTop=()=>{
+
+    const column=
+      selectedView.closest('main') || selectedView;
+
+    const columnTop=
+      column.getBoundingClientRect().top + window.scrollY;
+
+    window.scrollTo({
+      top:Math.max(0,columnTop),
+      left:0,
+      behavior:'auto'
     });
-  });
+  };
+
+  vfScrollToPageTop();
+
+  /*
+   * Re-asserted on the next frame purely as a backstop, in case
+   * something rendered by this view moves the column underneath us.
+   * It is the same absolute target, so a second call is a no-op
+   * whenever nothing moved.
+   */
+  window.requestAnimationFrame(vfScrollToPageTop);
 
   let names={
     dashboard:'Dashboard',
