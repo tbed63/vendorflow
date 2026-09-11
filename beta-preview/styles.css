@@ -9929,6 +9929,10 @@ body.vf-wizard-open .vf-modal-overlay{
   width:min(1000px,94vw);
   max-height:90vh;
   overflow-y:auto;
+
+  /* Nothing inside may widen the card itself. */
+  overflow-x:hidden;
+  min-width:0;
 }
 .vf-vault-viewer-head{
   display:flex;
@@ -9981,11 +9985,45 @@ body.vf-wizard-open .vf-modal-overlay{
   font-weight:700;
 }
 
+/*
+ * A grid item will not shrink below its content by default
+ * (min-width:auto), so a wide CSV table pushed straight past the
+ * modal -- and because the items were centred, it overflowed
+ * equally on BOTH sides, putting the first columns off the left
+ * edge of the screen where they could not even be scrolled back.
+ *
+ * min-width:0 lets the item shrink; the table then scrolls inside
+ * its own .tablewrap, which is what that wrapper is for.
+ */
 .vf-vault-viewer-doc{
   display:grid;
   gap:10px;
   justify-items:center;
+  min-width:0;
+  max-width:100%;
 }
+.vf-vault-viewer-doc > *{
+  min-width:0;
+  max-width:100%;
+}
+
+/* The table stretches rather than centring, so its scroll starts
+   at the first column instead of the middle of the data. */
+.vf-vault-viewer-doc .tablewrap{
+  justify-self:stretch;
+  width:100%;
+  overflow-x:auto;
+}
+.vf-vault-viewer-doc .tablewrap table{
+  min-width:0;
+}
+.vf-vault-viewer-doc .tablewrap th,
+.vf-vault-viewer-doc .tablewrap td{
+  white-space:nowrap;
+  font-size:12px;
+  padding:7px 10px;
+}
+
 .vf-vault-page{
   max-width:100%;
   height:auto;
