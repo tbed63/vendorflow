@@ -20208,6 +20208,99 @@ function renderStudentCommandCenterIfActive(){
 }
 
 
+/*
+ * Late fees charged to this student, with a way to take them off.
+ *
+ * The "Remove Late Fee" button already existed -- on the OLD student
+ * services list, rendered into #studentsServicesList. Once the
+ * student directory started opening the Command Center instead, that
+ * page stopped being somewhere a vendor lands, so the only control
+ * for removing a late fee became unreachable. A fee could be charged
+ * to a real balance with no way to see it and no way to undo it.
+ *
+ * This shows the same information where the vendor actually is, and
+ * reuses removeLateFeeManually() rather than repeating the money
+ * logic -- that function already reverses the charge, sets
+ * lateFeeWaived so it is not simply re-applied on the next pass, and
+ * writes the history entry.
+ */
+function vfRenderCommandCenterLateFees(student){
+
+  const host=$('#ccLateFees');
+
+  if(!host){
+    return;
+  }
+
+  const charged=
+    obligations.filter(o=>
+      !o.deleted &&
+      o.studentId===student.id &&
+      o.lateFeeApplied &&
+      Number(o.lateFeeChargedAmount||0)>0.009
+    );
+
+  if(!charged.length){
+    host.innerHTML='';
+    return;
+  }
+
+  const total=
+    charged.reduce(
+      (sum,o)=>sum+Number(o.lateFeeChargedAmount||0),
+      0
+    );
+
+  host.innerHTML=`
+    <div class="vf-cc-latefee">
+
+      <div class="vf-cc-latefee-head">
+        <strong>
+          ${money(total)} in late fees charged
+        </strong>
+        <span class="muted">
+          Included in the balance above.
+        </span>
+      </div>
+
+      ${charged.map(o=>`
+        <div class="vf-cc-latefee-row">
+
+          <div>
+            <strong>${money(Number(o.lateFeeChargedAmount||0))}</strong>
+            <span class="muted">
+              ${esc(
+                o.serviceName ||
+                o.className ||
+                'Charge'
+              )}${
+                o.dueDate
+                  ? ` · was due ${esc(formatVendorDate(o.dueDate)||o.dueDate)}`
+                  : ''
+              }
+            </span>
+          </div>
+
+          <button
+            type="button"
+            class="vf-secondary-button"
+            data-cc-remove-late-fee="${esc(o.id)}">
+            Remove
+          </button>
+
+        </div>
+      `).join('')}
+
+    </div>
+  `;
+
+  host.querySelectorAll('[data-cc-remove-late-fee]').forEach(btn=>{
+    btn.onclick=()=>
+      removeLateFeeManually(btn.dataset.ccRemoveLateFee);
+  });
+}
+
+
 function renderStudentCommandCenter(studentId){
 
   const student=students.find(s=>s.id===studentId);
@@ -20242,6 +20335,8 @@ function renderStudentCommandCenter(studentId){
     $('#ccBalanceStatus').textContent=ccBalanceInfo.label;
     $('#ccBalanceStatus').className=ccBalanceInfo.className;
   }
+
+  vfRenderCommandCenterLateFees(student);
 
   if($('#ccGradeStat')){
     $('#ccGradeStat').textContent=student.grade||'Not entered';
