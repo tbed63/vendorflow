@@ -15487,6 +15487,555 @@ if($('#saveExpense')){
   };
 }
 
+/* ============================================================
+   EXPENSE STATEMENT IMPORT
+
+   Mirrors the income statement import deliberately: same worker
+   endpoint, same review-before-saving flow, same duplicate
+   warnings. The differences are that OUTGOING money is what we
+   want here, and that each row needs an IRS category.
+   ============================================================ */
+
+let vfExpenseImportRows=[];
+let vfExpenseImportBusy=false;
+
+
+/*
+ * A first guess at the IRS category from the merchant text. Only a
+ * guess -- every row shows a dropdown and the vendor can change it
+ * before anything is saved. Anything unrecognised stays 'other'
+ * rather than being forced into a category that looks plausible.
+ */
+const VF_EXPENSE_CATEGORY_HINTS=[
+  {key:'advertising',words:['facebook','google ads','instagram','advertis','flyer','printing','vistaprint','canva']},
+  {key:'carMileage',words:['gas','fuel','shell','chevron','76 ','arco','parking','dmv','auto ','oil change']},
+  {key:'contractLabor',words:['contractor','1099','subcontract']},
+  {key:'insurance',words:['insurance','liability','state farm','geico','allstate','hiscox','next insurance']},
+  {key:'legalProfessional',words:['attorney','legal','lawyer','accountant','cpa','bookkeep','tax prep']},
+  {key:'officeExpense',words:['office','staples','paper','ink','toner','postage','usps','fedex','ups store']},
+  {key:'rentOtherProperty',words:['rent','lease','storage','workspace']},
+  {key:'repairsMaintenance',words:['repair','maintenance','fix']},
+  {key:'supplies',words:['supply','supplies','amazon','target','walmart','michaels','dollar','costco','craft']},
+  {key:'taxesLicenses',words:['license','permit','franchise tax','secretary of state','tax ']},
+  {key:'travel',words:['airline','flight','hotel','airbnb','delta air','southwest','united air','marriott','hilton']},
+  {key:'meals',words:['restaurant','cafe','coffee','starbucks','doordash','grubhub','uber eats','pizza','deli']},
+  {key:'utilities',words:['electric','water','internet','comcast','xfinity','verizon','at&t','t-mobile','spectrum','phone']},
+  {key:'wages',words:['payroll','gusto','adp','wages']}
+];
+
+
+function vfGuessExpenseCategory(text){
+
+  const hay=
+    String(text||'').toLowerCase();
+
+  if(!hay.trim()){
+    return 'other';
+  }
+
+  for(const hint of VF_EXPENSE_CATEGORY_HINTS){
+
+    if(hint.words.some(word=>hay.includes(word))){
+      return hint.key;
+    }
+  }
+
+  return 'other';
+}
+
+
+/*
+ * Possible duplicates among expenses already recorded. Same shape
+ * as the income check: amount to the cent, within three days, with
+ * a matching note raising confidence but never ruling a match out.
+ */
+function vfFindExpenseDuplicates(entry){
+
+  const amount=
+    Number(entry.amount||0);
+
+  if(!(amount>0)){
+    return [];
+  }
+
+  const spent=
+    Date.parse(`${entry.date}T12:00:00`);
+
+  const withinThreeDays=
+    other=>{
+
+      if(Number.isNaN(spent)){
+        return true;
+      }
+
+      const when=
+        Date.parse(`${other}T12:00:00`);
+
+      if(Number.isNaN(when)){
+        return false;
+      }
+
+      return Math.abs(when-spent) <= 3*24*60*60*1000;
+    };
+
+  const sameNote=
+    other=>{
+
+      const x=String(entry.note||'').trim().toLowerCase();
+      const y=String(other||'').trim().toLowerCase();
+
+      return Boolean(x) && Boolean(y) && x===y;
+    };
+
+  const matches=[];
+
+  expenses.forEach(item=>{
+
+    if(entry.id && item.id===entry.id){
+      return;
+    }
+
+    if(
+      Math.abs(Number(item.amount||0)-amount)<0.005 &&
+      withinThreeDays(item.date)
+    ){
+      matches.push({
+        kind:'expense',
+        label:
+          `${vfExpenseCategoryLabel(item.category)}`+
+          `${item.note?` — ${item.note}`:''}`+
+          ` on ${item.date||'an unknown date'}`,
+        confident:sameNote(item.note)
+      });
+    }
+  });
+
+  return matches.sort(
+    (x,y)=>Number(y.confident)-Number(x.confident)
+  );
+}
+
+
+function vfBuildExpenseImportRows(data){
+
+  const list=
+    Array.isArray(data?.transactions)
+      ? data.transactions
+      : [];
+
+  return list
+    .map((tx,index)=>{
+
+      const amount=
+        Math.abs(Number(tx.amount||0));
+
+      const direction=
+        vfIncomeImportDirection(tx);
+
+      const note=
+        String(
+          tx.memo ||
+          tx.description ||
+          tx.payer ||
+          ''
+        ).trim();
+
+      const entry={
+        amount,
+        date:String(tx.date||'').slice(0,10),
+        note
+      };
+
+      const duplicates=
+        amount>0
+          ? vfFindExpenseDuplicates(entry)
+          : [];
+
+      return {
+        id:`exp-import-${index}`,
+        amount,
+        date:entry.date,
+        note,
+        merchant:String(tx.payer||'').trim(),
+        method:String(tx.method||'').trim(),
+        direction,
+        duplicates,
+
+        /*
+         * Money coming IN is not an expense, and a possible
+         * duplicate is money already counted. Both start unticked,
+         * as does an uncertain direction -- overstating deductions
+         * is the wrong way to be wrong.
+         */
+        include:
+          direction==='outgoing' &&
+          amount>0 &&
+          duplicates.length===0,
+
+        category:
+          vfGuessExpenseCategory(`${note} ${tx.payer||''}`)
+      };
+    })
+    .filter(row=>row.amount>0);
+}
+
+
+function vfRenderExpenseImportResults(){
+
+  const host=$('#expenseStatementResults');
+
+  if(!host){
+    return;
+  }
+
+  if(!vfExpenseImportRows.length){
+    host.innerHTML='';
+    return;
+  }
+
+  const categoryOptions=
+    row=>
+      VF_EXPENSE_CATEGORIES
+        .map(c=>
+          `<option value="${esc(c.key)}" ${
+            c.key===row.category ? 'selected' : ''
+          }>${esc(c.label)} (${esc(c.line)})</option>`
+        )
+        .join('');
+
+  const outgoing=
+    vfExpenseImportRows.filter(r=>r.direction==='outgoing').length;
+
+  const flagged=
+    vfExpenseImportRows.filter(r=>r.duplicates.length).length;
+
+  host.innerHTML=`
+    <div class="vf-income-import-summary">
+      <strong>${vfExpenseImportRows.length} transaction${
+        vfExpenseImportRows.length===1?'':'s'
+      } found</strong>
+      <span class="muted">
+        ${outgoing} going out${
+          flagged
+            ? ` · ${flagged} may already be recorded`
+            : ''
+        }
+      </span>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Import</th>
+            <th>Date</th>
+            <th>Paid to</th>
+            <th>Amount</th>
+            <th>Category</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${
+            vfExpenseImportRows.map(row=>`
+              <tr class="${row.duplicates.length?'vf-income-import-dup':''}">
+                <td>
+                  <input
+                    type="checkbox"
+                    data-expense-import-pick="${esc(row.id)}"
+                    ${row.include?'checked':''}>
+                </td>
+                <td>${esc(row.date||'—')}</td>
+                <td>${esc(row.merchant||'—')}</td>
+                <td>${money(row.amount)}</td>
+                <td>
+                  <select class="input" data-expense-import-category="${esc(row.id)}">
+                    ${categoryOptions(row)}
+                  </select>
+                </td>
+                <td>
+                  ${
+                    row.direction==='incoming'
+                      ? '<div class="vf-income-import-note">Money coming in — not an expense</div>'
+                      : ''
+                  }
+                  ${
+                    row.direction==='uncertain'
+                      ? '<div class="vf-income-import-note">VendorFlow could not tell which way this went</div>'
+                      : ''
+                  }
+                  ${
+                    row.duplicates.length
+                      ? `<div class="vf-income-import-warning">
+                           May already be recorded: ${esc(row.duplicates[0].label)}
+                         </div>`
+                      : ''
+                  }
+                  ${
+                    row.note
+                      ? `<div class="muted">${esc(row.note)}</div>`
+                      : ''
+                  }
+                </td>
+              </tr>
+            `).join('')
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="row">
+      <button type="button" id="vfExpenseImportRun" class="primary">
+        Import selected
+      </button>
+      <button type="button" id="vfExpenseImportCancel">Cancel</button>
+    </div>
+  `;
+
+  host.querySelectorAll('[data-expense-import-pick]').forEach(box=>{
+    box.onchange=()=>{
+      const row=
+        vfExpenseImportRows.find(
+          r=>r.id===box.dataset.expenseImportPick
+        );
+      if(row){
+        row.include=box.checked;
+      }
+    };
+  });
+
+  host.querySelectorAll('[data-expense-import-category]').forEach(select=>{
+    select.onchange=()=>{
+      const row=
+        vfExpenseImportRows.find(
+          r=>r.id===select.dataset.expenseImportCategory
+        );
+      if(row){
+        row.category=select.value;
+      }
+    };
+  });
+
+  const cancel=$('#vfExpenseImportCancel');
+
+  if(cancel){
+    cancel.onclick=()=>{
+      vfExpenseImportRows=[];
+      vfRenderExpenseImportResults();
+      if($('#expenseStatementFile'))$('#expenseStatementFile').value='';
+      if($('#expenseStatementStatus'))$('#expenseStatementStatus').textContent='';
+    };
+  }
+
+  const run=$('#vfExpenseImportRun');
+
+  if(run){
+    run.onclick=()=>vfRunExpenseImport();
+  }
+}
+
+
+async function vfRunExpenseImport(){
+
+  if(vfExpenseImportBusy){
+    return;
+  }
+
+  const chosen=
+    vfExpenseImportRows.filter(r=>r.include);
+
+  if(!chosen.length){
+    return toast('Tick at least one transaction to import.');
+  }
+
+  const flagged=
+    chosen.filter(r=>r.duplicates.length).length;
+
+  if(flagged){
+
+    const proceed=
+      confirm(
+        `${flagged} of the ${chosen.length} selected `+
+        `${flagged===1?'transaction looks':'transactions look'} like `+
+        `money VendorFlow has already recorded as an expense.\n\n`+
+        `Importing ${flagged===1?'it':'them'} would deduct that `+
+        `money twice.\n\nImport anyway?`
+      );
+
+    if(!proceed){
+      return;
+    }
+  }
+
+  vfExpenseImportBusy=true;
+
+  const run=$('#vfExpenseImportRun');
+
+  if(run){
+    run.disabled=true;
+    run.textContent='Importing…';
+  }
+
+  let saved=0;
+
+  try{
+
+    for(const row of chosen){
+
+      await addDoc(
+        sub('expenses'),
+        {
+          amount:row.amount,
+          date:
+            row.date ||
+            new Date().toISOString().slice(0,10),
+          category:row.category||'other',
+          note:row.note,
+          method:row.method,
+          source:'Statement import',
+          createdAt:serverTimestamp(),
+          updatedAt:serverTimestamp()
+        }
+      );
+
+      saved++;
+    }
+
+    const total=
+      chosen.reduce((sum,r)=>sum+r.amount,0);
+
+    await log(
+      'Expenses imported',
+      `${saved} transaction${saved===1?'':'s'} imported from a `+
+      `statement, ${money(total)} in total.`+
+      `${flagged?` ${flagged} were flagged as possible duplicates and imported anyway.`:''}`,
+      'Imported'
+    );
+
+    vfExpenseImportRows=[];
+    vfRenderExpenseImportResults();
+
+    if($('#expenseStatementFile'))$('#expenseStatementFile').value='';
+
+    if($('#expenseStatementStatus')){
+      $('#expenseStatementStatus').textContent=
+        `Imported ${saved} transaction${saved===1?'':'s'}.`;
+    }
+
+    await refreshAll();
+    renderExpenses();
+    renderTaxSummary();
+
+    toast(`Imported ${saved} into expenses.`);
+
+  }catch(error){
+
+    console.error('Expense import failed:',error);
+
+    toast(
+      `Imported ${saved} before this failed: ${
+        error.message || 'something went wrong'
+      }`
+    );
+
+    if(saved){
+      await refreshAll();
+      renderExpenses();
+      renderTaxSummary();
+    }
+
+  }finally{
+
+    vfExpenseImportBusy=false;
+
+    if(run){
+      run.disabled=false;
+      run.textContent='Import selected';
+    }
+  }
+}
+
+
+if($('#expenseStatementFile')){
+
+  $('#expenseStatementFile').addEventListener('change',async event=>{
+
+    const file=event.target.files?.[0];
+
+    if(!file || !user){
+      return;
+    }
+
+    const status=$('#expenseStatementStatus');
+
+    vfExpenseImportRows=[];
+    vfRenderExpenseImportResults();
+
+    if(status){
+      status.textContent=`Reading ${file.name}…`;
+    }
+
+    try{
+
+      const token=
+        await user.getIdToken();
+
+      const form=new FormData();
+      form.append('file',file,file.name);
+
+      const response=
+        await fetch(
+          `${VENDORFLOW_API}/payment-statement/extract`,
+          {
+            method:'POST',
+            headers:{Authorization:`Bearer ${token}`},
+            body:form
+          }
+        );
+
+      let data={};
+
+      try{
+        data=await response.json();
+      }catch{}
+
+      if(!response.ok){
+        throw new Error(
+          data?.detail ||
+          data?.error ||
+          `Statement reader returned ${response.status}.`
+        );
+      }
+
+      vfExpenseImportRows=
+        vfBuildExpenseImportRows(data);
+
+      vfRenderExpenseImportResults();
+
+      if(status){
+
+        status.textContent=
+          vfExpenseImportRows.length
+            ? `Read ${file.name}. Nothing has been imported yet — choose what to keep.`
+            : `Read ${file.name}, but found no transactions to import.`;
+      }
+
+    }catch(error){
+
+      console.error('Expense statement read failed:',error);
+
+      if(status){
+        status.textContent=
+          error.message ||
+          'Could not read that statement.';
+      }
+
+      toast('Could not read that statement.');
+    }
+  });
+}
+
+
 function vfAvailableTaxYears(){
   const years=new Set();
   years.add(String(new Date().getFullYear()));

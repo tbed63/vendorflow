@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>VendorFlow</title>
-  <link rel="stylesheet" href="styles.css?v=incexp-20260911-071500">
+  <link rel="stylesheet" href="styles.css?v=expimport-20260911-084500">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="modulepreload" href="app.js?v=incexp-20260911-071500">
+  <link rel="modulepreload" href="app.js?v=expimport-20260911-084500">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA</div>
@@ -2055,6 +2055,35 @@ Thank you,
       </div>
     </div>
 
+    <!-- Same look and flow as the income statement import above;
+         it reuses that block's styling deliberately. -->
+    <div class="vf-income-import vf-expense-import">
+
+      <div class="row between">
+        <div>
+          <strong>Import a statement</strong>
+          <p class="muted">
+            Upload a credit card, bank or similar statement and
+            VendorFlow will pull out the money going out and suggest
+            a tax category for each one. Nothing is saved until you
+            choose what to import.
+          </p>
+        </div>
+      </div>
+
+      <label class="vf-field-label">
+        <span>Statement PDF or CSV</span>
+        <input
+          id="expenseStatementFile"
+          type="file"
+          accept="application/pdf,text/csv,.pdf,.csv">
+      </label>
+
+      <div id="expenseStatementStatus" class="muted"></div>
+      <div id="expenseStatementResults"></div>
+
+    </div>
+
     <div id="expenseRepeatList"></div>
     <div id="expenseList"></div>
   </div>
@@ -3899,5 +3928,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=incexp-20260911-071500"></script>
+<script type="module" src="app.js?v=expimport-20260911-084500"></script>
 </body></html>
