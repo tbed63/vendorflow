@@ -87,6 +87,38 @@
   .loading-state{padding:60px 24px;text-align:center;color:var(--muted)}
 
   .top-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;flex-wrap:wrap;gap:12px}
+  /* Collapsible sections. Every section starts closed so the whole
+     console fits on one screen; opening one is a click on its + . */
+  .admin-toggle{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:26px;
+    height:26px;
+    margin-right:10px;
+    flex-shrink:0;
+    border:1px solid var(--line,#d8dee4);
+    border-radius:8px;
+    background:#fff;
+    color:inherit;
+    font-size:16px;
+    line-height:1;
+    cursor:pointer;
+  }
+  .admin-toggle:hover{background:#f3f5f8}
+  .admin-section-head{
+    display:flex;
+    align-items:flex-start;
+    cursor:pointer;
+  }
+  .admin-collapsed{display:none}
+  .admin-count{
+    margin-left:10px;
+    font-size:12.5px;
+    color:var(--muted,#667085);
+    font-weight:600;
+  }
+
   .signout-link{font-size:13.5px;color:var(--muted);text-decoration:none;cursor:pointer;background:none;border:0;font-family:inherit}
   .signout-link:hover{color:var(--ink)}
 
@@ -322,6 +354,135 @@ const loadingBox = $('#loadingBox');
 const signInBox = $('#signInBox');
 const deniedBox = $('#deniedBox');
 const dashboardBox = $('#dashboardBox');
+
+/*
+ * Collapse every section so the whole console fits on one screen.
+ *
+ * Done here rather than in the markup because the sections are not
+ * uniformly shaped: Vendors and Charter Directory each sit in their
+ * own .section-gap wrapper, while Beta invite codes is a loose run of
+ * siblings straight inside #dashboardBox. Grouping them at runtime
+ * avoids restructuring working markup, and a new section picks this
+ * up automatically as long as it starts with a .top-actions header.
+ *
+ * Open/closed is remembered per browser. It is genuinely a view
+ * preference -- no data, nothing another machine needs to agree with.
+ */
+const ADMIN_SECTIONS_KEY = 'vf-admin-open-sections';
+
+function readOpenSections() {
+  try {
+    return JSON.parse(localStorage.getItem(ADMIN_SECTIONS_KEY) || '{}') || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeOpenSections(state) {
+  try {
+    localStorage.setItem(ADMIN_SECTIONS_KEY, JSON.stringify(state));
+  } catch {
+    /* A remembered preference is not worth failing over. */
+  }
+}
+
+let collapsiblesReady = false;
+
+function setUpCollapsibleSections() {
+
+  if (collapsiblesReady || !dashboardBox) return;
+
+  const sections = [];
+  let loose = null;
+
+  for (const el of Array.from(dashboardBox.children)) {
+
+    if (el.classList.contains('section-gap')) {
+      const header = el.querySelector(':scope > .top-actions');
+      if (header) {
+        sections.push({
+          header,
+          parent: el,
+          body: Array.from(el.children).filter((c) => c !== header)
+        });
+      }
+      continue;
+    }
+
+    if (el.classList.contains('top-actions') && !loose) {
+      loose = { header: el, parent: dashboardBox, body: [] };
+      continue;
+    }
+
+    if (loose) loose.body.push(el);
+  }
+
+  if (loose) sections.unshift(loose);
+
+  sections.forEach((section, index) => {
+
+    const title = section.header.querySelector('.page-title');
+    const key = (title ? title.textContent : 'section-' + index).trim();
+
+    // Everything below the header moves into one wrapper so a single
+    // class toggles the whole section.
+    const body = document.createElement('div');
+    body.className = 'admin-section-body';
+    section.body.forEach((child) => body.appendChild(child));
+
+    // Directly after its OWN header, not appended to the parent.
+    // Beta invite codes sits loose inside #dashboardBox, so appending
+    // would have dropped its content below every other section.
+    section.header.insertAdjacentElement('afterend', body);
+
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'admin-toggle';
+
+    // The header's first child is the title block; the toggle goes
+    // beside it rather than at the far edge, where the existing
+    // action buttons live.
+    const titleBlock = section.header.firstElementChild;
+
+    if (titleBlock) {
+      titleBlock.classList.add('admin-section-head');
+      titleBlock.insertBefore(toggle, titleBlock.firstChild);
+    } else {
+      section.header.insertBefore(toggle, section.header.firstChild);
+    }
+
+    const open = readOpenSections();
+    let isOpen = Boolean(open[key]);
+
+    const apply = () => {
+      body.classList.toggle('admin-collapsed', !isOpen);
+      toggle.textContent = isOpen ? '\u2212' : '+';
+      toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      toggle.title = isOpen ? 'Collapse this section' : 'Expand this section';
+    };
+
+    apply();
+
+    const flip = (event) => {
+      // A click on a real control in the header must not also toggle.
+      if (event.target !== toggle && event.target.closest('button, a, input, select')) {
+        return;
+      }
+      event.preventDefault();
+      isOpen = !isOpen;
+      const next = readOpenSections();
+      next[key] = isOpen;
+      writeOpenSections(next);
+      apply();
+    };
+
+    toggle.addEventListener('click', flip);
+
+    if (titleBlock) titleBlock.addEventListener('click', flip);
+  });
+
+  collapsiblesReady = true;
+}
 
 function showOnly(el) {
   [loadingBox, signInBox, deniedBox, dashboardBox].forEach((box) => {
@@ -1216,12 +1377,14 @@ onAuthStateChanged(auth, async (user) => {
 
     allVendors = data.vendors || [];
     showOnly(dashboardBox);
+    setUpCollapsibleSections();
     renderVendors();
     loadBetaCodes();
     loadCharterDirectory();
 
   } catch (error) {
     showOnly(dashboardBox);
+    setUpCollapsibleSections();
     $('#loadError').textContent = error.message || 'Could not load vendors.';
     $('#loadError').classList.remove('hidden');
   }
