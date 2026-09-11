@@ -9589,3 +9589,93 @@ body.vf-wizard-open .vf-modal-overlay{
   font-style:normal;
   color:var(--muted);
 }
+
+
+
+/* VF_CHARTER_TIGHTEN */
+/* Charter Schools page: same information, far less vertical space.
+   Each saved school was ~270px tall -- an eyebrow, a heading row,
+   four padded boxes in a 2x2 grid, then a footer row holding one
+   button. Flattening the boxes into label/value lines and lifting
+   Archive up beside Edit removes two whole rows per card.
+   Deleting this block restores the roomy version. */
+
+.vf-charter-affiliations{
+  margin:14px 0 18px;
+}
+.vf-charter-section-heading{
+  margin-bottom:8px;
+}
+.vf-charter-section-heading h3{
+  margin:0 0 2px;
+}
+.vf-charter-affiliations .vf-charter-list,
+.vf-charter-list{
+  gap:8px;
+  margin-top:10px;
+}
+
+.vf-charter-card{
+  padding:13px 15px;
+  border-radius:14px;
+  margin-bottom:0;
+}
+
+.vf-charter-card-main{
+  align-items:center;
+  gap:12px;
+}
+.vf-charter-card-main h3{
+  margin:0;
+  font-size:1.02rem;
+  line-height:1.25;
+}
+.vf-charter-card-head-actions{
+  display:flex;
+  gap:6px;
+  flex-shrink:0;
+}
+.vf-charter-card-head-actions button{
+  padding:5px 11px;
+  font-size:12.5px;
+  border-radius:8px;
+}
+
+/* Label/value lines instead of four filled boxes. */
+.vf-charter-details{
+  gap:3px 20px;
+  margin:9px 0 0;
+}
+.vf-charter-details > div{
+  padding:0;
+  background:transparent;
+  border-radius:0;
+  display:flex;
+  gap:8px;
+  align-items:baseline;
+  min-width:0;
+}
+.vf-charter-details small{
+  display:block;
+  margin:0;
+  min-width:92px;
+  flex-shrink:0;
+  font-size:9.5px;
+  letter-spacing:.03em;
+}
+.vf-charter-details strong{
+  font-size:12.5px;
+  font-weight:600;
+  line-height:1.35;
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+
+@media(max-width:700px){
+  .vf-charter-card-main{
+    align-items:flex-start;
+  }
+  .vf-charter-details small{
+    min-width:80px;
+  }
+}

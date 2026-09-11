@@ -2359,7 +2359,6 @@ function organizeCharterSchoolPage(){
     affiliations.className='vf-charter-affiliations';
     affiliations.innerHTML=`
       <div class="vf-charter-section-heading">
-        <div class="eyebrow">Your saved schools</div>
         <h3>My Charter School Affiliations</h3>
       </div>
     `;
@@ -2422,15 +2421,21 @@ function renderCharterSchools(){
 
             <div class="vf-charter-card-main">
 
-              <div>
-                <div class="eyebrow">Charter school</div>
-                <h3>${esc(charter.name||'Unnamed charter')}</h3>
-              </div>
+              <h3>${esc(charter.name||'Unnamed charter')}</h3>
 
-              <button
-                data-edit-charter="${charter.id}">
-                Edit
-              </button>
+              <div class="vf-charter-card-head-actions">
+
+                <button
+                  data-edit-charter="${charter.id}">
+                  Edit
+                </button>
+
+                <button
+                  data-archive-charter="${charter.id}">
+                  Archive
+                </button>
+
+              </div>
 
             </div>
 
@@ -2469,13 +2474,6 @@ function renderCharterSchools(){
                 </strong>
               </div>
 
-            </div>
-
-            <div class="vf-charter-card-actions">
-              <button
-                data-archive-charter="${charter.id}">
-                Archive
-              </button>
             </div>
 
           </div>
