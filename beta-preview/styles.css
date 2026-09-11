@@ -10127,3 +10127,17 @@ body.vf-wizard-open .vf-modal-overlay{
   font-size:12px;
   border-radius:7px;
 }
+
+
+
+/* VF_CC_CERT_EDIT */
+/* Edit sits beside the amount on a certificate row. The row itself
+   is still clickable to view the evidence; this is the one control
+   inside it that does something else. */
+.vf-cc-cert-edit{
+  flex-shrink:0;
+  margin-left:10px;
+  padding:4px 11px;
+  font-size:12px;
+  border-radius:7px;
+}

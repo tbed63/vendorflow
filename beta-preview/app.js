@@ -21494,6 +21494,14 @@ function renderStudentCommandCenterCertificates(student){
           </div>
         </div>
         <div class="vf-cc-cert-amount">${money(cert.amount)}</div>
+
+        <button
+          type="button"
+          class="vf-secondary-button vf-cc-cert-edit"
+          data-cc-edit-cert="${esc(cert.id)}"
+          title="Correct this certificate's dates or amount">
+          Edit
+        </button>
       </div>
     `).join('');
 }
@@ -21876,6 +21884,22 @@ function wireStudentCommandCenterButtons(){
       if(deleteCertificateButton){
         event.preventDefault();
         safeDeleteCertificate(deleteCertificateButton.dataset.deleteStudentCertificate);
+        return;
+      }
+
+      /*
+       * Checked before the row's own view handler. The Edit button
+       * sits INSIDE the clickable row, so closest('[data-cc-view-cert]')
+       * matches it too -- testing for the row first would open the
+       * evidence viewer and the Edit click would never be seen.
+       */
+      const editCertButton=
+        event.target.closest('[data-cc-edit-cert]');
+
+      if(editCertButton){
+        event.preventDefault();
+        event.stopPropagation();
+        openCertificateForRepair(editCertButton.dataset.ccEditCert);
         return;
       }
 
