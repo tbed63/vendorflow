@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>VendorFlow</title>
-  <link rel="stylesheet" href="styles.css?v=dupemail-20260911-093000">
+  <link rel="stylesheet" href="styles.css?v=vault-20260911-104500">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="modulepreload" href="app.js?v=dupemail-20260911-093000">
+  <link rel="modulepreload" href="app.js?v=vault-20260911-104500">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA</div>
@@ -99,7 +99,7 @@
         <span id="inboxBadge">0</span>
       </button>
       <button data-view="payments">Payments/Charges</button>
-      <button data-view="certificates">Certificates</button>
+      <button data-view="certificates">Vault</button>
       <button data-view="invoices">Invoices</button>
       <button data-view="classes">Groups</button>
       <button data-view="compliance">To-do List</button>
@@ -2114,11 +2114,11 @@ Thank you,
 
         <div class="row between">
           <div>
-            <div class="eyebrow">Charter funding</div>
-            <h2>Certificates</h2>
+            <h2>Vault</h2>
             <p>
-              Upload a certificate PDF and VendorFlow reads it automatically.
-              Nothing is saved to your account until you approve it.
+              Every document VendorFlow has stored. Upload a certificate
+              PDF and it is read automatically — nothing is saved to your
+              account until you approve it.
             </p>
           </div>
 
@@ -2571,6 +2571,43 @@ Thank you,
 
         </div>
 
+
+        <div class="vf-vault-toolbar">
+
+          <label class="vf-field-label">
+            <span>Search the Vault</span>
+            <input
+              id="vaultSearch"
+              class="input"
+              type="search"
+              placeholder="File name, type, source or date">
+          </label>
+
+          <label class="vf-field-label">
+            <span>Type</span>
+            <select id="vaultKindFilter" class="input">
+              <option value="all">All files</option>
+              <option value="certificate">Certificates</option>
+              <option value="statement">Statements</option>
+              <option value="file">Other files</option>
+            </select>
+          </label>
+
+          <label class="vf-vault-archived-toggle">
+            <input type="checkbox" id="vaultShowArchived">
+            <span>Show archived</span>
+          </label>
+
+        </div>
+
+        <div id="vaultFileList"></div>
+
+        <div class="vf-vault-cert-heading">
+          <h3>Certificate status</h3>
+          <p class="muted">
+            Invoice scheduling and anything needing a fix.
+          </p>
+        </div>
 
         <div id="certificateList"></div>
 
@@ -3928,5 +3965,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=dupemail-20260911-093000"></script>
+<script type="module" src="app.js?v=vault-20260911-104500"></script>
 </body></html>

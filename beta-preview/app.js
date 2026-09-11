@@ -34,7 +34,7 @@ const VENDORFLOW_API =
   "https://vendorflow-api.tbed63.workers.dev";
 
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),$=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],show=e=>e.classList.remove("hidden"),hide=e=>e.classList.add("hidden"),esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
-let user=null,profile={},classes=[],roster=[],students=[],services=[],obligations=[],charterSchools=[],payments=[],certs=[],invoices=[],compliance=[],reviews=[],history=[],ignoredStatementPayers=[],expenses=[],income=[],recurrences=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
+let user=null,profile={},classes=[],roster=[],students=[],services=[],obligations=[],charterSchools=[],payments=[],certs=[],invoices=[],compliance=[],reviews=[],history=[],ignoredStatementPayers=[],expenses=[],income=[],recurrences=[],vaultFiles=[],authMode="login",step=0,answers={},preview=[],map={},headers=[];
 let invoiceStatusFilter='all';
 let invoiceSearchQuery='';
 
@@ -1405,9 +1405,10 @@ async function refreshAll(){
     ]);
   }
 
-  [compliance,reviews]=await Promise.all([
+  [compliance,reviews,vaultFiles]=await Promise.all([
     getList('compliance'),
-    getList('review')
+    getList('review'),
+    getList('vaultFiles')
   ]);
 
   const removedLegacyReviews=
@@ -14267,6 +14268,536 @@ function vfRenderIncomeCategoryOptions(){
 }
 
 
+/* ============================================================
+   THE VAULT
+
+   Every file VendorFlow has ever stored, in one searchable place.
+   Two things feed it:
+
+     - certificates, which have always been stored and carry their
+       own rich record (student, amount, invoice schedule)
+     - anything else, recorded in the `vaultFiles` collection
+
+   Certificate rows keep every badge and action they had on the old
+   Certificates page. The Vault adds a shared search, filters,
+   archive and delete over the top rather than replacing any of it.
+   ============================================================ */
+
+/*
+ * Recording a stored file. Called the moment a statement is read,
+ * not when its transactions are imported -- the vendor uploaded the
+ * document, so the document belongs to them whether or not they
+ * went on to import anything from it.
+ */
+async function vfRecordVaultFile(storedFile,kind,source){
+
+  if(!storedFile || !storedFile.objectKey || !user){
+    return null;
+  }
+
+  try{
+
+    const ref=
+      await addDoc(
+        sub('vaultFiles'),
+        {
+          objectKey:
+            String(storedFile.objectKey),
+          name:
+            String(storedFile.name||'Untitled file'),
+          contentType:
+            String(storedFile.contentType||''),
+          size:
+            Number(storedFile.size||0),
+          kind:
+            String(kind||'file'),
+          source:
+            String(source||'Uploaded'),
+          uploadedAt:
+            String(
+              storedFile.uploadedAt ||
+              new Date().toISOString()
+            ),
+          archived:false,
+          createdAt:serverTimestamp(),
+          updatedAt:serverTimestamp()
+        }
+      );
+
+    return ref.id;
+
+  }catch(error){
+
+    console.error('Could not record a vault file:',error);
+    return null;
+  }
+}
+
+
+let vfVaultSearch='';
+let vfVaultKindFilter='all';
+let vfVaultShowArchived=false;
+
+
+/*
+ * One list covering everything stored. Certificates appear here
+ * alongside statements -- a certificate is a document first, and
+ * this is where a vendor looks for documents. The certificate
+ * workflow below the list is untouched; this is the library, not a
+ * replacement for it.
+ */
+function vfVaultItems(){
+
+  const items=[];
+
+  certs
+    .filter(cert=>!cert.deleted && cert.pdfObjectKey)
+    .forEach(cert=>{
+
+      items.push({
+        id:`cert:${cert.id}`,
+        kind:'certificate',
+        objectKey:cert.pdfObjectKey,
+        name:
+          `${cert.student||'Unnamed student'} — ${
+            cert.school||'certificate'
+          }`,
+        detail:
+          [
+            cert.number ? `#${cert.number}` : '',
+            Number.isFinite(Number(cert.amount))
+              ? money(Number(cert.amount))
+              : ''
+          ].filter(Boolean).join(' · '),
+        source:'Certificate',
+        uploadedAt:
+          String(
+            cert.serviceStartDate ||
+            cert.issueDate ||
+            ''
+          ).slice(0,10),
+        size:0,
+
+        /*
+         * Certificates are archived and deleted through their own
+         * record, which carries money with it. Offering those
+         * buttons here would let a vendor erase a certificate --
+         * and the charter credit it created -- from a file list.
+         */
+        canManage:false
+      });
+    });
+
+  vaultFiles.forEach(file=>{
+
+    items.push({
+      id:`file:${file.id}`,
+      fileId:file.id,
+      kind:file.kind||'file',
+      objectKey:file.objectKey,
+      name:file.name||'Untitled file',
+      detail:vfVaultFileSize(file.size),
+      source:file.source||'Uploaded',
+      uploadedAt:String(file.uploadedAt||'').slice(0,10),
+      size:Number(file.size||0),
+      archived:Boolean(file.archived),
+      canManage:true
+    });
+  });
+
+  return items;
+}
+
+
+function renderVault(){
+
+  const list=$('#vaultFileList');
+
+  if(!list){
+    return;
+  }
+
+  const all=vfVaultItems();
+  const query=vfVaultSearch.trim();
+
+  let shown=
+    all.filter(item=>{
+
+      if(
+        vfVaultKindFilter!=='all' &&
+        item.kind!==vfVaultKindFilter
+      ){
+        return false;
+      }
+
+      /*
+       * Archived files are hidden from the normal list but stay
+       * findable: a search reaches them even with the toggle off,
+       * which is the whole point of archiving rather than deleting.
+       */
+      if(item.archived && !vfVaultShowArchived && !query){
+        return false;
+      }
+
+      return vfIncExpMatches(
+        [
+          item.name,
+          item.detail,
+          item.source,
+          vfVaultKindLabel(item.kind),
+          item.uploadedAt
+        ],
+        query
+      );
+    });
+
+  /* Archived items always sort last, however the rest is ordered. */
+  shown=shown.sort((x,y)=>{
+
+    if(Boolean(x.archived)!==Boolean(y.archived)){
+      return x.archived ? 1 : -1;
+    }
+
+    return String(y.uploadedAt||'')
+      .localeCompare(String(x.uploadedAt||''));
+  });
+
+  if(!all.length){
+    list.innerHTML=
+      '<p class="muted">Nothing stored yet. Uploaded certificates '+
+      'and statements will appear here.</p>';
+    return;
+  }
+
+  if(!shown.length){
+    list.innerHTML=
+      `<p class="muted">No files match "${esc(query)}".</p>`;
+    return;
+  }
+
+  const countNote=
+    query || vfVaultKindFilter!=='all'
+      ? `<p class="muted vf-incexp-count">${shown.length} of ${
+          all.length
+        } file${all.length===1?'':'s'} shown.</p>`
+      : '';
+
+  list.innerHTML=
+    countNote+
+    shown.map(item=>`
+      <div class="vf-vault-row${item.archived?' vf-vault-archived':''}">
+
+        <button
+          type="button"
+          class="vf-vault-open"
+          data-vault-open="${esc(item.objectKey||'')}"
+          data-vault-name="${esc(item.name)}"
+          title="Open this file">
+          <strong>${esc(item.name)}${
+            item.archived ? ' (Archived)' : ''
+          }</strong>
+          <span class="muted">
+            ${esc(vfVaultKindLabel(item.kind))}${
+              item.source ? ` · ${esc(item.source)}` : ''
+            }${
+              item.uploadedAt ? ` · ${esc(item.uploadedAt)}` : ''
+            }${
+              item.detail ? ` · ${esc(item.detail)}` : ''
+            }
+          </span>
+        </button>
+
+        ${
+          item.canManage
+            ? `<div class="vf-vault-actions">
+                 <button
+                   type="button"
+                   class="vf-secondary-button"
+                   data-vault-archive="${esc(item.fileId)}"
+                   data-vault-archived="${item.archived?'1':'0'}">
+                   ${item.archived?'Restore':'Archive'}
+                 </button>
+                 <button
+                   type="button"
+                   class="vf-secondary-button vf-vault-delete"
+                   data-vault-delete="${esc(item.fileId)}">
+                   Delete
+                 </button>
+               </div>`
+            : `<div class="vf-vault-actions">
+                 <span class="muted vf-vault-managed">
+                   Managed with the certificate
+                 </span>
+               </div>`
+        }
+
+      </div>
+    `).join('');
+
+  list.querySelectorAll('[data-vault-open]').forEach(btn=>{
+    btn.onclick=()=>
+      vfOpenVaultFile(
+        btn.dataset.vaultOpen,
+        btn.dataset.vaultName
+      );
+  });
+
+  list.querySelectorAll('[data-vault-archive]').forEach(btn=>{
+    btn.onclick=()=>
+      vfArchiveVaultFile(
+        btn.dataset.vaultArchive,
+        btn.dataset.vaultArchived!=='1'
+      );
+  });
+
+  list.querySelectorAll('[data-vault-delete]').forEach(btn=>{
+    btn.onclick=()=>
+      vfDeleteVaultFile(btn.dataset.vaultDelete);
+  });
+}
+
+
+if($('#vaultSearch')){
+
+  $('#vaultSearch').oninput=()=>{
+    vfVaultSearch=$('#vaultSearch').value||'';
+    renderVault();
+  };
+}
+
+
+if($('#vaultKindFilter')){
+
+  $('#vaultKindFilter').onchange=()=>{
+    vfVaultKindFilter=$('#vaultKindFilter').value||'all';
+    renderVault();
+  };
+}
+
+
+if($('#vaultShowArchived')){
+
+  $('#vaultShowArchived').onchange=()=>{
+    vfVaultShowArchived=Boolean($('#vaultShowArchived').checked);
+    renderVault();
+  };
+}
+
+
+async function vfArchiveVaultFile(fileId,archived){
+
+  const item=
+    vaultFiles.find(f=>f.id===fileId);
+
+  if(!item){
+    return;
+  }
+
+  try{
+
+    await updateDoc(
+      doc(db,'vendors',user.uid,'vaultFiles',fileId),
+      {
+        archived:Boolean(archived),
+        updatedAt:serverTimestamp()
+      }
+    );
+
+    await log(
+      archived ? 'File archived' : 'File restored',
+      `${item.name||'A file'} was ${
+        archived ? 'archived' : 'restored'
+      } in the Vault.`,
+      'Manual'
+    );
+
+    await refreshAll();
+    renderVault();
+
+    toast(archived ? 'Archived.' : 'Restored.');
+
+  }catch(error){
+
+    console.error('Vault archive failed:',error);
+    toast('Could not change that file.');
+  }
+}
+
+
+/*
+ * A real deletion. The file is removed from storage and its record
+ * is removed too, so unlike archiving there is nothing left to
+ * restore. The warning says so plainly before anything happens.
+ */
+async function vfDeleteVaultFile(fileId){
+
+  const item=
+    vaultFiles.find(f=>f.id===fileId);
+
+  if(!item){
+    return;
+  }
+
+  const ok=
+    confirm(
+      `Delete ${item.name||'this file'} forever?\n\n`+
+      `The file itself will be erased from storage. This cannot `+
+      `be undone and there is no copy anywhere else.\n\n`+
+      `If you only want it out of the way, use Archive instead — `+
+      `archived files stay searchable.`
+    );
+
+  if(!ok){
+    return;
+  }
+
+  try{
+
+    if(item.objectKey){
+
+      const token=
+        await user.getIdToken();
+
+      const response=
+        await fetch(
+          `${VENDORFLOW_API}/vault/file/`+
+          encodeURIComponent(item.objectKey),
+          {
+            method:'DELETE',
+            headers:{Authorization:`Bearer ${token}`}
+          }
+        );
+
+      if(!response.ok){
+
+        let data={};
+        try{ data=await response.json(); }catch{}
+
+        throw new Error(
+          data?.detail ||
+          data?.error ||
+          `The file could not be deleted (${response.status}).`
+        );
+      }
+    }
+
+    /*
+     * The record is removed only after the file is gone. If the
+     * delete fails, the row stays so the vendor can see it still
+     * exists rather than losing track of a file that is still
+     * taking up space.
+     */
+    await deleteDoc(
+      doc(db,'vendors',user.uid,'vaultFiles',fileId)
+    );
+
+    await log(
+      'File deleted',
+      `${item.name||'A file'} was permanently deleted from the Vault.`,
+      'Manual'
+    );
+
+    await refreshAll();
+    renderVault();
+
+    toast('Deleted.');
+
+  }catch(error){
+
+    console.error('Vault delete failed:',error);
+    toast(error.message||'Could not delete that file.');
+  }
+}
+
+
+function vfVaultKindLabel(kind){
+
+  return (
+    {
+      certificate:'Certificate',
+      statement:'Statement',
+      file:'File'
+    }[String(kind||'file')] || 'File'
+  );
+}
+
+
+function vfVaultFileSize(bytes){
+
+  const n=Number(bytes||0);
+
+  if(!(n>0)){
+    return '';
+  }
+
+  if(n<1024){
+    return `${n} B`;
+  }
+
+  if(n<1024*1024){
+    return `${Math.round(n/1024)} KB`;
+  }
+
+  return `${(n/(1024*1024)).toFixed(1)} MB`;
+}
+
+
+/*
+ * Open any stored file. Fetches with the vendor's token, because
+ * the object is private -- a plain link would 403.
+ */
+async function vfOpenVaultFile(objectKey,name){
+
+  if(!user || !objectKey){
+    return;
+  }
+
+  try{
+
+    const token=
+      await user.getIdToken();
+
+    const response=
+      await fetch(
+        `${VENDORFLOW_API}/vault/file/`+
+        encodeURIComponent(objectKey),
+        {headers:{Authorization:`Bearer ${token}`}}
+      );
+
+    if(!response.ok){
+
+      let data={};
+      try{ data=await response.json(); }catch{}
+
+      throw new Error(
+        data?.detail ||
+        data?.error ||
+        `That file could not be opened (${response.status}).`
+      );
+    }
+
+    const blob=
+      await response.blob();
+
+    const url=
+      URL.createObjectURL(blob);
+
+    window.open(url,'_blank','noopener');
+
+    /*
+     * Revoked on a delay rather than immediately -- the new tab
+     * needs the URL to still resolve when it loads.
+     */
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+
+  }catch(error){
+
+    console.error('Vault file open failed:',error);
+    toast(error.message||'Could not open that file.');
+  }
+}
+
+
 /*
  * One search box filters both columns. Matching is deliberately
  * forgiving: the words can appear in any order, across any field,
@@ -14870,6 +15401,17 @@ if($('#incomeStatementFile')){
           `Statement reader returned ${response.status}.`
         );
       }
+
+      /*
+       * The document goes into the Vault now, before any
+       * transaction is imported. The vendor uploaded it, so it is
+       * theirs to find again whether or not they import from it.
+       */
+      await vfRecordVaultFile(
+        data?.storedFile,
+        'statement',
+        'Income import'
+      );
 
       vfIncomeImportRows=
         vfBuildIncomeImportRows(data);
@@ -16006,6 +16548,12 @@ if($('#expenseStatementFile')){
           `Statement reader returned ${response.status}.`
         );
       }
+
+      await vfRecordVaultFile(
+        data?.storedFile,
+        'statement',
+        'Expense import'
+      );
 
       vfExpenseImportRows=
         vfBuildExpenseImportRows(data);
@@ -31506,6 +32054,9 @@ if($('#paymentDetailModal')){
 
 
 function renderRecords(){
+
+  renderVault();
+
   $('#paymentList').innerHTML=
     payments.length
     ? payments.map(d=>
