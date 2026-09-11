@@ -10039,3 +10039,35 @@ body.vf-wizard-open .vf-modal-overlay{
     display:none;
   }
 }
+
+
+
+/* VF_SIDEBAR_STICKY */
+/* The sidebar stays put while the page scrolls.
+
+   It was already position:sticky, but a later override set
+   height:auto + min-height:100% + align-self:stretch, which made it
+   exactly as tall as its grid row. A sticky element can only stick
+   if it is SHORTER than its containing block -- with no slack there
+   is nothing to slide against, so sticky silently did nothing and
+   the whole sidebar scrolled away with the page.
+
+   The visible symptom was clicking a nav item: the page scrolled
+   back to the top, carrying the sidebar down with it, so the link
+   under the pointer jumped downward.
+
+   Same selector and the same !important as the rule it corrects, so
+   it wins on source order rather than by escalating specificity.
+   Deleting this block restores the stretched, scrolling sidebar. */
+
+#app.shell:not(.hidden)>aside{
+  align-self:start!important;
+  height:100vh!important;
+  min-height:0!important;
+  max-height:100vh!important;
+
+  /* Only scrolls when the menu is taller than the window. When it
+     fits, there is no scroll container to swallow the wheel, so
+     scrolling over the sidebar still moves the page. */
+  overflow-y:auto!important;
+}
