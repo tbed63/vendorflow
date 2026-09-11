@@ -9679,3 +9679,122 @@ body.vf-wizard-open .vf-modal-overlay{
     min-width:80px;
   }
 }
+
+
+
+/* VF_INCEXP_LAYOUT */
+/* Income and Expenses side by side, each scrolling on its own.
+   Previously the two cards stacked, so a long expense list pushed
+   income entirely off screen and the page scrolled forever.
+   Deleting this block restores the stacked layout. */
+
+.vf-incexp-searchbar{
+  display:flex;
+  align-items:flex-end;
+  gap:10px;
+  margin-bottom:14px;
+}
+.vf-incexp-searchbar .vf-field-label{
+  flex:1;
+  min-width:0;
+  margin:0;
+}
+.vf-incexp-searchbar .input{
+  margin:4px 0 0;
+}
+.vf-incexp-searchbar button{
+  flex-shrink:0;
+  padding:11px 15px;
+  border-radius:10px;
+}
+
+.vf-incexp-columns{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+  align-items:start;
+}
+.vf-incexp-columns > .card{
+  margin-bottom:0;
+  min-width:0;
+  padding:18px;
+}
+.vf-incexp-columns h2{
+  font-size:1.25rem;
+}
+
+.vf-incexp-columns #incomeList,
+.vf-incexp-columns #expenseList{
+  max-height:min(52vh,560px);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  margin-top:4px;
+  padding-right:4px;
+}
+
+.vf-incexp-count{
+  margin:0 0 8px;
+  font-size:12px;
+}
+
+/* Rows: the amount sat at the far right edge with a wide empty gap
+   between it and the text. Pull it in next to the content. */
+.vf-incexp-columns .vf-expense-row{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  padding:9px 0;
+}
+.vf-incexp-columns .vf-expense-row-main{
+  flex:1;
+  min-width:0;
+  display:grid;
+  gap:1px;
+}
+.vf-incexp-columns .vf-expense-row-main strong{
+  font-size:13px;
+  line-height:1.3;
+}
+.vf-incexp-columns .vf-expense-row-main span,
+.vf-incexp-columns .vf-expense-row-main p{
+  font-size:11.5px;
+  margin:0;
+  line-height:1.35;
+  overflow-wrap:anywhere;
+}
+.vf-incexp-columns .vf-expense-row-amount{
+  flex:0 0 auto;
+  margin-left:0;
+  font-size:13px;
+  font-weight:700;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+.vf-expense-row-actions{
+  display:flex;
+  flex-shrink:0;
+  gap:5px;
+}
+.vf-expense-row-actions button{
+  padding:4px 9px;
+  font-size:11.5px;
+  border-radius:7px;
+}
+
+@media(max-width:1100px){
+  .vf-incexp-columns{
+    grid-template-columns:1fr;
+  }
+  .vf-incexp-columns #incomeList,
+  .vf-incexp-columns #expenseList{
+    max-height:none;
+    overflow-y:visible;
+  }
+}
+
+@media(max-width:600px){
+  .vf-incexp-searchbar{
+    flex-direction:column;
+    align-items:stretch;
+  }
+}

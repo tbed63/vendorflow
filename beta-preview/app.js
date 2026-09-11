@@ -14249,6 +14249,9 @@ function vfIncomeCategoryLabel(key){
 }
 
 
+let editingIncomeId=null;
+
+
 function vfRenderIncomeCategoryOptions(){
 
   const select=$('#incCategory');
@@ -14264,9 +14267,52 @@ function vfRenderIncomeCategoryOptions(){
 }
 
 
+/*
+ * One search box filters both columns. Matching is deliberately
+ * forgiving: the words can appear in any order, across any field,
+ * so "venmo 40" finds a $40 Venmo entry.
+ */
+let vfIncExpSearch='';
+
+function vfIncExpMatches(haystackParts,query){
+
+  const q=String(query||'').trim().toLowerCase();
+
+  if(!q){
+    return true;
+  }
+
+  const hay=
+    haystackParts
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+  return q
+    .split(/\s+/)
+    .every(word=>hay.includes(word));
+}
+
+
+function vfIncExpSearchNote(shown,total,noun){
+
+  if(!vfIncExpSearch.trim()){
+    return '';
+  }
+
+  return `<p class="muted vf-incexp-count">`+
+    `${shown} of ${total} ${noun}${total===1?'':'s'} match `+
+    `"${esc(vfIncExpSearch.trim())}".</p>`;
+}
+
+
 function vfClearIncomeForm(){
 
   vfRenderIncomeCategoryOptions();
+
+  editingIncomeId=null;
+
+  if($('#saveIncome'))$('#saveIncome').textContent='Save income';
 
   if($('#incDateEarned'))$('#incDateEarned').value=new Date().toISOString().slice(0,10);
   if($('#incAmount'))$('#incAmount').value='';
@@ -14875,8 +14921,31 @@ function renderIncome(){
         String(b.dateEarned||'').localeCompare(String(a.dateEarned||''))
     );
 
+  const matches=
+    sorted.filter(item=>
+      vfIncExpMatches(
+        [
+          vfIncomeCategoryLabel(item.category),
+          item.dateEarned,
+          item.payer,
+          item.memo,
+          money(Number(item.amount||0)),
+          String(item.amount||'')
+        ],
+        vfIncExpSearch
+      )
+    );
+
+  if(!matches.length){
+    list.innerHTML=
+      `<p class="muted">No income matches `+
+      `"${esc(vfIncExpSearch.trim())}".</p>`;
+    return;
+  }
+
   list.innerHTML=
-    sorted.map(item=>`
+    vfIncExpSearchNote(matches.length,sorted.length,'entry')+
+    matches.map(item=>`
       <div class="vf-expense-row">
         <div class="vf-expense-row-main">
           <strong>${esc(vfIncomeCategoryLabel(item.category))}</strong>
@@ -14895,13 +14964,50 @@ function renderIncome(){
           </span>
         </div>
         <div class="vf-expense-row-amount">${money(Number(item.amount||0))}</div>
-        <button type="button" class="vf-secondary-button" data-delete-income="${esc(item.id)}">Delete</button>
+        <div class="vf-expense-row-actions">
+          <button type="button" class="vf-secondary-button" data-edit-income="${esc(item.id)}">Edit</button>
+          <button type="button" class="vf-secondary-button" data-delete-income="${esc(item.id)}">Delete</button>
+        </div>
       </div>
     `).join('');
 
   list.querySelectorAll('[data-delete-income]').forEach(btn=>{
     btn.onclick=()=>deleteIncome(btn.dataset.deleteIncome);
   });
+
+  list.querySelectorAll('[data-edit-income]').forEach(btn=>{
+    btn.onclick=()=>vfEditIncome(btn.dataset.editIncome);
+  });
+}
+
+
+/*
+ * Editing reuses the Add form, so a saved edit runs through exactly
+ * the same validation as a new entry.
+ */
+function vfEditIncome(incomeId){
+
+  const item=
+    income.find(x=>x.id===incomeId);
+
+  if(!item){
+    return toast('That income entry is no longer here.');
+  }
+
+  vfClearIncomeForm();
+
+  editingIncomeId=incomeId;
+
+  if($('#incDateEarned'))$('#incDateEarned').value=item.dateEarned||'';
+  if($('#incAmount'))$('#incAmount').value=item.amount ?? '';
+  if($('#incPayer'))$('#incPayer').value=item.payer||'';
+  if($('#incCategory'))$('#incCategory').value=item.category||'other';
+  if($('#incMemo'))$('#incMemo').value=item.memo||'';
+  if($('#saveIncome'))$('#saveIncome').textContent='Update income';
+
+  show($('#incomeForm'));
+
+  $('#incomeForm').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
 
@@ -14972,6 +15078,27 @@ if($('#addIncome')){
 }
 
 
+if($('#incExpSearch')){
+
+  $('#incExpSearch').oninput=()=>{
+    vfIncExpSearch=$('#incExpSearch').value||'';
+    renderIncome();
+    renderExpenses();
+  };
+}
+
+
+if($('#incExpSearchClear')){
+
+  $('#incExpSearchClear').onclick=()=>{
+    vfIncExpSearch='';
+    if($('#incExpSearch'))$('#incExpSearch').value='';
+    renderIncome();
+    renderExpenses();
+  };
+}
+
+
 if($('#cancelIncome')){
   $('#cancelIncome').onclick=()=>{
     vfClearIncomeForm();
@@ -15003,6 +15130,41 @@ if($('#saveIncome')){
       memo:
         $('#incMemo').value.trim()
     };
+
+    /*
+     * Editing an entry that already exists. Update in place rather
+     * than adding a second copy, and skip the duplicate check --
+     * the entry would always match itself.
+     */
+    if(editingIncomeId){
+
+      const editingId=editingIncomeId;
+
+      await updateDoc(
+        doc(db,'vendors',user.uid,'income',editingId),
+        {
+          ...entry,
+          updatedAt:serverTimestamp()
+        }
+      );
+
+      await log(
+        'Income updated',
+        `${vfIncomeCategoryLabel(entry.category)} — ${money(amount)}`+
+        `${entry.payer?` from ${entry.payer}`:''}`+
+        ` earned ${entry.dateEarned}.`,
+        'Manual'
+      );
+
+      vfClearIncomeForm();
+      hide($('#incomeForm'));
+
+      await refreshAll();
+      renderIncome();
+      renderTaxSummary();
+
+      return toast('Income updated.');
+    }
 
     const duplicates=
       vfFindIncomeDuplicates(entry);
@@ -15107,7 +15269,30 @@ function renderExpenses(){
     (a,b)=>String(b.date||'').localeCompare(String(a.date||''))
   );
 
-  list.innerHTML=sorted.map(e=>`
+  const matches=
+    sorted.filter(e=>
+      vfIncExpMatches(
+        [
+          vfExpenseCategoryLabel(e.category),
+          e.date,
+          e.note,
+          money(Number(e.amount||0)),
+          String(e.amount||'')
+        ],
+        vfIncExpSearch
+      )
+    );
+
+  if(!matches.length){
+    list.innerHTML=
+      `<p class="muted">No expenses match `+
+      `"${esc(vfIncExpSearch.trim())}".</p>`;
+    return;
+  }
+
+  list.innerHTML=
+    vfIncExpSearchNote(matches.length,sorted.length,'expense')+
+    matches.map(e=>`
     <div class="vf-expense-row">
       <div class="vf-expense-row-main">
         <strong>${esc(vfExpenseCategoryLabel(e.category))}</strong>
@@ -15115,13 +15300,51 @@ function renderExpenses(){
         ${e.note?`<p class="muted">${esc(e.note)}</p>`:''}
       </div>
       <div class="vf-expense-row-amount">${money(Number(e.amount||0))}</div>
-      <button type="button" class="vf-secondary-button" data-delete-expense="${e.id}">Delete</button>
+      <div class="vf-expense-row-actions">
+        <button type="button" class="vf-secondary-button" data-edit-expense="${e.id}">Edit</button>
+        <button type="button" class="vf-secondary-button" data-delete-expense="${e.id}">Delete</button>
+      </div>
     </div>
   `).join('');
 
   list.querySelectorAll('[data-delete-expense]').forEach(btn=>{
     btn.onclick=()=>deleteExpense(btn.dataset.deleteExpense);
   });
+
+  list.querySelectorAll('[data-edit-expense]').forEach(btn=>{
+    btn.onclick=()=>vfEditExpense(btn.dataset.editExpense);
+  });
+}
+
+
+/*
+ * Editing reuses the Add form. This edits the one expense, not any
+ * repeat schedule attached to it -- repeats are edited from the
+ * schedule list.
+ */
+function vfEditExpense(expenseId){
+
+  const item=
+    expenses.find(x=>x.id===expenseId);
+
+  if(!item){
+    return toast('That expense is no longer here.');
+  }
+
+  clearExpenseForm();
+  vfRepeatClear('exp');
+
+  editingExpenseId=expenseId;
+
+  if($('#expCategory'))$('#expCategory').value=item.category||'other';
+  if($('#expAmount'))$('#expAmount').value=item.amount ?? '';
+  if($('#expDate'))$('#expDate').value=item.date||'';
+  if($('#expNote'))$('#expNote').value=item.note||'';
+  if($('#saveExpense'))$('#saveExpense').textContent='Update expense';
+
+  show($('#expenseForm'));
+
+  $('#expenseForm').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
 async function deleteExpense(expenseId){
@@ -15202,6 +15425,37 @@ if($('#saveExpense')){
       vfRenderAllRepeatLists();
 
       return toast('Repeat updated.');
+    }
+
+    /*
+     * Editing an expense that already exists. Update in place, and
+     * do NOT touch any repeat rule -- vfRepeatSaveRule below is for
+     * newly added expenses only.
+     */
+    if(editingExpenseId){
+
+      const editingId=editingExpenseId;
+
+      await updateDoc(
+        doc(db,'vendors',user.uid,'expenses',editingId),
+        d
+      );
+
+      await log(
+        'Expense updated',
+        `${vfExpenseCategoryLabel(d.category)} — ${money(amount)}.`,
+        'Manual'
+      );
+
+      clearExpenseForm();
+      vfRepeatClear('exp');
+      hide($('#expenseForm'));
+
+      await refreshAll();
+      renderExpenses();
+      renderTaxSummary();
+
+      return toast('Expense updated.');
     }
 
     await addDoc(

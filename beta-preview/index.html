@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>VendorFlow</title>
-  <link rel="stylesheet" href="styles.css?v=navorder-20260911-061000">
+  <link rel="stylesheet" href="styles.css?v=incexp-20260911-071500">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="modulepreload" href="app.js?v=navorder-20260911-061000">
+  <link rel="modulepreload" href="app.js?v=incexp-20260911-071500">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA</div>
@@ -1822,6 +1822,20 @@ Thank you,
 
 <section id="expensesView" class="view">
 
+  <div class="vf-incexp-searchbar">
+    <label class="vf-field-label">
+      <span>Search income and expenses</span>
+      <input
+        id="incExpSearch"
+        class="input"
+        type="search"
+        placeholder="Category, note, payer, amount or date">
+    </label>
+    <button id="incExpSearchClear" type="button">Clear</button>
+  </div>
+
+  <div class="vf-incexp-columns">
+
   <div class="card">
     <div class="row between">
       <div>
@@ -2043,6 +2057,8 @@ Thank you,
 
     <div id="expenseRepeatList"></div>
     <div id="expenseList"></div>
+  </div>
+
   </div>
 </section>
 
@@ -3883,5 +3899,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=navorder-20260911-061000"></script>
+<script type="module" src="app.js?v=incexp-20260911-071500"></script>
 </body></html>
