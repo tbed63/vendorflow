@@ -602,8 +602,21 @@ window.addEventListener('unhandledrejection',event=>{
 const VF_BILLING_LAUNCH_AT=new Date('2026-09-04T23:40:00Z').getTime();
 
 function vfHasBillingAccess(p,authUser){
+
   const createdAtMs=Date.parse(authUser?.metadata?.creationTime||'')||0;
   if(createdAtMs && createdAtMs<VF_BILLING_LAUNCH_AT)return true;
+
+  /*
+   * A free account granted from the admin console.
+   *
+   * Checked BEFORE subscriptionStatus, and deliberately kept in its
+   * own field: Stripe's webhook overwrites subscriptionStatus on
+   * every subscription event, so a free account faked by writing
+   * 'active' there would revert the moment Stripe mentioned that
+   * customer. Nothing in the billing flow touches this field.
+   */
+  if(p?.complimentaryAccess===true)return true;
+
   const status=p?.subscriptionStatus;
   return status==='trialing'||status==='active';
 }

@@ -340,12 +340,16 @@ function isGrandfathered(v) {
 }
 
 function vendorStatusBucket(v) {
+  // Checked first: a free account granted here overrides whatever
+  // Stripe last said, because that is exactly what it is for.
+  if (v.complimentaryAccess) return 'complimentary';
   const status = v.subscriptionStatus || '';
   if (status) return status;
   return isGrandfathered(v) ? 'grandfathered' : 'none';
 }
 
 function statusLabel(bucket) {
+  if (bucket === 'complimentary') return 'Free account';
   if (bucket === 'trialing') return 'Trialing';
   if (bucket === 'active') return 'Active';
   if (bucket === 'past_due') return 'Past due';
@@ -355,6 +359,7 @@ function statusLabel(bucket) {
 }
 
 function statusClass(bucket) {
+  if (bucket === 'complimentary') return 'status-active';
   if (bucket === 'trialing') return 'status-trialing';
   if (bucket === 'active') return 'status-active';
   if (bucket === 'past_due') return 'status-past_due';
@@ -441,6 +446,7 @@ function renderVendors() {
       const location = [v.city, v.state].filter(Boolean).join(', ') || '—';
       const email = v.email || '';
       const hideLabel = v.adminHidden ? 'Unhide' : 'Hide';
+      const freeLabel = v.complimentaryAccess ? 'End free' : 'Make free';
 
       tr.innerHTML = `
         <td><span class="biz-name">${escapeHtml(v.businessName || '(no business name yet)')}</span></td>
@@ -455,6 +461,7 @@ function renderVendors() {
         <td class="muted">${bucket === 'active' ? fmtDate(v.subscriptionCurrentPeriodEnd) : '—'}</td>
         <td class="muted">${fmtLastLogin(v)}</td>
         <td>
+          <button type="button" class="btn-row free-vendor-btn" data-uid="${escapeHtml(v.uid)}" data-free="${v.complimentaryAccess ? '1' : '0'}" data-name="${escapeHtml(v.businessName || v.email || 'this account')}" title="${v.complimentaryAccess ? escapeHtml('Granted by ' + (v.complimentaryAccessBy || 'an admin') + (v.complimentaryAccessNote ? ' — ' + v.complimentaryAccessNote : '')) : 'Give this account VendorFlow for free, with no Stripe subscription'}">${freeLabel}</button>
           <button type="button" class="btn-row hide-vendor-btn" data-uid="${escapeHtml(v.uid)}" data-hidden="${v.adminHidden ? '1' : '0'}">${hideLabel}</button>
           <button type="button" class="btn-danger reset-vendor-btn" data-uid="${escapeHtml(v.uid)}" data-name="${escapeHtml(v.businessName || v.email || 'this account')}">Reset data</button>
         </td>
@@ -465,6 +472,80 @@ function renderVendors() {
 }
 
 $('#vendorRows').addEventListener('click', async (event) => {
+
+  const freeBtn = event.target.closest('.free-vendor-btn');
+
+  if (freeBtn) {
+
+    const uid = freeBtn.getAttribute('data-uid');
+    const name = freeBtn.getAttribute('data-name');
+    const isFree = freeBtn.getAttribute('data-free') === '1';
+
+    let note = '';
+
+    if (isFree) {
+
+      const sure = confirm(
+        `End the free account for "${name}"?\n\n` +
+        `They will need an active Stripe subscription to get back in. ` +
+        `If they never had one, they will be locked out at the paywall ` +
+        `next time they sign in.`
+      );
+
+      if (!sure) return;
+
+    } else {
+
+      // Asked for, not optional-feeling: in a year nobody remembers
+      // which free accounts were deliberate and which were mistakes.
+      note = prompt(
+        `Give "${name}" VendorFlow for free?\n\n` +
+        `They get full access with no Stripe subscription, and it ` +
+        `stays that way until you end it here.\n\n` +
+        `Why? (shown in the admin console)`,
+        ''
+      );
+
+      if (note === null) return;
+    }
+
+    freeBtn.disabled = true;
+    freeBtn.textContent = '\u2026';
+
+    try {
+
+      const token = await auth.currentUser.getIdToken();
+
+      const res = await fetch(`${VENDORFLOW_API}/admin/vendor-access`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          uid,
+          complimentary: !isFree,
+          note
+        })
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Could not update this account.');
+      }
+
+      await loadVendors();
+
+    } catch (error) {
+
+      alert(error.message || 'Could not update this account.');
+      freeBtn.disabled = false;
+      freeBtn.textContent = isFree ? 'End free' : 'Make free';
+    }
+
+    return;
+  }
 
   const resetBtn = event.target.closest('.reset-vendor-btn');
 
