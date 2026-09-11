@@ -33746,6 +33746,10 @@ function vfProposalEditFormHTML(review){
           <input class="input" type="number" step="0.01" data-proposal-field="amount" value="${esc(String(f.amount||0))}">
         </label>
 
+        <label class="vf-field-label"><span>Date issued</span>
+          <input class="input" type="date" data-proposal-field="issueDate" value="${esc(f.issueDate||'')}">
+        </label>
+
         <label class="vf-field-label"><span>Service start date</span>
           <input class="input" type="date" data-proposal-field="serviceStartDate" value="${esc(f.serviceStartDate||'')}">
         </label>
@@ -42911,9 +42915,10 @@ function renderBulkCertificateReviewFields(
       </label>
 
       <label>
-        <span>Issue date</span>
+        <span>Date issued</span>
         <input
           class="input"
+          type="date"
           data-bulk-edit="issueDate"
           value="${esc(
             x.issueDate || ''
@@ -43058,7 +43063,7 @@ function renderBulkCertificateReviewFields(
     </div>
 
     <div>
-      <span>Issue date</span>
+      <span>Date issued</span>
       <strong>
         ${esc(
           bulkCertificateReviewDisplayValue(
