@@ -36693,13 +36693,26 @@ function renderInboundInbox(){
           message.serviceDescription
         );
 
+        /*
+         * A skipped duplicate is not a failure, so it must not be
+         * labelled like one. Reading "Processing error: this is the
+         * same email VendorFlow already received" would send a
+         * vendor hunting for a bug that isn't there.
+         */
+        const vfWasSkipped=
+          message.outcome==='duplicate';
+
         addDetail(
-          'Why VendorFlow stopped',
+          vfWasSkipped
+            ? 'Why it was skipped'
+            : 'Why VendorFlow stopped',
           message.reasons
         );
 
         addDetail(
-          'Processing error',
+          vfWasSkipped
+            ? 'What happened'
+            : 'Processing error',
           message.detail
         );
 
