@@ -2239,6 +2239,28 @@ function renderSharedCharterSchoolBank(){
           <span>${esc(record.network||record.authorizer||'California charter school')}</span>
           <small>${esc(record.serviceCounties||record.county||'California')}</small>
           <small>Verified ${esc(record.verifiedAt||'')} · CDS ${esc(record.cdsCode||'')}</small>
+
+          <div class="vf-charter-bank-emails">
+
+            <small>
+              <span>Invoices to</span>
+              ${
+                record.accountsPayableEmail
+                  ? esc(record.accountsPayableEmail)
+                  : '<em>not on file yet</em>'
+              }
+            </small>
+
+            <small>
+              <span>Vendor services</span>
+              ${
+                record.vendorEmail
+                  ? esc(record.vendorEmail)
+                  : '<em>not on file yet</em>'
+              }
+            </small>
+
+          </div>
         </div>
         <button
           type="button"
