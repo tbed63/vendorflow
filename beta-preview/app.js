@@ -745,6 +745,15 @@ async function enterApp(){
 
   switchView('review');
 
+  /*
+   * Runs before the first render so a vendor who has been ticking
+   * items off in this browser keeps that progress the first time
+   * they sign in after the checklist moved to the account.
+   */
+  if(typeof vfSetupMigrateLocalState==='function'){
+    await vfSetupMigrateLocalState();
+  }
+
   if(typeof vfRenderWizardNudge==='function')vfRenderWizardNudge();
   if(typeof vfRenderReadySetupButton==='function')vfRenderReadySetupButton();
   if(typeof vfSetupClearSnooze==='function')vfSetupClearSnooze();
@@ -48905,9 +48914,19 @@ const VF_SETUP_ITEMS=[
 
 
 /*
- * All checklist state is per-account and lives in localStorage --
- * it is a UI preference, not vendor data, and it should never be
- * able to affect anything financial.
+ * Checklist state follows the ACCOUNT, not the browser.
+ *
+ * This used to live only in localStorage, on the reasoning that it
+ * was "a UI preference, not vendor data". That held while a vendor
+ * used one computer. It is not a preference -- which steps you have
+ * done, skipped or dismissed is progress, and opening the account on
+ * a second computer showed a checklist that had forgotten all of it.
+ *
+ * Firestore is now the source of truth (profile.setupChecklist), with
+ * localStorage kept as a same-browser mirror so the panel still
+ * renders instantly on load and keeps working offline. Nothing here
+ * touches anything financial -- that part of the original reasoning
+ * was right and still holds.
  */
 function vfSetupStorageKey(){
   return user && user.uid
@@ -48916,55 +48935,148 @@ function vfSetupStorageKey(){
 }
 
 
-function vfSetupState(){
+function vfSetupNormalizeState(parsed){
+
+  const source=parsed||{};
+
+  return {
+    removed:Boolean(source.removed),
+    snoozed:Boolean(source.snoozed),
+    minimized:Boolean(source.minimized),
+    openItem:source.openItem||'',
+    skipped:source.skipped||{},
+    visited:source.visited||{}
+  };
+}
+
+
+function vfSetupLocalState(){
 
   try{
 
     const raw=
       localStorage.getItem(vfSetupStorageKey());
 
-    const parsed=
-      raw ? JSON.parse(raw) : {};
-
-    return {
-      removed:Boolean(parsed.removed),
-      snoozed:Boolean(parsed.snoozed),
-      minimized:Boolean(parsed.minimized),
-      openItem:parsed.openItem||'',
-      skipped:parsed.skipped||{},
-      visited:parsed.visited||{}
-    };
+    return vfSetupNormalizeState(
+      raw ? JSON.parse(raw) : {}
+    );
 
   }catch{
 
-    return {
-      removed:false,
-      snoozed:false,
-      minimized:false,
-      openItem:'',
-      skipped:{},
-      visited:{}
-    };
+    return vfSetupNormalizeState(null);
   }
+}
+
+
+function vfSetupState(){
+
+  /*
+   * The account's copy wins whenever it exists, so a second computer
+   * shows the same checklist. Before a vendor has ever saved one,
+   * fall back to whatever this browser remembers -- that is what
+   * carries existing progress forward instead of resetting it.
+   */
+  if(profile && profile.setupChecklist){
+    return vfSetupNormalizeState(profile.setupChecklist);
+  }
+
+  return vfSetupLocalState();
 }
 
 
 function vfSetupSaveState(changes){
 
+  const next=
+    vfSetupNormalizeState({
+      ...vfSetupState(),
+      ...changes
+    });
+
+  /* Local first, so the panel never waits on the network. */
   try{
 
     localStorage.setItem(
       vfSetupStorageKey(),
-      JSON.stringify({
-        ...vfSetupState(),
-        ...changes
-      })
+      JSON.stringify(next)
     );
 
   }catch(error){
 
     console.error(
-      'Could not save your setup checklist preference:',
+      'Could not save your setup checklist locally:',
+      error
+    );
+  }
+
+  if(profile){
+    profile.setupChecklist=next;
+  }
+
+  if(!user || !user.uid){
+    return;
+  }
+
+  /*
+   * Fire and forget. A checklist tick must never block the click
+   * that caused it, and a failed write is not worth interrupting a
+   * vendor over -- the local copy still has it, and the next change
+   * will try again.
+   */
+  setDoc(
+    vendorDoc(),
+    {setupChecklist:next},
+    {merge:true}
+  ).catch(error=>{
+    console.error(
+      'Could not save your setup checklist to your account:',
+      error
+    );
+  });
+}
+
+
+/*
+ * One-time lift of an existing browser-only checklist into the
+ * account, so a vendor who has been ticking things off on one
+ * computer does not lose that the moment this ships.
+ */
+async function vfSetupMigrateLocalState(){
+
+  if(!user || !user.uid || !profile){
+    return;
+  }
+
+  if(profile.setupChecklist){
+    return;
+  }
+
+  const local=vfSetupLocalState();
+
+  const hasSomething=
+    local.removed ||
+    local.snoozed ||
+    local.minimized ||
+    Object.keys(local.skipped||{}).length>0 ||
+    Object.keys(local.visited||{}).length>0;
+
+  if(!hasSomething){
+    return;
+  }
+
+  profile.setupChecklist=local;
+
+  try{
+
+    await setDoc(
+      vendorDoc(),
+      {setupChecklist:local},
+      {merge:true}
+    );
+
+  }catch(error){
+
+    console.error(
+      'Could not move your setup checklist to your account:',
       error
     );
   }
