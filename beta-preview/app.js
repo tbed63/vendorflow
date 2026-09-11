@@ -14492,6 +14492,7 @@ function renderVault(){
           class="vf-vault-open"
           data-vault-open="${esc(item.objectKey||'')}"
           data-vault-name="${esc(item.name)}"
+          data-vault-file="${esc(item.fileId||'')}"
           title="Open this file">
           <strong>${esc(item.name)}${
             item.archived ? ' (Archived)' : ''
@@ -14538,7 +14539,8 @@ function renderVault(){
     btn.onclick=()=>
       vfOpenVaultFile(
         btn.dataset.vaultOpen,
-        btn.dataset.vaultName
+        btn.dataset.vaultName,
+        btn.dataset.vaultFile||''
       );
   });
 
@@ -14743,13 +14745,196 @@ function vfVaultFileSize(bytes){
 
 
 /*
- * Open any stored file. Fetches with the vendor's token, because
- * the object is private -- a plain link would 403.
+ * Open any stored file IN the app.
+ *
+ * Handing the blob to the browser in a new tab downloaded CSVs
+ * instead of showing them -- browsers have no CSV viewer, so that
+ * was never going to work, and even PDFs opened in a bare tab with
+ * no way back. Both are now rendered here: PDFs through the pdf.js
+ * already loaded for certificates, CSVs as a plain table.
  */
-async function vfOpenVaultFile(objectKey,name){
+let vfVaultViewerUrl=null;
+
+
+function vfCloseVaultViewer(){
+
+  const modal=$('#vaultViewerModal');
+
+  if(modal){
+    hide(modal);
+  }
+
+  const docHost=$('#vaultViewerDoc');
+
+  if(docHost){
+    docHost.innerHTML='';
+  }
+
+  /* Release the downloaded copy so it is not held in memory. */
+  if(vfVaultViewerUrl){
+    URL.revokeObjectURL(vfVaultViewerUrl);
+    vfVaultViewerUrl=null;
+  }
+}
+
+
+/*
+ * Very small CSV reader. Handles quoted fields and escaped quotes,
+ * which is all a bank export needs -- this renders a preview, it is
+ * not the importer, so it never has to be perfect about edge cases.
+ */
+function vfParseCsvPreview(text,maxRows){
+
+  const rows=[];
+  let row=[];
+  let field='';
+  let quoted=false;
+
+  const push=()=>{ row.push(field); field=''; };
+  const endRow=()=>{ row.push(field); rows.push(row); row=[]; field=''; };
+
+  const s=String(text||'').replace(/\r\n/g,'\n');
+
+  for(let i=0;i<s.length;i++){
+
+    const ch=s[i];
+
+    if(quoted){
+
+      if(ch==='"'){
+
+        if(s[i+1]==='"'){
+          field+='"';
+          i++;
+        }else{
+          quoted=false;
+        }
+
+      }else{
+        field+=ch;
+      }
+
+      continue;
+    }
+
+    if(ch==='"'){ quoted=true; continue; }
+    if(ch===','){ push(); continue; }
+
+    if(ch==='\n'){
+      endRow();
+      if(rows.length>=maxRows){ return rows; }
+      continue;
+    }
+
+    field+=ch;
+  }
+
+  if(field.length||row.length){
+    endRow();
+  }
+
+  return rows;
+}
+
+
+/*
+ * Transactions that came out of this file. Only rows imported after
+ * the Vault existed carry a vaultFileId -- anything imported before
+ * that has no link and cannot be matched retrospectively without
+ * guessing, which would be worse than showing nothing.
+ */
+function vfVaultImportedRows(fileId){
+
+  if(!fileId){
+    return [];
+  }
+
+  const out=[];
+
+  income
+    .filter(x=>x.vaultFileId===fileId)
+    .forEach(x=>out.push({
+      kind:'Income',
+      date:x.dateEarned||'',
+      label:
+        [vfIncomeCategoryLabel(x.category),x.payer]
+          .filter(Boolean).join(' · '),
+      amount:Number(x.amount||0)
+    }));
+
+  expenses
+    .filter(x=>x.vaultFileId===fileId)
+    .forEach(x=>out.push({
+      kind:'Expense',
+      date:x.date||'',
+      label:
+        [vfExpenseCategoryLabel(x.category),x.note]
+          .filter(Boolean).join(' · '),
+      amount:Number(x.amount||0)
+    }));
+
+  return out.sort(
+    (a,b)=>String(a.date).localeCompare(String(b.date))
+  );
+}
+
+
+async function vfOpenVaultFile(objectKey,name,fileId){
 
   if(!user || !objectKey){
     return;
+  }
+
+  const modal=$('#vaultViewerModal');
+  const docHost=$('#vaultViewerDoc');
+  const status=$('#vaultViewerStatus');
+
+  if(!modal || !docHost){
+    return;
+  }
+
+  vfCloseVaultViewer();
+
+  if($('#vaultViewerTitle')){
+    $('#vaultViewerTitle').textContent=name||'File';
+  }
+
+  /* What was imported from this file, shown above the document. */
+  const imported=
+    vfVaultImportedRows(fileId);
+
+  const importedHost=$('#vaultViewerImported');
+
+  if(importedHost){
+
+    importedHost.innerHTML=
+      imported.length
+        ? `<div class="vf-vault-imported">
+             <strong>${imported.length} transaction${
+               imported.length===1?'':'s'
+             } imported from this file</strong>
+             ${imported.map(r=>`
+               <div class="vf-vault-imported-row">
+                 <span>${esc(r.date||'—')}</span>
+                 <span>${esc(r.kind)}</span>
+                 <span class="vf-vault-imported-label">${esc(r.label||'')}</span>
+                 <span>${money(r.amount)}</span>
+               </div>
+             `).join('')}
+           </div>`
+        : (
+            fileId
+              ? `<p class="muted">Nothing recorded as imported from
+                 this file. Statements imported before the Vault
+                 existed were not linked to their document.</p>`
+              : ''
+          );
+  }
+
+  show(modal);
+
+  if(status){
+    status.textContent='Opening…';
   }
 
   try{
@@ -14779,22 +14964,131 @@ async function vfOpenVaultFile(objectKey,name){
     const blob=
       await response.blob();
 
-    const url=
+    vfVaultViewerUrl=
       URL.createObjectURL(blob);
 
-    window.open(url,'_blank','noopener');
+    const download=$('#vaultViewerDownload');
 
-    /*
-     * Revoked on a delay rather than immediately -- the new tab
-     * needs the URL to still resolve when it loads.
-     */
-    setTimeout(()=>URL.revokeObjectURL(url),60000);
+    if(download){
+      download.href=vfVaultViewerUrl;
+      download.download=name||'vendorflow-file';
+    }
+
+    const isCsv=
+      /csv/i.test(blob.type||'') ||
+      /\.csv$/i.test(String(objectKey||''));
+
+    if(isCsv){
+
+      const rows=
+        vfParseCsvPreview(
+          await blob.text(),
+          400
+        );
+
+      docHost.innerHTML=
+        rows.length
+          ? `<div class="tablewrap">
+               <table>
+                 <tbody>
+                   ${rows.map((r,rowIndex)=>`
+                     <tr>${
+                       r.map(cell=>
+                         rowIndex===0
+                           ? `<th>${esc(cell)}</th>`
+                           : `<td>${esc(cell)}</td>`
+                       ).join('')
+                     }</tr>
+                   `).join('')}
+                 </tbody>
+               </table>
+             </div>`
+          : '<p class="muted">That file appears to be empty.</p>';
+
+      if(status){
+        status.textContent=
+          rows.length>=400
+            ? 'Showing the first 400 rows.'
+            : '';
+      }
+
+      return;
+    }
+
+    if(!window.pdfjsLib){
+
+      if(status){
+        status.textContent=
+          'This file can be downloaded, but cannot be shown here.';
+      }
+
+      return;
+    }
+
+    const data=
+      new Uint8Array(
+        await blob.arrayBuffer()
+      );
+
+    const pdf=
+      await window.pdfjsLib
+        .getDocument({data})
+        .promise;
+
+    docHost.innerHTML='';
+
+    for(let pageNumber=1;pageNumber<=pdf.numPages;pageNumber++){
+
+      const page=
+        await pdf.getPage(pageNumber);
+
+      const viewport=
+        page.getViewport({scale:1.4});
+
+      const canvas=
+        document.createElement('canvas');
+
+      canvas.width=viewport.width;
+      canvas.height=viewport.height;
+      canvas.className='vf-vault-page';
+
+      docHost.appendChild(canvas);
+
+      await page.render({
+        canvasContext:canvas.getContext('2d'),
+        viewport
+      }).promise;
+    }
+
+    if(status){
+      status.textContent='';
+    }
 
   }catch(error){
 
     console.error('Vault file open failed:',error);
-    toast(error.message||'Could not open that file.');
+
+    if(status){
+      status.textContent=
+        error.message||'Could not open that file.';
+    }
   }
+}
+
+
+if($('#closeVaultViewer')){
+  $('#closeVaultViewer').onclick=()=>vfCloseVaultViewer();
+}
+
+
+if($('#vaultViewerModal')){
+
+  $('#vaultViewerModal').onclick=event=>{
+
+    if(event.target===$('#vaultViewerModal')){
+      vfCloseVaultViewer();
+    }
+  };
 }
 
 
@@ -15008,6 +15302,9 @@ function vfIncomeImportDirection(tx){
 
   return 'uncertain';
 }
+
+
+let vfIncomeImportVaultId=null;
 
 
 function vfBuildIncomeImportRows(data){
@@ -15288,6 +15585,7 @@ async function vfRunIncomeImport(){
           memo:row.memo,
           method:row.method,
           source:'Statement import',
+          vaultFileId:vfIncomeImportVaultId||'',
           createdAt:serverTimestamp(),
           updatedAt:serverTimestamp()
         }
@@ -15407,11 +15705,12 @@ if($('#incomeStatementFile')){
        * transaction is imported. The vendor uploaded it, so it is
        * theirs to find again whether or not they import from it.
        */
-      await vfRecordVaultFile(
-        data?.storedFile,
-        'statement',
-        'Income import'
-      );
+      vfIncomeImportVaultId=
+        await vfRecordVaultFile(
+          data?.storedFile,
+          'statement',
+          'Income import'
+        );
 
       vfIncomeImportRows=
         vfBuildIncomeImportRows(data);
@@ -16041,6 +16340,14 @@ if($('#saveExpense')){
 let vfExpenseImportRows=[];
 let vfExpenseImportBusy=false;
 
+/*
+ * The Vault record for the statement currently under review. Stamped
+ * onto every row imported from it, so the file can later show which
+ * transactions came out of it -- and so an imported row can point
+ * back at the document that produced it.
+ */
+let vfExpenseImportVaultId=null;
+
 
 /*
  * A first guess at the IRS category from the merchant text. Only a
@@ -16435,6 +16742,7 @@ async function vfRunExpenseImport(){
           note:row.note,
           method:row.method,
           source:'Statement import',
+          vaultFileId:vfExpenseImportVaultId||'',
           createdAt:serverTimestamp(),
           updatedAt:serverTimestamp()
         }
@@ -16549,11 +16857,12 @@ if($('#expenseStatementFile')){
         );
       }
 
-      await vfRecordVaultFile(
-        data?.storedFile,
-        'statement',
-        'Expense import'
-      );
+      vfExpenseImportVaultId=
+        await vfRecordVaultFile(
+          data?.storedFile,
+          'statement',
+          'Expense import'
+        );
 
       vfExpenseImportRows=
         vfBuildExpenseImportRows(data);
