@@ -6013,7 +6013,50 @@ function invoiceDueDateForTerms(
  * because the automatic caller wants to skip quietly and the manual
  * one needs something to show the vendor.
  */
+/*
+ * Certificates whose invoice is being written right now.
+ *
+ * Two clicks on "Invoice now" arrive here a few hundred milliseconds
+ * apart, long before the first has written anything, so nothing
+ * further down can see the other attempt -- there is nothing to see
+ * yet. This is the only guard that closes that gap without a network
+ * round trip, which is exactly the gap a double click lives in.
+ */
+const vfInvoicesBeingCreated=new Set();
+
+
 async function vfCreateInvoiceForCertificate(cert){
+
+  const claim=String(cert?.id||'');
+
+  if(claim && vfInvoicesBeingCreated.has(claim)){
+    return {
+      ok:false,
+      reason:'already',
+      detail:'VendorFlow is already creating that invoice.'
+    };
+  }
+
+  if(claim){
+    vfInvoicesBeingCreated.add(claim);
+  }
+
+  try{
+
+    return await vfCreateInvoiceForCertificateNow(cert);
+
+  }finally{
+
+    /* Released however this ends, including on a thrown error --
+       otherwise one failure would block the certificate forever. */
+    if(claim){
+      vfInvoicesBeingCreated.delete(claim);
+    }
+  }
+}
+
+
+async function vfCreateInvoiceForCertificateNow(cert){
 
   if(!cert){
     return {
@@ -6093,10 +6136,42 @@ async function vfCreateInvoiceForCertificate(cert){
       vendorAddressParts();
 
 
+    /*
+     * Keyed on the certificate rather than given a random id. An
+     * invoice belongs to exactly one certificate, so two attempts
+     * cannot produce two documents however the timing falls: the
+     * second writes to the same place the first did.
+     */
     const invoiceRef=
       doc(
-        sub('invoices')
+        sub('invoices'),
+        `cert-${cert.id}`
       );
+
+
+    /*
+     * Asked of the server, not of the copy loaded in this browser.
+     * The scan further up only knows what this tab has seen; another
+     * tab, or a refresh that has not landed yet, is invisible to it.
+     *
+     * Deliberately before reserveNextInvoiceNumber() below, so a
+     * second attempt does not reserve an invoice number it will never
+     * use and leave a gap in the vendor's numbering.
+     *
+     * Invoices created before this change still carry random ids, so
+     * this will not find them -- the in-memory scan above, which runs
+     * after a refresh, is what covers those.
+     */
+    const alreadyWritten=
+      await getDoc(invoiceRef);
+
+    if(alreadyWritten.exists()){
+      return {
+        ok:false,
+        reason:'already',
+        detail:'This certificate already has an invoice.'
+      };
+    }
 
 
     const invoice={
