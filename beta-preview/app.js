@@ -15839,8 +15839,18 @@ function vfBuildIncomeImportRows(data){
       const suggestion=
         vfSuggestIncomeCategory(entry.payer,memo,null);
 
+      /*
+       * A payer the vendor has told VendorFlow to always ignore --
+       * a partner, a friend, anyone who will never be paying the
+       * business. Reuses the rule list the Payments statement import
+       * already keeps, so one decision covers both imports.
+       */
+      const ignored=
+        statementPayerIsIgnored(tx);
+
       return {
         id:`inc-import-${index}`,
+        ignored,
         amount,
         dateEarned:entry.dateEarned,
         payer:entry.payer,
@@ -15862,12 +15872,17 @@ function vfBuildIncomeImportRows(data){
          * overstating income is the wrong way to be wrong.
          */
         include:
+          !ignored &&
           direction==='incoming' &&
           amount>0 &&
           duplicates.length===0,
 
         category:suggestion.category,
-        categoryReason:suggestion.reason
+
+        categoryReason:
+          ignored
+            ? 'You told VendorFlow to always ignore this payer.'
+            : suggestion.reason
       };
     })
     .filter(row=>row.amount>0);
@@ -15886,6 +15901,69 @@ function vfBuildIncomeImportRows(data){
  * chose by hand is never quietly overwritten by a later choice on a
  * different row.
  */
+/*
+ * "Always ignore this payer" is offered as a category because that
+ * is the control the vendor is already looking at, but it is not a
+ * category -- it is a standing rule. It reuses the ignore list the
+ * Payments statement import already keeps, so telling VendorFlow to
+ * ignore a partner or a friend covers both imports at once.
+ */
+const VF_INCOME_IGNORE_VALUE='__vf_ignore_payer__';
+
+
+async function vfIgnoreIncomeImportPayer(row,select){
+
+  if(select){
+    select.disabled=true;
+  }
+
+  /* saveIgnoredStatementPayer does its own confirm, refuses a
+     transaction with no payer name, and skips a rule that already
+     exists. */
+  const saved=
+    await saveIgnoredStatementPayer({
+      payer:row.payer,
+      method:row.method
+    });
+
+  if(select){
+    select.disabled=false;
+  }
+
+  if(!saved){
+    /* Declined or impossible -- put the dropdown back rather than
+       leaving it showing a rule that was never made. */
+    vfRenderIncomeImportResults();
+    return;
+  }
+
+  const key=vfNormalizePayerKey(row.payer);
+  let affected=0;
+
+  vfIncomeImportRows.forEach(item=>{
+
+    if(vfNormalizePayerKey(item.payer)!==key)return;
+
+    item.ignored=true;
+    item.include=false;
+    item.category='other';
+    item.categoryReason=
+      'You told VendorFlow to always ignore this payer.';
+
+    affected++;
+  });
+
+  vfRenderIncomeImportResults();
+
+  toast(
+    `${row.payer||'That payer'} will be left unchecked here `+
+    `and in future imports${
+      affected>1 ? ` (${affected} rows)` : ''
+    }.`
+  );
+}
+
+
 function vfApplyIncomeChoiceToSamePayer(sourceRow){
 
   const key=vfNormalizePayerKey(sourceRow?.payer);
@@ -15899,6 +15977,7 @@ function vfApplyIncomeChoiceToSamePayer(sourceRow){
   vfIncomeImportRows.forEach(row=>{
 
     if(row===sourceRow)return;
+    if(row.ignored)return;
     if(row.categoryChosenByVendor)return;
     if(vfNormalizePayerKey(row.payer)!==key)return;
     if(row.category===sourceRow.category)return;
@@ -15950,7 +16029,9 @@ function vfRenderIncomeImportResults(){
             c.key===row.category ? 'selected' : ''
           }>${esc(c.label)}</option>`
         )
-        .join('');
+        .join('')+
+      `<option value="${VF_INCOME_IGNORE_VALUE}">`+
+      `Always ignore this payer</option>`;
 
   const incoming=
     vfIncomeImportRows.filter(r=>r.direction==='incoming').length;
@@ -16066,18 +16147,25 @@ function vfRenderIncomeImportResults(){
         vfIncomeImportRows.find(
           r=>r.id===select.dataset.incomeImportCategory
         );
-      if(row){
-        row.category=select.value;
-
-        /* The vendor has overruled the guess, so the explanation for
-           it is no longer true. Drop it rather than leave a note
-           claiming a reason for a choice they just changed. */
-        row.categoryReason='';
-
-        vfApplyIncomeChoiceToSamePayer(row);
-
-        vfRenderIncomeImportResults();
+      if(!row){
+        return;
       }
+
+      if(select.value===VF_INCOME_IGNORE_VALUE){
+        vfIgnoreIncomeImportPayer(row,select);
+        return;
+      }
+
+      row.category=select.value;
+
+      /* The vendor has overruled the guess, so the explanation for
+         it is no longer true. Drop it rather than leave a note
+         claiming a reason for a choice they just changed. */
+      row.categoryReason='';
+
+      vfApplyIncomeChoiceToSamePayer(row);
+
+      vfRenderIncomeImportResults();
     };
   });
 
