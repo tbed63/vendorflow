@@ -22421,6 +22421,18 @@ async function vfCorrectCopiedFields(targets){
       }
 
 
+      /*
+       * An optional extra condition, for a target where only some of
+       * the matching records should follow the correction.
+       */
+      if(
+        target.only &&
+        !target.only(record)
+      ){
+        continue;
+      }
+
+
       const fields={};
 
       for(const [key,value] of Object.entries(target.fields)){
@@ -22537,6 +22549,58 @@ async function vfFanOutStudentDetails(student){
       matchField:'studentId',
       matchValue:student.id,
       fields:{studentName:name,...parent}
+    }
+  ]);
+}
+
+
+/*
+ * A service's name, wherever it was copied.
+ */
+async function vfFanOutServiceName(service){
+
+  if(!service?.id){
+    return 0;
+  }
+
+  const name=
+    String(service.name||'').trim();
+
+  /* An empty name is not a correction worth spreading. */
+  if(!name){
+    return 0;
+  }
+
+
+  return await vfCorrectCopiedFields([
+    {
+      collection:'obligations',
+      records:obligations,
+      matchField:'serviceId',
+      matchValue:service.id,
+      fields:{serviceName:name}
+    },
+    {
+      /*
+       * Invoices, but only while they are still unsent.
+       *
+       * Renaming a service is not always a correction -- "Piano Level
+       * 1" becoming "Piano Level 2" is a real change -- so an invoice
+       * already sent keeps the name it was billed under. A student's
+       * name is treated the other way, because a change there is
+       * almost always an error being fixed.
+       */
+      collection:'invoices',
+      records:invoices,
+      matchField:'serviceId',
+      matchValue:service.id,
+
+      only:invoice=>
+        String(
+          invoice.status||'Ready to Send'
+        )==='Ready to Send',
+
+      fields:{serviceName:name}
     }
   ]);
 }
@@ -23081,17 +23145,40 @@ async function ccStartEditService(serviceId){
     {merge:true}
   );
 
+  /* And on to the charges and unsent invoices that copied the name. */
+  const correctedForService=
+    String(service.name||'')!==trimmedName
+      ? await vfFanOutServiceName({
+          id:service.id,
+          name:trimmedName
+        })
+      : 0;
+
+
   await log(
     'Service edited',
     `${service.studentName||'Student'} — service updated to "${trimmedName}"`+
     `${updates.totalPrice!==undefined?` at ${money(updates.totalPrice)}`:''}. `+
+    `${
+      correctedForService
+        ? `${correctedForService} ${
+            correctedForService===1 ? 'record was' : 'records were'
+          } updated to match. `
+        : ''
+    }`+
     `Edited service record ID: ${service.id}.`,
     'Manual'
   );
 
   await refreshAll();
 
-  toast('Service updated.');
+  toast(
+    correctedForService
+      ? `Service updated, and ${correctedForService} ${
+          correctedForService===1 ? 'record' : 'records'
+        } corrected to match.`
+      : 'Service updated.'
+  );
 }
 
 
