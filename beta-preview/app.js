@@ -6885,16 +6885,123 @@ function closeInvoiceLedgerDetail(){
 }
 
 
-async function markInvoiceSentManually(invoice){
+let vfJustSavedCertificateId='';
+
+
+/*
+ * Marking a certificate "Billed - Not Paid" stops the scheduled
+ * invoice -- certificateIsInvoiceReady() only accepts "Received -
+ * Not Billed" -- but on its own it records nothing and chases
+ * nobody. Overdue reminders run off INVOICES with status Sent
+ * (overdueInvoiceNotificationItems), and a certificate status is
+ * invisible to them.
+ *
+ * So a vendor who marks a certificate billed, expecting VendorFlow
+ * to watch for the charter's payment, gets silence.
+ *
+ * This offers the missing half: create the invoice that was sent,
+ * and mark it sent, in one question. Declining is fine -- the status
+ * still changes, there is just nothing to chase.
+ */
+async function vfOfferInvoiceForBilledCertificate(certificateId,status){
+
+  if(String(status||'')!=='Billed - Not Paid'){
+    return;
+  }
+
+  if(!certificateId){
+    return;
+  }
+
+  await refreshAll();
+
+  const cert=
+    certs.find(c=>c.id===certificateId && !c.deleted);
+
+  if(!cert){
+    return;
+  }
+
+  /* Already tracked -- nothing missing. */
+  if(invoices.some(i=>i.certificateId===cert.id)){
+    return;
+  }
+
+  if(!profile.invoiceNumberMode){
+    toast(
+      'Marked billed. Choose your invoice numbering system on the '+
+      'Invoices page to have VendorFlow track the payment.'
+    );
+    return;
+  }
 
   const ok=
     confirm(
-      `Mark ${invoice.invoiceNumber} as sent?\n\n`+
-      `This records that the invoice was sent to ${invoice.charterSchoolName}.`
+      `You marked this certificate billed, but VendorFlow has no `+
+      `invoice for it.\n\n`+
+      `Create the invoice and record it as already sent?\n\n`+
+      `That is what lets VendorFlow watch for `+
+      `${cert.school||'the charter school'}'s payment and remind you `+
+      `when it is overdue. Without it, the status changes and `+
+      `nothing else happens.`
     );
 
   if(!ok){
     return;
+  }
+
+  const result=
+    await vfCreateInvoiceForCertificate(cert);
+
+  if(!result.ok){
+    toast(result.detail||'That invoice could not be created.');
+    return;
+  }
+
+  await refreshAll();
+
+  const invoice=
+    invoices.find(i=>i.id===result.invoiceId);
+
+  if(!invoice){
+    toast(
+      `Invoice ${result.invoiceNumber||''} was created. `+
+      `Mark it sent on the Invoices page.`
+    );
+    return;
+  }
+
+  await markInvoiceSentManually(
+    {id:result.invoiceId,...invoice},
+    {skipConfirm:true}
+  );
+
+  toast(
+    `Invoice ${result.invoiceNumber||''} recorded as sent. `+
+    `VendorFlow will remind you if it goes unpaid.`
+  );
+}
+
+
+async function markInvoiceSentManually(invoice,options){
+
+  /*
+   * skipConfirm is for callers that have ALREADY asked -- marking a
+   * certificate "Billed - Not Paid" asks one question covering both
+   * creating the invoice and marking it sent. Two dialogs for one
+   * decision teaches vendors to click through dialogs.
+   */
+  if(!options?.skipConfirm){
+
+    const ok=
+      confirm(
+        `Mark ${invoice.invoiceNumber} as sent?\n\n`+
+        `This records that the invoice was sent to ${invoice.charterSchoolName}.`
+      );
+
+    if(!ok){
+      return;
+    }
   }
 
 
@@ -32483,6 +32590,8 @@ $('#saveCertificate').onclick=async()=>{
         'Manual'
       );
 
+      vfJustSavedCertificateId=editingCertificateId;
+
 
     }else{
 
@@ -32491,6 +32600,8 @@ $('#saveCertificate').onclick=async()=>{
           sub('certificates'),
           data
         );
+
+      vfJustSavedCertificateId=newCertificateRef.id;
 
       vfPendingCertificateReceivedEmail={
         certificateId:
@@ -32511,6 +32622,11 @@ $('#saveCertificate').onclick=async()=>{
       );
     }
 
+
+    await vfOfferInvoiceForBilledCertificate(
+      vfJustSavedCertificateId,
+      status
+    );
 
     [
       '#certStudent',
