@@ -12039,9 +12039,30 @@ $('#saveClass').onclick=async()=>{
         }
       );
 
+      /* Everything that copied the old group name. */
+      const correctedInGroup=
+        await vfFanOutGroupName({
+          id:existingClass.id,
+          name
+        });
+
+
       await log(
         'Group updated',
-        name,
+
+        `${
+          String(existingClass.name||'')!==name
+            ? `${existingClass.name||'A group'} is now ${name}. `
+            : `${name}. `
+        }`+
+        `${
+          correctedInGroup
+            ? `${correctedInGroup} other ${
+                correctedInGroup===1 ? 'record was' : 'records were'
+              } updated to match.`
+            : 'No other records needed updating.'
+        }`,
+
         'Manual'
       );
 
@@ -22355,6 +22376,210 @@ async function generateStudentCommandCenterInvoices(){
 }
 
 
+/* ==========================================================
+   KEEPING COPIED NAMES HONEST
+   ==========================================================
+
+   VendorFlow copies a student's name onto their charges, payments,
+   certificates and invoices, and a group's name onto the services and
+   charges inside it. That is a deliberate trade: a row can say who it
+   is for without a second lookup.
+
+   The cost of that trade is that a correction has to be pushed out,
+   and for a long time it was not. A vendor who fixed a misspelled name
+   fixed it in one place and left it wrong in five others.
+*/
+
+
+/*
+ * Push a correction onto every record that copied the old value.
+ *
+ * `targets` says where to look: the Firestore collection, the
+ * in-memory array, which key identifies the owner, and which copied
+ * fields should now say what.
+ *
+ * Records are matched by id. Never by name -- matching a stale name is
+ * the problem being fixed, and it breaks the moment two students share
+ * one.
+ */
+async function vfCorrectCopiedFields(targets){
+
+  let updated=0;
+
+  for(const target of targets){
+
+    const owner=String(target.matchValue||'');
+
+    if(!owner){
+      continue;
+    }
+
+    for(const record of target.records||[]){
+
+      if(String(record[target.matchField]||'')!==owner){
+        continue;
+      }
+
+
+      const fields={};
+
+      for(const [key,value] of Object.entries(target.fields)){
+
+        /*
+         * Only keys the record already carries. This corrects copies;
+         * it does not start making new ones on records that were
+         * deliberately left without them.
+         */
+        if(!(key in record)){
+          continue;
+        }
+
+        if(String(record[key]||'')!==String(value||'')){
+          fields[key]=value;
+        }
+      }
+
+
+      /* Already correct. */
+      if(!Object.keys(fields).length){
+        continue;
+      }
+
+
+      await setDoc(
+        doc(
+          db,
+          'vendors',
+          user.uid,
+          target.collection,
+          record.id
+        ),
+        {
+          ...fields,
+
+          updatedAt:
+            serverTimestamp()
+        },
+        {
+          merge:true
+        }
+      );
+
+      /*
+       * The in-memory copy too, so the page the vendor is looking at
+       * is right immediately rather than after the refresh.
+       */
+      Object.assign(record,fields);
+
+      updated++;
+    }
+  }
+
+  return updated;
+}
+
+
+/*
+ * A student's name and their parent's details, wherever they were
+ * copied.
+ */
+async function vfFanOutStudentDetails(student){
+
+  if(!student?.id){
+    return 0;
+  }
+
+  const name=
+    String(student.studentName||'').trim();
+
+  const parent={
+    parentName:
+      String(student.parentName||'').trim(),
+
+    parentEmail:
+      String(student.parentEmail||'').trim()
+  };
+
+  /* Each collection keeps the name under its own key. */
+  return await vfCorrectCopiedFields([
+    {
+      collection:'obligations',
+      records:obligations,
+      matchField:'studentId',
+      matchValue:student.id,
+      fields:{studentName:name,...parent}
+    },
+    {
+      collection:'payments',
+      records:payments,
+      matchField:'studentId',
+      matchValue:student.id,
+      fields:{student:name,...parent}
+    },
+    {
+      collection:'certificates',
+      records:certs,
+      matchField:'studentId',
+      matchValue:student.id,
+      fields:{student:name,...parent}
+    },
+    {
+      /*
+       * Invoices included, unlike the charter's postal address, which
+       * is deliberately frozen on an issued invoice. The difference is
+       * what the edit means: a school moving is a change in the world
+       * and the old invoice should still record where it was sent,
+       * while a misspelled student name is an error, and an error
+       * should not be preserved for the record.
+       */
+      collection:'invoices',
+      records:invoices,
+      matchField:'studentId',
+      matchValue:student.id,
+      fields:{studentName:name,...parent}
+    }
+  ]);
+}
+
+
+/*
+ * A group's name, wherever it was copied.
+ */
+async function vfFanOutGroupName(group){
+
+  if(!group?.id){
+    return 0;
+  }
+
+  const name=
+    String(group.name||'').trim();
+
+  return await vfCorrectCopiedFields([
+    {
+      collection:'services',
+      records:services,
+      matchField:'classId',
+      matchValue:group.id,
+      fields:{className:name}
+    },
+    {
+      collection:'obligations',
+      records:obligations,
+      matchField:'classId',
+      matchValue:group.id,
+      fields:{className:name}
+    },
+    {
+      collection:'payments',
+      records:payments,
+      matchField:'classId',
+      matchValue:group.id,
+      fields:{className:name}
+    }
+  ]);
+}
+
+
 async function saveStudentCommandCenterProfile(){
 
   const current=students.find(s=>s.id===vfCommandCenterStudentId);
@@ -22445,15 +22670,55 @@ async function saveStudentCommandCenterProfile(){
     );
   }
 
+  /*
+   * And on to every record that copied this student's details. Runs
+   * whether or not the name changed, because a corrected parent email
+   * is copied in the same places and goes stale the same way.
+   */
+  const corrected=
+    await vfFanOutStudentDetails({
+      id:current.id,
+      studentName:updated.studentName,
+      parentName:updated.parentName,
+      parentEmail:updated.parentEmail
+    });
+
+
+  const renamed=
+    String(current.studentName||'')!==
+    String(updated.studentName||'');
+
+
   await log(
-    'Student updated',
-    `${current.studentName} contact information was updated.`,
+    renamed
+      ? 'Student renamed'
+      : 'Student updated',
+
+    `${
+      renamed
+        ? `${current.studentName||'A student'} is now ${updated.studentName}. `
+        : `${updated.studentName} contact information was updated. `
+    }`+
+    `${
+      corrected
+        ? `${corrected} other ${
+            corrected===1 ? 'record was' : 'records were'
+          } updated to match.`
+        : 'No other records needed updating.'
+    }`,
+
     'Manual'
   );
 
   await refreshAll();
 
-  toast('Student updated.');
+  toast(
+    corrected
+      ? `Student updated, and ${corrected} other ${
+          corrected===1 ? 'record' : 'records'
+        } corrected to match.`
+      : 'Student updated.'
+  );
 }
 
 
