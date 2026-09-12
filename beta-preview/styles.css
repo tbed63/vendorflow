@@ -10343,3 +10343,50 @@ body.vf-wizard-open .vf-modal-overlay{
     font-size:clamp(11.5px,1.5vh,13px);
   }
 }
+
+
+/* VF_CLOUD_IMPORT */
+/* The "or import from" row that sits under every file input.
+
+   Deliberately quiet: choosing a file off your own computer stays
+   the obvious primary action, and these are the alternative. They
+   read as links with a border rather than as buttons competing with
+   the upload control above them.
+
+   The row only exists when a provider key is configured, so on an
+   unconfigured build none of this is ever drawn. */
+
+.vf-cloud-row{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:8px;
+  margin:8px 0 4px;
+}
+
+.vf-cloud-label{
+  font-size:12px;
+  color:var(--muted);
+}
+
+.vf-cloud-btn{
+  border:1px solid #d0d5dd;
+  background:#fff;
+  color:#1A346F;
+  border-radius:9px;
+  padding:6px 11px;
+  font-size:12.5px;
+  font-weight:700;
+  cursor:pointer;
+  transition:background .15s ease,border-color .15s ease;
+}
+
+.vf-cloud-btn:hover:not(:disabled){
+  background:#f2f6fc;
+  border-color:#1A346F;
+}
+
+.vf-cloud-btn:disabled{
+  opacity:.6;
+  cursor:default;
+}

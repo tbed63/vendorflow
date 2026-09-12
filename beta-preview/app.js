@@ -49258,6 +49258,653 @@ async function readPaymentStatement(){
  * same behavior as the certificate PDF importer, so the vendor
  * never has to remember a separate "Read" click.
  */
+/* ==========================================================
+   CLOUD IMPORT -- Google Drive and Dropbox at every door
+   ==========================================================
+
+   VendorFlow has seven places a file comes in: the roster CSV, the
+   roster reconcile CSV, the payment / income / expense statements,
+   a single certificate PDF, and the bulk certificate import. Each
+   one is a plain <input type="file">.
+
+   Rather than rewrite seven upload handlers, this adds a second way
+   to fill the SAME input. A cloud file is downloaded, turned into a
+   real File object, put into the input with DataTransfer, and then
+   the input's own 'change' event is fired. Every existing handler --
+   extraction, duplicate checking, the Vault, all of it -- runs
+   exactly as it does for a file picked off the hard drive, because
+   as far as it can tell, that is what happened.
+
+   The two providers differ in one way only:
+
+     Google Drive answers files.get with CORS headers, so the
+     browser downloads it directly and the OAuth token never
+     leaves the page.
+
+     Dropbox answers through a chain of redirects whose middle hops
+     carry no CORS headers, so a browser fetch fails. Those bytes
+     come through the worker's /cloud-import/fetch route instead.
+
+   Nothing here runs until the keys below are filled in. With empty
+   keys no buttons are drawn and no scripts are loaded, so shipping
+   this before the developer apps exist changes nothing. */
+
+
+/*
+ * Public identifiers, not secrets -- every one of these is visible
+ * in the page source by design, and each provider ties it to the
+ * domains registered in their console. That registration, not
+ * secrecy, is what stops another site using them.
+ *
+ * Leave a value empty to hide that provider everywhere.
+ */
+const VF_CLOUD_PICKERS={
+
+  /* Dropbox App Console -> your app -> App key */
+  dropboxAppKey:'',
+
+  /* Google Cloud -> Credentials -> OAuth 2.0 Client ID (Web) */
+  googleClientId:'',
+
+  /* Google Cloud -> Credentials -> API key */
+  googleApiKey:'',
+
+  /* Google Cloud -> project NUMBER (not the project id) */
+  googleAppId:''
+};
+
+
+/*
+ * Which doors get the buttons, and what each will accept.
+ *
+ * `mimeTypes` filters what the Google picker shows; `extensions`
+ * does the same for Dropbox. Both are deliberately narrow: a vendor
+ * who picks a .docx at the statement door has not made a useful
+ * choice, and finding that out inside the extractor is a worse way
+ * to learn it than not being offered the file.
+ */
+const VF_CLOUD_DOORS=[
+
+  {
+    input:'csv',
+    mimeTypes:'text/csv,application/vnd.google-apps.spreadsheet',
+    extensions:['.csv']
+  },
+
+  {
+    input:'rosterReconcileCsv',
+    mimeTypes:'text/csv,application/vnd.google-apps.spreadsheet',
+    extensions:['.csv']
+  },
+
+  {
+    input:'paymentStatementFile',
+    mimeTypes:'application/pdf,text/csv,application/vnd.google-apps.spreadsheet',
+    extensions:['.pdf','.csv']
+  },
+
+  {
+    input:'incomeStatementFile',
+    mimeTypes:'application/pdf,text/csv,application/vnd.google-apps.spreadsheet',
+    extensions:['.pdf','.csv']
+  },
+
+  {
+    input:'expenseStatementFile',
+    mimeTypes:'application/pdf,text/csv,application/vnd.google-apps.spreadsheet',
+    extensions:['.pdf','.csv']
+  },
+
+  {
+    input:'certPdf',
+    mimeTypes:'application/pdf',
+    extensions:['.pdf']
+  },
+
+  {
+    /* Hidden input driven by its own button, so the row goes after
+       that button rather than after a label that does not exist. */
+    input:'bulkCertificateFiles',
+    anchor:'#chooseBulkCertificates',
+    mimeTypes:'application/pdf',
+    extensions:['.pdf']
+  }
+
+];
+
+
+const vfCloudScriptPromises=new Map();
+
+
+function vfLoadCloudScript(src,attributes){
+
+  if(vfCloudScriptPromises.has(src)){
+    return vfCloudScriptPromises.get(src);
+  }
+
+  const loading=
+    new Promise((resolve,reject)=>{
+
+      const tag=document.createElement('script');
+
+      tag.src=src;
+      tag.async=true;
+
+      if(attributes){
+        Object.keys(attributes).forEach(name=>{
+          tag.setAttribute(name,attributes[name]);
+        });
+      }
+
+      tag.onload=()=>resolve();
+
+      tag.onerror=()=>
+        reject(
+          new Error(
+            'That service could not be reached. Check your connection and try again.'
+          )
+        );
+
+      document.head.appendChild(tag);
+    });
+
+  vfCloudScriptPromises.set(src,loading);
+
+  return loading;
+}
+
+
+/*
+ * Hand the downloaded files to the input as though the vendor had
+ * chosen them from their own computer.
+ */
+function vfCloudDeliverFiles(input,files){
+
+  if(!input || !files.length){
+    return false;
+  }
+
+  if(typeof DataTransfer!=='function'){
+    toast('This browser cannot accept cloud files. Download it first, then choose it.');
+    return false;
+  }
+
+  const carrier=new DataTransfer();
+
+  const deliver=
+    input.multiple
+      ? files
+      : files.slice(0,1);
+
+  deliver.forEach(file=>carrier.items.add(file));
+
+  input.files=carrier.files;
+
+  input.dispatchEvent(
+    new Event('change',{bubbles:true})
+  );
+
+  return true;
+}
+
+
+/* ---------------- Google Drive ---------------- */
+
+let vfGoogleTokenClient=null;
+let vfGoogleToken='';
+let vfGoogleTokenExpires=0;
+
+
+async function vfGoogleReady(){
+
+  await Promise.all([
+    vfLoadCloudScript('https://apis.google.com/js/api.js'),
+    vfLoadCloudScript('https://accounts.google.com/gsi/client')
+  ]);
+
+  await new Promise((resolve,reject)=>{
+
+    if(window.google?.picker){
+      return resolve();
+    }
+
+    window.gapi.load('picker',{
+      callback:resolve,
+      onerror:()=>
+        reject(new Error('Google Drive could not start.'))
+    });
+  });
+}
+
+
+function vfGoogleAccessToken(){
+
+  /* A minute of headroom: a token that expires mid-download is the
+     same failure as no token, and harder to read. */
+  if(vfGoogleToken && Date.now() < vfGoogleTokenExpires-60000){
+    return Promise.resolve(vfGoogleToken);
+  }
+
+  return new Promise((resolve,reject)=>{
+
+    if(!vfGoogleTokenClient){
+
+      vfGoogleTokenClient=
+        window.google.accounts.oauth2.initTokenClient({
+
+          client_id:
+            VF_CLOUD_PICKERS.googleClientId,
+
+          /*
+           * drive.file is the narrowest scope that works: VendorFlow
+           * can only ever see files the vendor personally picks, and
+           * nothing else in their Drive. It is also the scope that
+           * keeps this out of Google's restricted-scope security
+           * assessment.
+           */
+          scope:
+            'https://www.googleapis.com/auth/drive.file',
+
+          callback:response=>{
+
+            if(response?.error || !response?.access_token){
+              return reject(
+                new Error('Google sign-in was not completed.')
+              );
+            }
+
+            vfGoogleToken=response.access_token;
+
+            vfGoogleTokenExpires=
+              Date.now()+
+              (Number(response.expires_in||3600)*1000);
+
+            resolve(vfGoogleToken);
+          },
+
+          error_callback:()=>
+            reject(new Error('Google sign-in was closed.'))
+        });
+    } else {
+
+      vfGoogleTokenClient.callback=response=>{
+
+        if(response?.error || !response?.access_token){
+          return reject(
+            new Error('Google sign-in was not completed.')
+          );
+        }
+
+        vfGoogleToken=response.access_token;
+
+        vfGoogleTokenExpires=
+          Date.now()+
+          (Number(response.expires_in||3600)*1000);
+
+        resolve(vfGoogleToken);
+      };
+    }
+
+    vfGoogleTokenClient.requestAccessToken({prompt:''});
+  });
+}
+
+
+/*
+ * A Google Sheet or Doc is not a file with bytes -- it has to be
+ * exported first. Anything else downloads as-is.
+ */
+function vfGoogleDownloadPlan(doc){
+
+  const mime=String(doc.mimeType||'');
+
+  if(!mime.startsWith('application/vnd.google-apps.')){
+    return {
+      url:
+        `https://www.googleapis.com/drive/v3/files/${
+          encodeURIComponent(doc.id)
+        }?alt=media&supportsAllDrives=true`,
+      name:doc.name||'drive-file',
+      type:mime
+    };
+  }
+
+  if(mime==='application/vnd.google-apps.spreadsheet'){
+    return {
+      url:
+        `https://www.googleapis.com/drive/v3/files/${
+          encodeURIComponent(doc.id)
+        }/export?mimeType=text%2Fcsv`,
+      name:`${doc.name||'sheet'}.csv`,
+      type:'text/csv',
+      note:'Google Sheets export their first tab only.'
+    };
+  }
+
+  if(mime==='application/vnd.google-apps.document'){
+    return {
+      url:
+        `https://www.googleapis.com/drive/v3/files/${
+          encodeURIComponent(doc.id)
+        }/export?mimeType=application%2Fpdf`,
+      name:`${doc.name||'document'}.pdf`,
+      type:'application/pdf'
+    };
+  }
+
+  return null;
+}
+
+
+async function vfPickFromGoogleDrive(door){
+
+  await vfGoogleReady();
+
+  const token=await vfGoogleAccessToken();
+
+  const docs=
+    await new Promise(resolve=>{
+
+      const view=
+        new window.google.picker.DocsView(
+          window.google.picker.ViewId.DOCS
+        )
+          .setIncludeFolders(true)
+          .setSelectFolderEnabled(false);
+
+      if(door.mimeTypes){
+        view.setMimeTypes(door.mimeTypes);
+      }
+
+      const builder=
+        new window.google.picker.PickerBuilder()
+          .setAppId(VF_CLOUD_PICKERS.googleAppId)
+          .setOAuthToken(token)
+          .setDeveloperKey(VF_CLOUD_PICKERS.googleApiKey)
+          .addView(view)
+          .setCallback(data=>{
+
+            const action=
+              data[window.google.picker.Response.ACTION];
+
+            if(action===window.google.picker.Action.PICKED){
+              return resolve(
+                data[window.google.picker.Response.DOCUMENTS]||[]
+              );
+            }
+
+            if(action===window.google.picker.Action.CANCEL){
+              resolve([]);
+            }
+          });
+
+      if(door.multiple){
+        builder.enableFeature(
+          window.google.picker.Feature.MULTISELECT_ENABLED
+        );
+      }
+
+      builder.build().setVisible(true);
+    });
+
+  const files=[];
+  const notes=new Set();
+
+  for(const doc of docs){
+
+    const plan=vfGoogleDownloadPlan(doc);
+
+    if(!plan){
+      notes.add(
+        `${doc.name||'That Google file'} cannot be imported. Save it as a PDF or CSV first.`
+      );
+      continue;
+    }
+
+    const response=
+      await fetch(plan.url,{
+        headers:{Authorization:`Bearer ${token}`}
+      });
+
+    if(!response.ok){
+      throw new Error(
+        `Google Drive would not send ${
+          doc.name||'that file'
+        } (${response.status}).`
+      );
+    }
+
+    const blob=await response.blob();
+
+    files.push(
+      new File(
+        [blob],
+        plan.name,
+        {type:plan.type||blob.type||'application/octet-stream'}
+      )
+    );
+
+    if(plan.note){
+      notes.add(plan.note);
+    }
+  }
+
+  return {files,notes:[...notes]};
+}
+
+
+/* ---------------- Dropbox ---------------- */
+
+async function vfPickFromDropbox(door){
+
+  await vfLoadCloudScript(
+    'https://www.dropbox.com/static/api/2/dropins.js',
+    {
+      id:'dropboxjs',
+      'data-app-key':VF_CLOUD_PICKERS.dropboxAppKey
+    }
+  );
+
+  const chosen=
+    await new Promise(resolve=>{
+
+      window.Dropbox.choose({
+
+        /* Direct links expire in about four hours; they are
+           downloaded within seconds of being handed over. */
+        linkType:'direct',
+
+        multiselect:Boolean(door.multiple),
+
+        extensions:door.extensions,
+
+        success:files=>resolve(files||[]),
+
+        cancel:()=>resolve([])
+      });
+    });
+
+  if(!chosen.length){
+    return {files:[],notes:[]};
+  }
+
+  const token=await user.getIdToken();
+
+  const files=[];
+
+  for(const item of chosen){
+
+    const response=
+      await fetch(
+        `${VENDORFLOW_API}/cloud-import/fetch`,
+        {
+          method:'POST',
+          headers:{
+            Authorization:`Bearer ${token}`,
+            'Content-Type':'application/json'
+          },
+          body:JSON.stringify({
+            provider:'dropbox',
+            url:item.link,
+            name:item.name
+          })
+        }
+      );
+
+    if(!response.ok){
+
+      let detail='';
+
+      try{
+        const data=await response.json();
+        detail=data?.error||'';
+      }catch{}
+
+      throw new Error(
+        detail ||
+        `Dropbox file could not be read (${response.status}).`
+      );
+    }
+
+    const blob=await response.blob();
+
+    files.push(
+      new File(
+        [blob],
+        item.name||'dropbox-file',
+        {type:blob.type||'application/octet-stream'}
+      )
+    );
+  }
+
+  return {files,notes:[]};
+}
+
+
+/* ---------------- The buttons ---------------- */
+
+async function vfRunCloudPick(button,door,provider){
+
+  const input=$(`#${door.input}`);
+
+  if(!input){
+    return;
+  }
+
+  const label=button.textContent;
+
+  button.disabled=true;
+  button.textContent='Opening…';
+
+  try{
+
+    const result=
+      provider==='google'
+        ? await vfPickFromGoogleDrive({...door,multiple:input.multiple})
+        : await vfPickFromDropbox({...door,multiple:input.multiple});
+
+    if(!result.files.length){
+      return;
+    }
+
+    button.textContent='Importing…';
+
+    vfCloudDeliverFiles(input,result.files);
+
+    result.notes.forEach(note=>toast(note));
+
+  }catch(error){
+
+    console.error('Cloud import failed:',error);
+
+    toast(
+      error?.message ||
+      'That file could not be imported.'
+    );
+
+  }finally{
+
+    button.disabled=false;
+    button.textContent=label;
+  }
+}
+
+
+function vfSetupCloudDoors(){
+
+  const providers=[];
+
+  if(VF_CLOUD_PICKERS.googleClientId && VF_CLOUD_PICKERS.googleApiKey){
+    providers.push({key:'google',label:'Google Drive'});
+  }
+
+  if(VF_CLOUD_PICKERS.dropboxAppKey){
+    providers.push({key:'dropbox',label:'Dropbox'});
+  }
+
+  /* No keys configured: draw nothing, load nothing. */
+  if(!providers.length){
+    return;
+  }
+
+  VF_CLOUD_DOORS.forEach(door=>{
+
+    const input=$(`#${door.input}`);
+
+    if(!input){
+      return;
+    }
+
+    const mount=
+      door.anchor
+        ? document.querySelector(door.anchor)
+        : (input.closest('label') || input);
+
+    if(!mount || mount.parentNode?.querySelector(
+      `[data-cloud-door="${door.input}"]`
+    )){
+      return;
+    }
+
+    const row=document.createElement('div');
+
+    row.className='vf-cloud-row';
+    row.setAttribute('data-cloud-door',door.input);
+
+    row.innerHTML=
+      `<span class="vf-cloud-label">or import from</span>`+
+      providers.map(provider=>
+        `<button
+           type="button"
+           class="vf-cloud-btn"
+           data-cloud-provider="${provider.key}">
+           ${provider.label}
+         </button>`
+      ).join('');
+
+    mount.insertAdjacentElement('afterend',row);
+
+    row.querySelectorAll('[data-cloud-provider]').forEach(button=>{
+
+      button.onclick=event=>{
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        vfRunCloudPick(
+          button,
+          door,
+          button.dataset.cloudProvider
+        );
+      };
+    });
+  });
+}
+
+
+vfSetupCloudDoors();
+
+
 if($('#paymentStatementFile')){
 
   $('#paymentStatementFile')
