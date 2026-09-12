@@ -729,8 +729,17 @@ $('#nextBtn').onclick=async()=>{
   /*
    * A vendor finishing setup should always arrive at
    * the Dashboard, where VendorFlow gives next-step guidance.
+   *
+   * This said 'review' for a long time, directly underneath the
+   * comment saying it should not. So the first thing a brand-new
+   * vendor saw was a notifications list with nothing in it yet,
+   * rather than the page written to orient them.
+   *
+   * enterApp() above also lands on 'review', which is the right
+   * answer for a vendor coming back to work. This overrides it for
+   * the one case where there is no work yet.
    */
-  switchView('review');
+  switchView('dashboard');
 };
 
 async function enterApp(){
@@ -9259,11 +9268,13 @@ function renderDashboard(){
     };
 
 
+    /*
+     * This toasted "coming soon" while the finished thirteen-slide
+     * tutorial sat in the same file, opened from five other places.
+     */
     tutorialButton.onclick=()=>{
 
-      toast(
-        'VendorFlow tutorial coming soon.'
-      );
+      vfOpenRealInteractiveTutorial();
     };
 
 
