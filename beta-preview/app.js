@@ -15389,6 +15389,111 @@ function vfGuessIncomeCategoryFromText(text){
 
 
 /*
+ * Everything already on file about who this payer is and what their
+ * money has been for.
+ *
+ * Two sources, because a vendor's history lives in two places:
+ *
+ *   income   -- money typed in or imported here, carrying a category
+ *               the vendor actually chose. Strongest evidence.
+ *   payments -- money from families for groups and tutoring. These
+ *               carry no income category, but the GROUP tells us:
+ *               a payment against "Tutoring" is tutoring income,
+ *               one against "Math Jam 3" is class income.
+ *
+ * The first version only looked at `income`, and found nothing --
+ * the Income page is explicitly for money VendorFlow did not already
+ * record, so a vendor's regulars are almost all in `payments`. That
+ * is why every row still said "Other".
+ *
+ * A payer is matched on the payment's payer OR the parent's name,
+ * since a Venmo display name is often the parent rather than
+ * whatever was typed into the payer box.
+ */
+function vfIncomeCategoryEvidence(payer){
+
+  const key=vfNormalizePayerKey(payer);
+
+  if(!key){
+    return [];
+  }
+
+  const found=[];
+
+  income.forEach(item=>{
+
+    if(vfNormalizePayerKey(item.payer)!==key)return;
+    if(!item.category || item.category==='other')return;
+
+    found.push({
+      category:item.category,
+      date:String(item.dateEarned||''),
+      /* A chosen category outranks one we inferred. */
+      strength:1,
+      name:item.payer||payer,
+      source:'income'
+    });
+  });
+
+  payments.forEach(item=>{
+
+    const matchesPayer=
+      vfNormalizePayerKey(item.payer)===key ||
+      vfNormalizePayerKey(item.parentName)===key;
+
+    if(!matchesPayer)return;
+
+    const category=
+      vfGuessIncomeCategoryFromText(
+        vfPaymentGroupText(item)
+      );
+
+    if(!category)return;
+
+    found.push({
+      category,
+      date:String(item.date||item.paymentDate||''),
+      strength:0.6,
+      name:item.payer||item.parentName||payer,
+      source:'payments'
+    });
+  });
+
+  return found.sort(
+    (x,y)=>String(y.date).localeCompare(String(x.date))
+  );
+}
+
+
+/*
+ * What a payment was for, as text. The group name is the signal --
+ * "Tutoring", "Math Jam 3". Falls back to the student's groups when
+ * the payment itself does not name one.
+ */
+function vfPaymentGroupText(payment){
+
+  const direct=
+    [
+      payment?.className,
+      payment?.serviceName,
+      payment?.groupName
+    ].filter(Boolean).join(' ').trim();
+
+  if(direct)return direct;
+
+  const studentId=String(payment?.studentId||'').trim();
+
+  if(!studentId)return '';
+
+  return services
+    .filter(s=>String(s.studentId||'')===studentId)
+    .map(s=>s.name||s.serviceType||'')
+    .filter(Boolean)
+    .join(' ');
+}
+
+
+/*
  * What this vendor has previously filed this payer's money under.
  *
  * Most recent entries count for more, so changing your mind about a
@@ -15399,27 +15504,28 @@ function vfGuessIncomeCategoryFromText(text){
  */
 function vfLearnedIncomeCategory(payer){
 
-  const key=vfNormalizePayerKey(payer);
+  const all=vfIncomeCategoryEvidence(payer);
 
-  if(!key){
+  if(!all.length){
     return null;
   }
+
+  /*
+   * A category the vendor actually chose on an income entry wins
+   * outright over one inferred from a group name -- it is the only
+   * direct evidence of how they categorise INCOME, where a payment's
+   * group is a proxy.
+   *
+   * Weighting the two together did not work: a payment dated one day
+   * later outranked a real choice, because recency swamped the
+   * strength difference. Choosing the source first, then ranking by
+   * recency within it, is both correct and easy to predict.
+   */
+  const chosen=
+    all.filter(item=>item.source==='income');
 
   const matches=
-    income
-      .filter(item=>
-        vfNormalizePayerKey(item.payer)===key &&
-        item.category &&
-        item.category!=='other'
-      )
-      .sort((x,y)=>
-        String(y.dateEarned||'')
-          .localeCompare(String(x.dateEarned||''))
-      );
-
-  if(!matches.length){
-    return null;
-  }
+    chosen.length ? chosen : all;
 
   const weights=new Map();
 
@@ -15446,10 +15552,15 @@ function vfLearnedIncomeCategory(payer){
     return null;
   }
 
+  const supporting=
+    matches.filter(m=>m.category===best);
+
   return {
     category:best,
-    timesSeen:matches.filter(m=>m.category===best).length,
-    payerName:matches[0].payer||payer
+    timesSeen:supporting.length,
+    payerName:matches[0].name||payer,
+    fromPayments:
+      supporting.every(m=>m.source==='payments')
   };
 }
 
@@ -15464,12 +15575,20 @@ function vfSuggestIncomeCategory(payer,memo){
   const learned=vfLearnedIncomeCategory(payer);
 
   if(learned){
+
+    const times=
+      `${learned.timesSeen} time${learned.timesSeen===1?'':'s'}`;
+
     return {
       category:learned.category,
       reason:
-        `You filed ${learned.payerName}'s money under `+
-        `${vfIncomeCategoryLabel(learned.category)} `+
-        `${learned.timesSeen} time${learned.timesSeen===1?'':'s'} before.`
+        learned.fromPayments
+          ? `${learned.payerName} has paid for `+
+            `${vfIncomeCategoryLabel(learned.category)} `+
+            `${times} before.`
+          : `You filed ${learned.payerName}'s money under `+
+            `${vfIncomeCategoryLabel(learned.category)} `+
+            `${times} before.`
     };
   }
 
