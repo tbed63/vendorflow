@@ -35927,10 +35927,104 @@ function vfDismissedNoticesFooter(){
 }
 
 
+/* ==========================================================
+   DO NOT REBUILD A LIST SOMEBODY IS TYPING IN
+   ==========================================================
+
+   renderReviews() replaces the whole innerHTML of #reviewList. Any
+   half-finished edit inside a card -- a student match being chosen, a
+   certificate field being corrected, a duplicate being judged -- is
+   destroyed when that happens, and the vendor loses work they had
+   already done.
+
+   It happened on a 30-second timer. The timer had a guard, but the
+   guard only knew about ONE kind of edit (vfProposalEditingId, the
+   email proposal form). Every other in-card edit was unprotected, and
+   refreshAll() from anywhere else re-rendered regardless of the timer.
+
+   So the guard belongs at the render, not at the poll: while anything
+   in the list is mid-edit, the rebuild is deferred rather than done.
+   Nothing is lost -- the render happens as soon as the vendor
+   finishes, and the list is never silently stale for long, because
+   finishing is a click on a button inside a card and that is exactly
+   what releases the hold. */
+
+let vfReviewListDirty=false;
+let vfReviewRenderPending=false;
+
+
+function vfReviewListIsBusy(){
+
+  /* The proposal editor already had its own flag; keep honouring it. */
+  if(typeof vfProposalEditingId!=='undefined' && vfProposalEditingId){
+    return true;
+  }
+
+  return vfReviewListDirty;
+}
+
+
+/*
+ * Typing or choosing anything inside the list puts it on hold.
+ * Pressing any button inside the list releases it -- a button click
+ * means the vendor is done with that card, and every card action
+ * re-renders straight afterwards anyway.
+ *
+ * Capture phase, so the release happens BEFORE the button's own
+ * handler runs and asks for a re-render.
+ */
+document.addEventListener('input',event=>{
+
+  if(event.target?.closest?.('#reviewList')){
+    vfReviewListDirty=true;
+  }
+},true);
+
+document.addEventListener('change',event=>{
+
+  if(event.target?.closest?.('#reviewList')){
+    vfReviewListDirty=true;
+  }
+},true);
+
+document.addEventListener('click',event=>{
+
+  if(event.target?.closest?.('#reviewList button')){
+    vfReviewListDirty=false;
+  }
+},true);
+
+
+/*
+ * Leaving the page discards the half-edit anyway, so the hold must
+ * not survive it -- otherwise a vendor who typed something and then
+ * navigated away would freeze their own Notifications list.
+ */
+function vfReleaseReviewListHold(){
+  vfReviewListDirty=false;
+}
+
+
 function renderReviews(){
 
   const list=
     $('#reviewList');
+
+  /*
+   * Somebody is part-way through a card. Rebuilding now would throw
+   * their work away, so remember that a render is owed and leave the
+   * list exactly as it is.
+   */
+  if(
+    list &&
+    list.childElementCount &&
+    vfReviewListIsBusy()
+  ){
+    vfReviewRenderPending=true;
+    return;
+  }
+
+  vfReviewRenderPending=false;
 
 
   const displayReviews=
@@ -40462,6 +40556,11 @@ async function loadInboundInbox(){
 
 
 function switchView(v){
+
+  /* Whatever was half-typed in Notifications is gone the moment the
+     list is rebuilt for another page, so the hold goes with it. */
+  vfReleaseReviewListHold();
+
   $$('.view').forEach(
     x=>x.classList.remove('active')
   );
@@ -40587,7 +40686,7 @@ function switchView(v){
              */
             if(
               $('#reviewView')?.classList.contains('active') &&
-              !vfProposalEditingId
+              !vfReviewListIsBusy()
             ){
               refreshReviewsView();
             }
