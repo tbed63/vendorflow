@@ -50356,20 +50356,37 @@ const VF_ADD_MANUAL=[
   {
     /*
      * A charge belongs to a student -- there is nowhere to put one
-     * without saying whose it is. So this opens the directory and
-     * says so, rather than a form that cannot be completed.
+     * without saying whose it is. So these two ask who first, then
+     * drop straight into that student's own charge or payment form
+     * with it already open.
+     *
+     * The form is NOT copied into this panel. It cannot be: the
+     * service dropdown on a charge holds that one student's
+     * services, so a copy here would have to duplicate the service
+     * lookup, and then saveStudentCommandCenterCharge() -- the
+     * proven money path, with its duplicate check and its batched
+     * write -- could not be reused. The picker is the new part; the
+     * form is the real one.
      */
     key:'charge',
     label:'Charge',
     view:'students',
-    message:'Open the student first — a charge belongs to somebody.'
+    picker:'charge',
+    pickerTitle:'Who is this charge for?',
+    pickerWhy:'A charge belongs to a student, so pick one and VendorFlow will open their charge form.',
+    toggle:'#ccAddChargeToggle',
+    focus:'#ccChargeAmount'
   },
 
   {
     key:'payment',
     label:'Payment',
     view:'students',
-    message:'Open the student first — a payment belongs to somebody.'
+    picker:'payment',
+    pickerTitle:'Who made this payment?',
+    pickerWhy:'A payment belongs to a student, so pick one and VendorFlow will open their payment form.',
+    toggle:'#ccAddPaymentToggle',
+    focus:'#ccPaymentAmount'
   }
 
 ];
@@ -50663,6 +50680,8 @@ function vfResetAddAnything(){
 
   vfAddPendingFile=null;
 
+  vfCloseAddStudentPicker();
+
   if($('#vfAnyFile')){
     $('#vfAnyFile').value='';
   }
@@ -50704,6 +50723,210 @@ function vfRenderAddManualGrid(){
 }
 
 
+let vfAddPickerKey='';
+
+
+/*
+ * Step one of adding a charge or a payment: who is it for.
+ *
+ * A list rather than a dropdown, because clicking a name is one
+ * action and choosing from a <select> is two. Filtered as you type,
+ * so a long roster stays usable.
+ */
+function vfOpenAddStudentPicker(key){
+
+  const item=
+    VF_ADD_MANUAL.find(entry=>entry.key===key);
+
+  if(!item){
+    return;
+  }
+
+  vfAddPickerKey=key;
+
+  $$('[data-add-main]').forEach(section=>
+    section.classList.add('hidden')
+  );
+
+  $('#vfAddPickStudent')?.classList.remove('hidden');
+
+  if($('#vfAddPickTitle')){
+    $('#vfAddPickTitle').textContent=
+      item.pickerTitle||'Which student?';
+  }
+
+  if($('#vfAddPickWhy')){
+    $('#vfAddPickWhy').textContent=
+      item.pickerWhy||'';
+  }
+
+  if($('#vfAddStudentSearch')){
+    $('#vfAddStudentSearch').value='';
+  }
+
+  vfRenderAddStudentList();
+
+  setTimeout(()=>{
+    try{ $('#vfAddStudentSearch')?.focus(); }catch{}
+  },40);
+}
+
+
+function vfCloseAddStudentPicker(){
+
+  vfAddPickerKey='';
+
+  $('#vfAddPickStudent')?.classList.add('hidden');
+
+  $$('[data-add-main]').forEach(section=>
+    section.classList.remove('hidden')
+  );
+}
+
+
+function vfAddPickerStudents(){
+
+  const query=
+    String($('#vfAddStudentSearch')?.value||'')
+      .trim()
+      .toLowerCase();
+
+  return (students||[])
+    .filter(student=>{
+
+      if(student.deleted || student.archived){
+        return false;
+      }
+
+      if(!query){
+        return true;
+      }
+
+      return [
+        student.studentName,
+        student.parentName,
+        student.parentEmail
+      ]
+        .map(value=>String(value||'').toLowerCase())
+        .some(value=>value.includes(query));
+    })
+    .sort((a,b)=>
+      String(a.studentName||'').localeCompare(
+        String(b.studentName||'')
+      )
+    );
+}
+
+
+function vfRenderAddStudentList(){
+
+  const host=$('#vfAddStudentList');
+
+  if(!host){
+    return;
+  }
+
+  const matches=
+    vfAddPickerStudents();
+
+  if(!(students||[]).length){
+
+    host.innerHTML=
+      `<div class="empty">
+         No students yet. Add one first, then come back.
+       </div>`;
+
+    return;
+  }
+
+  if(!matches.length){
+
+    host.innerHTML=
+      `<div class="empty">No student matches that.</div>`;
+
+    return;
+  }
+
+  /* Capped so a big roster cannot render a thousand rows into a
+     modal. Typing narrows it; that is what the search is for. */
+  const shown=matches.slice(0,40);
+
+  host.innerHTML=
+    shown.map(student=>
+      `<button
+         type="button"
+         class="vf-add-student-btn"
+         data-add-student="${esc(student.id)}">
+         <strong>${esc(student.studentName||'Unnamed student')}</strong>
+         ${
+           student.parentName
+             ? `<span>${esc(student.parentName)}</span>`
+             : ''
+         }
+       </button>`
+    ).join('')+
+    (
+      matches.length>shown.length
+        ? `<div class="meta">
+             ${matches.length-shown.length} more — keep typing to narrow it.
+           </div>`
+        : ''
+    );
+
+  host.querySelectorAll('[data-add-student]').forEach(button=>{
+
+    button.onclick=()=>
+      vfPickStudentForAdd(button.dataset.addStudent);
+  });
+}
+
+
+/*
+ * Step two: open that student's own page and put the real form on
+ * screen, already expanded, with the cursor in the first field.
+ */
+function vfPickStudentForAdd(studentId){
+
+  const item=
+    VF_ADD_MANUAL.find(entry=>entry.key===vfAddPickerKey);
+
+  if(!item || !studentId){
+    return;
+  }
+
+  vfCloseAddAnything();
+
+  openStudentCommandCenter(studentId);
+
+  /* Two frames: one for the view to switch, one for its buttons to
+     be wired by the render that follows. */
+  setTimeout(()=>{
+
+    const toggle=$(item.toggle);
+
+    if(toggle){
+      toggle.click();
+    }
+
+    setTimeout(()=>{
+
+      const field=$(item.focus);
+
+      if(field){
+
+        field.scrollIntoView({
+          behavior:'smooth',
+          block:'center'
+        });
+
+        try{ field.focus({preventScroll:true}); }catch{}
+      }
+    },80);
+
+  },120);
+}
+
+
 function vfRunAddManual(key){
 
   const item=
@@ -50711,6 +50934,10 @@ function vfRunAddManual(key){
 
   if(!item){
     return;
+  }
+
+  if(item.picker){
+    return vfOpenAddStudentPicker(key);
   }
 
   vfCloseAddAnything();
@@ -50950,6 +51177,14 @@ if($('#vfAddAnythingModal')){
       vfCloseAddAnything();
     }
   };
+}
+
+if($('#vfAddPickBack')){
+  $('#vfAddPickBack').onclick=vfCloseAddStudentPicker;
+}
+
+if($('#vfAddStudentSearch')){
+  $('#vfAddStudentSearch').oninput=vfRenderAddStudentList;
 }
 
 if($('#vfAnyFile')){

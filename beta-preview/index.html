@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>VendorFlow</title>
-  <link rel="stylesheet" href="styles.css?v=one-door-20260913-010000">
+  <link rel="stylesheet" href="styles.css?v=add-student-picker-20260913-104500">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="modulepreload" href="app.js?v=one-door-20260913-010000">
+  <link rel="modulepreload" href="app.js?v=add-student-picker-20260913-104500">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA</div>
@@ -4047,7 +4047,7 @@ Thank you,
     <div class="eyebrow">One place for everything</div>
     <h3 id="vfAddAnythingTitle">Add to VendorFlow</h3>
 
-    <div class="vf-add-section">
+    <div class="vf-add-section" data-add-main>
 
       <h4>Drop a document</h4>
 
@@ -4073,7 +4073,7 @@ Thank you,
 
     </div>
 
-    <div class="vf-add-section">
+    <div class="vf-add-section" data-add-main>
 
       <h4>Or add it by hand</h4>
 
@@ -4082,6 +4082,32 @@ Thank you,
       </p>
 
       <div class="vf-add-manual-grid" id="vfAddManualGrid"></div>
+
+    </div>
+
+    <div class="vf-add-section hidden" id="vfAddPickStudent">
+
+      <h4 id="vfAddPickTitle">Which student?</h4>
+
+      <p class="muted" id="vfAddPickWhy"></p>
+
+      <input
+        id="vfAddStudentSearch"
+        class="input"
+        type="search"
+        autocomplete="off"
+        placeholder="Type a name&hellip;">
+
+      <div id="vfAddStudentList" class="vf-add-student-list"></div>
+
+      <div class="vf-review-actions">
+        <button
+          type="button"
+          class="vf-secondary-button"
+          id="vfAddPickBack">
+          Back
+        </button>
+      </div>
 
     </div>
 
@@ -4113,5 +4139,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=one-door-20260913-010000"></script>
+<script type="module" src="app.js?v=add-student-picker-20260913-104500"></script>
 </body></html>
