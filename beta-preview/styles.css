@@ -10266,3 +10266,80 @@ body.vf-wizard-open .vf-modal-overlay{
   font-size:11.5px;
   border-radius:7px;
 }
+
+
+/* VF_SIDEBAR_FIT */
+/* Every nav item visible at all times.
+
+   The sidebar was capped at 100vh with overflow-y:auto, so on a short
+   window the menu simply scrolled and the bottom items disappeared --
+   even when the page beside it was long. Scrolling a menu to find a
+   menu item is not a menu.
+
+   The fix is to make the menu FIT rather than to let it scroll: every
+   vertical measurement in the sidebar is now a clamp() driven by vh,
+   so the logo, the rows, the gaps and the footer all shrink together
+   as the window gets shorter, and grow back to their designed sizes on
+   a tall window. The clamp maximums are exactly the values that were
+   hard-coded before, so nothing changes on a full-height screen.
+
+   Budgeted for fifteen nav rows. At a 700px-tall window that comes to
+   roughly 665px of sidebar; at 900px, roughly 843px. overflow-y:auto
+   is left in place from VF_SIDEBAR_STICKY purely as a last resort for
+   a window too short for any legible menu -- in normal use it never
+   engages, because there is nothing to scroll.
+
+   Deleting this block restores the fixed sizes and the scrolling menu. */
+
+@media(min-width:901px){
+
+  #app.shell:not(.hidden)>aside{
+    padding-top:clamp(10px,2vh,28px);
+    padding-bottom:clamp(8px,1.6vh,20px);
+  }
+
+  #app.shell:not(.hidden)>aside .vf-sidebar-logo{
+    width:clamp(96px,16vh,235px);
+    margin-bottom:clamp(4px,1.2vh,14px);
+  }
+
+  #app.shell:not(.hidden)>aside .vf-sidebar-subtitle{
+    margin-bottom:clamp(3px,1vh,8px);
+  }
+
+  #app.shell:not(.hidden)>aside nav{
+    margin-top:clamp(6px,1.6vh,18px);
+    gap:clamp(2px,0.55vh,8px);
+    padding-bottom:clamp(4px,1vh,28px)!important;
+  }
+
+  #app.shell:not(.hidden)>aside nav button{
+    min-height:clamp(26px,4.1vh,48px);
+    padding-top:clamp(2px,0.7vh,10px);
+    padding-bottom:clamp(2px,0.7vh,10px);
+    font-size:clamp(12px,1.7vh,15px);
+    gap:clamp(8px,1.4vh,13px);
+  }
+
+  #app.shell:not(.hidden)>aside .vf-nav-icon{
+    width:clamp(17px,2.4vh,24px);
+    height:clamp(17px,2.4vh,24px);
+    flex:0 0 clamp(17px,2.4vh,24px);
+  }
+
+  #app.shell:not(.hidden)>aside .vf-nav-icon svg{
+    width:100%;
+    height:100%;
+  }
+
+  #app.shell:not(.hidden)>aside .vf-sidebar-footer{
+    padding-top:clamp(5px,1.1vh,14px);
+    gap:clamp(2px,0.6vh,6px);
+  }
+
+  #app.shell:not(.hidden)>aside .vf-sidebar-footer-btn{
+    padding-top:clamp(2px,0.7vh,9px);
+    padding-bottom:clamp(2px,0.7vh,9px);
+    font-size:clamp(11.5px,1.5vh,13px);
+  }
+}
