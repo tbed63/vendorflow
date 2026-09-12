@@ -10817,3 +10817,36 @@ body.vf-wizard-open .vf-modal-overlay{
   --vf-deep-gray:#5C6879;
   --vf-light-gray:#98A3B5;
 }
+
+
+/* VF_TYPEFACES */
+/* The two faces are fetched in index.html. Declared here, last, so
+   the "Inter, Arial, sans-serif" on line 1 -- which has never once
+   resolved to Inter -- stops deciding what this app looks like. */
+
+:root{
+  --display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --body:"Public Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+}
+
+body{
+  font-family:var(--body);
+  -webkit-font-smoothing:antialiased;
+}
+
+h1,h2,h3,h4,
+.eyebrow,
+nav button,
+.primary,
+.white{
+  font-family:var(--display);
+}
+
+/* Columns of money and dates cannot line up in proportional figures,
+   and this app is mostly columns of money and dates. */
+table,
+.stat strong,
+.amount,
+.vf-money{
+  font-variant-numeric:tabular-nums;
+}
