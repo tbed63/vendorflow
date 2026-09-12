@@ -10728,3 +10728,38 @@ body.vf-wizard-open .vf-modal-overlay{
   font-size:11.5px;
   line-height:1.45;
 }
+
+
+/* VF_CHARGE_CLICK */
+
+/*
+ * Only the rows that actually open get the clickable treatment. A
+ * charge whose student is gone renders without role="button" and so
+ * keeps the plain cursor, which is the honest signal.
+ *
+ * The focus ring is a real outline rather than the background-only
+ * treatment the payment rows use -- a keyboard user needs to see where
+ * they are, not guess from a faint tint.
+ */
+
+.vf-charge-record[role="button"]{
+  cursor:pointer;
+  transition:background .12s ease;
+}
+
+.vf-charge-record[role="button"]:hover{
+  background:#f4f7fb;
+}
+
+.vf-charge-record[role="button"]:focus-visible{
+  background:#f4f7fb;
+  outline:2px solid #1A346F;
+  outline-offset:2px;
+}
+
+@media(prefers-reduced-motion:reduce){
+
+  .vf-charge-record[role="button"]{
+    transition:none;
+  }
+}

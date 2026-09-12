@@ -48684,8 +48684,36 @@ function renderChargeRecords(){
   list.innerHTML=
     charges.length
       ? charges.map(
-          charge=>`
-            <div class="record vf-charge-record">
+          charge=>{
+
+            const studentId=
+              String(charge.studentId||'').trim();
+
+            /*
+             * Only a row with somewhere to go becomes a button. A
+             * charge whose student has been deleted stays plain text,
+             * rather than looking clickable and doing nothing -- which
+             * is the bug this is fixing, in miniature.
+             */
+            const opens=
+              Boolean(
+                studentId &&
+                students.some(
+                  student=>student.id===studentId
+                )
+              );
+
+            return `
+            <div
+              class="record vf-charge-record"${
+                opens
+                  ? `
+              data-charge-student-id="${esc(studentId)}"
+              role="button"
+              tabindex="0"
+              title="Open this student's account"`
+                  : ''
+              }>
 
               <strong>
                 ${money(charge.amount)} — ${esc(charge.studentName||'Student')}
@@ -48703,10 +48731,44 @@ function renderChargeRecords(){
               </div>
 
             </div>
-          `
+          `;
+          }
         ).join('')
 
       : '<div class="empty">No charges yet.</div>';
+
+
+  /*
+   * Wired the same way payment rows are, including the keyboard: a
+   * row that answers to a mouse and not to Enter is only half
+   * clickable.
+   */
+  $$('[data-charge-student-id]')
+    .forEach(record=>{
+
+      const open=()=>{
+
+        openStudentCommandCenter(
+          record.dataset.chargeStudentId
+        );
+      };
+
+
+      record.onclick=open;
+
+
+      record.onkeydown=
+        event=>{
+
+          if(
+            event.key==='Enter' ||
+            event.key===' '
+          ){
+            event.preventDefault();
+            open();
+          }
+        };
+    });
 }
 
 
