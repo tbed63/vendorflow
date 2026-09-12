@@ -10220,3 +10220,22 @@ body.vf-wizard-open .vf-modal-overlay{
 #certificateForm > .vf-field-label{
   margin-top:12px;
 }
+
+
+
+/* VF_CERT_DATE_WARNING */
+/* Shown when a stored date cannot be displayed in a date picker.
+   Amber, not red: nothing is broken and nothing will be lost --
+   the original is kept unless the vendor picks a new date. */
+.vf-cert-date-warning{
+  display:block;
+  margin-top:4px;
+  padding:5px 8px;
+  border-radius:7px;
+  background:#fdf8ef;
+  border:1px solid #f3d9a4;
+  font-size:11px;
+  line-height:1.35;
+  color:#8a5a10;
+}
+.vf-cert-date-warning.hidden{display:none}

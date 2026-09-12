@@ -21705,6 +21705,10 @@ function vfCcOpenCertificateUpload(){
     }
   });
 
+  /* Also drops any unreadable date held aside, and its warning --
+     otherwise a fresh certificate would inherit the last one's. */
+  vfClearCertDateFields();
+
   if($('#certPdf')){
     $('#certPdf').value='';
   }
@@ -30390,17 +30394,17 @@ function fillCertificateFromExtraction(result){
     reference
   );
 
-  setCertificateField(
+  vfSetCertDateField(
     '#certIssueDate',
     x.issueDate
   );
 
-  setCertificateField(
+  vfSetCertDateField(
     '#certServiceStart',
     x.serviceStartDate
   );
 
-  setCertificateField(
+  vfSetCertDateField(
     '#certServiceEnd',
     x.serviceEndDate
   );
@@ -30817,6 +30821,193 @@ if($('#certPdf')){
 
 
 
+/* ============================================================
+   CERTIFICATE DATE FIELDS
+
+   These are date pickers, so a date cannot be mistyped -- a wrong
+   issued date silently produces a late fee, which is the bug this
+   whole area came from.
+
+   A picker only understands YYYY-MM-DD. Older certificates may hold
+   a date written another way, and a picker handed one of those shows
+   an EMPTY box. Saving then writes that empty over a real date.
+
+   So two safeguards:
+
+     1. Common formats are converted on the way in, so most odd
+        dates simply display correctly and get saved back tidied up.
+     2. Anything still unreadable is kept aside, shown to the vendor
+        as a warning, and written back UNCHANGED on save unless they
+        deliberately pick a new date. A date VendorFlow cannot read
+        is never silently destroyed.
+   ============================================================ */
+
+const VF_MONTH_WORDS={
+  jan:1,january:1,feb:2,february:2,mar:3,march:3,apr:4,april:4,
+  may:5,jun:6,june:6,jul:7,july:7,aug:8,august:8,sep:9,sept:9,
+  september:9,oct:10,october:10,nov:11,november:11,dec:12,december:12
+};
+
+
+function vfIsoDateParts(year,month,day){
+
+  const y=Number(year), m=Number(month), d=Number(day);
+
+  if(!(y>=1900 && y<=2200))return '';
+  if(!(m>=1 && m<=12))return '';
+  if(!(d>=1 && d<=31))return '';
+
+  return `${String(y).padStart(4,'0')}-`+
+    `${String(m).padStart(2,'0')}-`+
+    `${String(d).padStart(2,'0')}`;
+}
+
+
+/*
+ * Returns YYYY-MM-DD, or '' when the value cannot be read
+ * confidently. Deliberately conservative: a guess here becomes a
+ * stored date that decides late fees, so anything ambiguous is
+ * left for a human rather than interpreted.
+ */
+function vfNormalizeDateForPicker(raw){
+
+  const text=String(raw||'').trim();
+
+  if(!text)return '';
+
+  /* Already the format a picker wants. */
+  const iso=text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(iso)return vfIsoDateParts(iso[1],iso[2],iso[3]);
+
+  /* 7/31/2026, 07-31-26 -- US order, which is what these
+     certificates use. */
+  const slash=text.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2}|\d{4})$/);
+  if(slash){
+    let year=slash[3];
+    if(year.length===2)year=`20${year}`;
+    return vfIsoDateParts(year,slash[1],slash[2]);
+  }
+
+  /* July 31, 2026 / 31 July 2026 */
+  const words=text.toLowerCase().replace(/,/g,' ').split(/\s+/).filter(Boolean);
+
+  if(words.length>=3){
+
+    let month=0,day=0,year=0;
+
+    for(const word of words){
+
+      const clean=word.replace(/(st|nd|rd|th)$/,'');
+
+      if(VF_MONTH_WORDS[clean] && !month){
+        month=VF_MONTH_WORDS[clean];
+        continue;
+      }
+
+      const n=Number(clean);
+
+      if(!Number.isFinite(n))continue;
+
+      if(n>=1900 && !year){ year=n; continue; }
+      if(n>=1 && n<=31 && !day){ day=n; }
+    }
+
+    if(month && day && year){
+      return vfIsoDateParts(year,month,day);
+    }
+  }
+
+  return '';
+}
+
+
+function vfCertDateWarningFor(input){
+
+  let note=
+    input.parentElement
+      ?.querySelector('.vf-cert-date-warning');
+
+  if(!note && input.parentElement){
+    note=document.createElement('small');
+    note.className='vf-cert-date-warning';
+    input.parentElement.appendChild(note);
+  }
+
+  return note||null;
+}
+
+
+function vfSetCertDateField(selector,rawValue){
+
+  const input=$(selector);
+
+  if(!input)return;
+
+  const raw=String(rawValue||'').trim();
+  const iso=vfNormalizeDateForPicker(raw);
+
+  delete input.dataset.vfUnreadableDate;
+
+  const note=vfCertDateWarningFor(input);
+
+  if(note){
+    note.textContent='';
+    note.classList.add('hidden');
+  }
+
+  if(iso){
+    input.value=iso;
+    return;
+  }
+
+  input.value='';
+
+  if(!raw){
+    return;
+  }
+
+  /*
+   * Unreadable. Hold the original so save can put it back, and say
+   * so plainly -- an empty box with no explanation is exactly how a
+   * date gets lost.
+   */
+  input.dataset.vfUnreadableDate=raw;
+
+  if(note){
+    note.textContent=
+      `Saved as "${raw}", which VendorFlow can't read. `+
+      `It will be kept as-is unless you pick a date here.`;
+    note.classList.remove('hidden');
+  }
+}
+
+
+function vfReadCertDateField(selector){
+
+  const input=$(selector);
+
+  if(!input)return '';
+
+  const picked=String(input.value||'').trim();
+
+  if(picked)return picked;
+
+  /* Nothing picked: never write an empty over a date we could not
+     display. The original goes back exactly as it was. */
+  return String(input.dataset.vfUnreadableDate||'').trim();
+}
+
+
+function vfClearCertDateFields(){
+
+  [
+    '#certIssueDate',
+    '#certServiceStart',
+    '#certServiceEnd'
+  ].forEach(selector=>vfSetCertDateField(selector,''));
+}
+
+
 async function openCertificateForRepair(
   certificateId
 ){
@@ -30866,14 +31057,9 @@ async function openCertificateForRepair(
   $('#certNumber').value=
     cert.number||'';
 
-  $('#certIssueDate').value=
-    cert.issueDate||'';
-
-  $('#certServiceStart').value=
-    cert.serviceStartDate||'';
-
-  $('#certServiceEnd').value=
-    cert.serviceEndDate||'';
+  vfSetCertDateField('#certIssueDate',cert.issueDate);
+  vfSetCertDateField('#certServiceStart',cert.serviceStartDate);
+  vfSetCertDateField('#certServiceEnd',cert.serviceEndDate);
 
 
   $('#certServiceStart')
@@ -31473,7 +31659,7 @@ $('#saveCertificate').onclick=async()=>{
         Boolean(pdf?.objectKey),
 
       issueDate:
-        $('#certIssueDate')?.value.trim() || '',
+        vfReadCertDateField('#certIssueDate'),
 
       serviceStartDate,
 
