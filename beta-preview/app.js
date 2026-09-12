@@ -49301,7 +49301,7 @@ async function readPaymentStatement(){
 const VF_CLOUD_PICKERS={
 
   /* Dropbox App Console -> your app -> App key */
-  dropboxAppKey:'',
+  dropboxAppKey:'7t5j3ooaow0bqcp',
 
   /* Google Cloud -> Credentials -> OAuth 2.0 Client ID (Web) */
   googleClientId:'',
