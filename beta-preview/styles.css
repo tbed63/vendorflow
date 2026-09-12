@@ -10578,3 +10578,28 @@ body.vf-wizard-open .vf-modal-overlay{
   background:#f2f6fc;
   border-color:#1A346F;
 }
+
+
+/* VF_STUDENT_SETUP */
+/* The "finish setting up this student" card, and the two add-student
+   buttons that create the students it is about.
+
+   Blue rather than amber: a half-made student is unfinished work,
+   not a charge against anybody. It reads as a task, because it is
+   one. */
+
+.vf-student-setup-review{
+  border-left:3px solid #4a7fd4;
+  padding-left:12px;
+}
+
+.vf-student-setup-review strong{
+  color:#1A346F;
+}
+
+#payAddStudent,
+#bulkCertificateAddStudent{
+  margin-top:8px;
+  width:100%;
+  text-align:center;
+}

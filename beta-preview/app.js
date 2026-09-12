@@ -1169,6 +1169,307 @@ function readyInvoiceNotificationItems(){
 }
 
 
+/* ==========================================================
+   ADD A STUDENT MID-IMPORT
+   ==========================================================
+
+   An import that names somebody VendorFlow has never heard of used
+   to be a dead end: the vendor abandoned what they were doing, went
+   and created the student, came back and started the import again.
+   The cost is not the typing -- it is losing your place, and the
+   half-finished job you now have to remember.
+
+   So the two places an import can name an unknown student now offer
+   to create them right there, from the name that is already on
+   screen:
+
+     - the bulk certificate review, when the name read off the PDF
+       matches nobody on the roster,
+     - the payment statement importer, when a payer matches no
+       student and no parent.
+
+   The student created this way is deliberately minimal -- a name,
+   nothing else. That is honest about what is actually known at that
+   moment, and it is enough for the import to finish. It is also not
+   a finished student: it carries setupIncomplete, and Notifications
+   asks for the rest afterwards, so the shortcut cannot quietly
+   become a half-made record nobody remembers.
+
+   Income and expense imports deliberately get none of this. Those
+   pages exist precisely for money from people the vendor chose NOT
+   to make an account for -- offering to create one on every Venmo
+   row would put back the decision the page exists to avoid. */
+
+
+/*
+ * Complete means: VendorFlow can reach the family AND knows what
+ * this student is enrolled in. Parent name and email are what every
+ * automated message needs -- without them the student is silently
+ * left out of invoices, reminders and late-fee notices, which is
+ * the real cost of a half-made record.
+ */
+function vfStudentSetupGaps(student){
+
+  const gaps=[];
+
+  if(!String(student?.parentName||'').trim()){
+    gaps.push('a parent name');
+  }
+
+  if(!String(student?.parentEmail||'').trim()){
+    gaps.push('a parent email');
+  }
+
+  const enrolled=
+    typeof studentServices==='function'
+      ? studentServices(student.id).length
+      : 0;
+
+  if(!enrolled){
+    gaps.push('a group');
+  }
+
+  return gaps;
+}
+
+
+/*
+ * Create a student from nothing but a name.
+ *
+ * Returns the new record rather than just an id, and pushes it into
+ * `students` before returning, so the import that called this can
+ * select the student immediately instead of waiting for a refresh.
+ */
+async function vfCreateQuickStudent(rawName,source){
+
+  const studentName=
+    String(rawName||'')
+      .replace(/\s+/g,' ')
+      .trim();
+
+  if(!studentName){
+    return {ok:false,reason:'Enter the student\'s name first.'};
+  }
+
+  const existing=
+    students.find(
+      s=>
+        normalizedName(s.studentName)===
+        normalizedName(studentName)
+    );
+
+  /*
+   * Already there. Not an error -- the vendor gets the student they
+   * asked for, which is the point; they just did not need creating.
+   */
+  if(existing){
+    return {
+      ok:true,
+      existed:true,
+      student:existing,
+      id:existing.id,
+      studentName:existing.studentName
+    };
+  }
+
+  const parts=
+    studentName.split(' ');
+
+  const data={
+
+    studentName,
+
+    studentFirst:
+      parts[0]||studentName,
+
+    studentLast:
+      parts.slice(1).join(' '),
+
+    parentName:'',
+    parentEmail:'',
+    parentPhone:'',
+
+    active:true,
+
+    source:
+      source||'Added during an import',
+
+    /* The reason Notifications will ask for the rest. */
+    setupIncomplete:true,
+
+    createdAt:serverTimestamp(),
+    updatedAt:serverTimestamp()
+  };
+
+  try{
+
+    const ref=
+      await addDoc(
+        sub('students'),
+        data
+      );
+
+    const student={id:ref.id,...data};
+
+    students.push(student);
+
+    await log(
+      'Student added',
+      `${studentName} was added during an import. `+
+      `Their setup is not finished yet.`,
+      'Manual',
+      {
+        type:'student',
+        id:ref.id
+      }
+    );
+
+    return {
+      ok:true,
+      existed:false,
+      student,
+      id:ref.id,
+      studentName
+    };
+
+  }catch(error){
+
+    console.error('Could not add that student:',error);
+
+    return {
+      ok:false,
+      reason:'That student could not be added. Try again.'
+    };
+  }
+}
+
+
+/*
+ * Students created mid-import that still need the rest filled in.
+ *
+ * Computed, so the card disappears the moment the gaps are filled
+ * and there is nothing to clean up.
+ */
+function incompleteStudentNotificationItems(){
+
+  return (students||[])
+    .filter(student=>{
+
+      if(!student.setupIncomplete){
+        return false;
+      }
+
+      if(student.deleted || student.archived){
+        return false;
+      }
+
+      /* The vendor said this one is finished as it stands. */
+      if(student.setupAcceptedAt){
+        return false;
+      }
+
+      return vfStudentSetupGaps(student).length>0;
+    })
+    .map(student=>{
+
+      const gaps=
+        vfStudentSetupGaps(student);
+
+      return {
+
+        id:
+          `student-setup-${student.id}`,
+
+        reviewType:
+          'student-setup',
+
+        itemType:
+          'student',
+
+        studentId:
+          student.id,
+
+        title:
+          `Finish setting up ${
+            student.studentName || 'a new student'
+          }`,
+
+        detail:
+          `Added during an import. Still missing ${
+            gaps.length===1
+              ? gaps[0]
+              : `${gaps.slice(0,-1).join(', ')} and ${gaps[gaps.length-1]}`
+          }. Until then they are left out of invoices and parent emails.`,
+
+        source:
+          'VendorFlow'
+      };
+    });
+}
+
+
+/*
+ * "It's fine as is" -- some students genuinely are. A certificate-only
+ * student may never belong to a group, and nagging about it forever
+ * would train the vendor to ignore Notifications.
+ *
+ * Writes one flag and no student data.
+ */
+async function vfAcceptStudentSetup(studentId){
+
+  const student=
+    students.find(s=>s.id===studentId);
+
+  if(!student){
+    return;
+  }
+
+  try{
+
+    await setDoc(
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'students',
+        studentId
+      ),
+      {
+        setupAcceptedAt:
+          serverTimestamp(),
+
+        updatedAt:
+          serverTimestamp()
+      },
+      {
+        merge:true
+      }
+    );
+
+    await log(
+      'Student setup accepted',
+      `${student.studentName||'A student'} was marked as finished `+
+      `even though some details are still blank.`,
+      'Manual',
+      {
+        type:'student',
+        id:studentId
+      }
+    );
+
+    await refreshAll();
+    renderAll();
+
+    toast('Marked as finished.');
+
+  }catch(error){
+
+    console.error('Could not save that:',error);
+    toast('That could not be saved. Try again.');
+  }
+}
+
+
 /*
  * Late fees the vendor has not been told about.
  *
@@ -1401,7 +1702,8 @@ function allNeedsReviewItems(){
     ...invoiceNumberingReviewItems(),
     ...readyInvoiceNotificationItems(),
     ...overdueInvoiceNotificationItems(),
-    ...lateFeeChargedNotificationItems()
+    ...lateFeeChargedNotificationItems(),
+    ...incompleteStudentNotificationItems()
   ];
 }
 
@@ -30646,12 +30948,63 @@ function renderPaymentStudentMatches(){
     paymentStudentMatches(typed);
 
   if(!matches.length){
+
+    /*
+     * A dead end until now. The name is already typed, so creating
+     * the student from it is one click -- and the vendor keeps their
+     * place in the import instead of leaving to go make a record.
+     */
     matchesBox.innerHTML=`
       <div class="vf-match-empty">
         No matching student or parent yet.
       </div>
+
+      <button
+        type="button"
+        class="vf-secondary-button"
+        id="payAddStudent">
+        Add ${esc(typed)} as a student
+      </button>
     `;
+
     show(matchesBox);
+
+    const addButton=
+      $('#payAddStudent');
+
+    if(addButton){
+
+      addButton.onclick=async()=>{
+
+        addButton.disabled=true;
+        addButton.textContent='Adding…';
+
+        const result=
+          await vfCreateQuickStudent(
+            typed,
+            'Added while matching a payment'
+          );
+
+        if(!result.ok){
+          addButton.disabled=false;
+          addButton.textContent=`Add ${typed} as a student`;
+          return toast(result.reason);
+        }
+
+        /* Re-run the match against the roster that now includes
+           them, so the new student appears and can be picked. */
+        input.value=result.studentName;
+
+        renderPaymentStudentMatches();
+
+        toast(
+          result.existed
+            ? `${result.studentName} is already on your roster.`
+            : `${result.studentName} added. Notifications will ask for the rest.`
+        );
+      };
+    }
+
     return;
   }
 
@@ -35514,6 +35867,45 @@ function renderReviews(){
 
       if(
         review.reviewType===
+        'student-setup'
+      ){
+
+        return `
+          <div class="record vf-student-setup-review">
+
+            <strong>
+              ${esc(review.title)}
+            </strong>
+
+            <div class="meta">
+              ${esc(review.detail)}
+            </div>
+
+            <div class="vf-review-actions">
+
+              <button
+                type="button"
+                class="primary"
+                data-open-student-setup="${esc(review.studentId)}">
+                Open student
+              </button>
+
+              <button
+                type="button"
+                class="vf-secondary-button"
+                data-accept-student-setup="${esc(review.studentId)}">
+                It's fine as is
+              </button>
+
+            </div>
+
+          </div>
+        `;
+      }
+
+
+      if(
+        review.reviewType===
         'late-fee-charged'
       ){
 
@@ -36606,6 +36998,26 @@ function renderReviews(){
           invoice
         );
       };
+    });
+
+
+  $$('[data-open-student-setup]')
+    .forEach(button=>{
+
+      button.onclick=()=>
+        openStudentCommandCenter(
+          button.dataset.openStudentSetup
+        );
+    });
+
+
+  $$('[data-accept-student-setup]')
+    .forEach(button=>{
+
+      button.onclick=()=>
+        vfAcceptStudentSetup(
+          button.dataset.acceptStudentSetup
+        );
     });
 
 
@@ -44272,6 +44684,9 @@ function vfWireCertificateStudentPicker(currentName){
       !vfCertificateStudentMatch(currentName)
     );
 
+  const addButton=
+    $('#bulkCertificateAddStudent');
+
   const syncOther=()=>{
 
     const typed=other.value.trim();
@@ -44285,7 +44700,88 @@ function vfWireCertificateStudentPicker(currentName){
     }
 
     select.value=typed || '__vf_other__';
+
+    /*
+     * Offered only for a name that is actually new. Offering it for
+     * a name already on the roster would invite a duplicate student,
+     * which is far more expensive to undo than it is to prevent.
+     */
+    if(addButton){
+
+      const isNew=
+        Boolean(typed) &&
+        !vfCertificateStudentMatch(typed);
+
+      addButton.textContent=
+        `Add ${typed||'this name'} as a student`;
+
+      addButton.classList.toggle('hidden',!isNew);
+    }
   };
+
+  if(addButton){
+
+    addButton.onclick=async()=>{
+
+      const typed=
+        other.value.trim();
+
+      addButton.disabled=true;
+      addButton.textContent='Adding…';
+
+      const result=
+        await vfCreateQuickStudent(
+          typed,
+          'Added from a certificate'
+        );
+
+      addButton.disabled=false;
+
+      if(!result.ok){
+        syncOther();
+        return toast(result.reason);
+      }
+
+      /*
+       * Put the new student into the dropdown and choose them, rather
+       * than re-rendering the whole review -- the vendor is midway
+       * through checking this certificate and must not lose their
+       * place.
+       */
+      const option=
+        document.createElement('option');
+
+      option.value=result.studentName;
+      option.textContent=result.studentName;
+
+      select.insertBefore(
+        option,
+        select.firstChild?.nextSibling||null
+      );
+
+      select.value=result.studentName;
+
+      hide(other);
+      other.value='';
+      addButton.classList.add('hidden');
+
+      if(otherOption){
+        otherOption.value='__vf_other__';
+        otherOption.textContent=
+          'Someone not on my roster (type a name)';
+      }
+
+      select.dispatchEvent(
+        new Event('change',{bubbles:true})
+      );
+
+      toast(
+        result.existed
+          ? `${result.studentName} is already on your roster — selected.`
+          : `${result.studentName} added. Notifications will ask for the rest.`
+      );
+    };
+  }
 
   if(unmatched){
     show(other);
@@ -44352,6 +44848,12 @@ function renderBulkCertificateReviewFields(
               ? ''
               : esc(x.studentName || '')
           }">
+        <button
+          type="button"
+          class="vf-secondary-button hidden"
+          id="bulkCertificateAddStudent">
+          Add as a student
+        </button>
         ${
           vfCertificateOriginalStudentNote(item,x.studentName)
         }
