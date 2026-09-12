@@ -26953,6 +26953,75 @@ function paymentDuplicateSourceKind(payment){
 }
 
 
+/*
+ * A check or reference number, wherever the record happens to carry
+ * one -- an explicit field if it has one, otherwise whatever the memo
+ * says.
+ *
+ * This exists only to RULE A DUPLICATE OUT. Two payments that each
+ * name a number and name DIFFERENT ones are two different payments,
+ * however alike they otherwise look: same family, same amount, same
+ * day, two cheques. Nothing here can ever create a match.
+ */
+function paymentReferenceNumber(payment){
+
+  const explicit=String(
+    payment?.checkNumber ||
+    payment?.checkNo ||
+    payment?.referenceNumber ||
+    ''
+  ).trim();
+
+  if(explicit){
+    return explicit.replace(/[^0-9A-Za-z]/g,'').toUpperCase();
+  }
+
+  const text=String(
+    payment?.memo ||
+    payment?.note ||
+    payment?.description ||
+    ''
+  );
+
+  const found=text.match(
+    /\b(?:check|cheque|chk|ck|ref|reference)\s*(?:no\.?|number|#)?\s*[#:]?\s*(\d{2,8})\b/i
+  );
+
+  return found ? found[1] : '';
+}
+
+
+function paymentsHaveDifferentReferences(first,second){
+
+  const firstReference=paymentReferenceNumber(first);
+  const secondReference=paymentReferenceNumber(second);
+
+  return Boolean(
+    firstReference &&
+    secondReference &&
+    firstReference!==secondReference
+  );
+}
+
+
+/*
+ * Same idea for provider transaction IDs. An identical ID is already
+ * treated as conclusive proof of a duplicate further down; two
+ * DIFFERENT IDs are equally conclusive proof of the opposite.
+ */
+function paymentsHaveDifferentTransactionIds(first,second){
+
+  const firstId=paymentExternalTransactionId(first);
+  const secondId=paymentExternalTransactionId(second);
+
+  return Boolean(
+    firstId &&
+    secondId &&
+    firstId!==secondId
+  );
+}
+
+
 function paymentsLikelySameCrossIntake(first,second){
 
   if(!first || !second || first.id===second.id){
@@ -26966,10 +27035,23 @@ function paymentsLikelySameCrossIntake(first,second){
   const firstMethod=String(first.method||'').trim().toLowerCase();
   const secondMethod=String(second.method||'').trim().toLowerCase();
 
+  /*
+   * Every method, not only the three this rule started with. The
+   * conditions below -- same method, same amount, same payer, and
+   * either the same day or the same memo across a statement and an
+   * email -- are strict enough to carry a cheque or a bank transfer
+   * safely, and those are the duplicates that cost real money.
+   */
   if(
-    !['venmo','zelle','cash'].includes(firstMethod) ||
     firstMethod!==secondMethod ||
     duplicateMoney(first.amount)!==duplicateMoney(second.amount)
+  ){
+    return false;
+  }
+
+  if(
+    paymentsHaveDifferentReferences(first,second) ||
+    paymentsHaveDifferentTransactionIds(first,second)
   ){
     return false;
   }
@@ -27058,21 +27140,6 @@ function findDuplicatePayment(candidate){
       .trim()
       .toLowerCase();
 
-  /*
-   * User-requested duplicate rules apply to
-   * Venmo, Zelle and Cash.
-   * Other methods can get their own rules later.
-   */
-  if(
-    ![
-      'venmo',
-      'zelle',
-      'cash'
-    ].includes(method)
-  ){
-    return null;
-  }
-
   const date=
     String(candidate.date||'')
       .trim();
@@ -27088,7 +27155,97 @@ function findDuplicatePayment(candidate){
     );
 
 
+  /*
+   * The original rule, unchanged, for the three methods it was
+   * written for. Same method, same day, same amount -- and where both
+   * records happen to name a payer, the same payer.
+   */
+  if(
+    [
+      'venmo',
+      'zelle',
+      'cash'
+    ].includes(method)
+  ){
+
+    return payments.find(existing=>{
+
+      /*
+       * Every caller builds the candidate fresh, before it is saved,
+       * so it has no id and cannot reach itself here. Guarded anyway,
+       * because a future caller handing this a stored record would
+       * otherwise be told it duplicates itself.
+       */
+      if(candidate.id && existing.id===candidate.id){
+        return false;
+      }
+
+      const existingMethod=
+        String(existing.method||'')
+          .trim()
+          .toLowerCase();
+
+      if(existingMethod!==method){
+        return false;
+      }
+
+      if(
+        String(existing.date||'').trim()
+        !==date
+      ){
+        return false;
+      }
+
+      if(
+        duplicateMoney(existing.amount)
+        !==amount
+      ){
+        return false;
+      }
+
+      /*
+       * If both records have a student/payer identity,
+       * require the identity to match too.
+       */
+      const existingParty=
+        paymentPartyKey(existing);
+
+      if(
+        party &&
+        existingParty &&
+        party!==existingParty
+      ){
+        return false;
+      }
+
+      return true;
+    }) || null;
+  }
+
+
+  /*
+   * EVERY OTHER METHOD -- cheque, ACH, wire, card, PayPal, charter
+   * payment, "Other", or no method recorded at all.
+   *
+   * Deliberately stricter than the rule above, because these are the
+   * methods where two different families paying the same amount on
+   * the same day is ordinary rather than suspicious. So the payer has
+   * to be known on BOTH records and has to match; "one of them has no
+   * payer" is not good enough here, where it is for Venmo.
+   *
+   * A payment with nobody attached to it therefore gets no match, and
+   * lands in front of the vendor unflagged rather than being guessed
+   * at.
+   */
+  if(!party){
+    return null;
+  }
+
   return payments.find(existing=>{
+
+    if(candidate.id && existing.id===candidate.id){
+      return false;
+    }
 
     const existingMethod=
       String(existing.method||'')
@@ -27113,17 +27270,19 @@ function findDuplicatePayment(candidate){
       return false;
     }
 
-    /*
-     * If both records have a student/payer identity,
-     * require the identity to match too.
-     */
-    const existingParty=
-      paymentPartyKey(existing);
-
     if(
-      party &&
-      existingParty &&
-      party!==existingParty
+      paymentPartyKey(existing)!==party
+    ){
+      return false;
+    }
+
+    /*
+     * Different cheque numbers, or different provider transaction
+     * IDs, prove these are two separate payments.
+     */
+    if(
+      paymentsHaveDifferentReferences(candidate,existing) ||
+      paymentsHaveDifferentTransactionIds(candidate,existing)
     ){
       return false;
     }
