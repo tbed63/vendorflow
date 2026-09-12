@@ -49596,6 +49596,50 @@ function vfGoogleDownloadPlan(doc){
 }
 
 
+/*
+ * One tab of the Google picker.
+ *
+ * Without a parent, the picker lists every folder it can reach in one
+ * flat wall -- your own folders, folders other people shared with you,
+ * and the build directories buried inside them (esm, dist, storage).
+ * That looks nothing like Drive, and a vendor reasonably reads it as
+ * "why does VendorFlow have all this?".
+ *
+ * So: two tabs. "My Drive" is anchored at the root and limited to
+ * files the vendor owns, which makes it read exactly like Drive does
+ * in a browser. "Shared with me" is the separate place shared files
+ * live -- separate, because that is where they live in Drive too, and
+ * because a certificate a charter school shared genuinely belongs
+ * somewhere reachable.
+ */
+function vfGoogleDriveView(door,options){
+
+  const view=
+    new window.google.picker.DocsView(
+      window.google.picker.ViewId.DOCS
+    )
+      .setIncludeFolders(true)
+      .setSelectFolderEnabled(false)
+      .setOwnedByMe(Boolean(options.ownedByMe));
+
+  if(options.parent){
+    view.setParent(options.parent);
+  }
+
+  if(door.mimeTypes){
+    view.setMimeTypes(door.mimeTypes);
+  }
+
+  /* setLabel names the tab. Older picker builds do not have it, and
+     an unlabelled tab is worth far less than a thrown error. */
+  if(typeof view.setLabel==='function'){
+    view.setLabel(options.label);
+  }
+
+  return view;
+}
+
+
 async function vfPickFromGoogleDrive(door){
 
   await vfGoogleReady();
@@ -49605,23 +49649,24 @@ async function vfPickFromGoogleDrive(door){
   const docs=
     await new Promise(resolve=>{
 
-      const view=
-        new window.google.picker.DocsView(
-          window.google.picker.ViewId.DOCS
-        )
-          .setIncludeFolders(true)
-          .setSelectFolderEnabled(false);
-
-      if(door.mimeTypes){
-        view.setMimeTypes(door.mimeTypes);
-      }
-
       const builder=
         new window.google.picker.PickerBuilder()
           .setAppId(VF_CLOUD_PICKERS.googleAppId)
           .setOAuthToken(token)
           .setDeveloperKey(VF_CLOUD_PICKERS.googleApiKey)
-          .addView(view)
+          .addView(
+            vfGoogleDriveView(door,{
+              ownedByMe:true,
+              parent:'root',
+              label:'My Drive'
+            })
+          )
+          .addView(
+            vfGoogleDriveView(door,{
+              ownedByMe:false,
+              label:'Shared with me'
+            })
+          )
           .setCallback(data=>{
 
             const action=
