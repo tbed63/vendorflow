@@ -15726,25 +15726,54 @@ function vfLearnedIncomeCategory(payer){
  * shown to the vendor, so they can see WHY a row was pre-filled and
  * judge whether to trust it -- a silent guess is one nobody checks.
  */
-function vfSuggestIncomeCategory(payer,memo){
+function vfSuggestIncomeCategory(payer,memo,sessionChoices){
+
+  /*
+   * Order of evidence, strongest first:
+   *
+   *   1. A choice made on another row of THIS import for the same
+   *      payer. The vendor just told us, seconds ago.
+   *   2. How they have filed this payer's income before.
+   *   3. The memo -- direct evidence about THIS transaction.
+   *   4. What this payer's payments were for.
+   *
+   * 3 sits above 4 deliberately. The Income page exists for money
+   * outside VendorFlow's normal flow -- no student, no charge, no
+   * certificate. So a payer who ALSO appears in payments is usually
+   * there for a different relationship: a family whose child is in a
+   * class may separately Venmo for casual tutoring. Letting their
+   * class payments override a memo that says "tutoring" would
+   * confidently mislabel exactly the money this page is for.
+   */
+
+  const fromSession=
+    sessionChoices
+      ? sessionChoices.get(vfNormalizePayerKey(payer))
+      : null;
+
+  if(fromSession){
+    return {
+      category:fromSession,
+      reason:
+        `You set another ${
+          vfIncomeCategoryLabel(fromSession)
+        } row for this payer in this import.`
+    };
+  }
 
   const learned=vfLearnedIncomeCategory(payer);
 
-  if(learned){
+  const times=
+    learned
+      ? `${learned.timesSeen} time${learned.timesSeen===1?'':'s'}`
+      : '';
 
-    const times=
-      `${learned.timesSeen} time${learned.timesSeen===1?'':'s'}`;
-
+  if(learned && !learned.fromPayments){
     return {
       category:learned.category,
       reason:
-        learned.fromPayments
-          ? `${learned.payerName} has paid for `+
-            `${vfIncomeCategoryLabel(learned.category)} `+
-            `${times} before.`
-          : `You filed ${learned.payerName}'s money under `+
-            `${vfIncomeCategoryLabel(learned.category)} `+
-            `${times} before.`
+        `You filed ${learned.payerName}'s money under `+
+        `${vfIncomeCategoryLabel(learned.category)} ${times} before.`
     };
   }
 
@@ -15754,7 +15783,16 @@ function vfSuggestIncomeCategory(payer,memo){
   if(guessed){
     return {
       category:guessed,
-      reason:`Guessed from the memo.`
+      reason:'Guessed from the memo.'
+    };
+  }
+
+  if(learned){
+    return {
+      category:learned.category,
+      reason:
+        `${learned.payerName} has paid you for `+
+        `${vfIncomeCategoryLabel(learned.category)} ${times} before.`
     };
   }
 
@@ -15799,7 +15837,7 @@ function vfBuildIncomeImportRows(data){
         ).trim();
 
       const suggestion=
-        vfSuggestIncomeCategory(entry.payer,memo);
+        vfSuggestIncomeCategory(entry.payer,memo,null);
 
       return {
         id:`inc-import-${index}`,
@@ -15833,6 +15871,61 @@ function vfBuildIncomeImportRows(data){
       };
     })
     .filter(row=>row.amount>0);
+}
+
+
+/*
+ * One row teaches the rest of the same import.
+ *
+ * A month of Venmo has the same family in it four or five times, and
+ * a year of backfill has them fifty. Setting the category once and
+ * having the rest follow is the difference between a few clicks and
+ * a few hundred.
+ *
+ * Only rows the vendor has not already set are changed -- a row they
+ * chose by hand is never quietly overwritten by a later choice on a
+ * different row.
+ */
+function vfApplyIncomeChoiceToSamePayer(sourceRow){
+
+  const key=vfNormalizePayerKey(sourceRow?.payer);
+
+  if(!key || !sourceRow?.category){
+    return 0;
+  }
+
+  let changed=0;
+
+  vfIncomeImportRows.forEach(row=>{
+
+    if(row===sourceRow)return;
+    if(row.categoryChosenByVendor)return;
+    if(vfNormalizePayerKey(row.payer)!==key)return;
+    if(row.category===sourceRow.category)return;
+
+    row.category=sourceRow.category;
+
+    row.categoryReason=
+      `You set another ${
+        vfIncomeCategoryLabel(sourceRow.category)
+      } row for this payer in this import.`;
+
+    changed++;
+  });
+
+  /* Marked AFTER the sweep so the source row does not exclude
+     itself from a later one. */
+  sourceRow.categoryChosenByVendor=true;
+
+  if(changed){
+    toast(
+      `Also set ${changed} more ${
+        changed===1?'row':'rows'
+      } from ${sourceRow.payer||'this payer'}.`
+    );
+  }
+
+  return changed;
 }
 
 
@@ -15980,6 +16073,8 @@ function vfRenderIncomeImportResults(){
            it is no longer true. Drop it rather than leave a note
            claiming a reason for a choice they just changed. */
         row.categoryReason='';
+
+        vfApplyIncomeChoiceToSamePayer(row);
 
         vfRenderIncomeImportResults();
       }
