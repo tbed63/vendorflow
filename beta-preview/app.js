@@ -1694,7 +1694,252 @@ function todoNotificationItems(){
 }
 
 
+/* ==========================================================
+   DISMISSING A NOTIFICATION
+   ==========================================================
+
+   Every card can be dismissed, including the computed ones that
+   have no document of their own to flag. The dismissal is stored on
+   the vendor profile, keyed by the item's id -- which is why those
+   ids are derived from the thing they are about
+   (late-fee-charged-<obligationId>, student-setup-<studentId>) and
+   not from anything random. A card dismissed today must stay
+   dismissed tomorrow, and must not come back under a new id.
+
+   Two rules this follows:
+
+   1. It warns first, and the warning says what is actually being
+      given up -- not "are you sure". A vendor dismissing a late-fee
+      card is choosing to leave a charge on a family's account, and
+      should be told that in those words.
+
+   2. It is reversible. Dismissed cards can all be brought back from
+      a line under the list, because nothing in VendorFlow is
+      permanent and a notification you can destroy for good is a way
+      to lose money quietly.
+
+   Cards that already have their own Dismiss (email proposals,
+   overdue invoice reminders, duplicate matches) keep it and do not
+   get a second one -- two dismiss buttons on one card leaves the
+   vendor guessing which is which. */
+
+
+function vfWireDismissControls(){
+
+  $$('[data-dismiss-notice]')
+    .forEach(button=>{
+
+      button.onclick=event=>{
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        vfDismissNotification(
+          button.dataset.dismissNotice
+        );
+      };
+    });
+
+
+  $$('[data-restore-notices]')
+    .forEach(button=>{
+
+      button.onclick=vfRestoreDismissedNotices;
+    });
+}
+
+
+function vfDismissedNotices(){
+
+  /*
+   * An array rather than a map: Firestore merges maps key by key, so
+   * clearing one would need deleteField(), which this app does not
+   * import. An array is replaced wholesale on a merge write, which
+   * makes "bring them all back" a single empty array.
+   */
+  const stored=
+    profile?.dismissedNotices;
+
+  return (
+    Array.isArray(stored)
+      ? stored.filter(Boolean).map(String)
+      : []
+  );
+}
+
+
+/*
+ * What the vendor is actually giving up, per kind of card. Generic
+ * warnings train people to click through them.
+ */
+function vfDismissWarning(review){
+
+  const consequences={
+
+    'late-fee-charged':
+      'The late fee stays on the family\'s account. You will not be '+
+      'reminded about it again.',
+
+    'student-setup':
+      'The student stays half-finished, which means they are left out '+
+      'of invoices and parent emails until you fill the rest in.',
+
+    'ready-invoice':
+      'The invoice stays prepared but unsent. Nothing will ask about '+
+      'it again, so the charter will not be billed until you send it.',
+
+    'overdue-invoice':
+      'The overdue invoice stays unpaid and unchased.'
+  };
+
+  return (
+    consequences[review?.reviewType] ||
+    'This will stop asking. Nothing else about it changes.'
+  );
+}
+
+
+async function vfDismissNotification(id){
+
+  const review=
+    allNeedsReviewItems().find(
+      item=>item.id===id
+    );
+
+  if(!review){
+    return;
+  }
+
+  const ok=
+    confirm(
+      `Dismiss this?\n\n`+
+      `${review.title||'This notification'}\n\n`+
+      `${vfDismissWarning(review)}\n\n`+
+      `You can bring dismissed notifications back from the bottom of `+
+      `this page.`
+    );
+
+  if(!ok){
+    return;
+  }
+
+  try{
+
+    await setDoc(
+      vendorDoc(),
+      {
+        dismissedNotices:
+          [...new Set([...vfDismissedNotices(),id])],
+        updatedAt:serverTimestamp()
+      },
+      {
+        merge:true
+      }
+    );
+
+    await log(
+      'Notification dismissed',
+      `${review.title||'A notification'} was dismissed. `+
+      `${vfDismissWarning(review)}`,
+      'Manual'
+    );
+
+    await refreshAll();
+    renderAll();
+
+    toast('Dismissed.');
+
+  }catch(error){
+
+    console.error('Could not dismiss that:',error);
+    toast('That could not be dismissed. Try again.');
+  }
+}
+
+
+async function vfRestoreDismissedNotices(){
+
+  const dismissed=
+    vfDismissedNotices();
+
+  if(!dismissed.length){
+    return;
+  }
+
+  try{
+
+    await setDoc(
+      vendorDoc(),
+      {
+        dismissedNotices:[],
+        updatedAt:serverTimestamp()
+      },
+      {
+        merge:true
+      }
+    );
+
+    await log(
+      'Dismissed notifications restored',
+      `${dismissed.length} dismissed notification${
+        dismissed.length===1?'':'s'
+      } brought back.`,
+      'Manual'
+    );
+
+    await refreshAll();
+    renderAll();
+
+    toast('Brought them back.');
+
+  }catch(error){
+
+    console.error('Could not restore those:',error);
+    toast('Those could not be restored. Try again.');
+  }
+}
+
+
+/*
+ * Adds the Dismiss control to a rendered card, unless that card
+ * already offers one of its own.
+ */
+function vfWithDismiss(review,html){
+
+  const markup=
+    String(html||'');
+
+  if(
+    !markup.trim() ||
+    !review?.id ||
+    markup.includes('data-dismiss-')
+  ){
+    return markup;
+  }
+
+  return `
+    <div class="vf-review-item">
+
+      ${markup}
+
+      <button
+        type="button"
+        class="vf-dismiss-notice"
+        title="Dismiss this notification"
+        aria-label="Dismiss this notification"
+        data-dismiss-notice="${esc(review.id)}">
+        &times;
+      </button>
+
+    </div>
+  `;
+}
+
+
 function allNeedsReviewItems(){
+
+  const dismissed=
+    vfDismissedNotices();
 
   return [
     ...reviews,
@@ -1704,7 +1949,9 @@ function allNeedsReviewItems(){
     ...overdueInvoiceNotificationItems(),
     ...lateFeeChargedNotificationItems(),
     ...incompleteStudentNotificationItems()
-  ];
+  ].filter(
+    item=>!dismissed.includes(item?.id)
+  );
 }
 
 
@@ -35657,6 +35904,29 @@ async function refreshReviewsView(){
 }
 
 
+function vfDismissedNoticesFooter(){
+
+  const count=
+    vfDismissedNotices().length;
+
+  if(!count){
+    return '';
+  }
+
+  return `
+    <div class="vf-dismissed-footer">
+      ${count} dismissed notification${count===1?'':'s'}.
+      <button
+        type="button"
+        class="linkbtn vf-restore-notices"
+        data-restore-notices>
+        Bring them back
+      </button>
+    </div>
+  `;
+}
+
+
 function renderReviews(){
 
   const list=
@@ -35682,7 +35952,10 @@ function renderReviews(){
     selectedReviewIds.clear();
 
     list.innerHTML=
-      '<div class="empty">Nothing needs review.</div>';
+      '<div class="empty">Nothing needs review.</div>'+
+      vfDismissedNoticesFooter();
+
+    vfWireDismissControls();
 
     return;
   }
@@ -35708,7 +35981,7 @@ function renderReviews(){
         ? vfBulkReviewControlsHTML(bulkEligibleIds.size)
         : ''
     ) +
-    displayReviews.map(review=>{
+    displayReviews.map(review=>vfWithDismiss(review,(()=>{
 
 
       if(
@@ -36621,7 +36894,8 @@ function renderReviews(){
 
         </div>
       `;
-    }).join('');
+    })())).join('')+
+    vfDismissedNoticesFooter();
 
 
   const selectAllBox=$('#vfReviewSelectAll');
@@ -36999,6 +37273,9 @@ function renderReviews(){
         );
       };
     });
+
+
+  vfWireDismissControls();
 
 
   $$('[data-open-student-setup]')

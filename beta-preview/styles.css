@@ -10603,3 +10603,60 @@ body.vf-wizard-open .vf-modal-overlay{
   width:100%;
   text-align:center;
 }
+
+
+/* VF_NOTICE_DISMISS */
+/* The x that dismisses a notification, and the line that brings
+   dismissed ones back.
+
+   Quiet by design: it sits in the corner and only gains contrast on
+   hover. Dismissing is always available but never the obvious thing
+   to do, because the obvious thing to do with a notification is deal
+   with it. */
+
+.vf-review-item{
+  position:relative;
+}
+
+.vf-dismiss-notice{
+  position:absolute;
+  top:10px;
+  right:0;
+  width:26px;
+  height:26px;
+  display:grid;
+  place-items:center;
+  border:0;
+  border-radius:7px;
+  background:transparent;
+  color:#98a2b3;
+  font-size:17px;
+  line-height:1;
+  cursor:pointer;
+  transition:background .15s ease,color .15s ease;
+}
+
+.vf-dismiss-notice:hover{
+  background:#f0f2f5;
+  color:var(--ink);
+}
+
+.vf-dismissed-footer{
+  margin-top:14px;
+  padding-top:12px;
+  border-top:1px solid var(--line);
+  font-size:12.5px;
+  color:var(--muted);
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-wrap:wrap;
+}
+
+.vf-dismissed-footer .vf-restore-notices{
+  width:auto;
+  padding:0;
+  font-size:12.5px;
+  color:#1A346F;
+  text-decoration:underline;
+}
