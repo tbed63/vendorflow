@@ -5485,6 +5485,28 @@ function fillInvoiceEmailTemplate(text,values){
 }
 
 
+/*
+ * Where an invoice actually gets sent.
+ *
+ * The charter record wins. The address copied onto the invoice when it
+ * was created is the fallback -- for a charter that has since been
+ * deleted, or that never had an address of its own.
+ *
+ * It used to be the other way round, which meant correcting a bounced
+ * address in the one place a vendor would think to correct it changed
+ * nothing at all.
+ */
+function invoiceBillingEmail(invoice,charter){
+
+  return String(
+    charter?.billingEmail ||
+    charter?.contactEmail ||
+    invoice?.charterBillingEmail ||
+    ''
+  ).trim();
+}
+
+
 function buildInvoiceEmailPreview(invoice){
 
   const charter=
@@ -5495,12 +5517,10 @@ function buildInvoiceEmailPreview(invoice){
     ) || {};
 
   const to=
-    String(
-      invoice.charterBillingEmail ||
-      charter.billingEmail ||
-      charter.contactEmail ||
-      ''
-    ).trim();
+    invoiceBillingEmail(
+      invoice,
+      charter
+    );
 
   const saved=
     profile.invoiceEmailTemplate ||
@@ -6601,10 +6621,10 @@ async function openInvoicePdf(
         '',
 
       charterBillingEmail:
-        invoice.charterBillingEmail ||
-        charter.billingEmail ||
-        charter.contactEmail ||
-        '',
+        invoiceBillingEmail(
+          invoice,
+          charter
+        ),
 
       vendorBusinessName:
         invoice.vendorBusinessName||'',
@@ -6764,12 +6784,10 @@ async function sendInvoiceThroughVendorFlow(
 
   const billingEmail=
     overrideTo ||
-    String(
-      invoice.charterBillingEmail ||
-      charter.billingEmail ||
-      charter.contactEmail ||
-      ''
-    ).trim();
+    invoiceBillingEmail(
+      invoice,
+      charter
+    );
 
 
   if(!billingEmail){
