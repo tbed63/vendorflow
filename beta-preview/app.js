@@ -52966,6 +52966,20 @@ function vfTutorialSlides(){
       actionView:'review',actionLabel:'Open Notifications'
     },
     {
+      eyebrow:'Without keeping it open',
+      title:'Have VendorFlow email you when something needs you',
+      summary:'You do not have to leave VendorFlow open to find out that money is waiting. It can send what needs your attention to the address you sign in with.',
+      task:'Choose how you want to hear about it',
+      steps:[
+        'Open Settings and find Notification emails. It is off until you choose otherwise.',
+        'As things come up sends one email when something new appears \u2014 but only once you have been away for a few minutes, because there is no reason to email you while you are already working.',
+        'Once a day sends a single 7am summary of everything still waiting, and nothing at all on a quiet day.',
+        'Either way you are never told about the same thing twice, except in the daily summary, where the reminder is the point.'
+      ],
+      result:'You can close VendorFlow and still trust that an unsent invoice or a late fee charged overnight will reach you.',
+      actionView:'settings',actionLabel:'Open Settings'
+    },
+    {
       eyebrow:'Answer questions quickly',
       title:'Open one student to see the complete story',
       summary:'Every student account brings contact information and financial activity together.',
