@@ -2215,11 +2215,18 @@ async function refreshAll(){
     await reconcileObligationFunding();
 
   if(obligationChanges>0){
-    obligations=
-      await getList(
-        'obligations',
-        false
-      );
+
+    /* History too -- the reconcile just wrote an Actions entry, and
+       it should be on the Actions page now rather than one refresh
+       from now. */
+    [obligations,history]=
+      await Promise.all([
+        getList(
+          'obligations',
+          false
+        ),
+        getList('history')
+      ]);
   }
 
 
@@ -25832,6 +25839,13 @@ async function reconcileObligationFunding(){
 
   let changed=0;
 
+  /* What actually moved, for the Actions entry at the end. Capped,
+     because a first import can touch dozens at once and the log is
+     meant to explain, not to bury. */
+  const moved=[];
+
+  const MOVED_SHOWN=8;
+
 
   for(const obligation of obligations){
 
@@ -25913,6 +25927,38 @@ async function reconcileObligationFunding(){
     }
 
 
+    /* Read before the write, so the entry can say what the balance
+       moved FROM, not just that it moved. */
+    if(moved.length<MOVED_SHOWN){
+
+      const wasRemaining=
+        Number(
+          obligation.remainingAmount ??
+          obligation.amount ??
+          0
+        );
+
+      const wasStatus=
+        String(obligation.status||'Scheduled');
+
+
+      moved.push(
+        `${obligation.studentName||'A student'}`+
+        `${
+          obligation.serviceName
+            ? ' · '+obligation.serviceName
+            : ''
+        }: `+
+        `${money(wasRemaining)} to ${money(fields.remainingAmount)}`+
+        `${
+          wasStatus!==fields.status
+            ? ` (${wasStatus} to ${fields.status})`
+            : ''
+        }`
+      );
+    }
+
+
     await setDoc(
       doc(
         db,
@@ -25937,6 +25983,31 @@ async function reconcileObligationFunding(){
 
 
     changed++;
+  }
+
+
+  /*
+   * Only when something really moved. This runs on every refresh, and
+   * an entry on every refresh would be noise rather than a record.
+   */
+  if(changed){
+
+    await log(
+      'Balances recalculated',
+
+      `${changed} ${
+        changed===1 ? 'charge' : 'charges'
+      } updated after payments and certificates were matched up.`+
+      `\n\n`+
+      moved.join('\n')+
+      `${
+        changed>moved.length
+          ? `\n...and ${changed-moved.length} more.`
+          : ''
+      }`,
+
+      'VendorFlow'
+    );
   }
 
 
