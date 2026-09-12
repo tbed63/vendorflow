@@ -10390,3 +10390,22 @@ body.vf-wizard-open .vf-modal-overlay{
   opacity:.6;
   cursor:default;
 }
+
+
+/* VF_LATEFEE_REVIEW */
+/* The late-fee card in Notifications.
+
+   Amber, matching the late-fee block on the student's own page
+   (VF_CC_LATEFEE). A late fee is a real charge against a family, not
+   an error -- red would overstate it -- but it is money that moved
+   without the vendor pressing anything, so it should not look like
+   every other card either. */
+
+.vf-late-fee-review{
+  border-left:3px solid #e0a233;
+  padding-left:12px;
+}
+
+.vf-late-fee-review strong{
+  color:#8a5a10;
+}

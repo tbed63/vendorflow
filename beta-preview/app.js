@@ -1169,6 +1169,140 @@ function readyInvoiceNotificationItems(){
 }
 
 
+/*
+ * Late fees the vendor has not been told about.
+ *
+ * applyLateFees() adds the fee to a family's balance and writes a
+ * line to Actions. Until now the only thing that put it in
+ * Notifications was queueLateFeeChargedReviews() -- which is really
+ * the PARENT EMAIL approval card, and which gives up early if the
+ * group's email toggle is off or the student has no parent email.
+ *
+ * So "tell the parent" and "tell the vendor" were the same switch,
+ * and since a new group's toggle defaults to off, the normal case
+ * was a family's balance changing with nobody told. That is how
+ * Theodore Jensen ended up with a late fee his vendor could not
+ * find.
+ *
+ * These are two different jobs. Emailing the family is optional and
+ * belongs to the group. Telling the vendor that money moved is not
+ * optional, ever.
+ *
+ * Computed rather than stored: no writes, nothing to clean up, and
+ * the card disappears by itself the moment the fee is removed or
+ * the balance is paid.
+ */
+function lateFeeChargedNotificationItems(){
+
+  return obligations
+    .filter(obligation=>{
+
+      if(obligation.deleted){
+        return false;
+      }
+
+      if(!obligation.lateFeeApplied){
+        return false;
+      }
+
+      if(obligation.lateFeeWaived){
+        return false;
+      }
+
+      if(vfObligationStudentIsArchived(obligation)){
+        return false;
+      }
+
+      if(Number(obligation.lateFeeChargedAmount||0)<=0.009){
+        return false;
+      }
+
+      /* Paid off since. Nothing left to act on. */
+      const remaining=
+        Number(
+          obligation.remainingAmount ??
+          obligation.amount ??
+          0
+        );
+
+      if(remaining<=0.009){
+        return false;
+      }
+
+      /* Already dealt with, by either route. */
+      if(
+        obligation.lateFeeVendorNoticedAt ||
+        obligation.lateFeeChargeNoticeReviewedAt
+      ){
+        return false;
+      }
+
+      /*
+       * The parent-email card is already on screen for this exact
+       * fee. One card per fee -- two would be worse than none,
+       * because then neither looks authoritative.
+       */
+      const emailCardQueued=
+        reviews.some(
+          r=>
+            r.reviewType==='late-fee-charged-email' &&
+            r.obligationId===obligation.id
+        );
+
+      return !emailCardQueued;
+    })
+    .map(obligation=>{
+
+      const charged=
+        Number(obligation.lateFeeChargedAmount||0);
+
+      const remaining=
+        Number(
+          obligation.remainingAmount ??
+          obligation.amount ??
+          0
+        );
+
+      const due=
+        formatVendorDate(obligation.dueDate) ||
+        obligation.dueDate ||
+        '';
+
+      return {
+
+        id:
+          `late-fee-charged-${obligation.id}`,
+
+        reviewType:
+          'late-fee-charged',
+
+        itemType:
+          'obligation',
+
+        obligationId:
+          obligation.id,
+
+        title:
+          `Late fee charged: ${
+            obligation.studentName || 'a student'
+          } — ${money(charged)}`,
+
+        detail:
+          `${
+            obligation.serviceName ||
+            obligation.className ||
+            'A payment'
+          }${due?` due ${due}`:''}. `+
+          `Balance is now ${money(remaining)}. `+
+          `Keep it, or remove it if this was paid on time.`,
+
+        source:
+          'VendorFlow'
+      };
+    });
+}
+
+
 function todoNotificationItems(){
 
   const today=
@@ -1266,7 +1400,8 @@ function allNeedsReviewItems(){
     ...todoNotificationItems(),
     ...invoiceNumberingReviewItems(),
     ...readyInvoiceNotificationItems(),
-    ...overdueInvoiceNotificationItems()
+    ...overdueInvoiceNotificationItems(),
+    ...lateFeeChargedNotificationItems()
   ];
 }
 
@@ -25286,6 +25421,70 @@ function serviceObligationHTML(
  * on the next refreshAll() -- the fee stays off unless the vendor
  * changes something that creates a new obligation.
  */
+/*
+ * "Keep the late fee" -- the vendor has seen it and it stands.
+ *
+ * Stamps the obligation so the card does not come back, and changes
+ * no money at all. Removing the fee is removeLateFeeManually()'s
+ * job; this is only the acknowledgement.
+ */
+async function vfAcknowledgeLateFeeNotice(obligationId){
+
+  const obligation=
+    obligations.find(
+      o=>o.id===obligationId
+    );
+
+  if(!obligation){
+    return;
+  }
+
+  try{
+
+    await setDoc(
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'obligations',
+        obligationId
+      ),
+      {
+        lateFeeVendorNoticedAt:
+          serverTimestamp(),
+
+        updatedAt:
+          serverTimestamp()
+      },
+      {
+        merge:true
+      }
+    );
+
+    await log(
+      'Late fee kept',
+      `${money(Number(obligation.lateFeeChargedAmount||0))} late fee on `+
+      `${obligation.studentName||'a student'}'s account was reviewed and kept.`,
+      'Manual',
+      {
+        type:'obligation',
+        id:obligationId
+      }
+    );
+
+    await refreshAll();
+    renderAll();
+
+    toast('Late fee kept.');
+
+  }catch(error){
+
+    console.error('Could not record that decision:',error);
+    toast('That could not be saved. Try again.');
+  }
+}
+
+
 async function removeLateFeeManually(obligationId){
 
   const obligation=
@@ -35315,6 +35514,45 @@ function renderReviews(){
 
       if(
         review.reviewType===
+        'late-fee-charged'
+      ){
+
+        return `
+          <div class="record vf-late-fee-review">
+
+            <strong>
+              ${esc(review.title)}
+            </strong>
+
+            <div class="meta">
+              ${esc(review.detail)}
+            </div>
+
+            <div class="vf-review-actions">
+
+              <button
+                type="button"
+                class="primary"
+                data-keep-late-fee="${esc(review.obligationId)}">
+                Keep the late fee
+              </button>
+
+              <button
+                type="button"
+                class="vf-secondary-button"
+                data-remove-late-fee="${esc(review.obligationId)}">
+                Remove late fee
+              </button>
+
+            </div>
+
+          </div>
+        `;
+      }
+
+
+      if(
+        review.reviewType===
         'ready-invoice'
       ){
 
@@ -36368,6 +36606,28 @@ function renderReviews(){
           invoice
         );
       };
+    });
+
+
+  $$('[data-keep-late-fee]')
+    .forEach(button=>{
+
+      button.onclick=()=>
+        vfAcknowledgeLateFeeNotice(
+          button.dataset.keepLateFee
+        );
+    });
+
+
+  $$('[data-remove-late-fee]')
+    .forEach(button=>{
+
+      /* The same function the student's own page uses, so the money
+         is undone in exactly one place. */
+      button.onclick=()=>
+        removeLateFeeManually(
+          button.dataset.removeLateFee
+        );
     });
 
 
