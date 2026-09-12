@@ -52530,29 +52530,56 @@ function vfTutorialSlides(){
     {
       eyebrow:'What VendorFlow does',
       title:'Turn hours of vendor paperwork into a few quick checks',
-      summary:'VendorFlow organizes your classes and students, records payments and charter certificates, prepares invoices, watches deadlines, and tells you what needs attention.',
+      summary:'VendorFlow organizes your groups and students, records payments and charter certificates, prepares invoices, watches deadlines, and tells you what needs attention.',
       task:'Your work becomes one connected system',
       steps:[
         'Set up each group and upload its student roster.',
-        'Add payments and certificates directly—or forward the emails you already receive.',
+        'Use the + Add button in the top bar for anything else that comes in — a certificate, a statement, a new student.',
         'Review Notifications, then let VendorFlow update balances, prepare invoices, and preserve the evidence.'
       ],
       result:'Instead of rebuilding the same information in spreadsheets, email, and invoices, you enter or forward it once and VendorFlow carries it through the system.',
       actionView:'review',actionLabel:'See Notifications'
     },
     {
+      eyebrow:'One front door',
+      title:'When something arrives, press + Add',
+      summary:'The + Add button sits in the top bar on every page. It is for anything you need to put into VendorFlow, whether that is a file or a fact.',
+      task:'Add something without deciding where it belongs',
+      steps:[
+        'Press + Add, then drop the file in. You do not have to say what it is.',
+        'VendorFlow reads the file and tells you what it thinks it is — a certificate, a statement, a roster — with a dropdown to correct it if it guessed wrong.',
+        'Press Import and it goes through the same checks as if you had uploaded it on its own page.',
+        'Not a file? The same panel adds a student, a group, a charge, a payment, an expense, or a to-do.'
+      ],
+      result:'You stop having to know which page a thing belongs on. Nothing about how VendorFlow checks and records it changes — you simply arrive by a shorter route.',
+      actionView:'dashboard',actionLabel:'Back to Dashboard'
+    },
+    {
       eyebrow:'Set up once',
-      title:'Create classes and load each roster',
+      title:'Create groups and load each roster',
       summary:'Start by giving VendorFlow the information you already maintain at your learning center.',
       task:'Add a group and its students',
       steps:[
         'Open Groups and create the group with its price, schedule, and payment terms.',
         'At your learning center, choose Download CSV where you see that group roster.',
-        'Save the CSV somewhere easy to find, then upload that same file to the saved group in VendorFlow.',
-        'Repeat for every group. Add tutoring-only students manually when needed.'
+        'Upload that file to the saved group — from your computer, or straight from Google Drive or Dropbox.',
+        'Repeat for every group. Add tutoring-only students by hand when needed.'
       ],
       result:'VendorFlow creates the student directory and connects every student to the correct service and charges.',
       actionView:'classes',actionLabel:'Open Groups'
+    },
+    {
+      eyebrow:'Your files, wherever they live',
+      title:'Import straight from Google Drive or Dropbox',
+      summary:'Every upload in VendorFlow accepts a file from your cloud storage, so you never download something just to upload it again.',
+      task:'Skip the round trip',
+      steps:[
+        'Look under any upload box for "or import from".',
+        'Choose Google Drive or Dropbox and pick the file in their own window.',
+        'Google Sheets come across as CSV automatically; Google Docs come across as PDF.'
+      ],
+      result:'VendorFlow only ever sees the one file you pick. It cannot browse your Drive, and it never asks for your password.',
+      actionView:'certificates',actionLabel:'Open the Vault'
     },
     {
       eyebrow:'Record payments',
@@ -52561,7 +52588,7 @@ function vfTutorialSlides(){
       task:'Turn payment evidence into an updated student balance',
       steps:[
         'Open Payments/Charges and enter a payment, or upload a Venmo or bank statement.',
-        'Alternatively, forward the payment email to your private VendorFlow email address.',
+        'If a payer is not on your roster yet, add them right there — you do not have to leave and start over.',
         'Review any uncertain student match or possible duplicate in Notifications.'
       ],
       result:'VendorFlow records the payment, credits the student, updates the balance, prevents repeat processing, and keeps the transaction evidence.',
@@ -52573,12 +52600,27 @@ function vfTutorialSlides(){
       summary:'Upload saved certificate PDFs in bulk or forward the original charter email.',
       task:'Connect charter funding to the correct student and service',
       steps:[
-        'Open Certificates and choose up to 20 PDFs from your computer or cloud drive.',
+        'Open the Vault and choose up to 20 PDFs from your computer or cloud drive.',
         'Let VendorFlow read the student, charter, amount, dates, service, and certificate number.',
+        'If the student on the certificate is not on your roster, add them from the review itself.',
         'Review anything uncertain, then approve the verified certificates.'
       ],
       result:'VendorFlow stores the original PDF, credits the student obligation, and retains the certificate for charter invoicing.',
-      actionView:'certificates',actionLabel:'Open Certificates'
+      actionView:'certificates',actionLabel:'Open the Vault'
+    },
+    {
+      eyebrow:'Nothing gets lost',
+      title:'Every document you upload is kept in the Vault',
+      summary:'Certificates, bank statements, Venmo exports — the Vault is one searchable library of every file VendorFlow has been given.',
+      task:'Find the document behind a number',
+      steps:[
+        'Open the Vault and search by student, charter, or file name.',
+        'Click any file to read it inside VendorFlow — PDFs page by page, CSVs as a table.',
+        'A statement also lists the rows that were imported from it, so you can see where a figure came from.',
+        'Archive what you no longer need. Archived files stay findable by search — that is the whole difference between archiving and deleting.'
+      ],
+      result:'When a charter questions an invoice months later, the evidence is one search away instead of somewhere in your downloads folder.',
+      actionView:'certificates',actionLabel:'Open the Vault'
     },
     {
       eyebrow:'Prepare charter invoices',
@@ -52589,7 +52631,8 @@ function vfTutorialSlides(){
         'Confirm the charter school and its billing instructions.',
         'Review the services and certificates ready to invoice.',
         'Create the invoice, check the PDF, and review the saved email before sending.',
-        'Choose your invoice timing, numbering, payment terms, and overdue grace period.'
+        'In a hurry? Press Invoice now on a certificate instead of waiting for the scheduled date.',
+        'When the money arrives, mark the invoice paid and its certificate is archived for you.'
       ],
       result:'VendorFlow prepares the invoice and email, tracks sent and due dates, and notifies you when payment is late according to your settings.',
       actionView:'invoices',actionLabel:'Open Invoices'
@@ -52609,15 +52652,16 @@ function vfTutorialSlides(){
     },
     {
       eyebrow:'Start here every day',
-      title:'Use Notifications as your communication center',
-      summary:'Notifications gathers anything that needs a human decision instead of making you hunt through every page.',
+      title:'Notifications is the list of things only you can decide',
+      summary:'Anything that needs a human lands here, so you never have to hunt through every page to find out what is waiting.',
       task:'Clear the work that needs your attention',
       steps:[
         'Open Notifications when you sign in.',
-        'Review possible duplicates, student changes, reminders, failures, and overdue invoices.',
-        'Open the source email or related record, then approve, correct, complete, or ignore the item.'
+        'Invoices that are ready to send, late fees that were charged, students added mid-import who still need finishing, overdue invoices, possible duplicates — all of it is here.',
+        'Any card can be dismissed with the x. VendorFlow tells you what that costs first, and never dismisses anything on its own.',
+        'Changed your mind? Bring them back from the line at the bottom of the list.'
       ],
-      result:'You focus only on exceptions. VendorFlow handles the routine organization and keeps each decision connected to its source.',
+      result:'You focus only on exceptions, and nothing that touches money can quietly disappear without you choosing it.',
       actionView:'review',actionLabel:'Open Notifications'
     },
     {
@@ -52627,7 +52671,7 @@ function vfTutorialSlides(){
       task:'Find out why a balance looks wrong',
       steps:[
         'Open Students and select the student.',
-        'Review services, charges, parent payments, charter certificates, refunds, and the current balance.',
+        'Review services, charges, parent payments, charter certificates, refunds, late fees, and the current balance.',
         'Use transaction IDs, statement evidence, dates, and source records to pinpoint a mistake.'
       ],
       result:'You can correct or remove the wrong record with confirmation, and VendorFlow records the correction in Actions.',
@@ -52635,7 +52679,7 @@ function vfTutorialSlides(){
     },
     {
       eyebrow:'You have final authority',
-      title:'VendorFlow does the work—but you make the decisions',
+      title:'VendorFlow does the work, but you make the decisions',
       summary:'Automation saves time only when you can see it, understand it, and correct it.',
       task:'Verify anything VendorFlow does',
       steps:[
