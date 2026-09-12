@@ -10409,3 +10409,129 @@ body.vf-wizard-open .vf-modal-overlay{
 .vf-late-fee-review strong{
   color:#8a5a10;
 }
+
+
+/* VF_ADD_ANYTHING */
+/* The one door: header button and its panel.
+
+   The button is white-on-navy rather than an outline, because it is
+   the only always-present action in the header and everything else
+   up there is identity, not action. It stays compact so the header
+   still reads as a title bar. */
+
+.vf-add-anything-btn{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  margin-left:auto;
+  margin-right:14px;
+  padding:9px 15px;
+  border:0;
+  border-radius:11px;
+  background:#1A346F;
+  color:#fff;
+  font-size:13.5px;
+  font-weight:800;
+  cursor:pointer;
+  white-space:nowrap;
+  transition:background .15s ease,transform .08s ease;
+}
+
+.vf-add-anything-btn span{
+  font-size:16px;
+  line-height:1;
+}
+
+.vf-add-anything-btn:hover{
+  background:#22448c;
+}
+
+.vf-add-anything-btn:active{
+  transform:translateY(1px);
+}
+
+.vf-add-anything-card{
+  width:min(620px,100%);
+  max-height:calc(100vh - 48px);
+  overflow:auto;
+}
+
+.vf-add-section{
+  margin-top:20px;
+  padding-top:18px;
+  border-top:1px solid var(--line);
+}
+
+.vf-add-section:first-of-type{
+  border-top:0;
+  padding-top:0;
+}
+
+.vf-add-section h4{
+  margin:0 0 4px;
+  font-size:15px;
+}
+
+.vf-add-section p.muted{
+  margin:0 0 12px;
+  font-size:12.5px;
+}
+
+.vf-add-drop{
+  min-height:120px;
+}
+
+.vf-add-drop-over{
+  border-color:#1A346F;
+  background:#f2f6fc;
+}
+
+.vf-add-result{
+  margin-top:14px;
+  padding:14px;
+  border:1px solid #d5dfeb;
+  border-radius:12px;
+  background:#f8fafd;
+}
+
+.vf-add-result-file{
+  font-size:12px;
+  color:var(--muted);
+  overflow-wrap:anywhere;
+}
+
+.vf-add-result-guess{
+  margin:4px 0 2px;
+  font-size:15px;
+}
+
+.vf-add-manual-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:8px;
+}
+
+.vf-add-manual-btn{
+  border:1px solid #d0d5dd;
+  background:#fff;
+  color:#1A346F;
+  border-radius:10px;
+  padding:11px 12px;
+  font-size:13px;
+  font-weight:700;
+  text-align:left;
+  cursor:pointer;
+  transition:background .15s ease,border-color .15s ease;
+}
+
+.vf-add-manual-btn:hover{
+  background:#f2f6fc;
+  border-color:#1A346F;
+}
+
+@media(max-width:600px){
+  .vf-add-anything-btn{
+    margin-right:8px;
+    padding:8px 12px;
+  }
+}

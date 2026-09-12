@@ -49628,6 +49628,15 @@ const VF_CLOUD_DOORS=[
     anchor:'#chooseBulkCertificates',
     mimeTypes:'application/pdf',
     extensions:['.pdf']
+  },
+
+  {
+    /* The universal door. Same providers, no type restriction
+       beyond what VendorFlow can actually read. */
+    input:'vfAnyFile',
+    mimeTypes:
+      'application/pdf,text/csv,application/vnd.google-apps.spreadsheet',
+    extensions:['.pdf','.csv']
   }
 
 ];
@@ -50208,6 +50217,782 @@ function vfSetupCloudDoors(){
 
 
 vfSetupCloudDoors();
+
+
+/* ==========================================================
+   ADD TO VENDORFLOW -- the one door
+   ==========================================================
+
+   Settled decision #1 of the rebuild plan: one universal input,
+   replacing the need to know which page a thing belongs on. The
+   vendor has something -- a file or a fact -- and puts it here.
+
+   Two halves, because "I have something to add" splits exactly two
+   ways and no further:
+
+     A document. Dropped here, VendorFlow reads it and works out
+     what it is from its own contents. The vendor never declares
+     the type up front; that is the work being removed.
+
+     A fact. A student, a group, an expense, a task. These are
+     forms that already exist on their own pages, so this is a set
+     of shortcuts to them rather than a second copy of each.
+
+   What this deliberately does NOT do: import anything itself. It
+   classifies, then hands the file to the SAME <input type="file">
+   the matching page already uses and fires its change event -- the
+   identical trick the Drive/Dropbox buttons use. Extraction,
+   duplicate checking, review and the Vault are all untouched
+   proven code. The one door picks which proven door to feed.
+
+   The per-page uploads stay. Gmail has Compose and Reply; this is
+   the same pipeline with two entrances, not two systems. */
+
+
+/*
+ * Where a classified file can go. `input` is the existing upload
+ * control that already knows how to handle it.
+ */
+const VF_ADD_DESTINATIONS=[
+
+  {
+    key:'certificate',
+    label:'Charter certificate',
+    input:'bulkCertificateFiles',
+    view:'certificates',
+    note:'Goes through the same review as the bulk certificate import.'
+  },
+
+  {
+    key:'payment-statement',
+    label:'Statement — payments from families',
+    input:'paymentStatementFile',
+    view:'payments',
+    note:'Matches transactions against charges VendorFlow already knows about.'
+  },
+
+  {
+    key:'income-statement',
+    label:'Statement — income VendorFlow has not recorded',
+    input:'incomeStatementFile',
+    view:'expenses',
+    note:'For money you earned outside the normal charge-and-pay flow.'
+  },
+
+  {
+    key:'expense-statement',
+    label:'Statement — business expenses',
+    input:'expenseStatementFile',
+    view:'expenses',
+    note:'Credit card or bank statement of what you spent.'
+  },
+
+  {
+    key:'roster',
+    label:'Student roster (CSV)',
+    input:'csv',
+    view:'students',
+    note:'Choose the group on the Students page before saving.'
+  }
+
+];
+
+
+/*
+ * The things that are not files. Each one opens the form that
+ * already exists rather than duplicating it here.
+ */
+const VF_ADD_MANUAL=[
+
+  {
+    key:'student',
+    label:'Student',
+    view:'students',
+    click:'#addStudent'
+  },
+
+  {
+    key:'group',
+    label:'Group',
+    view:'classes',
+    scrollTo:'#classCreateFormTitle'
+  },
+
+  {
+    key:'certificate',
+    label:'Certificate',
+    view:'certificates',
+    scrollTo:'#certPdf'
+  },
+
+  {
+    key:'income',
+    label:'Income',
+    view:'expenses',
+    scrollTo:'#addIncome'
+  },
+
+  {
+    key:'expense',
+    label:'Expense',
+    view:'expenses',
+    scrollTo:'#addExpense'
+  },
+
+  {
+    key:'task',
+    label:'To-do item',
+    view:'compliance',
+    scrollTo:'#addCompliance'
+  },
+
+  {
+    key:'charter',
+    label:'Charter school',
+    view:'charters',
+    scrollTo:'#addCharterSchool'
+  },
+
+  {
+    /*
+     * A charge belongs to a student -- there is nowhere to put one
+     * without saying whose it is. So this opens the directory and
+     * says so, rather than a form that cannot be completed.
+     */
+    key:'charge',
+    label:'Charge',
+    view:'students',
+    message:'Open the student first — a charge belongs to somebody.'
+  },
+
+  {
+    key:'payment',
+    label:'Payment',
+    view:'students',
+    message:'Open the student first — a payment belongs to somebody.'
+  }
+
+];
+
+
+/* ---------------- reading the file ---------------- */
+
+/*
+ * Scoring is deliberately dumb and legible: count how many distinct
+ * signal words a document contains. A cleverer model would be
+ * harder to correct when it is wrong, and being wrong is expected
+ * here -- that is what the dropdown is for.
+ */
+function vfCountSignals(text,words){
+
+  const haystack=String(text||'').toLowerCase();
+
+  return words.filter(
+    word=>haystack.includes(word)
+  ).length;
+}
+
+
+const VF_ROSTER_SIGNALS=[
+  'student','parent','guardian','grade','email','phone','family'
+];
+
+const VF_TRANSACTION_SIGNALS=[
+  'date','amount','description','memo','note','payee','type',
+  'balance','debit','credit','transaction'
+];
+
+const VF_CERTIFICATE_SIGNALS=[
+  'purchase order','po number','po #','certificate','authorization',
+  'authorized','vendor','school year','service dates','student name',
+  'not to exceed','issue date'
+];
+
+const VF_STATEMENT_SIGNALS=[
+  'statement','beginning balance','ending balance','account number',
+  'transaction','deposit','withdrawal','venmo','zelle','paypal',
+  'posted','available balance'
+];
+
+const VF_EXPENSE_SIGNALS=[
+  'purchase','merchant','card ending','credit card','payment due',
+  'minimum payment','interest charged'
+];
+
+
+function vfClassifyCsvText(text){
+
+  const firstLine=
+    String(text||'')
+      .split(/\r?\n/)
+      .find(line=>line.trim())||'';
+
+  const rosterScore=
+    vfCountSignals(firstLine,VF_ROSTER_SIGNALS);
+
+  const transactionScore=
+    vfCountSignals(firstLine,VF_TRANSACTION_SIGNALS);
+
+  if(rosterScore>=2 && rosterScore>transactionScore){
+    return {
+      key:'roster',
+      confidence:'high',
+      why:`The columns read like a roster (${firstLine.trim().slice(0,90)}).`
+    };
+  }
+
+  if(transactionScore>=2){
+    return {
+      /*
+       * A list of transactions is genuinely ambiguous -- the same
+       * export can be family payments, other income, or expenses,
+       * and only the vendor knows which. Guessing confidently here
+       * would be guessing about money.
+       */
+      key:'income-statement',
+      confidence:'low',
+      why:
+        'This is a list of transactions. VendorFlow cannot tell '+
+        'whether these are family payments, other income, or '+
+        'expenses — check the dropdown before importing.'
+    };
+  }
+
+  return {
+    key:'',
+    confidence:'none',
+    why:'The columns did not look like a roster or a list of transactions.'
+  };
+}
+
+
+async function vfPdfText(file,maxPages){
+
+  if(!window.pdfjsLib){
+    return '';
+  }
+
+  const data=
+    new Uint8Array(
+      await file.arrayBuffer()
+    );
+
+  const pdf=
+    await window.pdfjsLib
+      .getDocument({data})
+      .promise;
+
+  const pages=
+    Math.min(
+      Number(maxPages||2),
+      pdf.numPages
+    );
+
+  let out='';
+
+  for(let page=1;page<=pages;page++){
+
+    const content=
+      await (await pdf.getPage(page)).getTextContent();
+
+    out+=
+      ' '+
+      content.items
+        .map(item=>item.str)
+        .join(' ');
+  }
+
+  return out;
+}
+
+
+function vfClassifyPdfText(text){
+
+  const certificateScore=
+    vfCountSignals(text,VF_CERTIFICATE_SIGNALS);
+
+  const statementScore=
+    vfCountSignals(text,VF_STATEMENT_SIGNALS);
+
+  const expenseScore=
+    vfCountSignals(text,VF_EXPENSE_SIGNALS);
+
+  /*
+   * A charter school's own name in the document is the single
+   * strongest certificate signal there is, so it counts for more
+   * than any one keyword.
+   */
+  const namedCharter=
+    (charterSchoolBank||[]).some(school=>{
+
+      const name=
+        String(school?.name||'').trim().toLowerCase();
+
+      return (
+        name.length>6 &&
+        String(text||'').toLowerCase().includes(name)
+      );
+    });
+
+  const certificateTotal=
+    certificateScore+(namedCharter?3:0);
+
+  if(
+    certificateTotal>=3 &&
+    certificateTotal>statementScore
+  ){
+    return {
+      key:'certificate',
+      confidence:certificateTotal>=5?'high':'medium',
+      why:
+        namedCharter
+          ? 'It names one of your charter schools and reads like an authorization.'
+          : 'It reads like a purchase order or authorization.'
+    };
+  }
+
+  if(statementScore>=2){
+
+    if(expenseScore>=2){
+      return {
+        key:'expense-statement',
+        confidence:'medium',
+        why:'It reads like a card or bank statement of money going out.'
+      };
+    }
+
+    return {
+      key:'payment-statement',
+      confidence:'low',
+      why:
+        'It reads like a bank statement. Check the dropdown — the same '+
+        'statement can be family payments, other income, or expenses.'
+    };
+  }
+
+  if(!String(text||'').trim()){
+    return {
+      key:'',
+      confidence:'none',
+      why:
+        'No text could be read from this PDF. It may be a scan — '+
+        'choose where it goes and VendorFlow will still take it.'
+    };
+  }
+
+  return {
+    key:'',
+    confidence:'none',
+    why:'VendorFlow could not tell what this is. Choose where it goes.'
+  };
+}
+
+
+async function vfClassifyAddedFile(file){
+
+  const name=
+    String(file?.name||'').toLowerCase();
+
+  const type=
+    String(file?.type||'').toLowerCase();
+
+  if(name.endsWith('.csv') || type.includes('csv')){
+    return vfClassifyCsvText(
+      await file.text()
+    );
+  }
+
+  if(name.endsWith('.pdf') || type==='application/pdf'){
+
+    try{
+      return vfClassifyPdfText(
+        await vfPdfText(file,2)
+      );
+
+    }catch(error){
+
+      console.error('Could not read that PDF:',error);
+
+      return {
+        key:'',
+        confidence:'none',
+        why:'That PDF could not be read. Choose where it goes.'
+      };
+    }
+  }
+
+  return {
+    key:'',
+    confidence:'none',
+    why:'VendorFlow reads PDFs and CSVs. Choose where this goes, or add it by hand.'
+  };
+}
+
+
+/* ---------------- the panel ---------------- */
+
+let vfAddPendingFile=null;
+
+
+function vfOpenAddAnything(){
+
+  const modal=$('#vfAddAnythingModal');
+
+  if(!modal){
+    return;
+  }
+
+  vfResetAddAnything();
+  modal.classList.remove('hidden');
+}
+
+
+function vfCloseAddAnything(){
+
+  const modal=$('#vfAddAnythingModal');
+
+  if(modal){
+    modal.classList.add('hidden');
+  }
+
+  vfResetAddAnything();
+}
+
+
+function vfResetAddAnything(){
+
+  vfAddPendingFile=null;
+
+  if($('#vfAnyFile')){
+    $('#vfAnyFile').value='';
+  }
+
+  if($('#vfAddFileStatus')){
+    $('#vfAddFileStatus').textContent='';
+  }
+
+  if($('#vfAddFileResult')){
+    $('#vfAddFileResult').classList.add('hidden');
+    $('#vfAddFileResult').innerHTML='';
+  }
+}
+
+
+function vfRenderAddManualGrid(){
+
+  const grid=$('#vfAddManualGrid');
+
+  if(!grid){
+    return;
+  }
+
+  grid.innerHTML=
+    VF_ADD_MANUAL.map(item=>
+      `<button
+         type="button"
+         class="vf-add-manual-btn"
+         data-add-manual="${esc(item.key)}">
+         ${esc(item.label)}
+       </button>`
+    ).join('');
+
+  grid.querySelectorAll('[data-add-manual]').forEach(button=>{
+
+    button.onclick=()=>
+      vfRunAddManual(button.dataset.addManual);
+  });
+}
+
+
+function vfRunAddManual(key){
+
+  const item=
+    VF_ADD_MANUAL.find(entry=>entry.key===key);
+
+  if(!item){
+    return;
+  }
+
+  vfCloseAddAnything();
+
+  switchView(item.view);
+
+  if(item.message){
+    toast(item.message);
+  }
+
+  /* One frame, so the view is actually on screen before anything is
+     clicked or scrolled to. */
+  setTimeout(()=>{
+
+    if(item.click){
+
+      const target=$(item.click);
+
+      if(target){
+        target.click();
+        return;
+      }
+    }
+
+    if(item.scrollTo){
+
+      const target=$(item.scrollTo);
+
+      if(target){
+
+        target.scrollIntoView({
+          behavior:'smooth',
+          block:'center'
+        });
+
+        if(typeof target.focus==='function'){
+          try{ target.focus({preventScroll:true}); }catch{}
+        }
+      }
+    }
+  },60);
+}
+
+
+function vfRenderAddFileResult(file,guess){
+
+  const box=$('#vfAddFileResult');
+
+  if(!box){
+    return;
+  }
+
+  const options=
+    VF_ADD_DESTINATIONS.map(destination=>
+      `<option
+         value="${esc(destination.key)}"
+         ${destination.key===guess.key?'selected':''}>
+         ${esc(destination.label)}
+       </option>`
+    ).join('');
+
+  const headline=
+    guess.key
+      ? `This looks like: <strong>${
+          esc(
+            (VF_ADD_DESTINATIONS.find(d=>d.key===guess.key)||{}).label||''
+          )
+        }</strong>`
+      : `<strong>VendorFlow isn't sure what this is.</strong>`;
+
+  box.innerHTML=`
+    <div class="vf-add-result-file">
+      ${esc(file.name)}
+    </div>
+
+    <div class="vf-add-result-guess">
+      ${headline}
+    </div>
+
+    <div class="meta">
+      ${esc(guess.why)}
+    </div>
+
+    <label class="vf-field-label">
+      <span>Send it to</span>
+      <select id="vfAddDestination" class="input">
+        <option value="">Choose…</option>
+        ${options}
+      </select>
+    </label>
+
+    <div id="vfAddDestinationNote" class="meta"></div>
+
+    <div class="vf-review-actions">
+
+      <button
+        type="button"
+        class="primary"
+        id="vfAddImport">
+        Import
+      </button>
+
+      <button
+        type="button"
+        class="vf-secondary-button"
+        id="vfAddCancel">
+        Cancel
+      </button>
+
+    </div>
+  `;
+
+  box.classList.remove('hidden');
+
+  const select=$('#vfAddDestination');
+
+  const showNote=()=>{
+
+    const destination=
+      VF_ADD_DESTINATIONS.find(
+        d=>d.key===select.value
+      );
+
+    $('#vfAddDestinationNote').textContent=
+      destination?.note||'';
+  };
+
+  select.onchange=showNote;
+  showNote();
+
+  $('#vfAddCancel').onclick=vfResetAddAnything;
+
+  $('#vfAddImport').onclick=()=>
+    vfSendAddedFile(select.value);
+}
+
+
+function vfSendAddedFile(destinationKey){
+
+  const destination=
+    VF_ADD_DESTINATIONS.find(
+      d=>d.key===destinationKey
+    );
+
+  if(!destination){
+    return toast('Choose where this file should go first.');
+  }
+
+  const file=vfAddPendingFile;
+
+  if(!file){
+    return toast('That file is no longer available. Choose it again.');
+  }
+
+  const input=$(`#${destination.input}`);
+
+  if(!input){
+    return toast('That page could not be opened. Try it from the page itself.');
+  }
+
+  /*
+   * Hand the file to the page's own upload control and let its own
+   * handler run. Nothing about importing is reimplemented here.
+   */
+  const delivered=
+    vfCloudDeliverFiles(input,[file]);
+
+  vfCloseAddAnything();
+
+  switchView(destination.view);
+
+  if(delivered){
+
+    setTimeout(()=>{
+
+      input.scrollIntoView?.({
+        behavior:'smooth',
+        block:'center'
+      });
+    },60);
+
+    toast(`Sent to ${destination.label}.`);
+  }
+}
+
+
+async function vfHandleAddedFile(file){
+
+  if(!file){
+    return;
+  }
+
+  vfAddPendingFile=file;
+
+  if($('#vfAddFileStatus')){
+    $('#vfAddFileStatus').textContent=`Reading ${file.name}…`;
+  }
+
+  let guess;
+
+  try{
+    guess=await vfClassifyAddedFile(file);
+
+  }catch(error){
+
+    console.error('Could not classify that file:',error);
+
+    guess={
+      key:'',
+      confidence:'none',
+      why:'That file could not be read. Choose where it goes.'
+    };
+  }
+
+  if($('#vfAddFileStatus')){
+    $('#vfAddFileStatus').textContent='';
+  }
+
+  vfRenderAddFileResult(file,guess);
+}
+
+
+if($('#vfAddAnything')){
+  $('#vfAddAnything').onclick=vfOpenAddAnything;
+}
+
+if($('#vfCloseAddAnything')){
+  $('#vfCloseAddAnything').onclick=vfCloseAddAnything;
+}
+
+if($('#vfAddAnythingModal')){
+
+  /* Clicking the backdrop closes it; clicking the card must not. */
+  $('#vfAddAnythingModal').onclick=event=>{
+
+    if(event.target===$('#vfAddAnythingModal')){
+      vfCloseAddAnything();
+    }
+  };
+}
+
+if($('#vfAnyFile')){
+
+  $('#vfAnyFile').addEventListener('change',event=>{
+
+    const file=event.target.files?.[0];
+
+    if(file){
+      vfHandleAddedFile(file);
+    }
+  });
+}
+
+if($('#vfAddDrop')){
+
+  ['dragenter','dragover'].forEach(name=>{
+
+    $('#vfAddDrop').addEventListener(name,event=>{
+      event.preventDefault();
+      $('#vfAddDrop').classList.add('vf-add-drop-over');
+    });
+  });
+
+  ['dragleave','drop'].forEach(name=>{
+
+    $('#vfAddDrop').addEventListener(name,event=>{
+      event.preventDefault();
+      $('#vfAddDrop').classList.remove('vf-add-drop-over');
+    });
+  });
+
+  $('#vfAddDrop').addEventListener('drop',event=>{
+
+    const file=event.dataTransfer?.files?.[0];
+
+    if(file){
+      vfHandleAddedFile(file);
+    }
+  });
+}
+
+vfRenderAddManualGrid();
 
 
 if($('#paymentStatementFile')){
