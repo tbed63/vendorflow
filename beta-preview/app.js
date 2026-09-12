@@ -2504,6 +2504,19 @@ function renderCharterSchools(){
       }).join('');
   }
 
+  $$('[data-invoice-now]')
+    .forEach(button=>{
+
+      button.onclick=event=>{
+        /* The certificate row is itself clickable; without this the
+           click would also open the certificate. */
+        event.preventDefault();
+        event.stopPropagation();
+        vfGenerateInvoiceNow(button.dataset.invoiceNow);
+      };
+    });
+
+
   $$('[data-edit-charter]')
     .forEach(button=>{
 
@@ -5231,33 +5244,45 @@ function invoiceDueDateForTerms(
 }
 
 
-async function createDueInvoices(){
+/*
+ * Everything needed to turn ONE certificate into an invoice.
+ *
+ * Pulled out of createDueInvoices() so that generating an invoice by
+ * hand and generating one on schedule run the SAME code -- same
+ * numbering, same charter and student checks, same decision about
+ * whether to email it. Invoice numbering is money; it must not have
+ * two implementations that can drift apart.
+ *
+ * Returns {ok, reason, detail, invoiceId, sent} rather than throwing,
+ * because the automatic caller wants to skip quietly and the manual
+ * one needs something to show the vendor.
+ */
+async function vfCreateInvoiceForCertificate(cert){
 
-  const due=
-    invoiceReadyCertificates();
-
+  if(!cert){
+    return {
+      ok:false,
+      reason:'missing',
+      detail:'That certificate could not be found.'
+    };
+  }
 
   /*
-   * Invoice numbering is a one-time vendor choice.
-   * Never invent a numbering system for a vendor who
-   * may already have invoices outside VendorFlow.
+   * Invoice numbering is a one-time vendor choice. Never invent a
+   * numbering system for a vendor who may already have invoices
+   * outside VendorFlow.
    */
-  if(
-    due.length &&
-    !profile.invoiceNumberMode
-  ){
-    return 0;
+  if(!profile.invoiceNumberMode){
+    return {
+      ok:false,
+      reason:'numbering',
+      detail:
+        'Choose your invoice numbering system first, '+
+        'on the Invoices page.'
+    };
   }
 
-  if(!due.length){
-    return 0;
-  }
 
-
-  let created=0;
-
-
-  for(const cert of due){
 
     const alreadyExists=
       invoices.some(
@@ -5267,7 +5292,11 @@ async function createDueInvoices(){
 
 
     if(alreadyExists){
-      continue;
+      return {
+        ok:false,
+        reason:'already',
+        detail:'This certificate already has an invoice.'
+      };
     }
 
 
@@ -5286,7 +5315,14 @@ async function createDueInvoices(){
       !charter ||
       !student
     ){
-      continue;
+      return {
+        ok:false,
+        reason:'missing',
+        detail:
+          !charter
+            ? 'This certificate is not linked to a charter school yet.'
+            : 'This certificate is not linked to a student yet.'
+      };
     }
 
 
@@ -5504,7 +5540,6 @@ async function createDueInvoices(){
     );
 
 
-    created++;
 
     /*
      * "Send invoices to charter schools" (Settings > Automations).
@@ -5516,6 +5551,8 @@ async function createDueInvoices(){
      * it Ready to Send) if there's no billing email on file, rather
      * than showing an alert() with nobody there to see it.
      */
+    let vfEmailedNow=false;
+
     if(profile?.automations?.sendCharterInvoices){
 
       const invoiceForAutoSend={
@@ -5537,6 +5574,8 @@ async function createDueInvoices(){
             autoSendFields
           );
 
+          vfEmailedNow=true;
+
         }catch(error){
 
           console.error(
@@ -5546,8 +5585,125 @@ async function createDueInvoices(){
         }
       }
     }
+
+  /*
+   * `sent` reports what actually happened, not what the setting
+   * says. Auto-send skips quietly when there is no billing email on
+   * file, and telling a vendor an invoice was emailed when it was
+   * not is worse than telling them nothing.
+   */
+  return {
+    ok:true,
+    reason:'created',
+    invoiceId:invoiceRef.id,
+    invoiceNumber:invoice.invoiceNumber,
+    sent:vfEmailedNow
+  };
+}
+
+
+/*
+ * "Generate invoice now" -- the same invoice the schedule would have
+ * produced on this certificate's invoice-ready date, made early.
+ *
+ * Nothing special happens afterwards: the invoice lands in the
+ * ledger as "Ready to Send" like any other, so the existing
+ * "Mark sent outside VendorFlow" applies to it, and the existing
+ * duplicate guard in createDueInvoices() means the schedule will NOT
+ * produce a second one when the ready date arrives.
+ */
+async function vfGenerateInvoiceNow(certificateId){
+
+  const cert=
+    certs.find(c=>c.id===certificateId && !c.deleted);
+
+  if(!cert){
+    return toast('That certificate could not be found.');
   }
 
+  const existing=
+    invoices.find(i=>i.certificateId===cert.id);
+
+  if(existing){
+    return toast(
+      `Invoice ${existing.invoiceNumber||''} already exists `+
+      `for this certificate.`
+    );
+  }
+
+  const ok=
+    confirm(
+      `Create the invoice for ${cert.student||'this certificate'} now?`+
+      `\n\n`+
+      (
+        profile?.automations?.sendCharterInvoices
+          ? 'Your settings send invoices to charter schools '+
+            'automatically, so this will be emailed as soon as it '+
+            'is created.'
+          : 'It will wait in Invoices as "Ready to Send" so you can '+
+            'review and send it, or mark it as sent outside '+
+            'VendorFlow.'
+      )+
+      `\n\nThe scheduled invoice for this certificate will not be `+
+      `created as well.`
+    );
+
+  if(!ok){
+    return;
+  }
+
+  const result=
+    await vfCreateInvoiceForCertificate(cert);
+
+  if(!result.ok){
+    return toast(result.detail||'That invoice could not be created.');
+  }
+
+  await log(
+    'Invoice created early',
+    `${result.invoiceNumber||'An invoice'} was created by hand for `+
+    `${cert.student||'a certificate'} instead of waiting for `+
+    `${cert.invoiceReadyDate||'its scheduled date'}.`,
+    'Manual'
+  );
+
+  await refreshAll();
+  renderAll();
+
+  toast(
+    result.sent
+      ? `Invoice ${result.invoiceNumber||''} created and emailed.`
+      : `Invoice ${result.invoiceNumber||''} is ready to send.`
+  );
+}
+
+
+async function createDueInvoices(){
+
+  const due=
+    invoiceReadyCertificates();
+
+  if(!due.length){
+    return 0;
+  }
+
+  /* Same one-time numbering rule as above, checked once rather than
+     per certificate so nothing is attempted before it is set. */
+  if(!profile.invoiceNumberMode){
+    return 0;
+  }
+
+  let created=0;
+
+  for(const cert of due){
+
+    const result=
+      await vfCreateInvoiceForCertificate(cert);
+
+    if(result.ok){
+      created++;
+    }
+  }
 
   return created;
 }
@@ -21819,6 +21975,18 @@ function renderStudentCommandCenterCertificates(student){
         </div>
         <div class="vf-cc-cert-amount">${money(cert.amount)}</div>
 
+        ${
+          !cert.invoiceId
+            ? `<button
+                 type="button"
+                 class="vf-secondary-button vf-cc-cert-edit"
+                 data-invoice-now="${esc(cert.id)}"
+                 title="Create this certificate's invoice now instead of waiting">
+                 Invoice now
+               </button>`
+            : ''
+        }
+
         <button
           type="button"
           class="vf-secondary-button vf-cc-cert-edit"
@@ -22221,6 +22389,16 @@ function wireStudentCommandCenterButtons(){
        * matches it too -- testing for the row first would open the
        * evidence viewer and the Edit click would never be seen.
        */
+      const invoiceNowButton=
+        event.target.closest('[data-invoice-now]');
+
+      if(invoiceNowButton){
+        event.preventDefault();
+        event.stopPropagation();
+        vfGenerateInvoiceNow(invoiceNowButton.dataset.invoiceNow);
+        return;
+      }
+
       const editCertButton=
         event.target.closest('[data-cc-edit-cert]');
 
@@ -33089,6 +33267,17 @@ $('#certificateList').innerHTML=
                          : 'Invoice scheduled'
                      }
                    </strong>
+                   ${
+                     !d.invoiceId &&
+                     profile.invoiceNumberMode
+                       ? `<button
+                            type="button"
+                            class="vf-secondary-button vf-invoice-now"
+                            data-invoice-now="${esc(d.id)}">
+                            Invoice now
+                          </button>`
+                       : ''
+                   }
                    <span>
                      ${
                        certificateIsInvoiceReady(d) &&

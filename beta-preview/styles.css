@@ -10255,3 +10255,14 @@ body.vf-wizard-open .vf-modal-overlay{
   padding:3px 6px;
   margin-bottom:4px;
 }
+
+
+
+/* VF_INVOICE_NOW */
+/* "Invoice now" sits with the invoice schedule it overrides. */
+.vf-invoice-now{
+  margin-right:8px;
+  padding:3px 10px;
+  font-size:11.5px;
+  border-radius:7px;
+}
