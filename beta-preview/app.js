@@ -33838,7 +33838,7 @@ $('#certificateList').innerHTML=
            */
           if(
             event.target.closest(
-              '[data-delete-cert], [data-fix-certificate]'
+              '[data-delete-cert], [data-fix-certificate], [data-invoice-now]'
             )
           ){
             return;
@@ -33861,7 +33861,7 @@ $('#certificateList').innerHTML=
 
           if(
             event.target.closest(
-              '[data-delete-cert], [data-fix-certificate]'
+              '[data-delete-cert], [data-fix-certificate], [data-invoice-now]'
             )
           ){
             return;
@@ -33893,6 +33893,29 @@ $('#certificateList').innerHTML=
 
         safeDeleteCertificate(
           button.dataset.deleteCert
+        );
+      };
+    });
+
+
+  /*
+   * Bound here, in the render that creates these buttons, rather
+   * than relying on another render having run first.
+   *
+   * stopPropagation matters: the button sits inside a row that is
+   * itself clickable and opens the certificate PDF.
+   */
+
+  $$('#certificateList [data-invoice-now]')
+    .forEach(button=>{
+
+      button.onclick=event=>{
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        vfGenerateInvoiceNow(
+          button.dataset.invoiceNow
         );
       };
     });
