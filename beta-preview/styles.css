@@ -10239,3 +10239,19 @@ body.vf-wizard-open .vf-modal-overlay{
   color:#8a5a10;
 }
 .vf-cert-date-warning.hidden{display:none}
+
+
+
+/* VF_INCOME_LEARNED */
+/* Why a category was pre-filled. Shown so the vendor can judge
+   whether to trust it -- a silent guess is one nobody checks. */
+.vf-income-import-learned{
+  font-size:11px;
+  line-height:1.35;
+  color:#1c5e3f;
+  background:#f0f8f3;
+  border:1px solid #cfe8da;
+  border-radius:6px;
+  padding:3px 6px;
+  margin-bottom:4px;
+}

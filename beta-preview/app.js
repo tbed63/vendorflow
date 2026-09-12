@@ -15329,6 +15329,164 @@ function vfIncomeImportDirection(tx){
 let vfIncomeImportVaultId=null;
 
 
+/* ============================================================
+   GUESSING AN INCOME CATEGORY
+
+   Two sources, in this order of trust:
+
+     1. What the vendor chose for this payer before. The same family
+        pays for the same thing month after month, so their own past
+        decision is the best available evidence -- better than any
+        keyword list, because it is specific to them.
+
+     2. Words in the memo. Venmo memos usually say what the money is
+        for ("Aug tutoring", "math class").
+
+   Learning reads the vendor's existing income records rather than a
+   separate store. That means it works from day one on history they
+   already have, needs no migration, and self-corrects: change a
+   payer's category a few times and the new answer wins on its own.
+
+   Every guess is only a DEFAULT on a row the vendor reviews before
+   anything is saved.
+   ============================================================ */
+
+const VF_INCOME_CATEGORY_HINTS=[
+  {key:'tutoring',  words:['tutor','tutoring','1:1','one on one','session']},
+  {key:'classes',   words:['class','classes','course','enrollment','semester','program','math jam','co-op','coop']},
+  {key:'workshops', words:['workshop','camp','clinic','event','field trip','fieldtrip']},
+  {key:'materials', words:['material','supplies','book','books','kit','curriculum']},
+  {key:'charter',   words:['charter','certificate','purchase order',' po ','po#','reimburse']},
+  {key:'consulting',words:['consult','contract','coaching','advisory']}
+];
+
+
+function vfNormalizePayerKey(payer){
+
+  return String(payer||'')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g,' ');
+}
+
+
+function vfGuessIncomeCategoryFromText(text){
+
+  const hay=String(text||'').toLowerCase();
+
+  if(!hay.trim()){
+    return '';
+  }
+
+  for(const hint of VF_INCOME_CATEGORY_HINTS){
+    if(hint.words.some(word=>hay.includes(word))){
+      return hint.key;
+    }
+  }
+
+  return '';
+}
+
+
+/*
+ * What this vendor has previously filed this payer's money under.
+ *
+ * Most recent entries count for more, so changing your mind about a
+ * payer takes effect quickly instead of being outvoted by years of
+ * old rows. 'other' is ignored -- it is the default nobody chose, so
+ * counting it would teach the app that the vendor keeps picking
+ * "Other" when in fact they just never picked anything.
+ */
+function vfLearnedIncomeCategory(payer){
+
+  const key=vfNormalizePayerKey(payer);
+
+  if(!key){
+    return null;
+  }
+
+  const matches=
+    income
+      .filter(item=>
+        vfNormalizePayerKey(item.payer)===key &&
+        item.category &&
+        item.category!=='other'
+      )
+      .sort((x,y)=>
+        String(y.dateEarned||'')
+          .localeCompare(String(x.dateEarned||''))
+      );
+
+  if(!matches.length){
+    return null;
+  }
+
+  const weights=new Map();
+
+  matches.forEach((item,index)=>{
+    /* 1st, 1/2, 1/3 ... so the newest choice leads. */
+    const weight=1/(index+1);
+    weights.set(
+      item.category,
+      (weights.get(item.category)||0)+weight
+    );
+  });
+
+  let best=null;
+  let bestWeight=0;
+
+  for(const [category,weight] of weights){
+    if(weight>bestWeight){
+      best=category;
+      bestWeight=weight;
+    }
+  }
+
+  if(!best){
+    return null;
+  }
+
+  return {
+    category:best,
+    timesSeen:matches.filter(m=>m.category===best).length,
+    payerName:matches[0].payer||payer
+  };
+}
+
+
+/*
+ * Returns {category, reason} for one imported transaction. reason is
+ * shown to the vendor, so they can see WHY a row was pre-filled and
+ * judge whether to trust it -- a silent guess is one nobody checks.
+ */
+function vfSuggestIncomeCategory(payer,memo){
+
+  const learned=vfLearnedIncomeCategory(payer);
+
+  if(learned){
+    return {
+      category:learned.category,
+      reason:
+        `You filed ${learned.payerName}'s money under `+
+        `${vfIncomeCategoryLabel(learned.category)} `+
+        `${learned.timesSeen} time${learned.timesSeen===1?'':'s'} before.`
+    };
+  }
+
+  const guessed=
+    vfGuessIncomeCategoryFromText(`${memo||''} ${payer||''}`);
+
+  if(guessed){
+    return {
+      category:guessed,
+      reason:`Guessed from the memo.`
+    };
+  }
+
+  return {category:'other',reason:''};
+}
+
+
 function vfBuildIncomeImportRows(data){
 
   const list=
@@ -15358,6 +15516,16 @@ function vfBuildIncomeImportRows(data){
           ? vfFindIncomeDuplicates(entry)
           : [];
 
+      const memo=
+        String(
+          tx.memo ||
+          tx.description ||
+          ''
+        ).trim();
+
+      const suggestion=
+        vfSuggestIncomeCategory(entry.payer,memo);
+
       return {
         id:`inc-import-${index}`,
         amount,
@@ -15385,7 +15553,8 @@ function vfBuildIncomeImportRows(data){
           amount>0 &&
           duplicates.length===0,
 
-        category:'other'
+        category:suggestion.category,
+        categoryReason:suggestion.reason
       };
     })
     .filter(row=>row.amount>0);
@@ -15484,6 +15653,13 @@ function vfRenderIncomeImportResults(){
                       : ''
                   }
                   ${
+                    row.categoryReason
+                      ? `<div class="vf-income-import-learned">${
+                          esc(row.categoryReason)
+                        }</div>`
+                      : ''
+                  }
+                  ${
                     row.memo
                       ? `<div class="muted">${esc(row.memo)}</div>`
                       : ''
@@ -15524,6 +15700,13 @@ function vfRenderIncomeImportResults(){
         );
       if(row){
         row.category=select.value;
+
+        /* The vendor has overruled the guess, so the explanation for
+           it is no longer true. Drop it rather than leave a note
+           claiming a reason for a choice they just changed. */
+        row.categoryReason='';
+
+        vfRenderIncomeImportResults();
       }
     };
   });
