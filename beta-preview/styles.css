@@ -10141,3 +10141,41 @@ body.vf-wizard-open .vf-modal-overlay{
   font-size:12px;
   border-radius:7px;
 }
+
+
+
+/* VF_SIDEBAR_FILL */
+/* Carry the sidebar colour to the bottom of the page.
+
+   Capping the sidebar at 100vh is what lets it stay put while the
+   page scrolls (see VF_SIDEBAR_STICKY) -- but it also ends its
+   background there, leaving a white strip down the left of any page
+   taller than the window.
+
+   The fix is a stripe on the grid container behind the sidebar,
+   spanning the full document height. It is painted in #102852, the
+   exact colour the sidebar's own gradient ends in, so the join is
+   invisible: the gradient runs for the first screenful and this
+   continues it.
+
+   Doing it on the container rather than the sidebar keeps the
+   sidebar short, which is the whole reason sticky works.
+   240px matches the grid's first column. */
+
+#app.shell:not(.hidden){
+  background:
+    linear-gradient(
+      90deg,
+      #102852 0,
+      #102852 240px,
+      transparent 240px
+    )!important;
+}
+
+/* Stacked layout: the sidebar is no longer a left column, so a
+   left-hand stripe would be a band across the top of nothing. */
+@media(max-width:900px){
+  #app.shell:not(.hidden){
+    background:none!important;
+  }
+}
