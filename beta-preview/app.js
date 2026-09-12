@@ -52695,6 +52695,114 @@ function vfCloseRealInteractiveTutorial(){
    actual data, so there is nothing to tick by hand.
    ========================================================== */
 
+/*
+ * The checklist, grouped.
+ *
+ * Five of these twelve items send the vendor to Settings, which made
+ * the list read as twelve separate trips when it is really twelve
+ * separate FACTS. That distinction is the whole design: an item is
+ * done when something is true about the account, not when a page has
+ * been visited -- so one destination serving four items is fine, and
+ * grouping is all that was ever needed.
+ *
+ * Groups are declared here rather than as a field on each item so
+ * the item definitions stay untouched. Anything missing from a group
+ * still renders, under its own heading, because an item that
+ * silently disappeared from the checklist would be far worse than an
+ * ugly one.
+ */
+const VF_SETUP_GROUPS=[
+
+  {
+    key:'business',
+    title:'Your business',
+    items:['business','paymentMethods','invoiceNumbering']
+  },
+
+  {
+    key:'people',
+    title:'Who you work with',
+    items:['charters','students','groups']
+  },
+
+  {
+    key:'records',
+    title:'What you already have',
+    items:['certificates','payments']
+  },
+
+  {
+    key:'automation',
+    title:'What VendorFlow may do for you',
+    items:['email','communications','lateFees','automations']
+  }
+
+];
+
+
+/*
+ * Items that are a DECISION rather than a record.
+ *
+ * These two used to tick themselves the moment the vendor opened the
+ * page -- vfSetupVisited(). That was always a lie, and the Add door
+ * made it a costly one: opening Settings to set up payment methods
+ * would tick "late fees" as well, and a vendor would believe they
+ * had decided something they never looked at.
+ *
+ * There is no fact in the account that proves "I have thought about
+ * late fees", so the honest answer is to ask. They complete only
+ * when the vendor says so.
+ */
+const VF_SETUP_DECISION_ITEMS=['email','lateFees'];
+
+
+function vfSetupIsDecision(key){
+  return VF_SETUP_DECISION_ITEMS.includes(key);
+}
+
+
+/*
+ * Every item, in group order, with anything ungrouped kept at the
+ * end rather than dropped.
+ */
+function vfSetupGroupedItems(){
+
+  const byKey=
+    new Map(
+      VF_SETUP_ITEMS.map(item=>[item.key,item])
+    );
+
+  const groups=
+    VF_SETUP_GROUPS.map(group=>({
+      title:group.title,
+      items:
+        group.items
+          .map(key=>byKey.get(key))
+          .filter(Boolean)
+    }))
+    .filter(group=>group.items.length);
+
+  const placed=
+    new Set(
+      VF_SETUP_GROUPS.flatMap(group=>group.items)
+    );
+
+  const leftovers=
+    VF_SETUP_ITEMS.filter(
+      item=>!placed.has(item.key)
+    );
+
+  if(leftovers.length){
+    groups.push({
+      title:'Everything else',
+      items:leftovers
+    });
+  }
+
+  return groups;
+}
+
+
 const VF_SETUP_ITEMS=[
 
   {
@@ -52933,7 +53041,8 @@ function vfSetupNormalizeState(parsed){
     minimized:Boolean(source.minimized),
     openItem:source.openItem||'',
     skipped:source.skipped||{},
-    visited:source.visited||{}
+    visited:source.visited||{},
+    decided:source.decided||{}
   };
 }
 
@@ -53078,8 +53187,18 @@ function vfSetupVisited(key){
 
 function vfSetupItemDone(item){
 
-  if(vfSetupState().skipped[item.key]){
+  const state=vfSetupState();
+
+  if(state.skipped[item.key]){
     return true;
+  }
+
+  /*
+   * Checked before item.done(), because these items' own done() is
+   * the visit check being replaced.
+   */
+  if(vfSetupIsDecision(item.key)){
+    return Boolean(state.decided[item.key]);
   }
 
   try{
@@ -53165,7 +53284,18 @@ function vfRenderSetupChecklist(){
 
     <div class="vf-setup-items">
       ${
-        VF_SETUP_ITEMS.map(item=>{
+        vfSetupGroupedItems().map(group=>`
+
+          <div class="vf-setup-group">
+
+            <div class="vf-setup-group-title">
+              ${esc(group.title)}
+              <span>${
+                group.items.filter(vfSetupItemDone).length
+              }/${group.items.length}</span>
+            </div>
+
+            ${group.items.map(item=>{
 
           const done=vfSetupItemDone(item);
           const open=state.openItem===item.key;
@@ -53189,6 +53319,11 @@ function vfRenderSetupChecklist(){
                       ${item.body}
                       <div class="vf-setup-go-line">${esc(item.action)} &rarr;</div>
                       ${
+                        vfSetupIsDecision(item.key) && !done
+                          ? `<button type="button" class="vf-setup-decided" data-setup-decided="${esc(item.key)}">I've set this up</button>`
+                          : ''
+                      }
+                      ${
                         item.skippable && !done
                           ? `<button type="button" class="vf-setup-skip" data-setup-skip="${esc(item.key)}">Skip this</button>`
                           : ''
@@ -53198,7 +53333,10 @@ function vfRenderSetupChecklist(){
               }
 
             </div>`;
-        }).join('')
+            }).join('')}
+
+          </div>
+        `).join('')
       }
     </div>
 
@@ -53306,6 +53444,26 @@ function vfRenderSetupChecklist(){
       vfRenderSetupChecklist();
     };
   });
+
+  panel.querySelectorAll('[data-setup-decided]').forEach(button=>{
+
+    button.onclick=event=>{
+
+      /* Sits inside the clickable explanation, same as Skip. */
+      event.stopPropagation();
+
+      vfSetupSaveState({
+        decided:{
+          ...vfSetupState().decided,
+          [button.dataset.setupDecided]:new Date().toISOString()
+        },
+        openItem:''
+      });
+
+      vfRenderSetupChecklist();
+    };
+  });
+
 
   panel.querySelectorAll('[data-setup-skip]').forEach(button=>{
     button.onclick=event=>{

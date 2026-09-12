@@ -10660,3 +10660,52 @@ body.vf-wizard-open .vf-modal-overlay{
   color:#1A346F;
   text-decoration:underline;
 }
+
+
+/* VF_SETUP_GROUPS_CSS */
+/* Headings inside the setup checklist.
+
+   Five of the twelve items open Settings. Grouped, that reads as one
+   area of the app with four things to decide in it, rather than five
+   separate errands to the same place. The x/y beside each heading is
+   what makes a group feel finishable. */
+
+.vf-setup-group + .vf-setup-group{
+  margin-top:14px;
+}
+
+.vf-setup-group-title{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:8px;
+  margin:0 0 6px;
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+
+.vf-setup-group-title span{
+  font-variant-numeric:tabular-nums;
+  letter-spacing:0;
+  font-size:11px;
+}
+
+.vf-setup-decided{
+  margin-top:10px;
+  margin-right:8px;
+  border:1px solid #1A346F;
+  background:#1A346F;
+  color:#fff;
+  border-radius:8px;
+  padding:6px 11px;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+}
+
+.vf-setup-decided:hover{
+  background:#22448c;
+}
