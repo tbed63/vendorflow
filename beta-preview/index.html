@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>VendorFlow</title>
-  <link rel="stylesheet" href="styles.css?v=sidebarfill-20260911-190000">
+  <link rel="stylesheet" href="styles.css?v=certlabels-20260912-090000">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="modulepreload" href="app.js?v=sidebarfill-20260911-190000">
+  <link rel="modulepreload" href="app.js?v=certlabels-20260912-090000">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA</div>
@@ -2444,6 +2444,8 @@ Thank you,
 
             <div class="vf-cert-student-field">
 
+              <span class="vf-cert-caption">Student</span>
+
               <input
                 id="certStudent"
                 class="input"
@@ -2473,6 +2475,8 @@ Thank you,
 
             <div class="vf-cert-charter-field">
 
+              <span class="vf-cert-caption">Charter school</span>
+
               <input
                 id="certSchool"
                 class="input"
@@ -2495,66 +2499,102 @@ Thank you,
 
             </div>
 
-            <input
-              id="certAmount"
-              class="input"
-              type="number"
-              min="0"
-              step=".01"
-              placeholder="Certificate amount">
+            <label class="vf-field-label">
+              <span>Certificate amount</span>
+              <input
+                id="certAmount"
+                class="input"
+                type="number"
+                min="0"
+                step=".01"
+                placeholder="Certificate amount">
+            </label>
 
-            <input
-              id="certNumber"
-              class="input"
-              placeholder="Certificate / PO #">
+            <label class="vf-field-label">
+              <span>Certificate / PO number</span>
+              <input
+                id="certNumber"
+                class="input"
+                placeholder="Certificate / PO #">
+            </label>
 
-            <input
-              id="certIssueDate"
-              class="input"
-              placeholder="Issue date">
+            <label class="vf-field-label">
+              <span>Date issued</span>
+              <input
+                id="certIssueDate"
+                class="input"
+                placeholder="YYYY-MM-DD">
+              <small class="vf-field-hint">
+                Decides whether payment counted as on time.
+              </small>
+            </label>
 
-            <input
-              id="certServiceStart"
-              class="input"
-              placeholder="Service start date">
+            <label class="vf-field-label">
+              <span>Service start date</span>
+              <input
+                id="certServiceStart"
+                class="input"
+                placeholder="YYYY-MM-DD">
+            </label>
 
-            <input
-              id="certServiceEnd"
-              class="input"
-              placeholder="Service end date">
+            <label class="vf-field-label">
+              <span>Service end date</span>
+              <input
+                id="certServiceEnd"
+                class="input"
+                placeholder="YYYY-MM-DD">
+            </label>
 
-            <input
-              id="certBillingEmail"
-              class="input"
-              type="email"
-              placeholder="Invoice / billing email">
+            <label class="vf-field-label">
+              <span>Send invoices to</span>
+              <input
+                id="certBillingEmail"
+                class="input"
+                type="email"
+                placeholder="billing@charterschool.org">
+              <small class="vf-field-hint">
+                Where this school's invoice is emailed.
+              </small>
+            </label>
 
-            <select id="certStatus" class="input">
-              <option>Received - Not Billed</option>
-              <option>Billed - Not Paid</option>
-              <option>Paid</option>
-              <option>Needs Review</option>
-            </select>
+            <label class="vf-field-label">
+              <span>Status</span>
+              <select id="certStatus" class="input">
+                <option>Received - Not Billed</option>
+                <option>Billed - Not Paid</option>
+                <option>Paid</option>
+                <option>Needs Review</option>
+              </select>
+            </label>
 
           </div>
 
-          <textarea
-            id="certServiceDescription"
-            class="input"
-            rows="2"
-            placeholder="Service description"></textarea>
+          <label class="vf-field-label">
+            <span>Service description</span>
+            <textarea
+              id="certServiceDescription"
+              class="input"
+              rows="2"
+              placeholder="What the certificate pays for"></textarea>
+          </label>
 
-          <textarea
-            id="certInvoiceInstructions"
-            class="input"
-            rows="3"
-            placeholder="Invoice instructions from certificate"></textarea>
+          <label class="vf-field-label">
+            <span>Invoice instructions from the school</span>
+            <textarea
+              id="certInvoiceInstructions"
+              class="input"
+              rows="3"
+              placeholder="Anything the school requires on the invoice"></textarea>
+          </label>
 
-          <textarea
-            id="certNotes"
-            class="input"
-            rows="2"
-            placeholder="Certificate notes"></textarea>
+          <label class="vf-field-label">
+            <span>Your notes</span>
+            <textarea
+              id="certNotes"
+              class="input"
+              rows="2"
+              placeholder="Only you see these"></textarea>
+          </label>
 
 
           <div class="row">
@@ -4002,5 +4042,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=sidebarfill-20260911-190000"></script>
+<script type="module" src="app.js?v=certlabels-20260912-090000"></script>
 </body></html>

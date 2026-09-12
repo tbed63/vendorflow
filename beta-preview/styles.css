@@ -10179,3 +10179,44 @@ body.vf-wizard-open .vf-modal-overlay{
     background:none!important;
   }
 }
+
+
+
+/* VF_CERT_FORM_LABELS */
+/* The certificate form carried no labels at all -- every field was
+   identified only by its placeholder, which disappears the moment
+   the field has a value. Editing an existing certificate meant
+   facing three unlabelled dates and a bare email address. */
+
+.vf-cert-caption{
+  display:block;
+  margin-bottom:4px;
+  font-size:12px;
+  font-weight:700;
+  color:var(--ink);
+}
+#certificateForm .vf-field-label{
+  display:block;
+  margin:0;
+  min-width:0;
+}
+#certificateForm .vf-field-label > span{
+  display:block;
+  margin-bottom:4px;
+  font-size:12px;
+  font-weight:700;
+  color:var(--ink);
+}
+#certificateForm .vf-field-label .input{
+  margin:0;
+  width:100%;
+}
+#certificateForm .vf-field-hint{
+  display:block;
+  margin-top:3px;
+  font-size:11px;
+  color:var(--muted);
+}
+#certificateForm > .vf-field-label{
+  margin-top:12px;
+}
