@@ -39450,6 +39450,206 @@ function populateInvoicingDefaults(){
 }
 
 
+/* ==========================================================
+   NOTIFICATION EMAILS, AND KNOWING WHEN THE VENDOR IS HERE
+   ==========================================================
+
+   Two halves of one feature.
+
+   The SETTING is stored as profile.notificationDigest -- "off",
+   "instant" or "daily". The worker reads it on a schedule and sends
+   the email; nothing is sent from the browser, because the whole
+   point is to reach a vendor whose tab is closed.
+
+   PRESENCE is the reason instant updates are not annoying. Tim's
+   rule: there is no reason to email somebody who is already looking
+   at the screen. So the app records lastActiveAt, and the worker
+   skips anyone who was here in the last five minutes.
+
+   What counts as "here" is deliberately narrow: the vendor has to
+   actually do something -- click, type, move between pages. A tab
+   left open overnight is not somebody working, and treating it as
+   such would silence every email until they closed the browser.
+
+   Throttled hard, to one write every two minutes. A heartbeat on
+   every click would be thousands of pointless writes a day, and
+   this only has to be accurate to within five minutes.
+*/
+
+const VF_PRESENCE_WRITE_GAP_MS=2*60*1000;
+
+let vfPresenceLastWrite=0;
+let vfPresenceWriting=false;
+
+
+async function vfRecordPresence(){
+
+  if(!user || !db){
+    return;
+  }
+
+  const now=Date.now();
+
+  if(
+    vfPresenceWriting ||
+    (now-vfPresenceLastWrite) < VF_PRESENCE_WRITE_GAP_MS
+  ){
+    return;
+  }
+
+  /* Claimed before the await, so a burst of clicks cannot start
+     several writes at once. */
+  vfPresenceLastWrite=now;
+  vfPresenceWriting=true;
+
+  try{
+
+    await setDoc(
+      vendorDoc(),
+      {
+        lastActiveAt:
+          new Date().toISOString(),
+
+        /*
+         * Kept fresh here because this is the address the digests
+         * are sent to. It is written at onboarding, but an account
+         * created before that existed would otherwise have none,
+         * and an email with nowhere to go fails silently.
+         */
+        email:
+          user.email||''
+      },
+      {
+        merge:true
+      }
+    );
+
+    if(profile){
+      profile.lastActiveAt=new Date().toISOString();
+    }
+
+  }catch(error){
+
+    /* Presence is a convenience. Never let it interrupt anything. */
+    console.error('Could not record activity:',error);
+
+  }finally{
+
+    vfPresenceWriting=false;
+  }
+}
+
+
+['click','keydown'].forEach(name=>{
+
+  document.addEventListener(name,()=>{
+
+    /* Only while the tab is actually in front. */
+    if(document.visibilityState==='visible'){
+      vfRecordPresence();
+    }
+  },true);
+});
+
+
+function vfDigestModeSetting(){
+
+  const raw=
+    String(profile?.notificationDigest||'off')
+      .trim()
+      .toLowerCase();
+
+  return ['off','instant','daily'].includes(raw)
+    ? raw
+    : 'off';
+}
+
+
+function renderDigestSettings(){
+
+  const mode=vfDigestModeSetting();
+
+  ['off','instant','daily'].forEach(value=>{
+
+    const radio=
+      $(`#digest${value.charAt(0).toUpperCase()}${value.slice(1)}`);
+
+    if(radio){
+      radio.checked=(value===mode);
+    }
+  });
+}
+
+
+if($('#saveDigestSettings')){
+
+  $('#saveDigestSettings').onclick=async()=>{
+
+    const button=$('#saveDigestSettings');
+    const label=button.textContent;
+
+    const chosen=
+      ['off','instant','daily'].find(value=>
+        $(`#digest${value.charAt(0).toUpperCase()}${value.slice(1)}`)?.checked
+      ) || 'off';
+
+    button.disabled=true;
+    button.textContent='Saving…';
+
+    try{
+
+      await setDoc(
+        vendorDoc(),
+        {
+          notificationDigest:chosen,
+
+          /*
+           * Clear what the worker has already reported, so switching
+           * this on tells the vendor about everything currently
+           * waiting rather than starting from silence.
+           */
+          digestNotifiedIds:[],
+
+          updatedAt:serverTimestamp()
+        },
+        {
+          merge:true
+        }
+      );
+
+      profile.notificationDigest=chosen;
+      profile.digestNotifiedIds=[];
+
+      await log(
+        'Notification emails updated',
+        chosen==='off'
+          ? 'VendorFlow will not email about notifications.'
+          : chosen==='instant'
+            ? 'VendorFlow will email as things come up, when you are away.'
+            : 'VendorFlow will email one summary a day.',
+        'Manual'
+      );
+
+      toast(
+        chosen==='off'
+          ? 'Notification emails turned off.'
+          : 'Notification emails saved.'
+      );
+
+    }catch(error){
+
+      console.error('Could not save notification emails:',error);
+      toast('Could not save that. Try again.');
+
+    }finally{
+
+      button.disabled=false;
+      button.textContent=label;
+    }
+  };
+}
+
+
 function renderAutomationsSettings(){
 
   const automations=profile?.automations||{};
@@ -40717,6 +40917,8 @@ function switchView(v){
     renderLateFeesSettings();
     populateInvoicingDefaults();
     renderAutomationsSettings();
+
+    renderDigestSettings();
   }
 
   if(v==='studentCommandCenter'){

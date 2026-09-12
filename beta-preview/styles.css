@@ -10709,3 +10709,22 @@ body.vf-wizard-open .vf-modal-overlay{
 .vf-setup-decided:hover{
   background:#22448c;
 }
+
+
+/* VF_DIGEST_ROWS */
+/* The three notification-email choices.
+
+   Each option carries a line of explanation under its name, because
+   the difference between them is not obvious from three words and
+   the wrong choice is either silence or nagging. */
+
+.vf-digest-row span{
+  display:grid;
+  gap:3px;
+}
+
+.vf-digest-row small{
+  color:var(--muted);
+  font-size:11.5px;
+  line-height:1.45;
+}
