@@ -10763,3 +10763,57 @@ body.vf-wizard-open .vf-modal-overlay{
     transition:none;
   }
 }
+
+
+/* VF_DESIGN_SYSTEM */
+/* ==========================================================
+   THE VENDORFLOW DESIGN SYSTEM
+
+   The same block as marketing/index.html and subscribe.
+   Two products stop looking like two products when they draw
+   from one list.
+
+   Appended last on purpose. There are two earlier :root blocks
+   in this file and neither is edited -- this simply wins, so
+   the whole change is one block to delete if it is ever
+   unwanted.
+   ========================================================== */
+
+:root{
+
+  /* ---- the brand ---- */
+  --navy:#1A346F;        /* unchanged. buttons, links, the sidebar   */
+  --navy-900:#0E1B36;    /* new. dark grounds                        */
+  --navy-600:#2B4A8F;    /* new. hover only                          */
+
+  /* ---- the one accent ----
+     This was #5D757D, which is a grey. Something named gold that
+     renders grey does not survive being read, and the eyebrow
+     labels and Actions timestamps using it have been grey for it. */
+  --gold:#A8761B;
+  --gold-soft:#FBF2DF;
+
+  /* ---- text and surfaces ---- */
+  --ink:#141C2B;
+  --text:#141C2B;        /* used at line ~8047 and never defined     */
+  --muted:#5C6879;
+  --line:#DDE2EB;
+  --bg:#F5F7FB;
+  --surface:#FFFFFF;
+
+  /* ---- status ----
+     A tool that shows money owed needs to say good, careful and
+     wrong in colour. Naming them is what stops the next person
+     inventing another green. */
+  --ok:#146A4C;
+  --ok-soft:#EAF4EF;
+  --warn:#9A5B00;
+  --warn-soft:#FBF3E6;
+  --danger:#A2231D;
+  --danger-soft:#FBEEEC;
+
+  /* ---- the logo palette, kept ---- */
+  --vf-navy:#1A346F;
+  --vf-deep-gray:#5C6879;
+  --vf-light-gray:#98A3B5;
+}
