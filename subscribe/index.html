@@ -5,157 +5,318 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Start Your Free Trial — VendorFlow</title>
 <meta name="description" content="Start your free 7-day trial of VendorFlow. $199/year after your trial, cancel anytime, 30-day money-back guarantee.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap">
 <style>
+  /* ==========================================================
+     THE VENDORFLOW DESIGN SYSTEM
+
+     The same block as marketing/index.html and the app. Two
+     pages look like one product because they draw from one
+     list: 10 colours, 7 type sizes, 3 radii, 2 shadows, 2
+     typefaces.
+
+     Class names below are unchanged from the old stylesheet.
+     Nothing in the markup or the JavaScript moved.
+     ========================================================== */
+
   :root{
-    --navy:#172337;
-    --navy-light:#1f3050;
-    --ink:#18202b;
-    --muted:#5b6470;
-    --line:#e5e7eb;
-    --bg:#f5f6f8;
-    --gold:#b7791f;
-    --gold-light:#f2cd8d;
-    --white:#ffffff;
-    --error:#b3261e;
+    --navy-900:#0E1B36;
+    --navy:#1A346F;
+    --navy-600:#2B4A8F;
+    --gold:#A8761B;
+    --gold-soft:#FBF2DF;
+    --ink:#141C2B;
+    --muted:#5C6879;
+    --line:#DDE2EB;
+    --surface:#FFFFFF;
+    --ground:#F5F7FB;
+    --error:#A2231D;
+
+    --t-xs:13px;
+    --t-sm:15px;
+    --t-base:17px;
+    --t-lg:20px;
+    --t-xl:26px;
+    --t-2xl:34px;
+
+    --display:"Archivo","Helvetica Neue",Arial,sans-serif;
+    --body:"Public Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+
+    --r-sm:4px;
+    --r-md:8px;
+    --r-lg:14px;
+
+    --sh-1:0 1px 2px rgba(14,27,54,.06);
+    --sh-2:0 2px 4px rgba(14,27,54,.05), 0 12px 28px -20px rgba(14,27,54,.5);
   }
+
   *{box-sizing:border-box}
-  body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55}
-  a{color:inherit}
-  img{max-width:100%}
-  .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+
+  body{
+    margin:0;
+    font-family:var(--body);
+    font-size:var(--t-base);
+    background:var(--ground);
+    color:var(--ink);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--navy)}
+  img{max-width:100%;height:auto}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
   .hidden{display:none!important}
 
+  a:focus-visible,button:focus-visible,input:focus-visible{
+    outline:2px solid var(--gold);
+    outline-offset:2px;
+  }
+
   /* ---------- Nav ---------- */
+
   header.site-nav{
     position:sticky;top:0;z-index:100;
-    background:var(--white);
+    background:var(--surface);
     border-bottom:1px solid var(--line);
   }
   .nav-inner{
     display:flex;align-items:center;justify-content:space-between;
-    padding:16px 24px;max-width:1120px;margin:0 auto;
+    gap:16px;flex-wrap:wrap;
+    padding:16px 24px;max-width:1080px;margin:0 auto;
   }
-  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;color:var(--navy);text-decoration:none}
-  .vf-beta-tag{font-size:12px;font-weight:700;color:var(--gold);border:1px solid var(--gold);border-radius:999px;padding:3px 10px;margin-left:2px}
+  .brand{
+    display:flex;align-items:center;gap:10px;
+    font-family:var(--display);font-weight:800;font-size:var(--t-lg);
+    letter-spacing:-.02em;color:var(--navy-900);text-decoration:none;
+  }
   .brand .mark{
-    width:36px;height:36px;border-radius:10px;background:var(--navy);color:#fff;
-    display:grid;place-items:center;font-weight:800;font-size:15px;
+    width:32px;height:32px;border-radius:var(--r-sm);
+    background:var(--navy);color:#fff;
+    display:grid;place-items:center;
+    font-size:var(--t-xs);font-weight:700;letter-spacing:.04em;
   }
+  .vf-beta-tag{
+    font-family:var(--body);font-size:10.5px;font-weight:700;letter-spacing:.1em;
+    color:var(--gold);border:1px solid var(--gold);border-radius:999px;
+    padding:2px 8px;margin-left:2px;
+  }
+
+  /* ---------- Buttons ---------- */
+
   .btn{
-    display:inline-block;border-radius:11px;padding:12px 20px;font-weight:700;
-    text-decoration:none;cursor:pointer;border:0;font-size:15px;
+    display:inline-block;
+    font-family:var(--display);font-weight:600;font-size:var(--t-sm);
+    border-radius:var(--r-sm);padding:11px 20px;
+    text-decoration:none;cursor:pointer;border:1px solid transparent;
+    line-height:1.4;transition:background .14s ease,border-color .14s ease;
   }
   .btn-primary{background:var(--navy);color:#fff}
-  .btn-primary:hover{background:var(--navy-light)}
-  .btn-primary:disabled{background:#8a93a3;cursor:not-allowed}
-  .btn-ghost{background:transparent;color:var(--navy);border:1.5px solid var(--line)}
-  .btn-ghost:hover{border-color:var(--navy)}
-  .btn-full{width:100%;text-align:center}
+  .btn-primary:hover{background:var(--navy-600)}
+  .btn-primary:disabled{background:#98A3B5;cursor:not-allowed}
+  .btn-ghost{background:var(--surface);color:var(--ink);border-color:var(--line)}
+  .btn-ghost:hover{border-color:var(--muted)}
+  .btn-full{width:100%;text-align:center;padding:13px 20px;font-size:var(--t-base)}
 
-  /* ---------- Header ---------- */
+  @media(prefers-reduced-motion:reduce){
+    .btn{transition:none}
+  }
+
+  /* ---------- Page header ---------- */
+
   .page-header{
-    background:linear-gradient(180deg,var(--navy) 0%,var(--navy-light) 100%);
-    color:#fff;padding:56px 24px 44px;text-align:center;
+    background:var(--navy-900);
+    color:#fff;padding:60px 24px 52px;text-align:center;
   }
   .eyebrow{
-    display:inline-block;font-size:12px;letter-spacing:.12em;text-transform:uppercase;
-    font-weight:800;color:var(--gold-light);background:rgba(255,255,255,.08);
-    padding:7px 14px;border-radius:999px;margin-bottom:18px;
+    display:inline-block;
+    font-family:var(--display);font-size:11.5px;font-weight:700;
+    letter-spacing:.13em;text-transform:uppercase;color:var(--gold);
+    margin-bottom:16px;
   }
-  .page-header h1{font-size:34px;line-height:1.2;margin:0 0 12px;font-weight:800}
-  .page-header p{font-size:16.5px;color:#d9e0ea;max-width:520px;margin:0 auto}
+  .page-header h1{
+    font-family:var(--display);font-weight:800;font-size:var(--t-2xl);
+    line-height:1.12;letter-spacing:-.025em;margin:0 auto 12px;
+    max-width:20ch;text-wrap:balance;
+  }
+  .page-header p{
+    font-size:var(--t-lg);color:#C3CFE4;max-width:52ch;margin:0 auto;line-height:1.5;
+  }
 
   /* ---------- Layout ---------- */
-  .subscribe-section{padding:52px 24px 80px}
+
+  .subscribe-section{padding:52px 24px 72px}
   .subscribe-grid{
-    max-width:960px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:start;
+    max-width:960px;margin:0 auto;
+    display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:start;
   }
 
-  /* ---------- Price card (reused from homepage) ---------- */
+  /* ---------- Price card ---------- */
+
   .price-card{
-    background:#fff;border:1.5px solid var(--line);border-radius:20px;
-    padding:32px 28px;
+    background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--r-lg);padding:32px 28px;box-shadow:var(--sh-1);
   }
-  .price-card .amount{font-size:44px;font-weight:800;color:var(--navy)}
-  .price-card .period{font-size:14.5px;color:var(--muted);font-weight:600}
-  .price-card .trial-note{margin:12px 0 22px;font-size:13.5px;color:var(--muted)}
-  .price-card ul{list-style:none;margin:0;padding:0;text-align:left}
-  .price-card li{padding:8px 0;font-size:14px;color:var(--ink);display:flex;gap:9px;align-items:flex-start}
-  .price-card li .check{color:var(--gold);font-weight:800;flex-shrink:0}
+  .price-card .amount{
+    font-family:var(--display);font-weight:800;font-size:48px;line-height:1;
+    letter-spacing:-.04em;color:var(--navy);font-variant-numeric:tabular-nums;
+  }
+  .price-card .period{font-size:var(--t-sm);color:var(--muted);margin-top:6px}
+  .price-card .trial-note{
+    margin:16px 0 22px;font-size:var(--t-xs);color:var(--muted);line-height:1.55;
+  }
+  .price-card ul{list-style:none;margin:0;padding:0;text-align:left;display:grid;gap:11px}
+  .price-card li{
+    font-size:var(--t-sm);color:var(--ink);
+    display:flex;gap:10px;align-items:flex-start;line-height:1.5;
+  }
+  .price-card li .check{flex:0 0 auto;margin-top:3px;display:inline-flex}
 
   /* ---------- Form card ---------- */
+
   .form-card{
-    background:#fff;border:2px solid var(--navy);border-radius:20px;
-    padding:32px 28px;box-shadow:0 12px 30px rgba(23,35,55,.08);
+    background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--r-lg);padding:32px 28px;box-shadow:var(--sh-2);
   }
-  .form-card h2{margin:0 0 4px;font-size:20px;color:var(--navy)}
-  .form-card .form-sub{margin:0 0 22px;font-size:13.5px;color:var(--muted)}
-  .field{margin-bottom:14px}
-  .field label{display:block;font-size:13px;font-weight:700;color:var(--navy);margin-bottom:6px}
+  .form-card h2{
+    font-family:var(--display);font-weight:800;font-size:var(--t-xl);
+    letter-spacing:-.02em;color:var(--ink);margin:0 0 6px;
+  }
+  .form-card .form-sub{margin:0 0 22px;font-size:var(--t-sm);color:var(--muted);line-height:1.55}
+
+  .field{margin-bottom:16px}
+  .field label{
+    display:block;font-family:var(--display);font-size:var(--t-xs);font-weight:700;
+    color:var(--ink);margin-bottom:6px;
+  }
   .field input{
-    width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;
-    font-size:14.5px;font-family:inherit;color:var(--ink);
+    width:100%;padding:11px 13px;
+    border:1px solid var(--line);border-radius:var(--r-sm);
+    font-size:var(--t-sm);font-family:var(--body);color:var(--ink);
+    background:var(--surface);
   }
-  .field input:focus{outline:none;border-color:var(--navy)}
-  .field-hint{margin:6px 0 0;font-size:12px;color:var(--muted)}
+  .field input:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(26,52,111,.12)}
+  .field-hint{margin:6px 0 0;font-size:var(--t-xs);color:var(--muted)}
+
   .form-error{
-    background:#fdecea;border:1px solid #f5c6c2;color:var(--error);
-    padding:10px 13px;border-radius:10px;font-size:13.5px;margin-bottom:14px;
+    background:#FBEEEC;border:1px solid #EFC9C4;color:var(--error);
+    padding:11px 14px;border-radius:var(--r-sm);
+    font-size:var(--t-sm);margin-bottom:16px;
   }
-  .form-toggle{margin-top:16px;text-align:center;font-size:13.5px;color:var(--muted)}
+
+  .form-toggle{margin-top:18px;text-align:center;font-size:var(--t-sm);color:var(--muted)}
   .form-toggle button{
-    background:none;border:0;color:var(--navy);font-weight:700;text-decoration:underline;
-    cursor:pointer;font-size:13.5px;padding:0;font-family:inherit;
+    background:none;border:0;color:var(--navy);font-weight:600;
+    text-decoration:underline;cursor:pointer;
+    font-size:var(--t-sm);padding:0;font-family:var(--body);
   }
-  .card-fine{margin:16px 0 0;font-size:12px;color:var(--muted);text-align:center}
+
+  .card-fine{margin:16px 0 0;font-size:var(--t-xs);color:var(--muted);text-align:center;line-height:1.55}
+
   .signed-in-box{text-align:center}
-  .signed-in-box p{font-size:14px;color:var(--muted);margin:0 0 18px}
-  .signed-in-box .who{color:var(--navy);font-weight:700}
+  .signed-in-box p{font-size:var(--t-sm);color:var(--muted);margin:0 0 18px}
+  .signed-in-box .who{color:var(--ink);font-weight:600}
+
   .already-box{text-align:center}
-  .already-box .icon{font-size:30px;margin-bottom:10px}
-  .already-box h2{font-size:19px;color:var(--navy);margin:0 0 10px}
-  .already-box p{font-size:14px;color:var(--muted);margin:0 0 20px}
+  .already-box .icon{
+    width:40px;height:40px;margin:0 auto 12px;border-radius:50%;
+    background:var(--gold-soft);color:var(--gold);
+    display:grid;place-items:center;font-size:var(--t-lg);font-weight:700;
+  }
+  .already-box h2{font-size:var(--t-xl);margin:0 0 10px}
+  .already-box p{font-size:var(--t-sm);color:var(--muted);margin:0 0 20px}
 
   /* ---------- Beta agreement gate ---------- */
-  .agreement-scroll{max-height:260px;overflow-y:auto;border:1.5px solid var(--line);border-radius:12px;padding:16px 18px;font-size:12.5px;color:var(--ink);background:#fafafa}
-  .agreement-scroll h3{font-size:13px;margin:14px 0 6px;color:var(--navy)}
+
+  .agreement-scroll{
+    max-height:260px;overflow-y:auto;
+    border:1px solid var(--line);border-radius:var(--r-md);
+    padding:18px 20px;font-size:var(--t-xs);color:var(--ink);
+    background:var(--ground);line-height:1.65;
+  }
+  .agreement-scroll h3{
+    font-family:var(--display);font-size:var(--t-xs);font-weight:700;
+    margin:16px 0 6px;color:var(--ink);
+  }
   .agreement-scroll h3:first-child{margin-top:0}
   .agreement-scroll p{margin:0 0 10px}
   .agreement-scroll ul{margin:0 0 10px;padding-left:18px}
-  .agree-checkbox-row{display:flex;align-items:flex-start;gap:8px;margin-top:14px;font-size:13px;color:var(--ink);cursor:pointer}
-  .agree-checkbox-row input{margin-top:3px}
+  .agree-checkbox-row{
+    display:flex;align-items:flex-start;gap:9px;margin-top:16px;
+    font-size:var(--t-sm);color:var(--ink);cursor:pointer;line-height:1.5;
+  }
+  .agree-checkbox-row input{margin-top:4px;accent-color:var(--navy)}
 
   /* ---------- Trust strip ---------- */
+
   .trust-strip{
-    max-width:960px;margin:30px auto 0;display:flex;justify-content:center;gap:32px;
-    flex-wrap:wrap;text-align:center;
+    max-width:960px;margin:34px auto 0;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:24px;
   }
-  .trust-item{max-width:200px}
-  .trust-item .trust-icon{font-size:22px;margin-bottom:6px}
-  .trust-item h4{margin:0 0 3px;font-size:13.5px;color:var(--navy)}
-  .trust-item p{margin:0;font-size:12.5px;color:var(--muted)}
+  .trust-item{max-width:34ch}
+  .trust-item h4{
+    font-family:var(--display);font-weight:700;font-size:var(--t-sm);
+    margin:0 0 4px;color:var(--ink);padding-top:12px;
+    border-top:2px solid var(--gold);
+  }
+  .trust-item p{margin:0;font-size:var(--t-xs);color:var(--muted);line-height:1.6}
 
   /* ---------- Footer ---------- */
-  footer{background:#101827;color:#8b96a8;padding:40px 24px 26px;margin-top:20px}
-  .footer-inner{max-width:1120px;margin:0 auto;display:flex;justify-content:space-between;flex-wrap:wrap;gap:32px}
-  .footer-brand{display:flex;align-items:center;gap:10px;color:#fff;font-weight:800;font-size:16px}
+
+  footer{
+    background:var(--surface);border-top:1px solid var(--line);
+    padding:44px 24px 0;margin-top:20px;
+  }
+  .footer-inner{
+    max-width:1080px;margin:0 auto;
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:40px;
+  }
+  .footer-brand{
+    display:flex;align-items:center;gap:10px;
+    font-family:var(--display);font-weight:800;font-size:var(--t-lg);
+    letter-spacing:-.02em;color:var(--navy-900);
+  }
   .footer-brand .mark{
-    width:30px;height:30px;border-radius:8px;background:#fff;color:var(--navy);
-    display:grid;place-items:center;font-weight:800;font-size:13px;
+    width:32px;height:32px;border-radius:var(--r-sm);
+    background:var(--navy);color:#fff;
+    display:grid;place-items:center;font-weight:700;font-size:var(--t-xs);
+    letter-spacing:.04em;
   }
-  .footer-links{display:flex;gap:40px;flex-wrap:wrap}
-  .footer-col h5{color:#fff;font-size:12.5px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 12px}
-  .footer-col a{display:block;color:#8b96a8;text-decoration:none;font-size:13.5px;margin-bottom:9px}
-  .footer-col a:hover{color:#fff}
+  .footer-links{display:flex;gap:48px;flex-wrap:wrap}
+  .footer-col h5{
+    font-family:var(--display);font-weight:700;font-size:11px;
+    text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin:0 0 12px;
+  }
+  .footer-col a{
+    display:block;color:var(--ink);text-decoration:none;
+    font-size:var(--t-sm);margin-bottom:9px;
+  }
+  .footer-col a:hover{color:var(--navy)}
   .footer-bottom{
-    max-width:1120px;margin:30px auto 0;padding-top:20px;border-top:1px solid rgba(255,255,255,.08);
-    font-size:12.5px;color:#5f6a7d;
+    max-width:1080px;margin:40px auto 0;padding:18px 0;
+    border-top:1px solid var(--line);
+    font-size:var(--t-xs);color:var(--muted);
   }
+
+  /* ---------- Narrow screens ---------- */
 
   @media(max-width:800px){
     .subscribe-grid{grid-template-columns:1fr}
-    .page-header h1{font-size:28px}
-    .footer-inner{flex-direction:column}
+  }
+
+  @media(max-width:560px){
+    :root{--t-2xl:26px;--t-xl:21px;--t-lg:18px;--t-base:16px}
+    .nav-inner{padding:14px 16px}
+    .brand{font-size:17px;gap:8px}
+    .brand .mark{width:29px;height:29px;font-size:11px}
+    .vf-beta-tag{font-size:10px;padding:2px 7px}
+    .page-header{padding:44px 20px 40px}
+    .subscribe-section{padding:36px 16px 56px}
+    .price-card,.form-card{padding:26px 22px}
+    .price-card .amount{font-size:40px}
+    .footer-links{gap:32px}
   }
 </style>
 </head>
@@ -184,12 +345,12 @@
       <div class="period">per year</div>
       <p class="trial-note">Starts with a free 7-day trial — cancel before it ends and you won't be charged. 30-day money-back guarantee after that.</p>
       <ul>
-        <li><span class="check">✓</span> Unlimited classes, rosters, and students</li>
-        <li><span class="check">✓</span> Certificate tracking, auto-read &amp; approval</li>
-        <li><span class="check">✓</span> Automated payment reminders &amp; late fees</li>
-        <li><span class="check">✓</span> Charter-timed invoice generation</li>
-        <li><span class="check">✓</span> Forward-to-import email inbox</li>
-        <li><span class="check">✓</span> Every common payment method supported</li>
+        <li><span class="check"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5" stroke="#1A346F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Unlimited classes, rosters, and students</li>
+        <li><span class="check"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5" stroke="#1A346F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Certificate tracking, auto-read &amp; approval</li>
+        <li><span class="check"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5" stroke="#1A346F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Automated payment reminders &amp; late fees</li>
+        <li><span class="check"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5" stroke="#1A346F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Charter-timed invoice generation</li>
+        <li><span class="check"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5" stroke="#1A346F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Forward-to-import email inbox</li>
+        <li><span class="check"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5" stroke="#1A346F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Every common payment method supported</li>
       </ul>
       <p class="trial-note" style="margin-bottom:0">VendorFlow runs on a desktop or laptop computer. A phone version is on the way.</p>
     </div>
@@ -201,7 +362,7 @@
       </div>
 
       <div id="alreadyBox" class="already-box hidden">
-        <div class="icon">✓</div>
+        <div class="icon"><svg width="20" height="20" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5" stroke="#A8761B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
         <h2>You already have an active plan</h2>
         <p>Looks like this account already has a VendorFlow subscription. Head to your dashboard to keep going.</p>
         <a class="btn btn-primary btn-full" href="https://app.myvendorflow.com/">Go to your dashboard</a>
@@ -325,17 +486,14 @@
 
   <div class="trust-strip">
     <div class="trust-item">
-      <div class="trust-icon">🗓️</div>
       <h4>7-day free trial</h4>
       <p>Full access from day one. Cancel before it ends and you won't be charged.</p>
     </div>
     <div class="trust-item">
-      <div class="trust-icon">↩️</div>
       <h4>30-day money back</h4>
       <p>Not right for you? Get a full refund within 30 days, no questions asked.</p>
     </div>
     <div class="trust-item">
-      <div class="trust-icon">🔒</div>
       <h4>Cancel anytime</h4>
       <p>No contracts. Cancel from your account whenever you want.</p>
     </div>
