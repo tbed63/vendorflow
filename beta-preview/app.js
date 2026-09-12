@@ -49304,13 +49304,13 @@ const VF_CLOUD_PICKERS={
   dropboxAppKey:'7t5j3ooaow0bqcp',
 
   /* Google Cloud -> Credentials -> OAuth 2.0 Client ID (Web) */
-  googleClientId:'',
+  googleClientId:'803061946107-5g7ee7gbtmkv7uevuvv345derll77e4s.apps.googleusercontent.com',
 
   /* Google Cloud -> Credentials -> API key */
-  googleApiKey:'',
+  googleApiKey:'AIzaSyCdj7N-ffUsau2DwyK0ovtS8309VyR1B64',
 
   /* Google Cloud -> project NUMBER (not the project id) */
-  googleAppId:''
+  googleAppId:'803061946107'
 };
 
 
