@@ -29431,6 +29431,28 @@ async function reverseLateFeeIfPaidOnTime(obligation){
 }
 
 
+/*
+ * Does an account that has never answered the question get automatic
+ * late fees?
+ *
+ * No -- and this used to be the only automation that said yes. It is
+ * also the only automation that moves a real family's money, which is
+ * exactly the wrong combination.
+ *
+ * With this off, queueLateFeeChargeApprovals() proposes the identical
+ * charge as a Notifications card, and approving it does precisely what
+ * the automatic path would have done. So nothing becomes impossible;
+ * it just stops happening without being asked.
+ *
+ * Declared as a function so it hoists -- the three callers are spread
+ * across the file and one of them runs early.
+ */
+function vfLateFeesDefaultAutomatic(){
+
+  return false;
+}
+
+
 async function applyLateFees(){
 
   /*
@@ -29452,7 +29474,7 @@ async function applyLateFees(){
 
   const autoApply=
     profile?.automations?.applyLateFees===undefined
-      ? true
+      ? vfLateFeesDefaultAutomatic()
       : Boolean(profile.automations.applyLateFees);
 
   const todayMs=
@@ -29649,7 +29671,7 @@ async function queueLateFeeChargeApprovals(){
 
     const autoApply=
       profile?.automations?.applyLateFees===undefined
-        ? true
+        ? vfLateFeesDefaultAutomatic()
         : Boolean(profile.automations.applyLateFees);
 
     if(autoApply){
@@ -39817,7 +39839,7 @@ function renderAutomationsSettings(){
     ['autoEmailParents','emailParents',false],
     ['autoImportInboundInfo','importInboundInfo',false],
     ['autoSendCharterInvoices','sendCharterInvoices',false],
-    ['autoApplyLateFees','applyLateFees',true]
+    ['autoApplyLateFees','applyLateFees',vfLateFeesDefaultAutomatic()]
   ];
 
   fields.forEach(([elementId,key,defaultOn])=>{
