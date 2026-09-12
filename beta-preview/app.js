@@ -1125,6 +1125,50 @@ function overdueInvoiceNotificationItems(){
 }
 
 
+/*
+ * Invoices waiting to be sent.
+ *
+ * Notifications is where a vendor goes to see what needs doing, and
+ * an invoice sitting at "Ready to Send" is exactly that -- nobody is
+ * going to be paid until it goes out. Previously only OVERDUE
+ * invoices appeared here, so an invoice VendorFlow had prepared
+ * could sit unsent indefinitely with nothing asking about it.
+ */
+function readyInvoiceNotificationItems(){
+
+  return invoices
+    .filter(invoice=>
+      invoiceStatus(invoice)==='Ready to Send'
+    )
+    .map(invoice=>({
+
+      id:
+        `ready-invoice-${invoice.id}`,
+
+      reviewType:
+        'ready-invoice',
+
+      itemType:
+        'invoice',
+
+      invoiceId:
+        invoice.id,
+
+      title:
+        `Ready to send: Invoice ${invoice.invoiceNumber||''}`,
+
+      detail:
+        `${invoice.charterSchoolName||'Charter school'} — `+
+        `${money(invoice.amount)}`+
+        `${invoice.studentName?` — ${invoice.studentName}`:''}`+
+        `. Send it, or mark it sent outside VendorFlow.`,
+
+      source:
+        'VendorFlow'
+    }));
+}
+
+
 function todoNotificationItems(){
 
   const today=
@@ -1221,6 +1265,7 @@ function allNeedsReviewItems(){
     ...reviews,
     ...todoNotificationItems(),
     ...invoiceNumberingReviewItems(),
+    ...readyInvoiceNotificationItems(),
     ...overdueInvoiceNotificationItems()
   ];
 }
@@ -4819,6 +4864,13 @@ function openInvoiceSendReview(invoice){
     return;
   }
 
+  /*
+   * Close the invoice detail behind this one. Two stacked dialogs
+   * about the same invoice, each with its own close button and its
+   * own "Send Invoice", leaves no way to tell which is live.
+   */
+  closeInvoiceLedgerDetail();
+
   invoiceUnderReview=
     invoice;
 
@@ -7083,9 +7135,74 @@ async function markInvoicePaidManually(invoice){
   );
 
 
+  await vfArchivePaidCertificate(invoice);
+
   closeInvoiceLedgerDetail();
 
   await refreshAll();
+}
+
+
+/*
+ * A paid invoice means that certificate's work is finished -- billed,
+ * paid, done. Keeping it in the certificate list just buries the ones
+ * that still need something.
+ *
+ * Archived, never deleted: the certificate is still in the Vault,
+ * still searchable, still restorable. Nothing about the money it
+ * created changes.
+ */
+async function vfArchivePaidCertificate(invoice){
+
+  const certificateId=
+    String(invoice?.certificateId||'').trim();
+
+  if(!certificateId){
+    return;
+  }
+
+  const cert=
+    certs.find(c=>c.id===certificateId);
+
+  if(!cert || cert.archived){
+    return;
+  }
+
+  try{
+
+    await setDoc(
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'certificates',
+        certificateId
+      ),
+      {
+        archived:true,
+        archivedAt:serverTimestamp(),
+        archivedReason:'Invoice paid',
+        updatedAt:serverTimestamp()
+      },
+      {
+        merge:true
+      }
+    );
+
+    await log(
+      'Certificate archived',
+      `${cert.student||'A certificate'} — `+
+      `${invoice.invoiceNumber||'its invoice'} was paid, so the `+
+      `certificate was archived. It is still in the Vault.`,
+      'Manual'
+    );
+
+  }catch(error){
+
+    /* The invoice IS paid; that is the part that matters. Failing to
+       tidy up must not look like the payment did not record. */
+    console.error('Could not archive the paid certificate:',error);
+  }
 }
 
 
@@ -14641,7 +14758,9 @@ function vfVaultItems(){
 
       items.push({
         id:`cert:${cert.id}`,
+        certificateId:cert.id,
         kind:'certificate',
+        archived:Boolean(cert.archived),
         objectKey:cert.pdfObjectKey,
         name:
           `${cert.student||'Unnamed student'} — ${
@@ -14668,8 +14787,13 @@ function vfVaultItems(){
          * record, which carries money with it. Offering those
          * buttons here would let a vendor erase a certificate --
          * and the charter credit it created -- from a file list.
+         *
+         * Restore is the exception: it destroys nothing, and an
+         * archived certificate otherwise has nowhere to be brought
+         * back from.
          */
-        canManage:false
+        canManage:false,
+        canRestore:Boolean(cert.archived)
       });
     });
 
@@ -14811,9 +14935,18 @@ function renderVault(){
                  </button>
                </div>`
             : `<div class="vf-vault-actions">
-                 <span class="muted vf-vault-managed">
-                   Managed with the certificate
-                 </span>
+                 ${
+                   item.canRestore
+                     ? `<button
+                          type="button"
+                          class="vf-secondary-button"
+                          data-vault-restore-cert="${esc(item.certificateId)}">
+                          Restore
+                        </button>`
+                     : `<span class="muted vf-vault-managed">
+                          Managed with the certificate
+                        </span>`
+                 }
                </div>`
         }
 
@@ -14840,6 +14973,11 @@ function renderVault(){
   list.querySelectorAll('[data-vault-delete]').forEach(btn=>{
     btn.onclick=()=>
       vfDeleteVaultFile(btn.dataset.vaultDelete);
+  });
+
+  list.querySelectorAll('[data-vault-restore-cert]').forEach(btn=>{
+    btn.onclick=()=>
+      vfRestoreArchivedCertificate(btn.dataset.vaultRestoreCert);
   });
 }
 
@@ -14993,6 +15131,61 @@ async function vfDeleteVaultFile(fileId){
 
     console.error('Vault delete failed:',error);
     toast(error.message||'Could not delete that file.');
+  }
+}
+
+
+/*
+ * Bring an archived certificate back into the working list. The only
+ * way back from the automatic archive that happens when an invoice
+ * is paid.
+ */
+async function vfRestoreArchivedCertificate(certificateId){
+
+  const cert=
+    certs.find(c=>c.id===certificateId);
+
+  if(!cert){
+    return toast('That certificate could not be found.');
+  }
+
+  try{
+
+    await setDoc(
+      doc(
+        db,
+        'vendors',
+        user.uid,
+        'certificates',
+        certificateId
+      ),
+      {
+        archived:false,
+        archivedAt:null,
+        archivedReason:'',
+        updatedAt:serverTimestamp()
+      },
+      {
+        merge:true
+      }
+    );
+
+    await log(
+      'Certificate restored',
+      `${cert.student||'A certificate'} was brought back into the `+
+      `certificate list.`,
+      'Manual'
+    );
+
+    await refreshAll();
+    renderAll();
+
+    toast('Certificate restored.');
+
+  }catch(error){
+
+    console.error('Could not restore that certificate:',error);
+    toast('Could not restore that certificate.');
   }
 }
 
@@ -33491,7 +33684,7 @@ function renderRecords(){
 
   const visibleCertificates=
     certs.filter(
-      cert=>!cert.deleted
+      cert=>!cert.deleted && !cert.archived
     );
 
   
@@ -35088,6 +35281,38 @@ function renderReviews(){
                 class="primary"
                 data-open-numbering-review="${esc(review.certificateId)}">
                 Choose invoice numbering
+              </button>
+
+            </div>
+
+          </div>
+        `;
+      }
+
+
+      if(
+        review.reviewType===
+        'ready-invoice'
+      ){
+
+        return `
+          <div class="record vf-ready-invoice-review">
+
+            <strong>
+              ${esc(review.title)}
+            </strong>
+
+            <div class="meta">
+              ${esc(review.detail)}
+            </div>
+
+            <div class="vf-review-actions">
+
+              <button
+                type="button"
+                class="primary"
+                data-open-overdue-invoice="${esc(review.invoiceId)}">
+                Open Invoice
               </button>
 
             </div>
