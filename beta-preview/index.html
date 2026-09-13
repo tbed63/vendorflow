@@ -8,9 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="styles.css?v=invoices-density-20260913-16">
+<link rel="stylesheet" href="styles.css?v=students-density-20260913-17">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="modulepreload" href="app.js?v=invoices-density-20260913-16">
+  <link rel="modulepreload" href="app.js?v=students-density-20260913-17">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA</div>
@@ -858,32 +858,32 @@ Thank you,
         
         <h2>Add a student</h2>
 
-        <div class="formgrid vf-form-2">
+        <div class="vf-student-form-grid">
 
           <input
             id="coreStudentFirst"
-            class="input"
+            class="input vf-fld-2"
             placeholder="Student first name">
 
           <input
             id="coreStudentLast"
-            class="input"
+            class="input vf-fld-2"
             placeholder="Student last name">
 
           <input
             id="coreParentName"
-            class="input"
+            class="input vf-fld-2"
             placeholder="Parent / guardian">
 
           <input
             id="coreParentEmail"
-            class="input"
+            class="input vf-fld-3"
             type="email"
             placeholder="Parent email">
 
           <input
             id="coreParentPhone"
-            class="input"
+            class="input vf-fld-3"
             placeholder="Parent phone">
 
         </div>
@@ -932,7 +932,6 @@ Thank you,
 
         <div class="row between vf-service-editor-heading">
           <div>
-            <div class="eyebrow">Group setup</div>
             <h2>Add Group</h2>
           </div>
           <button id="cancelServiceTop" type="button" aria-label="Close Add Group">Close</button>
@@ -940,14 +939,14 @@ Thank you,
 
         <div class="vf-service-editor-grid">
 
-          <label class="vf-field-label">
+          <label class="vf-field-label vf-fld-3">
             <span>Student <strong aria-hidden="true">*</strong></span>
             <select id="serviceStudent" class="input">
               <option value="">Choose student</option>
             </select>
           </label>
 
-          <label class="vf-field-label">
+          <label class="vf-field-label vf-fld-2">
             <span>Service type</span>
             <select id="serviceType" class="input">
               <option value="Class">Class</option>
@@ -956,39 +955,39 @@ Thank you,
             </select>
           </label>
 
-          <label class="vf-field-label vf-service-wide">
+          <label class="vf-field-label vf-service-wide vf-fld-4">
             <span>Service name <strong aria-hidden="true">*</strong></span>
             <input id="serviceName" class="input" placeholder="Example: Monday Math Jam">
           </label>
 
-          <label id="serviceClassWrap" class="vf-field-label vf-service-wide">
+          <label id="serviceClassWrap" class="vf-field-label vf-service-wide vf-fld-3">
             <span>Link to a group <small>Optional</small></span>
             <select id="serviceClass" class="input">
               <option value="">Not linked to a group</option>
             </select>
           </label>
 
-          <label class="vf-field-label">
+          <label class="vf-field-label vf-fld-2">
             <span>Start date</span>
             <input id="serviceStart" class="input" type="date">
           </label>
 
-          <label class="vf-field-label">
+          <label class="vf-field-label vf-fld-2">
             <span>End date</span>
             <input id="serviceEnd" class="input" type="date">
           </label>
 
-          <label id="serviceTotalWrap" class="vf-field-label">
+          <label id="serviceTotalWrap" class="vf-field-label vf-fld-2">
             <span id="serviceTotalLabel">Total price</span>
             <div class="vf-money-field"><span>$</span><input id="serviceTotal" class="input" type="number" min="0" step=".01" placeholder="0.00"></div>
           </label>
 
-          <label id="serviceTutoringRateWrap" class="vf-field-label hidden">
+          <label id="serviceTutoringRateWrap" class="vf-field-label hidden vf-fld-2">
             <span>Rate per session</span>
             <div class="vf-money-field"><span>$</span><input id="serviceTutoringRate" class="input" type="number" min="0" step=".01" placeholder="0.00"></div>
           </label>
 
-          <label id="serviceScheduleWrap" class="vf-field-label">
+          <label id="serviceScheduleWrap" class="vf-field-label vf-fld-2">
             <span>Payment plan</span>
             <select id="serviceSchedule" class="input">
               <option value="Full">Pay in full</option>
@@ -998,17 +997,17 @@ Thank you,
             </select>
           </label>
 
-          <label id="serviceDueDayWrap" class="vf-field-label hidden">
+          <label id="serviceDueDayWrap" class="vf-field-label hidden vf-fld-1">
             <span>Monthly due day</span>
             <input id="serviceDueDay" class="input" type="number" min="1" max="28" value="4">
           </label>
 
-          <label id="serviceLateFeeWrap" class="vf-field-label">
+          <label id="serviceLateFeeWrap" class="vf-field-label vf-fld-2">
             <span>Late fee <small>Optional</small></span>
             <div class="vf-money-field"><span>$</span><input id="serviceLateFee" class="input" type="number" min="0" step=".01" value="0"></div>
           </label>
 
-          <label class="vf-field-label vf-service-wide">
+          <label class="vf-field-label vf-service-wide vf-fld-6">
             <span>Notes <small>Optional</small></span>
             <textarea id="serviceNotes" class="input" rows="3" placeholder="Anything useful about this student’s service"></textarea>
           </label>
@@ -1029,10 +1028,6 @@ Thank you,
 
 
         <div class="vf-global-student-search">
-
-          <p class="vf-search-hint">
-            Search by student name, parent name, email, or phone.
-          </p>
 
           <input
             id="globalStudentSearch"
@@ -4050,5 +4045,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=invoices-density-20260913-16"></script>
+<script type="module" src="app.js?v=students-density-20260913-17"></script>
 </body></html>

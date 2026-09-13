@@ -11061,3 +11061,62 @@ table,
     font-size:15px;
   }
 }
+
+
+/* VF_STUDENT_FORM_DENSITY */
+/* Add a student, and Add Group: a field as wide as what it holds.
+   Five inputs at 530px each, and a "monthly due day" box the width
+   of a service name, were the two worst offenders in the app. */
+
+.vf-student-form-grid,
+.vf-service-editor-grid{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:12px 14px;
+}
+
+.vf-student-form-grid{
+  background:#f8f9fb;
+  padding:14px;
+  border-radius:14px;
+  margin:14px 0;
+  align-items:end;
+}
+
+.vf-student-form-grid .vf-fld-1,
+.vf-service-editor-grid .vf-fld-1{grid-column:span 1;}
+.vf-student-form-grid .vf-fld-2,
+.vf-service-editor-grid .vf-fld-2{grid-column:span 2;}
+.vf-student-form-grid .vf-fld-3,
+.vf-service-editor-grid .vf-fld-3{grid-column:span 3;}
+.vf-student-form-grid .vf-fld-4,
+.vf-service-editor-grid .vf-fld-4{grid-column:span 4;}
+.vf-student-form-grid .vf-fld-6,
+.vf-service-editor-grid .vf-fld-6{grid-column:span 6;}
+
+/* Restated, not inherited -- this block sits after the file's own
+   small-screen rules, so leaving it out would keep both forms six
+   columns wide on a phone. */
+@media(max-width:700px){
+
+  .vf-student-form-grid,
+  .vf-service-editor-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .vf-student-form-grid .vf-fld-3,
+  .vf-student-form-grid .vf-fld-4,
+  .vf-student-form-grid .vf-fld-6,
+  .vf-service-editor-grid .vf-fld-3,
+  .vf-service-editor-grid .vf-fld-4,
+  .vf-service-editor-grid .vf-fld-6{
+    grid-column:span 2;
+  }
+
+  .vf-student-form-grid .vf-fld-1,
+  .vf-student-form-grid .vf-fld-2,
+  .vf-service-editor-grid .vf-fld-1,
+  .vf-service-editor-grid .vf-fld-2{
+    grid-column:span 1;
+  }
+}
