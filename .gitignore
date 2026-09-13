@@ -1,1 +1,8 @@
 .wrangler/
+
+# Point-in-time copies taken before each patch (app.js.pre_*.bak and
+# friends). There are 45 of them and they total 26MB of near-identical
+# copies of a 1.1MB file -- a single `git add -A` would put all of that
+# in history permanently, where it cannot be removed without a rewrite.
+# They are local undo, not history; git already is the history.
+*.bak
