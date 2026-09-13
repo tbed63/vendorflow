@@ -10850,3 +10850,71 @@ table,
 .vf-money{
   font-variant-numeric:tabular-nums;
 }
+
+
+/* VF_REVIEW_KIND */
+/* The label that says what a notification is, and the stripe that
+   lets you sort the column without reading it.
+
+   Three tones only. Green for money arriving, amber for money
+   leaving a family or something disagreeing, quiet blue for
+   routine. A fourth would stop being a signal and start being
+   decoration. */
+
+.vf-review-kind{
+  display:inline-block;
+  font-family:var(--display);
+  font-size:10.5px;
+  font-weight:700;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  padding:3px 8px;
+  border-radius:3px;
+  margin-bottom:7px;
+  white-space:nowrap;
+}
+
+.vf-review-kind[data-tone="ok"]{
+  background:var(--ok-soft);
+  color:var(--ok);
+}
+
+.vf-review-kind[data-tone="warn"]{
+  background:var(--warn-soft);
+  color:var(--warn);
+}
+
+.vf-review-kind[data-tone="info"]{
+  background:#EDF1F8;
+  color:var(--navy);
+}
+
+/* The heading can carry weight now that it carries the name rather
+   than a sentence that began the same way on every card. */
+.vf-review-item .record > strong{
+  display:block;
+  font-family:var(--display);
+  font-size:16px;
+  line-height:1.3;
+  letter-spacing:-.01em;
+}
+
+/* A stripe down the side of anything that wants attention. The chip
+   is the signal; this is what makes it readable from the top of a
+   long page. Written with :has() so it needs no extra markup -- a
+   browser without it simply shows the chip, which is the whole
+   message anyway. */
+.vf-review-item:has(.vf-review-kind[data-tone="warn"]) > .record{
+  border-left:3px solid var(--warn);
+  padding-left:13px;
+}
+
+.vf-review-item:has(.vf-review-kind[data-tone="ok"]) > .record{
+  border-left:3px solid var(--ok);
+  padding-left:13px;
+}
+
+.vf-review-item:has(.vf-review-kind[data-tone="info"]) > .record{
+  border-left:3px solid var(--line);
+  padding-left:13px;
+}

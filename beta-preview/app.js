@@ -1913,6 +1913,139 @@ async function vfRestoreDismissedNotices(){
  * Adds the Dismiss control to a rendered card, unless that card
  * already offers one of its own.
  */
+/* ==========================================================
+   WHAT KIND OF NOTIFICATION IS THIS
+   ==========================================================
+
+   Every review card used to open with the same words. "Parent
+   Email:" then the kind, then who, then "Ready to Send" -- so
+   the only part that differed sat in the middle of the line,
+   and the end of every line said something the buttons below
+   it already said.
+
+   The kind moves out of the sentence and onto a label. The
+   heading is then free to carry the thing you actually scan a
+   list like this for: whose money it is about.
+
+   Driven by review.reviewType, which is stored on the record.
+   No parsing a title to work out what something is; an
+   unrecognised type gets no label rather than a wrong one.
+*/
+
+const VF_REVIEW_KINDS={
+
+  /* Money arriving, or a worry going away. */
+  'certificate-received-email':      {label:'Certificate received', tone:'ok'},
+  'payment-received-email':          {label:'Payment received',     tone:'ok'},
+  'late-fee-removed-email':          {label:'Late fee removed',     tone:'ok'},
+
+  /* Routine, scheduled, nothing wrong. */
+  'payment-reminder-email':          {label:'Payment reminder',     tone:'info'},
+  'payment':                         {label:'Payment to check',     tone:'info'},
+
+  /* Somebody is late, or money is about to leave a family's
+     pocket, or two records disagree. These are the ones worth
+     spotting from the top of the page. */
+  'payment-reminder-followup-email': {label:'Follow-up reminder',   tone:'warn'},
+  'late-fee-charged-email':          {label:'Late fee charged',     tone:'warn'},
+  'late-fee-charge-approval':        {label:'Late fee to approve',  tone:'warn'},
+  'duplicate':                       {label:'Possible duplicate',   tone:'warn'}
+};
+
+
+function vfReviewKind(review){
+
+  return VF_REVIEW_KINDS[
+    String(review?.reviewType||'')
+  ] || null;
+}
+
+
+function vfReviewKindChip(review){
+
+  const kind=vfReviewKind(review);
+
+  if(!kind){
+    return '';
+  }
+
+  return `<span class="vf-review-kind" data-tone="${kind.tone}">${
+    esc(kind.label)
+  }</span>`;
+}
+
+
+/*
+ * The heading, with everything the label now says taken out of it.
+ *
+ * Done at display time on purpose. The title is written into the
+ * record when the notification is created, so cleaning it here
+ * improves every notification already sitting in an account and
+ * migrates nothing.
+ */
+function vfReviewHeadline(review){
+
+  const title=
+    String(review?.title||'').trim();
+
+  const kind=vfReviewKind(review);
+
+  /* Nothing recognised: leave the title exactly as it is. */
+  if(!kind){
+    return title;
+  }
+
+  let text=title;
+
+  /* Said on every single card, and said again by the buttons. */
+  text=text.replace(/^\s*Parent Email:\s*/i,'');
+  text=text.replace(/\s*[—-]\s*Ready to Send\s*$/i,'');
+
+  const parts=
+    text.split(/\s*—\s*/)
+      .map(part=>part.trim())
+      .filter(Boolean);
+
+  const words=
+    value=>
+      new Set(
+        String(value)
+          .toLowerCase()
+          .replace(/[^a-z ]/g,' ')
+          .split(/\s+/)
+          .filter(Boolean)
+      );
+
+  /*
+   * Drop the opening phrase only when every word of the label is
+   * already in it -- "Follow-up Payment Reminder" against a label
+   * reading "Follow-up reminder" -- AND there is something else left
+   * to show.
+   *
+   * Deliberately conservative. "Late Fee Notice" keeps its place
+   * beside a label reading "Late fee charged", because a notice and a
+   * charge are not the same claim and dropping one would be the code
+   * deciding it knows better than the words. A card whose whole title
+   * is its own kind keeps that title too: a little repetition beats a
+   * heading that says nothing.
+   */
+  if(parts.length>1){
+
+    const inPhrase=words(parts[0]);
+
+    const repeatsTheLabel=
+      [...words(kind.label)]
+        .every(word=>inPhrase.has(word));
+
+    if(repeatsTheLabel){
+      parts.shift();
+    }
+  }
+
+  return parts.join(' — ').trim() || title;
+}
+
+
 function vfWithDismiss(review,html){
 
   const markup=
@@ -36875,7 +37008,8 @@ function renderReviews(){
 
         return `
           <div class="record vf-todo-notification">
-            <strong>${esc(review.title)}</strong>
+            ${vfReviewKindChip(review)}
+            <strong>${esc(vfReviewHeadline(review))}</strong>
             <div class="meta">${esc(review.detail||'')}</div>
             <div class="vf-review-actions">
               <button type="button" class="primary" data-open-notification-todo="${esc(review.todoId)}">
@@ -36893,7 +37027,8 @@ function renderReviews(){
 
         return `
           <div class="record vf-late-fee-approval-review">
-            <strong>${esc(review.title)}</strong>
+            ${vfReviewKindChip(review)}
+            <strong>${esc(vfReviewHeadline(review))}</strong>
             <div class="meta">${esc(review.detail||'')}</div>
             <div class="vf-review-actions">
               <button type="button" class="primary" data-approve-late-fee-charge="${esc(review.id)}">
@@ -36916,8 +37051,10 @@ function renderReviews(){
         return `
           <div class="record vf-numbering-review">
 
+            ${vfReviewKindChip(review)}
+
             <strong>
-              ${esc(review.title)}
+              ${esc(vfReviewHeadline(review))}
             </strong>
 
             <div class="meta">
@@ -36948,8 +37085,10 @@ function renderReviews(){
         return `
           <div class="record vf-student-setup-review">
 
+            ${vfReviewKindChip(review)}
+
             <strong>
-              ${esc(review.title)}
+              ${esc(vfReviewHeadline(review))}
             </strong>
 
             <div class="meta">
@@ -36987,8 +37126,10 @@ function renderReviews(){
         return `
           <div class="record vf-late-fee-review">
 
+            ${vfReviewKindChip(review)}
+
             <strong>
-              ${esc(review.title)}
+              ${esc(vfReviewHeadline(review))}
             </strong>
 
             <div class="meta">
@@ -37026,8 +37167,10 @@ function renderReviews(){
         return `
           <div class="record vf-ready-invoice-review">
 
+            ${vfReviewKindChip(review)}
+
             <strong>
-              ${esc(review.title)}
+              ${esc(vfReviewHeadline(review))}
             </strong>
 
             <div class="meta">
@@ -37058,8 +37201,10 @@ function renderReviews(){
         return `
           <div class="record vf-overdue-invoice-review">
 
+            ${vfReviewKindChip(review)}
+
             <strong>
-              ${esc(review.title)}
+              ${esc(vfReviewHeadline(review))}
             </strong>
 
             <div class="meta">
@@ -37106,8 +37251,10 @@ function renderReviews(){
               <span>Select for bulk action</span>
             </label>
 
+            ${vfReviewKindChip(review)}
+
             <strong>
-              ${esc(review.title)}
+              ${esc(vfReviewHeadline(review))}
             </strong>
 
             <div class="meta">
@@ -37163,8 +37310,10 @@ function renderReviews(){
               <span>Select for bulk action</span>
             </label>
 
+            ${vfReviewKindChip(review)}
+
             <strong>
-              ${esc(review.title)}
+              ${esc(vfReviewHeadline(review))}
             </strong>
 
             <div class="meta">
@@ -37220,8 +37369,10 @@ function renderReviews(){
               <span>Select for bulk action</span>
             </label>
 
+            ${vfReviewKindChip(review)}
+
             <strong>
-              ${esc(review.title)}
+              ${esc(vfReviewHeadline(review))}
             </strong>
 
             <div class="meta">
@@ -37277,8 +37428,10 @@ function renderReviews(){
               <span>Select for bulk action</span>
             </label>
 
+            ${vfReviewKindChip(review)}
+
             <strong>
-              ${esc(review.title)}
+              ${esc(vfReviewHeadline(review))}
             </strong>
 
             <div class="meta">
@@ -37334,8 +37487,10 @@ function renderReviews(){
               <span>Select for bulk action</span>
             </label>
 
+            ${vfReviewKindChip(review)}
+
             <strong>
-              ${esc(review.title)}
+              ${esc(vfReviewHeadline(review))}
             </strong>
 
             <div class="meta">
@@ -37391,8 +37546,10 @@ function renderReviews(){
               <span>Select for bulk action</span>
             </label>
 
+            ${vfReviewKindChip(review)}
+
             <strong>
-              ${esc(review.title)}
+              ${esc(vfReviewHeadline(review))}
             </strong>
 
             <div class="meta">
@@ -37611,8 +37768,10 @@ function renderReviews(){
             }
           </div>
 
+          ${vfReviewKindChip(review)}
+
           <strong>
-            ${esc(review.title)}
+            ${esc(vfReviewHeadline(review))}
           </strong>
 
           <div class="meta">
