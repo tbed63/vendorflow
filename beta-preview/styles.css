@@ -11405,12 +11405,47 @@ table,
   margin-top:8px;
 }
 
+/* A <label> is inline by default and there is no base .vf-check-row
+   rule in this stylesheet to inherit a layout from, so a dozen of these
+   piled on top of each other -- "some huge mess of overlapping stuff".
+   Every row is its own block. */
 .vf-roster-drop{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  width:100%;
   border:1px solid var(--line);
   border-radius:10px;
   padding:9px 13px;
-  margin-bottom:8px;
+  margin:0 0 8px;
   background:#fff;
+}
+
+.vf-roster-drop input[type="checkbox"]{
+  flex:0 0 auto;
+  margin:0;
+}
+
+.vf-roster-drop>span{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  min-width:0;
+}
+
+/* The same guarantee for the addition rows' own checkbox line. */
+.vf-roster-add>.vf-check-row{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  margin:0;
+}
+
+.vf-roster-hint{
+  margin:6px 0 0;
+  font-size:12.5px;
+  color:#8A5A00;
 }
 
 .vf-roster-owes{

@@ -28081,36 +28081,76 @@ function vfRosterDiff(parsed,enrolment){
  * before seeing any proposal, because applying a roster to the wrong
  * group would proceed to "drop" everyone in it.
  */
+function vfRosterNameTokens(value){
+
+  return String(value||'')
+    .toLowerCase()
+
+    /*
+     * Grade levels first: "GRADE 5TH-8TH" is about who the class is
+     * for, not which class it is. Left in, its 5 and 8 collide with
+     * the group numbers that ARE the distinguishing fact -- which is
+     * how an M4 roster once scored a dead heat with Math Jam 5.
+     */
+    .replace(/\b\d+(st|nd|rd|th)\b/g,' ')
+
+    /* "m4" is one word to a splitter and two facts to a reader. */
+    .replace(/([a-z])(\d)/g,'$1 $2')
+    .replace(/(\d)([a-z])/g,'$1 $2')
+
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+
+/*
+ * Which group does this roster belong to?
+ *
+ * Scored as "how much of the GROUP's name appears in the email",
+ * against a DEDUPED set of the email's words. Scoring the other way
+ * round let a word repeated in the email ("MATH JAM ... math
+ * enrichment") count twice and hand the win to a group that merely
+ * shared a common word.
+ *
+ * A tie returns nothing. Math Jam 3 and Math Jam 4 tie on everything
+ * except the number, and guessing between them is how this offered to
+ * empty a group of twenty students.
+ */
 function vfRosterGuessClass(className){
 
-  const words=
-    String(className||'')
-      .toLowerCase()
-      .split(/[^a-z0-9]+/)
-      .filter(word=>word.length>2);
+  const emailWords=
+    new Set(
+      vfRosterNameTokens(className)
+    );
 
-  if(!words.length){
+  if(!emailWords.size){
     return null;
   }
 
-  let best=null;
-  let bestScore=0;
+  const scored=
+    classes
+      .filter(record=>!record.archived)
+      .map(record=>({
+        record,
+        score:
+          vfRosterNameTokens(record.name)
+            .filter(word=>emailWords.has(word))
+            .length
+      }))
+      .sort((a,b)=>b.score-a.score);
 
-  classes.forEach(record=>{
+  if(!scored.length || scored[0].score<2){
+    return null;
+  }
 
-    const target=
-      String(record.name||'').toLowerCase();
+  if(
+    scored.length>1 &&
+    scored[1].score===scored[0].score
+  ){
+    return null;
+  }
 
-    const score=
-      words.filter(word=>target.includes(word)).length;
-
-    if(score>bestScore){
-      bestScore=score;
-      best=record;
-    }
-  });
-
-  return bestScore>=2 ? best : null;
+  return scored[0].record;
 }
 
 
@@ -28249,18 +28289,38 @@ function vfRenderRosterReview(){
       `
       : '';
 
+  /*
+   * More students leaving than the roster even contains is the
+   * signature of the wrong group, not of a real roster change.
+   */
+  const looksLikeWrongGroup=
+    diff.departures.length>
+    state.parsed.students.length;
+
+  const wrongGroupWarning=
+    looksLikeWrongGroup
+      ? `<div class="vf-roster-refused">
+           This would drop ${esc(String(diff.departures.length))} students while
+           the roster only lists ${esc(String(state.parsed.students.length))}.
+           That usually means this is the wrong group. Check the group above
+           before ticking anything.
+         </div>`
+      : '';
+
   const departures=
     diff.departures.length
       ? `
         <div class="vf-roster-section">
           <h4>No longer on this roster (${diff.departures.length})</h4>
           <p class="muted">
-            VendorFlow will mark the enrolment Dropped. Nothing is deleted,
-            and the student stays in your directory with all of their history.
+            Tick only the ones you want dropped &mdash; none are ticked to
+            start with. VendorFlow marks the enrolment Dropped: nothing is
+            deleted, and the student stays in your directory with all of
+            their history.
           </p>
           ${diff.departures.map((row,index)=>`
             <label class="vf-check-row vf-roster-drop">
-              <input type="checkbox" data-roster-drop-on="${index}" checked>
+              <input type="checkbox" data-roster-drop-on="${index}">
               <span>
                 <strong>${esc(row.studentName)}</strong>
                 ${
@@ -28285,6 +28345,7 @@ function vfRenderRosterReview(){
   }
 
   body.innerHTML=
+    wrongGroupWarning+
     `<div class="vf-roster-summary">
        Read ${esc(String(state.parsed.students.length))} students from this roster.
        ${esc(String(diff.unchanged))} already match.
@@ -28402,13 +28463,35 @@ async function vfOpenRosterReview(messageId){
           `<option value="${esc(record.id)}">${esc(record.name||'Untitled group')}</option>`
         ).join('');
 
-    /* A guess only ever pre-selects. */
-    picker.value=guess ? guess.id : '';
+    /*
+     * Deliberately NOT pre-selected, however good the guess.
+     *
+     * The previous version selected the guess and immediately compared
+     * against it. It guessed Math Jam 3 for a Math Jam 4 roster and
+     * presented "add 12, drop 20" as a finished proposal. A guess that
+     * is acted on without being confirmed is not a guess, it is a
+     * decision made on the vendor's behalf.
+     */
+    picker.value='';
+  }
+
+  const hint=$('#vfRosterReviewHint');
+
+  if(hint){
+
+    hint.textContent=
+      guess
+        ? `This looks like ${guess.name||'a group'} \u2014 check before you pick.`
+        : '';
+
+    hint.classList.toggle('hidden',!guess);
   }
 
   show(modal);
 
-  await vfRosterReviewGroupChanged();
+  /* Draws the "choose a group" prompt. No comparison happens until the
+     vendor picks one. */
+  vfRenderRosterReview();
 }
 
 
