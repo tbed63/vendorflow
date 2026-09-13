@@ -9405,7 +9405,10 @@ function vfStudentIdsBehindOnPayments(){
     );
 
 
-  const behind=
+  /*
+   * FIRST TEST: has something come due that is not covered?
+   */
+  const overdue=
     new Set();
 
 
@@ -9430,7 +9433,53 @@ function vfStudentIdsBehindOnPayments(){
     if(
       Number(entry.remainingAmount||0)>.009
     ){
-      behind.add(entry.studentId);
+      overdue.add(entry.studentId);
+    }
+  });
+
+
+  /*
+   * SECOND TEST: are they actually in the hole?
+   *
+   * Certificates and payments are allocated to the specific
+   * obligations they were for, which is right -- a certificate issued
+   * for one service should not quietly pay off another. But it means a
+   * family can show one uncovered obligation while holding more than
+   * enough credit elsewhere on the account.
+   *
+   * Theodore Jensen was the case in point: $80 in credit overall, and
+   * still reported as behind because the certificate covering one
+   * charge belonged to a different one.
+   *
+   * parentBalance is the account-level figure that nets everything
+   * paid and every certificate handed in against everything charged.
+   * It was wrong as the ONLY test -- it counts a whole year of tuition
+   * from the day a student enrols -- but it is exactly right here.
+   */
+  const behind=
+    new Set();
+
+
+  overdue.forEach(studentId=>{
+
+    const student=
+      students.find(
+        candidate=>
+          candidate.id===studentId
+      );
+
+    if(!student){
+      return;
+    }
+
+
+    const account=
+      studentAccountTotals(student);
+
+    if(
+      Number(account.parentBalance||0)>.009
+    ){
+      behind.add(studentId);
     }
   });
 
@@ -9691,6 +9740,24 @@ function wireDashboardStatCards(){
       switchView(
         item.view
       );
+
+
+      /*
+       * switchView() does not touch the directory -- it toggles the
+       * views, sets the title and marks the nav button, nothing more.
+       * Without this the filter above was set but never applied and
+       * never shown: the full roster, no chip lit, and no sign that
+       * anything had been asked for. A tile reading 2 opened a list of
+       * sixty-six.
+       *
+       * filterStudentDirectoryRows() both applies vfDirectoryFilters
+       * and syncs the chips' pressed state, and returns early if the
+       * list has not been built, so this is safe to call whatever
+       * state the page is in.
+       */
+      if(item.chip){
+        filterStudentDirectoryRows();
+      }
     };
 
 
@@ -42280,7 +42347,6 @@ function switchView(v){
     review:'Notifications',
     history:'History',
     account:'Account',
-    profile:'Business Profile',
     settings:'Settings',
     studentCommandCenter:'Student Account'
   };
