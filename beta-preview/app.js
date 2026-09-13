@@ -28159,6 +28159,38 @@ function vfRosterGuessClass(className){
 let vfRosterReviewState=null;
 
 
+/*
+ * The roster behind a review, or null. Reads the stored email body --
+ * never review.itemType, which is exactly what got this wrong: the
+ * worker calls these charges.
+ */
+function vfReviewRosterEmail(review){
+
+  const emailId=
+    String(review?.inboundEmailId||'');
+
+  if(!emailId){
+    return null;
+  }
+
+  const message=
+    inboundInboxMessages.find(
+      item=>String(item.id||'')===emailId
+    );
+
+  if(!message){
+    return null;
+  }
+
+  const parsed=
+    vfParseRosterEmail(message.bodyText||'');
+
+  return parsed.isRoster
+    ? {message,parsed}
+    : null;
+}
+
+
 function vfCloseRosterReviewModal(){
 
   const modal=$('#vfRosterReviewModal');
@@ -38418,6 +38450,30 @@ async function refreshReviewsView(){
       ...paymentAttentionReviews()
     ];
 
+    /*
+     * A roster email arrives labelled as something else entirely, so
+     * the only way to know a card is really a roster is to read the
+     * stored email. That needs the inbox loaded.
+     *
+     * Once, only when a review actually has a source email, and never
+     * at the cost of the page: Notifications is where a vendor starts,
+     * and a failed inbox fetch must leave it exactly as it is rather
+     * than taking it down.
+     */
+    if(
+      !inboundInboxMessages.length &&
+      reviews.some(review=>review?.inboundEmailId)
+    ){
+      try{
+        await loadInboundInbox();
+      }catch(inboxError){
+        console.error(
+          'VendorFlow could not load the inbox for roster detection:',
+          inboxError
+        );
+      }
+    }
+
     renderReviews();
 
   }catch(error){
@@ -38658,6 +38714,53 @@ function renderReviews(force){
         const editing=
           vfProposalEditingId===review.id ||
           !hasConfidentStudentMatch;
+
+        /*
+         * A roster email. Everything the worker extracted for this
+         * card -- student, payer, amount -- is invented, so none of it
+         * is shown and Approve is not offered. There is nothing here
+         * that is safe to approve.
+         */
+        const rosterBehind=
+          vfReviewRosterEmail(review);
+
+        if(rosterBehind){
+
+          return `
+            <div class="record vf-email-proposal">
+
+              <strong>Class roster update</strong>
+
+              <div class="meta vf-proposal-summary">
+                ${esc(rosterBehind.parsed.className||'A class roster was forwarded.')}
+              </div>
+
+              <div class="vf-roster-notice">
+                This is a roster, not a charge. VendorFlow read
+                ${esc(String(rosterBehind.parsed.students.length))} students from
+                it and can compare them against the group you choose.
+              </div>
+
+              <div class="vf-review-actions">
+                <button
+                  type="button"
+                  class="primary"
+                  data-roster-review="${esc(rosterBehind.message.id)}">
+                  Review roster update
+                </button>
+                ${sourceButton}
+                <button
+                  type="button"
+                  class="vf-secondary-button"
+                  data-dismiss-proposal="${esc(review.id)}">
+                  Dismiss
+                </button>
+              </div>
+
+            </div>
+          `;
+        }
+
 
         const detailsHTML=
           isCertificate
@@ -39682,6 +39785,15 @@ function renderReviews(force){
           button.disabled=false;
         }
       };
+    });
+
+  $$('#reviewList [data-roster-review]')
+    .forEach(button=>{
+
+      button.onclick=()=>
+        vfOpenRosterReview(
+          button.dataset.rosterReview
+        );
     });
 
   $$('[data-edit-proposal]')
