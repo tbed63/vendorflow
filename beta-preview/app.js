@@ -38448,11 +38448,33 @@ document.addEventListener('click',event=>{
  * navigated away would freeze their own Notifications list.
  */
 function vfReleaseReviewListHold(){
+
   vfReviewListDirty=false;
+
+  /*
+   * The open-editor flag is released here too. Leaving the page throws
+   * a half-finished edit away regardless, and a flag left set on a page
+   * the vendor is no longer looking at silently freezes the whole list
+   * next time they come back.
+   */
+  vfProposalEditingId=null;
 }
 
 
-function renderReviews(){
+/*
+ * force: this render is the one that OPENS or CLOSES an editor, so it
+ * must not be held back by the busy check -- the busy check reads the
+ * very flag that opening an editor sets.
+ *
+ * "Edit and approve" was dead for exactly this reason: its handler set
+ * vfProposalEditingId to open the editor, called renderReviews(), and
+ * the guard saw that flag, concluded somebody was mid-edit, and
+ * returned without drawing the editor it had just been asked for.
+ *
+ * Only the open and cancel handlers pass force. Nobody is typing at
+ * the instant either is clicked -- the click IS the request.
+ */
+function renderReviews(force){
 
   const list=
     $('#reviewList');
@@ -38463,6 +38485,7 @@ function renderReviews(){
    * list exactly as it is.
    */
   if(
+    !force &&
     list &&
     list.childElementCount &&
     vfReviewListIsBusy()
@@ -39583,7 +39606,10 @@ function renderReviews(){
       button.onclick=()=>{
         vfProposalEditingId=
           button.dataset.editProposal;
-        renderReviews();
+
+        /* force: the flag just set is the same one the busy check
+           reads, so without this the editor never appears. */
+        renderReviews(true);
       };
     });
 
@@ -39591,7 +39617,11 @@ function renderReviews(){
     .forEach(button=>{
       button.onclick=()=>{
         vfProposalEditingId=null;
-        renderReviews();
+
+        /* Worked by luck before -- clearing the flag first happened to
+           satisfy the guard. Explicit now, so reordering these two
+           lines cannot quietly break it. */
+        renderReviews(true);
       };
     });
 
@@ -40564,6 +40594,12 @@ async function dismissEmailProposal(reviewId){
       `${review.aiSummary||review.title||'An email proposal'} was dismissed.`,
       'Manual'
     );
+
+    /* Nothing is being edited once the card is gone. Leaving this
+       set would defer every later render and freeze the list, which is
+       exactly what "dismissed but still there" was. approve already
+       does this. */
+    vfProposalEditingId=null;
 
     await refreshAll();
 
