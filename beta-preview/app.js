@@ -9359,6 +9359,106 @@ function renderCertificateCharterOptions(){
  * status certificateIsInvoiceReady() uses, so this tile and the
  * invoicing flow can never disagree about what "not billed" means.
  */
+/*
+ * Families with a payment that is actually late.
+ *
+ * Tim: "just because someone owes money, doesn't mean they are behind.
+ * they are only behind if a payment is due and they haven't made that
+ * payment yet."
+ *
+ * So this asks the only question that matters: does this family have an
+ * obligation whose due date has arrived and which still has money
+ * outstanding on it?
+ *
+ * It does NOT use parentBalance. parentBalance is built on totalDue,
+ * which is the full price of every active service -- an entire year of
+ * tuition from the day a student enrols -- so it reports every paying
+ * family as owing something for almost all of the year.
+ *
+ * expectedObligationFunding() is the app's own allocator: it spreads
+ * every certificate and every payment across the obligations they cover
+ * and reports what is left on each one. Reusing it means this tile can
+ * never disagree with a student's account page about who has paid what.
+ */
+function vfStudentIdsBehindOnPayments(){
+
+  const funding=
+    expectedObligationFunding();
+
+  const now=
+    new Date();
+
+  /*
+   * Noon-anchored, the same convention certificateIsInvoiceReady()
+   * uses, so an obligation due TODAY reads as due rather than
+   * flipping with the local clock.
+   */
+  const todayNoon=
+    new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      12,
+      0,
+      0,
+      0
+    );
+
+
+  const behind=
+    new Set();
+
+
+  funding.forEach(entry=>{
+
+    if(!entry || entry.deleted || !entry.studentId){
+      return;
+    }
+
+
+    const due=
+      parseVendorDate(
+        entry.dueDate
+      );
+
+    /* No due date means nothing is late. */
+    if(!due || due>todayNoon){
+      return;
+    }
+
+
+    if(
+      Number(entry.remainingAmount||0)>.009
+    ){
+      behind.add(entry.studentId);
+    }
+  });
+
+
+  return behind;
+}
+
+
+/*
+ * The count for the dashboard, limited to the students the rest of the
+ * dashboard counts -- an archived student with an old unpaid
+ * installment is not someone to chase.
+ */
+function vfFamiliesBehindCount(){
+
+  const behind=
+    vfStudentIdsBehindOnPayments();
+
+  return students
+    .filter(
+      student=>
+        studentVisibleInServices(student) &&
+        behind.has(student.id)
+    )
+    .length;
+}
+
+
 function vfCertificateValueNotInvoiced(){
 
   return certs
@@ -9440,11 +9540,11 @@ function vfPortfolioBalances(){
 const VF_STAT_EXPLANATIONS={
 
   behind:
-    'Families who still owe you money, counted after everything they '+
-    'have paid and after every charter certificate they have handed in '+
-    'has been credited to them. Late fees you have charged are included. '+
-    'A family who covered their whole bill with a certificate does not '+
-    'appear here.',
+    'Families with a payment that is actually late: something on their '+
+    'schedule came due and has not been covered by a payment or a '+
+    'certificate. A family part-way through a payment plan with nothing '+
+    'yet overdue is not behind, however much of the year they have left '+
+    'to pay.',
 
   notinvoiced:
     'Charter certificates you have received but have not yet billed the '+
@@ -9514,8 +9614,8 @@ function wireDashboardStatCards(){
     {
       value:'#statBehind',
       view:'students',
-      chip:'balance',
-      title:'See every family who still owes you'
+      chip:'behind',
+      title:'See every family with a late payment'
     },
     {
       value:'#statNotInvoiced',
@@ -9650,7 +9750,7 @@ function renderDashboard(){
 
   const tiles={
     statBehind:
-      String(balances.owedFamilies),
+      String(vfFamiliesBehindCount()),
 
     statNotInvoiced:
       money(vfCertificateValueNotInvoiced()),
@@ -20650,6 +20750,7 @@ function studentDirectoryCertificateHistory(student){
  */
 
 const VF_DIRECTORY_CHIPS=[
+  {key:'behind',    label:'Behind on payments'},
   {key:'balance',   label:'Has a balance'},
   {key:'paid',      label:'Paid in full'},
   {key:'credit',    label:'Has a credit'},
@@ -20695,6 +20796,26 @@ function vfDirectoryStudentMatchesFilters(student,cache){
     Array.isArray(account.activeCertificates)
       ? account.activeCertificates
       : [];
+
+  /*
+   * Computed once per render and kept in the same cache the account
+   * totals use. Doing it per student would run the whole allocation
+   * across every obligation once for each student in the list.
+   */
+  if(filters.chips.has('behind')){
+
+    let behindIds=
+      cache.get('__behind');
+
+    if(!behindIds){
+      behindIds=vfStudentIdsBehindOnPayments();
+      cache.set('__behind',behindIds);
+    }
+
+    if(!behindIds.has(student.id)){
+      return false;
+    }
+  }
 
   if(
     filters.chips.has('balance') &&

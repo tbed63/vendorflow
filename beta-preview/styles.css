@@ -11209,20 +11209,28 @@ table,
 }
 
 /* The button that answers "what is in this number?" */
+/* A 9px italic "i" with no centring rendered as a tick or a stray
+   apostrophe. Upright, bigger, and centred by flex rather than by
+   line-height, which is what was letting it drift. */
 .vf-stat-info{
   flex:0 0 auto;
-  width:14px;
-  height:14px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:15px;
+  height:15px;
   padding:0;
-  border:1px solid var(--line);
+  border:1px solid #B9C4D2;
   border-radius:50%;
   background:#fff;
-  color:var(--muted);
-  font-family:var(--display);
-  font-size:9px;
-  font-weight:800;
+  color:#5D757D;
+  font-family:Georgia,'Times New Roman',serif;
+  font-size:11px;
+  font-weight:700;
+  font-style:normal;
   line-height:1;
-  font-style:italic;
+  text-transform:none;
+  letter-spacing:0;
   cursor:help;
 }
 
