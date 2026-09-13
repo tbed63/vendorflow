@@ -40249,30 +40249,9 @@ function vfFormatPaymentInstructions(paymentMethods){
 
 function fillProfile(){
 
-  const address=
-    vendorAddressParts();
-
-  $('#pBusiness').value=
-    profile.businessName||'';
-
-  $('#pOwner').value=
-    profile.ownerName||'';
-
-  $('#pAddress').value=
-    address.street;
-
-  $('#pCity').value=
-    address.city;
-
-  $('#pState').value=
-    address.state;
-
-  $('#pZip').value=
-    address.zip;
-
-  $('#pPhone').value=
-    profile.phone||'';
-
+  /* The seven fields that used to be duplicated on the deleted
+     Business Profile page now live on Business Settings and are
+     filled by renderAccountPage(). Only these two moved across. */
   $('#pLocations').value=
     profile.locations||'';
 
@@ -40484,58 +40463,7 @@ function vfRenderSubscriptionCard(){
 }
 
 
-$('#saveProfile').onclick=async()=>{
-  let d={
-    businessName:$('#pBusiness').value.trim(),
-    ownerName:$('#pOwner').value.trim(),
-    address:$('#pAddress').value.trim(),
-    city:$('#pCity').value.trim(),
-    state:$('#pState').value.trim(),
-    zip:$('#pZip').value.trim(),
 
-    cityStateZip:[
-      $('#pCity').value.trim(),
-      [
-        $('#pState').value.trim(),
-        $('#pZip').value.trim()
-      ]
-        .filter(Boolean)
-        .join(' ')
-    ]
-      .filter(Boolean)
-      .join(', '),
-
-    phone:$('#pPhone').value.trim(),
-    locations:$('#pLocations').value.trim(),
-    schools:$('#pSchools').value.trim(),
-    paymentMethods:vfReadPaymentMethodsField($('#pPaymentMethods')),
-    updatedAt:serverTimestamp()
-  };
-
-  await setDoc(
-    vendorDoc(),
-    d,
-    {merge:true}
-  );
-
-  profile={
-    ...profile,
-    ...d
-  };
-
-  $('#bizNameSide').textContent=
-    d.businessName||'VendorFlow';
-
-  await log(
-    'Business profile updated',
-    'Business information was manually updated.',
-    'Manual'
-  );
-
-  await refreshAll();
-
-  toast('Business profile saved.');
-};
 
 if($('#pmGoToProfile')){
   $('#pmGoToProfile').onclick=()=>{
@@ -42287,17 +42215,6 @@ if($('#accountSummary')){
 }
 
 
-if($('#accountEditBusiness')){
-
-  $('#accountEditBusiness').onclick=()=>{
-
-    switchView(
-      'profile'
-    );
-  };
-}
-
-
 if($('#accountResetPassword')){
 
   $('#accountResetPassword').onclick=async()=>{
@@ -42411,6 +42328,15 @@ if($('#saveAccountInfo')){
       zip,
       cityStateZip,
       phone,
+
+      /* Moved here when the Business Profile page was folded in.
+         These were the only two fields that page had which this one
+         did not; the other seven were duplicates of these. */
+      locations:
+        $('#pLocations')?.value.trim() ?? (profile.locations||''),
+
+      schools:
+        $('#pSchools')?.value.trim() ?? (profile.schools||''),
 
       updatedAt:
         serverTimestamp()
@@ -54516,8 +54442,8 @@ const VF_SETUP_ITEMS=[
   {
     key:'business',
     title:'Your business details',
-    view:'profile',
-    action:'Open Business Profile',
+    view:'account',
+    action:'Open Business Settings',
     body:`
       <p>Fill in:</p>
       <ul>
