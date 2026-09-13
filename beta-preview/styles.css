@@ -11274,3 +11274,57 @@ table,
     margin-left:0;
   }
 }
+
+
+/* VF_CHARTERS_TODO_DENSITY */
+/* Both forms sit on .formgrid -- three equal columns -- so ZIP was as
+   wide as the school name and a date as wide as the task. Scoped to
+   each form's own second class: .formgrid itself is on fourteen forms
+   and none of the other thirteen has been reviewed. */
+
+.vf-charter-grid,
+.vf-todo-form{
+  grid-template-columns:repeat(6,minmax(0,1fr));
+}
+
+.vf-ch-1{grid-column:span 1}
+.vf-ch-2{grid-column:span 2}
+.vf-ch-3{grid-column:span 3}
+.vf-ch-4{grid-column:span 4}
+
+.vf-td-2{grid-column:span 2}
+.vf-td-3{grid-column:span 3}
+
+/* Restated, not inherited: this block lands after the file's own
+   small-screen rules, so without these both forms would stay six
+   across on a phone. */
+@media(max-width:900px){
+
+  .vf-charter-grid,
+  .vf-todo-form{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .vf-ch-1,.vf-ch-2,.vf-ch-3,.vf-ch-4,
+  .vf-td-2,.vf-td-3{
+    grid-column:span 1;
+  }
+
+  .vf-ch-3,
+  .vf-td-3{
+    grid-column:span 2;
+  }
+}
+
+@media(max-width:600px){
+
+  .vf-charter-grid,
+  .vf-todo-form{
+    grid-template-columns:1fr;
+  }
+
+  .vf-ch-1,.vf-ch-2,.vf-ch-3,.vf-ch-4,
+  .vf-td-2,.vf-td-3{
+    grid-column:span 1;
+  }
+}

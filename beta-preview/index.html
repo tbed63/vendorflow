@@ -8,9 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="styles.css?v=behind-net-20260913-21">
+<link rel="stylesheet" href="styles.css?v=charters-todo-20260913-22">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="modulepreload" href="app.js?v=behind-net-20260913-21">
+  <link rel="modulepreload" href="app.js?v=charters-todo-20260913-22">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA</div>
@@ -1348,7 +1348,6 @@ Thank you,
 
     <div class="row between vf-charter-bank-heading">
       <div>
-        <div class="eyebrow">Verified California directory</div>
         <h3>Find a Charter School</h3>
       </div>
 
@@ -1376,10 +1375,6 @@ Thank you,
     <div class="row between">
 
       <div>
-        <div class="eyebrow">
-          Charter school
-        </div>
-
         <h3 id="charterFormTitle">
           Add charter school
         </h3>
@@ -1396,15 +1391,14 @@ Thank you,
 
     <div class="formgrid vf-charter-grid">
 
-      <label class="vf-charter-wide">
+      <label class="vf-ch-3">
         <span>Charter school name</span>
         <input
           id="charterName"
-          class="input"
-          placeholder="Charter school name">
+          class="input">
       </label>
 
-      <label>
+      <label class="vf-ch-3">
         <span>Billing / invoice email</span>
         <input
           id="charterBillingEmail"
@@ -1413,15 +1407,14 @@ Thank you,
           placeholder="billing@charterschool.org">
       </label>
 
-      <label>
+      <label class="vf-ch-2">
         <span>Phone</span>
         <input
           id="charterPhone"
-          class="input"
-          placeholder="Phone">
+          class="input">
       </label>
 
-      <label>
+      <label class="vf-ch-2">
         <span>Contact name</span>
         <input
           id="charterContactName"
@@ -1429,45 +1422,40 @@ Thank you,
           placeholder="Accounts payable contact">
       </label>
 
-      <label>
+      <label class="vf-ch-2">
         <span>Contact email</span>
         <input
           id="charterContactEmail"
           class="input"
-          type="email"
-          placeholder="Contact email">
+          type="email">
       </label>
 
-      <label class="vf-charter-wide">
+      <label class="vf-ch-4">
         <span>Street address</span>
         <input
           id="charterAddress"
-          class="input"
-          placeholder="Street address">
+          class="input">
       </label>
 
-      <label>
+      <label class="vf-ch-2">
         <span>City</span>
         <input
           id="charterCity"
-          class="input"
-          placeholder="City">
+          class="input">
       </label>
 
-      <label>
+      <label class="vf-ch-1">
         <span>State</span>
         <input
           id="charterState"
-          class="input"
-          placeholder="State">
+          class="input">
       </label>
 
-      <label>
+      <label class="vf-ch-1">
         <span>ZIP</span>
         <input
           id="charterZip"
-          class="input"
-          placeholder="ZIP">
+          class="input">
       </label>
 
       <label>
@@ -1546,10 +1534,6 @@ Thank you,
     <div class="row between">
 
       <div>
-        <div class="eyebrow">
-          Archived
-        </div>
-
         <h3>
           Archived charter schools
         </h3>
@@ -3298,24 +3282,24 @@ Thank you,
 
 </div>
 
-<section id="complianceView" class="view"><div class="card"><div class="row between"><div><div class="eyebrow">Tasks, deadlines & reminders</div><h2>To-Do List</h2><p>Track every task, requirement, renewal, deadline, and reminder in one place.</p></div><button id="addCompliance" class="primary">Add task</button></div><div id="complianceForm" class="formgrid hidden vf-todo-form">
-  <label class="vf-field-label">
+<section id="complianceView" class="view"><div class="card"><div class="row between"><div><h2>To-Do List</h2></div><button id="addCompliance" class="primary">Add task</button></div><div id="complianceForm" class="formgrid hidden vf-todo-form">
+  <label class="vf-field-label vf-td-3">
     <span>Task</span>
     <input id="compTask" class="input" placeholder="What needs to be done?">
   </label>
-  <label class="vf-field-label">
+  <label class="vf-field-label vf-td-3">
     <span>School / organization</span>
     <input id="compSchool" class="input" placeholder="Optional">
   </label>
-  <label class="vf-field-label">
+  <label class="vf-field-label vf-td-2">
     <span>Due date</span>
     <input id="compDue" class="input" type="date">
   </label>
-  <label class="vf-field-label">
+  <label class="vf-field-label vf-td-2">
     <span>Reminder date</span>
     <input id="compReminder" class="input" type="date">
   </label>
-  <label class="vf-field-label">
+  <label class="vf-field-label vf-td-2">
     <span>Status</span>
     <select id="compStatus" class="input">
       <option>Not started</option>
@@ -4077,5 +4061,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=behind-net-20260913-21"></script>
+<script type="module" src="app.js?v=charters-todo-20260913-22"></script>
 </body></html>
