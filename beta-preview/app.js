@@ -1949,7 +1949,8 @@ const VF_REVIEW_KINDS={
   'payment-reminder-followup-email': {label:'Follow-up reminder',   tone:'warn'},
   'late-fee-charged-email':          {label:'Late fee charged',     tone:'warn'},
   'late-fee-charge-approval':        {label:'Late fee to approve',  tone:'warn'},
-  'duplicate':                       {label:'Possible duplicate',   tone:'warn'}
+  'duplicate':                       {label:'Possible duplicate',   tone:'warn'},
+  'duplicate-payment-pair':          {label:'Possible duplicate',   tone:'warn'}
 };
 
 
@@ -2078,6 +2079,209 @@ function vfWithDismiss(review,html){
 }
 
 
+/* ==========================================================
+   THE SAME MONEY, RECORDED TWICE
+   ==========================================================
+
+   findDuplicatePayment() runs at intake, and only from the three
+   doors inside this app: the manual payment form, the statement
+   importer, and the unmatched-payment repair.
+
+   Payments carrying "Source: VendorFlow Email" come through none
+   of them. app.js never creates one; the email worker does, and
+   that worker is not in this repository. A duplicate check that
+   guards some of the doors does not protect the house -- which is
+   why the same $105 could sit on an account twice with nothing
+   said about it.
+
+   So duplicates are found in the data as well as at the door.
+   This walks the payments already on the books, whatever put
+   them there and however long ago.
+
+   Bucketed by payer + day + amount rather than compared pair by
+   pair, so an account with thousands of payments does not pay an
+   n-squared cost on every render. Records that already agree on
+   all three are the only ones examined closely, and there are
+   rarely more than a handful.
+*/
+
+function duplicatePaymentNotificationItems(){
+
+  /* A pair the vendor already looked at and chose to keep, or one
+     already raised at intake, must not come back as a new nag. */
+  const raisedAtIntake=
+    new Set(
+      reviews
+        .filter(review=>review.reviewType==='duplicate')
+        .map(review=>String(review.existingId||''))
+        .filter(Boolean)
+    );
+
+
+  const buckets=new Map();
+
+  payments.forEach(payment=>{
+
+    if(payment.deleted || payment.duplicateOverride){
+      return;
+    }
+
+    const party=paymentPartyKey(payment);
+
+    /* Nobody attached: two unattached payments of the same amount
+       prove nothing, and guessing is how a real payment gets
+       deleted. */
+    if(!party){
+      return;
+    }
+
+    const day=
+      paymentDuplicateDateNumber(
+        payment.date||payment.paymentDate
+      );
+
+    if(day===null){
+      return;
+    }
+
+    const amount=
+      duplicateMoney(payment.amount);
+
+    if(!(amount>0.009)){
+      return;
+    }
+
+    const key=`${party}|${day}|${amount}`;
+
+    if(!buckets.has(key)){
+      buckets.set(key,[]);
+    }
+
+    buckets.get(key).push(payment);
+  });
+
+
+  const items=[];
+
+  buckets.forEach(group=>{
+
+    if(group.length<2){
+      return;
+    }
+
+    /* Sorted so the same pair always produces the same id, which is
+       what makes dismissing it stick. */
+    const ordered=
+      [...group].sort(
+        (a,b)=>String(a.id||'').localeCompare(String(b.id||''))
+      );
+
+    for(let i=0;i<ordered.length;i++){
+      for(let j=i+1;j<ordered.length;j++){
+
+        const first=ordered[i];
+        const second=ordered[j];
+
+        if(paymentMethodsConflict(first,second)){
+          continue;
+        }
+
+        /* Different cheque numbers, or different provider
+           transaction IDs, prove these are two real payments. */
+        if(
+          paymentsHaveDifferentReferences(first,second) ||
+          paymentsHaveDifferentTransactionIds(first,second)
+        ){
+          continue;
+        }
+
+        if(
+          raisedAtIntake.has(String(first.id||'')) ||
+          raisedAtIntake.has(String(second.id||''))
+        ){
+          continue;
+        }
+
+        items.push(
+          duplicatePaymentNotificationItem(first,second)
+        );
+      }
+    }
+  });
+
+  return items;
+}
+
+
+function vfPaymentShortDescription(payment){
+
+  const method=
+    String(payment?.method||'').trim() || 'no method recorded';
+
+  const memo=
+    String(payment?.memo||payment?.note||'').trim();
+
+  return memo
+    ? `${method} ("${memo}")`
+    : method;
+}
+
+
+function duplicatePaymentNotificationItem(first,second){
+
+  const who=
+    first.student ||
+    first.payer ||
+    first.parentName ||
+    'this family';
+
+  const amount=
+    money(duplicateMoney(first.amount));
+
+  const when=
+    formatVendorDate(first.date||first.paymentDate) ||
+    first.date ||
+    '';
+
+  return {
+
+    /* Deterministic, so the existing dismissal machinery can
+       remember that this pair was looked at and waved through. */
+    id:
+      `duplicate-payment-${first.id}-${second.id}`,
+
+    reviewType:
+      'duplicate-payment-pair',
+
+    itemType:
+      'payment',
+
+    paymentId:
+      first.id,
+
+    secondPaymentId:
+      second.id,
+
+    /* Deliberately does NOT open with the words on its own label --
+       the heading is where the family name belongs. */
+    title:
+      `${who} — ${amount} recorded twice`,
+
+    detail:
+      `Two payments of ${amount} for ${who} are both recorded`+
+      `${when?` on ${when}`:''}. `+
+      `One is ${vfPaymentShortDescription(first)}, `+
+      `the other is ${vfPaymentShortDescription(second)}. `+
+      `If this is the same payment entered twice, open the student's `+
+      `account and delete one. If they really are two payments, `+
+      `dismiss this.`,
+
+    source:
+      'VendorFlow'
+  };
+}
+
+
 function allNeedsReviewItems(){
 
   const dismissed=
@@ -2090,7 +2294,8 @@ function allNeedsReviewItems(){
     ...readyInvoiceNotificationItems(),
     ...overdueInvoiceNotificationItems(),
     ...lateFeeChargedNotificationItems(),
-    ...incompleteStudentNotificationItems()
+    ...incompleteStudentNotificationItems(),
+    ...duplicatePaymentNotificationItems()
   ].filter(
     item=>!dismissed.includes(item?.id)
   );
@@ -27770,6 +27975,101 @@ function paymentsHaveDifferentTransactionIds(first,second){
 }
 
 
+/* ==========================================================
+   IS A DIFFERENT METHOD ACTUALLY DIFFERENT?
+   ==========================================================
+
+   "Other" is not a payment method. It is the absence of one, and
+   so are a blank field, "unknown" and "n/a". A record saying
+   Other is not claiming the payment was not a Venmo -- it is
+   claiming nothing.
+
+   Treating it as a method is what let the same $105 through
+   twice: once captured as Venmo, once as Other, and the two were
+   ruled unrelated before the amount, the date or the family were
+   even looked at.
+
+   Same reasoning the file already applies to the payer, where
+   "one of them has no payer" does not disqualify a match but two
+   different payers do.
+*/
+
+const VF_UNSPECIFIED_PAYMENT_METHODS=new Set([
+  '',
+  '-',
+  'other',
+  'unknown',
+  'unspecified',
+  'n/a',
+  'na',
+  'none'
+]);
+
+
+function paymentSpecificMethod(payment){
+
+  const raw=
+    String(payment?.method||'')
+      .trim()
+      .toLowerCase();
+
+  return VF_UNSPECIFIED_PAYMENT_METHODS.has(raw)
+    ? ''
+    : raw;
+}
+
+
+/*
+ * True only when both records name a real method AND those methods
+ * differ. Venmo against Zelle is a conflict and always was. Venmo
+ * against Other is not evidence of anything.
+ */
+function paymentMethodsConflict(first,second){
+
+  const firstMethod=paymentSpecificMethod(first);
+  const secondMethod=paymentSpecificMethod(second);
+
+  return Boolean(
+    firstMethod &&
+    secondMethod &&
+    firstMethod!==secondMethod
+  );
+}
+
+
+/*
+ * Where the two methods are not literally identical, the payer has
+ * to carry the match on its own: known on both records, and equal.
+ * Relaxing the method rule must never make a match easier to get
+ * overall, only differently sourced.
+ */
+function paymentsShareKnownParty(first,second){
+
+  const firstParty=paymentPartyKey(first);
+  const secondParty=paymentPartyKey(second);
+
+  return Boolean(
+    firstParty &&
+    secondParty &&
+    firstParty===secondParty
+  );
+}
+
+
+function paymentsMethodEvidenceAgrees(first,second){
+
+  if(paymentMethodsConflict(first,second)){
+    return false;
+  }
+
+  const identical=
+    String(first?.method||'').trim().toLowerCase()===
+    String(second?.method||'').trim().toLowerCase();
+
+  return identical || paymentsShareKnownParty(first,second);
+}
+
+
 function paymentsLikelySameCrossIntake(first,second){
 
   if(!first || !second || first.id===second.id){
@@ -27780,8 +28080,11 @@ function paymentsLikelySameCrossIntake(first,second){
     return true;
   }
 
+  /* Kept for readability at the call sites below. */
   const firstMethod=String(first.method||'').trim().toLowerCase();
   const secondMethod=String(second.method||'').trim().toLowerCase();
+  void firstMethod;
+  void secondMethod;
 
   /*
    * Every method, not only the three this rule started with. The
@@ -27790,8 +28093,11 @@ function paymentsLikelySameCrossIntake(first,second){
    * email -- are strict enough to carry a cheque or a bank transfer
    * safely, and those are the duplicates that cost real money.
    */
+  /* Was: firstMethod!==secondMethod, which rejected the very case
+     this function exists for -- one route capturing "Venmo" and the
+     other capturing "Other" for the same payment. */
   if(
-    firstMethod!==secondMethod ||
+    !paymentsMethodEvidenceAgrees(first,second) ||
     duplicateMoney(first.amount)!==duplicateMoney(second.amount)
   ){
     return false;
@@ -27933,7 +28239,11 @@ function findDuplicatePayment(candidate){
           .trim()
           .toLowerCase();
 
-      if(existingMethod!==method){
+      /* Was: existingMethod!==method. An unrecorded method is not
+         evidence that this is a different payment -- but where the
+         methods are not identical, the payer alone has to carry the
+         match, which is stricter than this branch's usual rule. */
+      if(!paymentsMethodEvidenceAgrees(candidate,existing)){
         return false;
       }
 
@@ -28000,7 +28310,10 @@ function findDuplicatePayment(candidate){
         .trim()
         .toLowerCase();
 
-    if(existingMethod!==method){
+    /* Was: existingMethod!==method. This branch already demands a
+       known, matching payer on both records, so accepting an
+       unrecorded method here cannot loosen anything else. */
+    if(!paymentsMethodEvidenceAgrees(candidate,existing)){
       return false;
     }
 
