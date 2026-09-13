@@ -9121,23 +9121,87 @@ function renderCertificateCharterOptions(){
 
 
 
+/* ==========================================================
+   WHAT EVERY FAMILY OWES, ADDED UP
+   ==========================================================
+
+   The one number a vendor opens this app to find out, and the
+   dashboard did not have it.
+
+   Every figure here comes from studentAccountTotals(). That
+   function is already the single source for the Command Center
+   header, the directory rows, the directory filters and the
+   warning before archiving a family who still owes -- and it
+   already carries a documented fix for a running total that used
+   to drift out of date. Adding up what it returns is the only
+   honest way to put money on this page. A second, parallel
+   calculation would just be a second thing to get wrong.
+
+   WHAT IS OWED AND WHAT IS HELD IN CREDIT ARE NEVER NETTED OFF.
+   One family being $40 ahead does not mean another family owing
+   $40 has been dealt with, and a single blended number would
+   hide both of them. They are counted separately and shown
+   separately.
+
+   Same students as the "Active students" tile beside it, so the
+   three numbers always describe the same roster.
+*/
+
+function vfPortfolioBalances(){
+
+  let owed=0;
+  let credit=0;
+  let owedFamilies=0;
+  let creditFamilies=0;
+
+  students
+    .filter(studentVisibleInServices)
+    .forEach(student=>{
+
+      const balance=
+        Number(
+          studentAccountTotals(student).parentBalance || 0
+        );
+
+      /* .009 is the threshold the rest of the app already uses to
+         decide whether a balance is real money or a rounding
+         crumb. Matching it keeps this tile agreeing with the pill
+         on the student's own row. */
+      if(balance>.009){
+        owed+=balance;
+        owedFamilies++;
+        return;
+      }
+
+      if(balance< -.009){
+        credit+=Math.abs(balance);
+        creditFamilies++;
+      }
+    });
+
+  return {owed,credit,owedFamilies,creditFamilies};
+}
+
+
 function wireDashboardStatCards(){
 
   const cards=[
     {
-      value:'#statClasses',
-      view:'classes',
-      title:'Open Groups'
+      value:'#statOwed',
+      view:'students',
+      chip:'balance',
+      title:'See every family with a balance'
+    },
+    {
+      value:'#statCredit',
+      view:'students',
+      chip:'credit',
+      title:'See every family holding a credit'
     },
     {
       value:'#statStudents',
       view:'students',
       title:'Open Students & Services'
-    },
-    {
-      value:'#statReview',
-      view:'review',
-      title:'Open Needs Review'
     },
     {
       value:'#statHistory',
@@ -9186,6 +9250,16 @@ function wireDashboardStatCards(){
 
 
     const activate=()=>{
+
+      /*
+       * Clear first, so clicking "Families owe you" always shows
+       * exactly the families who owe -- not that filter layered on
+       * top of whatever the vendor last left switched on.
+       */
+      if(item.chip){
+        vfDirectoryClearFilters();
+        vfDirectoryFilters.chips.add(item.chip);
+      }
 
       switchView(
         item.view
@@ -9240,18 +9314,32 @@ function renderDashboard(){
     allNeedsReviewItems();
 
 
-  $('#statClasses').textContent=
-    activeClasses.length;
+  /* Guarded, unlike the counts around them: these two tiles are
+     newer than some of the cached index.html files still in the
+     wild, and a dashboard should not go blank over a missing
+     span. */
+  const balances=
+    vfPortfolioBalances();
+
+  const owedTile=$('#statOwed');
+
+  if(owedTile){
+    owedTile.textContent=
+      money(balances.owed);
+  }
+
+  const creditTile=$('#statCredit');
+
+  if(creditTile){
+    creditTile.textContent=
+      money(balances.credit);
+  }
 
 
   $('#statStudents').textContent=
     students.filter(
       studentVisibleInServices
     ).length;
-
-
-  $('#statReview').textContent=
-    needsReviewItems.length;
 
 
   $('#statHistory').textContent=

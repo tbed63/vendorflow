@@ -8,9 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="styles.css?v=notifications-20260913-12">
+<link rel="stylesheet" href="styles.css?v=dashboard-money-20260913-13">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="modulepreload" href="app.js?v=notifications-20260913-12">
+  <link rel="modulepreload" href="app.js?v=dashboard-money-20260913-13">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA</div>
@@ -194,10 +194,6 @@
 
   <div class="vf-attention-copy">
 
-    <div class="eyebrow gold">
-      NEEDS ATTENTION
-    </div>
-
     <h2 id="dashboardAttentionTitle">
       You're all caught up.
     </h2>
@@ -243,12 +239,12 @@
 
 </div>
       <div class="stats">
-        <div class="stat"><span>Groups</span><strong id="statClasses">0</strong></div>
+        <div class="stat vf-stat-money"><span>Families owe you</span><strong id="statOwed">$0.00</strong></div>
+        <div class="stat vf-stat-money"><span>Held in credit</span><strong id="statCredit">$0.00</strong></div>
         <div class="stat"><span>Active students</span><strong id="statStudents">0</strong></div>
-        <div class="stat"><span>Needs review</span><strong id="statReview">0</strong></div>
         <div class="stat"><span>Actions</span><strong id="statHistory">0</strong></div>
       </div>
-      <div class="card"><div class="eyebrow">Recent actions</div><h2>VendorFlow Actions</h2><div id="recentHistory"></div></div>
+      <div class="card"><h2>Recent actions</h2><div id="recentHistory"></div></div>
     </section>
 
     <section id="classesView" class="view">
@@ -4142,5 +4138,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=notifications-20260913-12"></script>
+<script type="module" src="app.js?v=dashboard-money-20260913-13"></script>
 </body></html>

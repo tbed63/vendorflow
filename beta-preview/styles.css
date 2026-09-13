@@ -10918,3 +10918,22 @@ table,
   border-left:3px solid var(--line);
   padding-left:13px;
 }
+
+
+/* VF_STAT_MONEY */
+/* A money tile should read as money: figures that line up in a
+   column, and a label that does not shout over the number. */
+
+.vf-stat-money strong{
+  font-variant-numeric:tabular-nums;
+  letter-spacing:-.02em;
+}
+
+.vf-stat-money span{
+  font-family:var(--display);
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
