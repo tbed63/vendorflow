@@ -28114,6 +28114,501 @@ function vfRosterGuessClass(className){
 }
 
 
+/* ---------- the roster review screen ---------- */
+
+let vfRosterReviewState=null;
+
+
+function vfCloseRosterReviewModal(){
+
+  const modal=$('#vfRosterReviewModal');
+
+  if(modal){
+    hide(modal);
+  }
+
+  vfRosterReviewState=null;
+}
+
+
+/*
+ * Enrolment for any group, not just the one the Groups page happens to
+ * have selected -- loadRoster() only ever loads currentClass().
+ */
+async function vfRosterEnrolmentFor(classId){
+
+  const snapshot=
+    await getDocs(
+      collection(
+        db,
+        'vendors',
+        user.uid,
+        'classes',
+        classId,
+        'students'
+      )
+    );
+
+  return snapshot.docs.map(
+    entry=>({
+      id:entry.id,
+      ...entry.data()
+    })
+  );
+}
+
+
+function vfRosterReviewRow(row,index){
+
+  return `
+    <div class="vf-roster-add" data-roster-add="${index}">
+
+      <label class="vf-check-row">
+        <input type="checkbox" data-roster-add-on="${index}" checked>
+        <span><strong>${esc(row.studentName)}</strong>${
+          row.age ? ` <span class="muted">age ${esc(String(row.age))}</span>` : ''
+        }</span>
+      </label>
+
+      <div class="vf-roster-add-fields">
+
+        <label class="vf-field-label">
+          <span>Parent / guardian</span>
+          <input class="input" data-roster-field="parentName" data-roster-index="${index}"
+                 value="${esc(row.parentName||'')}">
+        </label>
+
+        <label class="vf-field-label">
+          <span>Parent email</span>
+          <input class="input" type="email" data-roster-field="parentEmail" data-roster-index="${index}"
+                 value="${esc(row.parentEmail||'')}">
+        </label>
+
+        <label class="vf-field-label">
+          <span>Parent phone</span>
+          <input class="input" data-roster-field="parentPhone" data-roster-index="${index}"
+                 value="${esc(row.parentPhone||'')}">
+        </label>
+
+        <label class="vf-field-label">
+          <span>Grade</span>
+          <input class="input" data-roster-field="grade" data-roster-index="${index}"
+                 value="${esc(row.grade||'')}" placeholder="Not in the roster email">
+        </label>
+
+      </div>
+
+    </div>
+  `;
+}
+
+
+function vfRenderRosterReview(){
+
+  const body=$('#vfRosterReviewBody');
+  const state=vfRosterReviewState;
+
+  if(!body || !state){
+    return;
+  }
+
+  const classId=
+    $('#vfRosterReviewGroup')?.value || '';
+
+  if(!classId){
+    body.innerHTML=
+      `<p class="muted">Choose the group this roster belongs to.</p>`;
+    return;
+  }
+
+  const diff=state.diff;
+
+  if(!diff){
+    body.innerHTML=`<p class="muted">Reading the roster...</p>`;
+    return;
+  }
+
+  /*
+   * The roster states its own size. A parse that disagrees means
+   * something was missed, and a half-read roster would propose
+   * dropping every student it failed to read.
+   */
+  if(!diff.usable){
+    body.innerHTML=
+      `<div class="vf-roster-refused">${esc(diff.reason)}</div>`;
+    return;
+  }
+
+  const additions=
+    diff.additions.length
+      ? `
+        <div class="vf-roster-section">
+          <h4>New on this roster (${diff.additions.length})</h4>
+          ${diff.additions.map(vfRosterReviewRow).join('')}
+        </div>
+      `
+      : '';
+
+  const departures=
+    diff.departures.length
+      ? `
+        <div class="vf-roster-section">
+          <h4>No longer on this roster (${diff.departures.length})</h4>
+          <p class="muted">
+            VendorFlow will mark the enrolment Dropped. Nothing is deleted,
+            and the student stays in your directory with all of their history.
+          </p>
+          ${diff.departures.map((row,index)=>`
+            <label class="vf-check-row vf-roster-drop">
+              <input type="checkbox" data-roster-drop-on="${index}" checked>
+              <span>
+                <strong>${esc(row.studentName)}</strong>
+                ${
+                  row.balance>.009
+                    ? `<span class="vf-roster-owes">still owes ${esc(money(row.balance))}</span>`
+                    : ''
+                }
+              </span>
+            </label>
+          `).join('')}
+        </div>
+      `
+      : '';
+
+  if(!additions && !departures){
+    body.innerHTML=
+      `<div class="vf-roster-nochange">
+         This roster matches what VendorFlow already has for this group
+         &mdash; all ${esc(String(diff.unchanged))} students. Nothing to change.
+       </div>`;
+    return;
+  }
+
+  body.innerHTML=
+    `<div class="vf-roster-summary">
+       Read ${esc(String(state.parsed.students.length))} students from this roster.
+       ${esc(String(diff.unchanged))} already match.
+     </div>`+
+    additions+
+    departures;
+}
+
+
+async function vfRosterReviewGroupChanged(){
+
+  const state=vfRosterReviewState;
+
+  if(!state){
+    return;
+  }
+
+  const classId=
+    $('#vfRosterReviewGroup')?.value || '';
+
+  state.classId=classId;
+  state.diff=null;
+
+  vfRenderRosterReview();
+
+  if(!classId){
+    return;
+  }
+
+  const enrolment=
+    await vfRosterEnrolmentFor(classId);
+
+  /* The picker can be changed while this is in flight. */
+  if(
+    !vfRosterReviewState ||
+    vfRosterReviewState.classId!==classId
+  ){
+    return;
+  }
+
+  state.enrolment=enrolment;
+
+  state.diff=
+    vfRosterDiff(state.parsed,enrolment);
+
+  vfRenderRosterReview();
+}
+
+
+async function vfOpenRosterReview(messageId){
+
+  let message=
+    inboundInboxMessages.find(
+      item=>String(item.id||'')===String(messageId||'')
+    );
+
+  if(!message){
+    await loadInboundInbox();
+    message=
+      inboundInboxMessages.find(
+        item=>String(item.id||'')===String(messageId||'')
+      );
+  }
+
+  if(!message){
+    return toast('That email is no longer in your inbox history.');
+  }
+
+  const parsed=
+    vfParseRosterEmail(message.bodyText||'');
+
+  if(!parsed.isRoster){
+    return toast('This email does not look like a class roster.');
+  }
+
+  const modal=$('#vfRosterReviewModal');
+
+  if(!modal){
+    return;
+  }
+
+  /* Same reasoning as the Source Email modal: keep it out of any
+     hidden view so it works from wherever it was opened. */
+  if(modal.parentElement!==document.body){
+    document.body.appendChild(modal);
+  }
+
+  vfRosterReviewState={
+    messageId:String(messageId||''),
+    parsed,
+    classId:'',
+    enrolment:[],
+    diff:null
+  };
+
+  const nameLine=$('#vfRosterReviewClassName');
+
+  if(nameLine){
+    nameLine.textContent=
+      parsed.className || 'Class name not given in the email';
+  }
+
+  const guess=
+    vfRosterGuessClass(parsed.className);
+
+  const picker=$('#vfRosterReviewGroup');
+
+  if(picker){
+
+    picker.innerHTML=
+      `<option value="">Choose a group</option>`+
+      classes
+        .filter(record=>!record.archived)
+        .map(record=>
+          `<option value="${esc(record.id)}">${esc(record.name||'Untitled group')}</option>`
+        ).join('');
+
+    /* A guess only ever pre-selects. */
+    picker.value=guess ? guess.id : '';
+  }
+
+  show(modal);
+
+  await vfRosterReviewGroupChanged();
+}
+
+
+async function vfApplyRosterReview(){
+
+  const state=vfRosterReviewState;
+
+  if(!state || !state.diff || !state.diff.usable){
+    return;
+  }
+
+  const classRecord=
+    classes.find(record=>record.id===state.classId);
+
+  if(!classRecord){
+    return toast('Choose the group this roster belongs to first.');
+  }
+
+  const button=$('#vfApplyRosterReview');
+  const originalLabel=button ? button.textContent : '';
+
+  if(button){
+    button.disabled=true;
+    button.textContent='Applying...';
+  }
+
+  try{
+
+    /* Read the edited values back out of the form, not the parse. */
+    const approvedAdditions=
+      state.diff.additions
+        .map((row,index)=>{
+
+          const on=
+            $(`[data-roster-add-on="${index}"]`)?.checked;
+
+          if(!on){
+            return null;
+          }
+
+          const readField=name=>
+            $(`[data-roster-field="${name}"][data-roster-index="${index}"]`)
+              ?.value.trim() ?? '';
+
+          return {
+            ...row,
+            parentName:readField('parentName'),
+            parentEmail:readField('parentEmail'),
+            parentPhone:readField('parentPhone'),
+            grade:readField('grade')
+          };
+        })
+        .filter(Boolean);
+
+
+    const approvedDepartures=
+      state.diff.departures.filter(
+        (row,index)=>
+          $(`[data-roster-drop-on="${index}"]`)?.checked
+      );
+
+
+    if(
+      !approvedAdditions.length &&
+      !approvedDepartures.length
+    ){
+      toast('Nothing was selected.');
+      return;
+    }
+
+
+    const enrolmentCollection=
+      collection(
+        db,
+        'vendors',
+        user.uid,
+        'classes',
+        classRecord.id,
+        'students'
+      );
+
+
+    const batch=writeBatch(db);
+
+    approvedAdditions.forEach(row=>{
+
+      batch.set(
+        doc(enrolmentCollection),
+        {
+          studentFirst:row.studentFirst||'',
+          studentLast:row.studentLast||'',
+          studentName:row.studentName||'',
+          parentName:row.parentName||'',
+          parentEmail:row.parentEmail||'',
+          parentPhone:row.parentPhone||'',
+          grade:row.grade||'',
+          status:'Active',
+          source:'Roster email',
+          createdAt:serverTimestamp(),
+          updatedAt:serverTimestamp()
+        }
+      );
+    });
+
+
+    /*
+     * Dropped, not deleted -- the same thing dropStudentFromClass()
+     * does. Every payment, charge, certificate and invoice stays.
+     */
+    approvedDepartures.forEach(row=>{
+
+      batch.set(
+        doc(enrolmentCollection,row.id),
+        {
+          status:'Dropped',
+          droppedAt:serverTimestamp(),
+          updatedAt:serverTimestamp()
+        },
+        {merge:true}
+      );
+    });
+
+    await batch.commit();
+
+
+    /* The existing path: finds a student by normalised name or creates
+       one, filling blanks without overwriting what is already there. */
+    if(approvedAdditions.length){
+      await syncRosterToCoreRecords(
+        classRecord,
+        approvedAdditions
+      );
+    }
+
+
+    const refreshed=
+      await vfRosterEnrolmentFor(classRecord.id);
+
+    await updateDoc(
+      doc(db,'vendors',user.uid,'classes',classRecord.id),
+      {
+        activeStudentCount:refreshed.filter(active).length,
+        rosterCount:refreshed.length,
+        updatedAt:serverTimestamp()
+      }
+    );
+
+
+    await log(
+      'Roster update applied',
+      `${approvedAdditions.length} added and `+
+      `${approvedDepartures.length} dropped in ${classRecord.name||'a group'} `+
+      `from a forwarded roster email.`,
+      'Manual'
+    );
+
+    vfCloseRosterReviewModal();
+
+    await refreshAll();
+
+    toast(
+      `Roster updated: ${approvedAdditions.length} added, `+
+      `${approvedDepartures.length} dropped.`
+    );
+
+  }catch(error){
+
+    toast(
+      error.message ||
+      'VendorFlow could not apply the roster update.'
+    );
+
+  }finally{
+
+    if(button){
+      button.disabled=false;
+      button.textContent=originalLabel;
+    }
+  }
+}
+
+
+function vfWireRosterReview(){
+
+  const close=$('#vfCloseRosterReview');
+  if(close) close.onclick=vfCloseRosterReviewModal;
+
+  const cancel=$('#vfCancelRosterReview');
+  if(cancel) cancel.onclick=vfCloseRosterReviewModal;
+
+  const apply=$('#vfApplyRosterReview');
+  if(apply) apply.onclick=vfApplyRosterReview;
+
+  const picker=$('#vfRosterReviewGroup');
+  if(picker) picker.onchange=vfRosterReviewGroupChanged;
+}
+
+vfWireRosterReview();
+
+
 async function syncRosterToCoreRecords(
   classRecord,
   rosterRows
@@ -42297,6 +42792,22 @@ function renderInboundInbox(){
               }
             </div>
 
+            ${
+              vfParseRosterEmail(message.bodyText||'').isRoster
+                ? `
+                  <div class="vf-inbox-roster-banner">
+                    <span>This looks like a class roster.</span>
+                    <button
+                      type="button"
+                      class="vf-secondary-button"
+                      data-roster-review="${inboundInboxEscape(message.id)}">
+                      Review roster update
+                    </button>
+                  </div>
+                `
+                : ''
+            }
+
             <details class="vf-inbox-details">
               <summary>
                 View everything VendorFlow knows
@@ -42392,6 +42903,16 @@ function renderInboundInbox(){
 
       updateInboxBulkArchiveUI();
     };
+  });
+
+  $$(
+    '#inboundInboxList [data-roster-review]'
+  ).forEach(button=>{
+
+    button.onclick=()=>
+      vfOpenRosterReview(
+        button.dataset.rosterReview
+      );
   });
 
   $$(
