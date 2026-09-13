@@ -11282,9 +11282,25 @@ table,
    each form's own second class: .formgrid itself is on fourteen forms
    and none of the other thirteen has been reviewed. */
 
+/* Scoped to #complianceForm, NOT .vf-todo-form: incomeForm and
+   expenseForm carry that same class, and a six-column grid squeezed
+   their fields into a sliver of an already half-width column. Check
+   who else wears a class before styling it. */
 .vf-charter-grid,
-.vf-todo-form{
+#complianceForm{
   grid-template-columns:repeat(6,minmax(0,1fr));
+}
+
+/* These two sit side by side in half-width columns, so two columns is
+   the right shape for them -- not six. */
+#incomeForm,
+#expenseForm{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+}
+
+#incomeForm .vf-todo-notes-field,
+#expenseForm .vf-todo-notes-field{
+  grid-column:1 / -1;
 }
 
 .vf-ch-1{grid-column:span 1}
@@ -11301,7 +11317,7 @@ table,
 @media(max-width:900px){
 
   .vf-charter-grid,
-  .vf-todo-form{
+  #complianceForm{
     grid-template-columns:repeat(2,minmax(0,1fr));
   }
 
@@ -11319,7 +11335,9 @@ table,
 @media(max-width:600px){
 
   .vf-charter-grid,
-  .vf-todo-form{
+  #complianceForm,
+  #incomeForm,
+  #expenseForm{
     grid-template-columns:1fr;
   }
 

@@ -8,9 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="styles.css?v=charters-todo-20260913-22">
+<link rel="stylesheet" href="styles.css?v=payments-income-20260913-23">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="modulepreload" href="app.js?v=charters-todo-20260913-22">
+  <link rel="modulepreload" href="app.js?v=payments-income-20260913-23">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA</div>
@@ -1557,7 +1557,7 @@ Thank you,
 
   <h2>Payments/Charges</h2>
 
-  <div class="vf-payment-methods-link-banner"><span>Add your Zelle, Venmo, PayPal and other payment details so they show up automatically in payment reminder emails.</span><button type="button" id="pmGoToProfile" class="vf-payment-methods-link-btn">Set up payment methods &rarr;</button></div>
+  <div class="vf-payment-methods-link-banner"><span>Shown automatically in payment reminder emails.</span><button type="button" id="pmGoToProfile" class="vf-payment-methods-link-btn">Set up payment methods &rarr;</button></div>
 
 </div>
 
@@ -1570,8 +1570,7 @@ Thank you,
   </div>
 
   <p class="muted">
-    Upload any bank statement, Venmo statement, or similar record showing money you've received from families.
-    VendorFlow will pull out the payments so you can review, connect them to students, and import.
+    VendorFlow pulls out the payments for you to review and connect to students.
   </p>
 
   <div class="form-grid">
@@ -1610,7 +1609,7 @@ Thank you,
 <button id="addRefund" class="vf-refund-button">+ Refund</button>
 </div>
 
-<p class="muted" style="margin-top:10px">Forwarded payment emails will automate this later.</p></div></div><div id="paymentForm" class="formgrid hidden"><input id="payDate" class="input" type="date"><input id="payPayer" class="input" placeholder="Payer / parent"><div class="vf-student-search-wrap">
+</div></div><div id="paymentForm" class="formgrid hidden"><input id="payDate" class="input" type="date"><input id="payPayer" class="input" placeholder="Payer / parent"><div class="vf-student-search-wrap">
   <input
     id="payStudent"
     class="input"
@@ -1627,10 +1626,6 @@ Thank you,
   class="vf-charge-form hidden">
 
   <div class="vf-charge-heading">
-
-    <div class="eyebrow">
-      Service rendered / additional charge
-    </div>
 
     <h3>Record a charge</h3>
 
@@ -1729,7 +1724,7 @@ Thank you,
   class="vf-refund-form hidden">
 
   <div class="vf-refund-heading">
-    <div class="eyebrow">Money returned to family</div>
+    
     <h3>Record a refund</h3>
     <p>
       Refunds reduce the parent payment credit without changing
@@ -1852,7 +1847,7 @@ Thank you,
     <div class="row between">
       <div>
         <h2>Income</h2>
-        <p>Money you earned that VendorFlow did not already record — helping at a learning center, tutoring with no certificate, anything you took in before you started using VendorFlow.</p>
+        <p class="muted">Anything VendorFlow did not already record.</p>
       </div>
       <button id="addIncome" class="primary" type="button">Add income</button>
     </div>
@@ -1923,7 +1918,7 @@ Thank you,
     <div class="row between">
       <div>
         <h2>Expenses</h2>
-        <p>Track what you spend running your business, organized the same way the IRS wants it -- so at tax time, every category total is ready to use.</p>
+        <p class="muted">Categorised to match your IRS schedule, ready at tax time.</p>
       </div>
       <button id="addExpense" class="primary" type="button">Add expense</button>
     </div>
@@ -4061,5 +4056,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=charters-todo-20260913-22"></script>
+<script type="module" src="app.js?v=payments-income-20260913-23"></script>
 </body></html>
