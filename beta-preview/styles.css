@@ -11501,3 +11501,25 @@ table,
     grid-template-columns:1fr;
   }
 }
+
+
+/* VF_PROPOSAL_DUPLICATE */
+/* Louder than the "couldn't fill everything" notice above it: that one
+   means a field is blank, this one means money may be about to be
+   counted twice. */
+.vf-proposal-duplicate{
+  margin:10px 0;
+  padding:11px 14px;
+  border:1px solid #F0A9A0;
+  border-left:3px solid #B42318;
+  border-radius:8px;
+  background:#FFF4F2;
+  color:#7A2018;
+  font-size:13px;
+  line-height:1.55;
+}
+
+.vf-proposal-duplicate strong{
+  display:block;
+  margin-bottom:2px;
+}

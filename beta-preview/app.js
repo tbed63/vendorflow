@@ -38521,6 +38521,166 @@ async function refreshReviewsView(){
 }
 
 
+/*
+ * Do two payments involve the same family, when one of them may not be
+ * attached to a student yet?
+ *
+ * paymentPartyKey() builds ONE key and prefers a student over a payer:
+ *
+ *     attached payment   -> STUDENT:abc123
+ *     emailed proposal   -> PAYER:wesley vanderkallen
+ *
+ * Those never compare equal, so a payment with a student attached can
+ * never match one without, however identical the payer, date and
+ * amount. That is the real reason this keeps coming back: the payer
+ * that WOULD have matched is discarded the moment a student id exists
+ * on either side.
+ *
+ * This compares every identity either record carries, including the
+ * payer against the other side's student's parent name.
+ *
+ * DELIBERATELY NOT USED BY findDuplicatePayment() OR THE NOTIFICATION
+ * SCAN. A looser party test there could call two real payments the same
+ * one, and those paths lead to merging and deleting. Here the only
+ * consequence is a sentence on screen, so a false match costs a moment
+ * of attention rather than somebody's money.
+ */
+function vfPaymentsSamePartyLoose(a,b){
+
+  if(!a || !b){
+    return false;
+  }
+
+  if(
+    a.studentId &&
+    b.studentId
+  ){
+    return a.studentId===b.studentId;
+  }
+
+  const names=payment=>{
+
+    const student=
+      payment.studentId
+        ? students.find(
+            record=>record.id===payment.studentId
+          )
+        : null;
+
+    return new Set(
+      [
+        payment.student,
+        payment.payer,
+        payment.parentName,
+        student?.studentName,
+        student?.parentName
+      ]
+        .map(value=>normalizedName(value||''))
+        .filter(Boolean)
+    );
+  };
+
+  const left=names(a);
+  const right=names(b);
+
+  for(const name of left){
+    if(right.has(name)){
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+/*
+ * Does this proposal duplicate a payment already on the books?
+ *
+ * The timing gap this closes: findDuplicatePayment() guards the three
+ * doors inside this app and an emailed payment uses none of them, while
+ * duplicatePaymentNotificationItems() walks recorded payments and a
+ * proposal is not recorded yet. Between them, the one moment nobody was
+ * checking was the moment that matters -- while the vendor is deciding.
+ *
+ * Asked with the fields Approve would actually send, so the thing
+ * checked is the thing that would be created.
+ */
+function vfProposalDuplicateWarning(review){
+
+  if(review?.itemType!=='payment'){
+    return null;
+  }
+
+  const fields=
+    review.proposalFields || {};
+
+  const candidate={
+    ...fields,
+    amount:
+      proposalDisplayAmount(fields)
+  };
+
+  const amount=
+    Number(candidate.amount||0);
+
+  if(!(amount>.009)){
+    return null;
+  }
+
+  /* The strict check first: it knows about transaction ids, cheque
+     numbers and cross-intake rules, and costs nothing to ask. */
+  const strict=
+    findDuplicatePayment(candidate);
+
+  if(strict){
+    return {existing:strict,amount};
+  }
+
+  /*
+   * Then the case the strict check cannot see: same money, same day,
+   * same family -- but one side has a student attached and the other
+   * only a payer name.
+   */
+  const day=
+    String(candidate.date||'').trim().slice(0,10);
+
+  if(!day){
+    return null;
+  }
+
+  const loose=
+    payments.find(existing=>{
+
+      if(existing.deleted){
+        return false;
+      }
+
+      if(
+        Math.abs(
+          Number(existing.amount||0)-amount
+        )>.009
+      ){
+        return false;
+      }
+
+      const existingDay=
+        String(
+          existing.date||existing.paymentDate||''
+        ).trim().slice(0,10);
+
+      if(existingDay!==day){
+        return false;
+      }
+
+      return vfPaymentsSamePartyLoose(candidate,existing);
+    });
+
+  return loose
+    ? {existing:loose,amount}
+    : null;
+}
+
+
 function vfDismissedNoticesFooter(){
 
   const count=
@@ -38824,6 +38984,51 @@ function renderReviews(force){
               review.incomplete
                 ? `<div class="vf-proposal-incomplete">VendorFlow couldn't fill in everything (${esc(review.incompleteReason||'some details are missing')}) -- use Edit and approve to fill in the rest.</div>`
                 : ''
+            }
+
+            ${
+              (()=>{
+
+                const duplicate=
+                  vfProposalDuplicateWarning(review);
+
+                if(!duplicate){
+                  return '';
+                }
+
+                /*
+                 * Deliberately does not block Approve. Two separate
+                 * payments of the same amount on the same day by the
+                 * same family are possible -- two children, two
+                 * invoices. Taking the decision away is how a real
+                 * payment goes missing.
+                 */
+                const when=
+                  esc(
+                    String(
+                      duplicate.existing.date ||
+                      duplicate.existing.paymentDate ||
+                      ''
+                    ).slice(0,10)
+                  );
+
+                return `
+                  <div class="vf-proposal-duplicate">
+                    <strong>You may already have this payment.</strong>
+                    ${esc(money(duplicate.amount))} from
+                    ${esc(
+                      duplicate.existing.payer ||
+                      duplicate.existing.student ||
+                      'this family'
+                    )}${when?` on ${when}`:''}
+                    is already recorded${
+                      duplicate.existing.method
+                        ? ` (${esc(duplicate.existing.method)})`
+                        : ''
+                    }. Approve only if this is a second, separate payment.
+                  </div>
+                `;
+              })()
             }
 
             ${
