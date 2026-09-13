@@ -8,9 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="styles.css?v=roster-dup-20260913-34">
+<link rel="stylesheet" href="styles.css?v=income-scope-20260913-35">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="modulepreload" href="app.js?v=roster-dup-20260913-34">
+  <link rel="modulepreload" href="app.js?v=income-scope-20260913-35">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA</div>
@@ -1899,9 +1899,18 @@ Thank you,
     <div class="row between">
       <div>
         <h2>Income</h2>
-        <p class="muted">Anything VendorFlow did not already record.</p>
+        <p class="muted">Money you earned outside your VendorFlow billing.</p>
       </div>
       <button id="addIncome" class="primary" type="button">Add income</button>
+    </div>
+
+    <div class="vf-scope-note">
+      <strong>Not for class or tutoring payments.</strong>
+      If you charged a family in VendorFlow, record what they paid under
+      <em>Payments/Charges</em> so it comes off their balance. Entering it
+      here instead counts the money twice and leaves them still owing you.
+      Use this page for income with no student behind it &mdash; workshops,
+      stipends, reimbursements, selling materials.
     </div>
 
     <div id="incomeForm" class="formgrid hidden vf-todo-form">
@@ -4152,5 +4161,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=roster-dup-20260913-34"></script>
+<script type="module" src="app.js?v=income-scope-20260913-35"></script>
 </body></html>

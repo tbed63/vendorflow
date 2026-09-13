@@ -11523,3 +11523,31 @@ table,
   display:block;
   margin-bottom:2px;
 }
+
+
+/* VF_SCOPE_NOTE */
+/* A warning, not a heading: small type, one short block, and no more
+   vertical space than the sentence needs. It has to be noticed by
+   somebody who is already reaching for the Add income button, so it
+   carries a colour -- but a caution, not an error, because nothing has
+   gone wrong yet. */
+.vf-scope-note{
+  margin:10px 0 4px;
+  padding:10px 13px;
+  border:1px solid #E8D2A0;
+  border-left:3px solid #B07A12;
+  border-radius:8px;
+  background:#FFFBF2;
+  color:#6B4A05;
+  font-size:13px;
+  line-height:1.55;
+}
+
+.vf-scope-note strong{
+  color:#5A3D04;
+}
+
+.vf-scope-note em{
+  font-style:normal;
+  font-weight:600;
+}
