@@ -8,9 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="styles.css?v=groups-20260913-25">
+<link rel="stylesheet" href="styles.css?v=labels-20260913-26">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="modulepreload" href="app.js?v=groups-20260913-25">
+  <link rel="modulepreload" href="app.js?v=labels-20260913-26">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA</div>
@@ -799,11 +799,11 @@ Thank you,
           </button>
         </div>
 
-      <div class="card hidden" id="groupRosterCard"><div class="row between"><div><h2>Current roster</h2></div><div><button id="addStudent" class="hidden">Add student manually</button></div></div><div id="studentForm" class="formgrid hidden"><input id="sf" class="input" placeholder="Student first name"><input id="sl" class="input" placeholder="Student last name"><input id="pn" class="input" placeholder="Parent / guardian"><input id="pe" class="input" type="email" placeholder="Parent email"><input id="pp" class="input" placeholder="Parent phone"><input id="sg" class="input" placeholder="Grade"><select id="ss" class="input">
+      <div class="card hidden" id="groupRosterCard"><div class="row between"><div><h2>Current roster</h2></div><div><button id="addStudent" class="hidden">Add student manually</button></div></div><div id="studentForm" class="formgrid hidden"><label class="vf-field-label"><span>First name</span><input id="sf" class="input"></label><label class="vf-field-label"><span>Last name</span><input id="sl" class="input"></label><label class="vf-field-label"><span>Parent / guardian</span><input id="pn" class="input"></label><label class="vf-field-label"><span>Parent email</span><input id="pe" class="input" type="email"></label><label class="vf-field-label"><span>Parent phone</span><input id="pp" class="input"></label><label class="vf-field-label"><span>Grade</span><input id="sg" class="input"></label><label class="vf-field-label"><span>Status</span><select id="ss" class="input">
 <option>Active</option>
 <option>Inactive</option>
 <option>Removed</option>
-</select>
+</select></label>
 <div id="studentStatusHelp" class="vf-student-status-help"></div>
 <button id="saveStudent" class="primary">Save student</button><button id="cancelStudent">Cancel</button></div><div id="rosterEmpty" class="empty">Choose a group.</div><div id="rosterWrap" class="tablewrap hidden"><table><thead><tr><th>Student</th><th>Parent</th><th>Email</th><th>Phone</th><th>Status</th><th>Grade</th><th>Action</th></tr></thead><tbody id="rosterBody"></tbody></table></div></div>
     
@@ -1607,7 +1607,7 @@ Thank you,
 <button id="addRefund" class="vf-refund-button">+ Refund</button>
 </div>
 
-</div></div><div id="paymentForm" class="formgrid hidden"><input id="payDate" class="input" type="date"><input id="payPayer" class="input" placeholder="Payer / parent"><div class="vf-student-search-wrap">
+</div></div><div id="paymentForm" class="formgrid hidden"><label class="vf-field-label"><span>Date received</span><input id="payDate" class="input" type="date"></label><label class="vf-field-label"><span>Payer / parent</span><input id="payPayer" class="input"></label><label class="vf-field-label"><span>Student</span><div class="vf-student-search-wrap">
   <input
     id="payStudent"
     class="input"
@@ -1617,7 +1617,7 @@ Thank you,
     id="payStudentMatches"
     class="vf-student-matches hidden"></div>
 
-</div><input id="payClass" class="input" placeholder="Group"><input id="payAmount" class="input" type="number" step=".01" placeholder="Amount"><select id="payMethod" class="input"><option>Venmo</option><option>Zelle</option><option>Cash</option><option>Check</option><option>Charter payment</option><option>Other</option></select><button id="savePayment" class="primary">Save payment</button></div>
+</div></label><label class="vf-field-label"><span>Group</span><input id="payClass" class="input"></label><label class="vf-field-label"><span>Amount</span><input id="payAmount" class="input" type="number" step=".01"></label><label class="vf-field-label"><span>How it was paid</span><select id="payMethod" class="input"><option>Venmo</option><option>Zelle</option><option>Cash</option><option>Check</option><option>Charter payment</option><option>Other</option></select></label><button id="savePayment" class="primary">Save payment</button></div>
 
 <div
   id="chargeForm"
@@ -1637,43 +1637,55 @@ Thank you,
 
   <div class="formgrid">
 
-    <input
-      id="chargeDate"
-      class="input"
-      type="date">
-
-    <div class="vf-student-search-wrap">
-
+    <label class="vf-field-label">
+      <span>Date</span>
       <input
-        id="chargeStudent"
+        id="chargeDate"
         class="input"
-        autocomplete="off"
-        placeholder="Start typing student or parent name">
+        type="date">
+    </label>
 
-      <div
-        id="chargeStudentMatches"
-        class="vf-student-matches hidden">
+    <label class="vf-field-label">
+      <span>Student</span>
+      <div class="vf-student-search-wrap">
+
+        <input
+          id="chargeStudent"
+          class="input"
+          autocomplete="off"
+          placeholder="Start typing student or parent name">
+
+        <div
+          id="chargeStudentMatches"
+          class="vf-student-matches hidden">
+        </div>
+
       </div>
+    </label>
 
-    </div>
-
-    <select
-      id="chargeService"
-      class="input">
+    <label class="vf-field-label">
+      <span>Service / group</span>
+      <select
+        id="chargeService"
+        class="input">
       <option value="">Choose service / group</option>
-    </select>
+      </select>
+    </label>
 
     <div
       id="chargeSessionWrap"
       class="vf-charge-session-wrap hidden">
 
-      <input
-        id="chargeSessions"
-        class="input"
-        type="number"
-        min="0"
-        step=".25"
-        placeholder="Sessions, e.g. 1 or 0.5">
+      <label class="vf-field-label">
+        <span>Sessions</span>
+        <input
+          id="chargeSessions"
+          class="input"
+          type="number"
+          min="0"
+          step=".25"
+          placeholder="e.g. 1 or 0.5">
+      </label>
 
       <div
         id="chargeSessionHint"
@@ -1682,18 +1694,22 @@ Thank you,
 
     </div>
 
-    <input
-      id="chargeAmount"
-      class="input"
-      type="number"
-      min="0"
-      step=".01"
-      placeholder="Charge amount">
+    <label class="vf-field-label">
+      <span>Amount</span>
+      <input
+        id="chargeAmount"
+        class="input"
+        type="number"
+        min="0"
+        step=".01">
+    </label>
 
-    <input
-      id="chargeNote"
-      class="input"
-      placeholder="Description / note">
+    <label class="vf-field-label">
+      <span>Description</span>
+      <input
+        id="chargeNote"
+        class="input">
+    </label>
 
   </div>
 
@@ -1732,49 +1748,65 @@ Thank you,
 
   <div class="formgrid">
 
-    <select
-      id="refundStudent"
-      class="input">
-      <option value="">Choose student</option>
-    </select>
+    <label class="vf-field-label">
+      <span>Student</span>
+      <select
+        id="refundStudent"
+        class="input">
+        <option value="">Choose student</option>
+      </select>
+    </label>
 
-    <input
-      id="refundDate"
-      class="input"
-      type="date">
+    <label class="vf-field-label">
+      <span>Refund date</span>
+      <input
+        id="refundDate"
+        class="input"
+        type="date">
+    </label>
 
-    <input
-      id="refundAmount"
-      class="input"
-      type="number"
-      min="0"
-      step=".01"
-      placeholder="Refund amount">
+    <label class="vf-field-label">
+      <span>Amount</span>
+      <input
+        id="refundAmount"
+        class="input"
+        type="number"
+        min="0"
+        step=".01">
+    </label>
 
-    <select
-      id="refundMethod"
-      class="input">
+    <label class="vf-field-label">
+      <span>How it was refunded</span>
+      <select
+        id="refundMethod"
+        class="input">
       <option>Venmo</option>
       <option>Zelle</option>
       <option>Cash</option>
       <option>Check</option>
       <option>Other</option>
-    </select>
+      </select>
+    </label>
 
-    <select
-      id="refundReason"
-      class="input">
+    <label class="vf-field-label">
+      <span>Reason</span>
+      <select
+        id="refundReason"
+        class="input">
       <option>Overpayment</option>
       <option>Group withdrawal</option>
       <option>Duplicate payment</option>
       <option>Vendor adjustment</option>
       <option>Other</option>
-    </select>
+      </select>
+    </label>
 
-    <input
-      id="refundNote"
-      class="input"
-      placeholder="Optional note">
+    <label class="vf-field-label">
+      <span>Note (optional)</span>
+      <input
+        id="refundNote"
+        class="input">
+    </label>
 
   </div>
 
@@ -4049,5 +4081,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=groups-20260913-25"></script>
+<script type="module" src="app.js?v=labels-20260913-26"></script>
 </body></html>
