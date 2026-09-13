@@ -27713,6 +27713,407 @@ $('#saveService').onclick=async()=>{
    Roster → core student/service synchronization
    ---------------------------------------------------------- */
 
+/* ==========================================================
+   FORWARDED CLASS ROSTERS
+   ========================================================== */
+
+/*
+ * Homeschool-Life "Updated Class Roster" emails render to a rigid
+ * plain-text shape, which is why this is parsed properly rather than
+ * guessed at:
+ *
+ *     Conroy, Myla & Dylan          <- family, "Last, ParentA & ParentB"
+ *     mylaconroy@gmail.com          <- parent email
+ *     3107339979 <(310)%20733-9979> Tennyson Conroy (10) 8/9/26 ...
+ *     ^ phone     ^ same phone      ^ student   ^ age   ^ registered
+ *
+ * A family with two children appears twice, once per child.
+ *
+ * The asterisks the email puts around rows "changed in the past day"
+ * are read but NOT trusted to decide what changed: a roster forwarded
+ * late highlights nothing, and a re-sent one highlights rows that are
+ * not new here. The comparison below is against what VendorFlow holds.
+ */
+
+const VF_ROSTER_STUDENT_LINE=
+  /^(\d{10})\s*<[^>]*>\s*(.+?)\s*\((\d{1,2})\)\s*(.*)$/;
+
+const VF_ROSTER_EMAIL_ONLY=
+  /^([\w.+-]+@[\w-]+\.[a-zA-Z]{2,})$/;
+
+/* A student's own address shares a line with the registration dates. */
+const VF_ROSTER_EMAIL_THEN_DATES=
+  /^([\w.+-]+@[\w-]+\.[a-zA-Z]{2,})\s+\d{1,2}\/\d{1,2}\/\d{2,4}\b.*$/;
+
+
+function vfRosterEmailOnLine(line){
+
+  const text=String(line||'').trim();
+
+  const match=
+    VF_ROSTER_EMAIL_ONLY.exec(text) ||
+    VF_ROSTER_EMAIL_THEN_DATES.exec(text);
+
+  return match ? match[1] : '';
+}
+
+
+function vfRosterPhone(raw){
+
+  const digits=
+    String(raw||'').replace(/\D/g,'');
+
+  return digits.length===10
+    ? `${digits.slice(0,3)}-${digits.slice(3,6)}-${digits.slice(6)}`
+    : '';
+}
+
+
+function vfRosterFamilyLine(line){
+
+  const original=String(line||'').trim();
+
+  const clean=
+    original.replace(/^\*+|\*+$/g,'').trim();
+
+  const comma=clean.indexOf(',');
+
+  if(comma<0){
+    return null;
+  }
+
+  const surname=clean.slice(0,comma).trim();
+  const parents=clean.slice(comma+1).trim();
+
+  if(!surname || !parents){
+    return null;
+  }
+
+  return {
+    surname,
+    parents,
+    highlighted:/^\*.*\*$/.test(original)
+  };
+}
+
+
+function vfRosterStudentLine(line){
+
+  const match=
+    VF_ROSTER_STUDENT_LINE.exec(String(line||'').trim());
+
+  if(!match){
+    return null;
+  }
+
+  const name=
+    String(match[2]||'').replace(/\s+/g,' ').trim();
+
+  /* A student name is at least two words -- keeps the header row and
+     any stray line carrying ten digits out of the roster. */
+  if(name.split(' ').length<2){
+    return null;
+  }
+
+  return {
+    phone:vfRosterPhone(match[1]),
+    studentName:name,
+    age:Number(match[3])
+  };
+}
+
+
+function vfParseRosterEmail(text){
+
+  const raw=String(text||'');
+
+  const empty={
+    isRoster:false,
+    className:'',
+    signedUp:null,
+    students:[]
+  };
+
+  /* All three markers, so an ordinary email that happens to say
+     "roster" is never parsed as one. */
+  if(
+    !/updated class roster/i.test(raw) ||
+    !/\bclass:/i.test(raw) ||
+    !/\bsigned up\b/i.test(raw)
+  ){
+    return empty;
+  }
+
+  const lines=raw.split(/\r?\n/);
+
+  /* The class name wraps across lines; gather until a line that is
+     plainly the next field. */
+  let className='';
+
+  for(let i=0;i<lines.length;i++){
+
+    const match=
+      /^class:\s*(.*)$/i.exec(lines[i].trim());
+
+    if(!match){
+      continue;
+    }
+
+    const parts=[match[1].trim()];
+
+    for(let j=i+1;j<lines.length;j++){
+
+      const next=lines[j].trim();
+
+      if(!next) break;
+      if(/^(mon|tue|wed|thu|fri|sat|sun)/i.test(next)) break;
+      if(/^\d{1,2}:\d{2}\s*(am|pm)/i.test(next)) break;
+      if(/^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(next)) break;
+
+      parts.push(next);
+    }
+
+    className=
+      parts.join(' ')
+        .replace(/\s+/g,' ')
+        .replace(/\s*-\s*$/,'')
+        .trim();
+
+    break;
+  }
+
+  const signedUpMatch=
+    /(\d+)\s+Signed\s+Up/i.exec(raw);
+
+  const students=[];
+  let family=null;
+  let parentEmail='';
+
+  for(const rawLine of lines){
+
+    const line=rawLine.trim();
+
+    if(!line) continue;
+
+    const address=vfRosterEmailOnLine(line);
+
+    if(address){
+
+      /* First address under a family is the parent's; a later one
+         belongs to the student who was just read. */
+      if(family && !parentEmail){
+        parentEmail=address;
+      }else if(students.length){
+        students[students.length-1].studentEmail=address;
+      }
+
+      continue;
+    }
+
+    const student=vfRosterStudentLine(line);
+
+    if(student){
+
+      if(family){
+        students.push({
+          studentName:student.studentName,
+          age:student.age,
+          familySurname:family.surname,
+          parentNames:family.parents,
+          parentEmail,
+          parentPhone:student.phone,
+          studentEmail:'',
+          highlighted:family.highlighted
+        });
+      }
+
+      continue;
+    }
+
+    const nextFamily=vfRosterFamilyLine(line);
+
+    if(nextFamily){
+      family=nextFamily;
+      parentEmail='';
+    }
+  }
+
+  return {
+    isRoster:true,
+    className,
+    signedUp:
+      signedUpMatch ? Number(signedUpMatch[1]) : null,
+    students
+  };
+}
+
+
+/*
+ * Roster rows in the shape syncRosterToCoreRecords() already expects.
+ * Grade is deliberately blank: the email gives an age, and turning an
+ * age into a grade is a guess that would be stored as a fact.
+ */
+function vfRosterRowsFromParsed(parsed){
+
+  return (parsed.students||[]).map(entry=>{
+
+    const parts=
+      String(entry.studentName||'').split(' ');
+
+    return {
+      studentName:entry.studentName,
+      studentFirst:parts[0]||entry.studentName,
+      studentLast:parts.slice(1).join(' '),
+      parentName:
+        [entry.parentNames,entry.familySurname]
+          .filter(Boolean).join(' ').trim(),
+      parentEmail:entry.parentEmail||'',
+      parentPhone:entry.parentPhone||'',
+      grade:'',
+      age:entry.age,
+      studentEmail:entry.studentEmail||'',
+      status:'Active',
+      source:'Roster email'
+    };
+  });
+}
+
+
+/*
+ * What changed, against the enrolment VendorFlow holds for one group.
+ * Returns a proposal; applies nothing.
+ */
+function vfRosterDiff(parsed,enrolment){
+
+  const result={
+    usable:false,
+    reason:'',
+    additions:[],
+    departures:[],
+    unchanged:0
+  };
+
+  if(!parsed || !parsed.isRoster){
+    result.reason='This email is not a class roster.';
+    return result;
+  }
+
+  const rows=vfRosterRowsFromParsed(parsed);
+
+  /*
+   * The roster states its own size. If the parse disagrees, something
+   * was missed, and proposing from a half-read roster would suggest
+   * dropping every student it failed to read.
+   */
+  if(
+    typeof parsed.signedUp==='number' &&
+    parsed.signedUp!==rows.length
+  ){
+    result.reason=
+      `This roster says ${parsed.signedUp} students are signed up, but `+
+      `VendorFlow could only read ${rows.length}. It will not suggest `+
+      `changes from a roster it did not fully understand.`;
+    return result;
+  }
+
+  if(!rows.length){
+    result.reason='No students could be read from this roster.';
+    return result;
+  }
+
+  const current=
+    (enrolment||[]).filter(
+      entry=>
+        String(entry.status||'Active').toLowerCase()!=='dropped'
+    );
+
+  const currentByName=
+    new Map(
+      current.map(
+        entry=>[normalizedName(entry.studentName),entry]
+      )
+    );
+
+  const emailByName=
+    new Map(
+      rows.map(row=>[normalizedName(row.studentName),row])
+    );
+
+  rows.forEach(row=>{
+    if(currentByName.has(normalizedName(row.studentName))){
+      result.unchanged+=1;
+    }else{
+      result.additions.push(row);
+    }
+  });
+
+  current.forEach(entry=>{
+
+    if(emailByName.has(normalizedName(entry.studentName))){
+      return;
+    }
+
+    const core=
+      students.find(
+        candidate=>
+          normalizedName(candidate.studentName)===
+          normalizedName(entry.studentName)
+      );
+
+    result.departures.push({
+      id:entry.id,
+      studentName:entry.studentName,
+      balance:
+        core
+          ? Number(studentAccountTotals(core).parentBalance||0)
+          : 0
+    });
+  });
+
+  result.usable=true;
+  return result;
+}
+
+
+/*
+ * Best guess at which group a roster belongs to, by shared words.
+ * Only ever pre-selects the picker -- the vendor confirms the group
+ * before seeing any proposal, because applying a roster to the wrong
+ * group would proceed to "drop" everyone in it.
+ */
+function vfRosterGuessClass(className){
+
+  const words=
+    String(className||'')
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter(word=>word.length>2);
+
+  if(!words.length){
+    return null;
+  }
+
+  let best=null;
+  let bestScore=0;
+
+  classes.forEach(record=>{
+
+    const target=
+      String(record.name||'').toLowerCase();
+
+    const score=
+      words.filter(word=>target.includes(word)).length;
+
+    if(score>bestScore){
+      bestScore=score;
+      best=record;
+    }
+  });
+
+  return bestScore>=2 ? best : null;
+}
+
+
 async function syncRosterToCoreRecords(
   classRecord,
   rosterRows
