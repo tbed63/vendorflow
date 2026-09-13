@@ -8,9 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="styles.css?v=dup-method-20260913-14">
+<link rel="stylesheet" href="styles.css?v=settings-density-20260913-15">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="modulepreload" href="app.js?v=dup-method-20260913-14">
+  <link rel="modulepreload" href="app.js?v=settings-density-20260913-15">
 </head>
 <body>
 <div id="vfPreviewBanner" style="position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200000;background:#f2b84b;color:#172337;border-radius:999px;padding:6px 14px;font:800 12px/1.2 Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.2);">BETA</div>
@@ -3474,74 +3474,20 @@ Thank you,
 
       <div class="card narrow">
 
-        <div class="eyebrow">
-          VendorFlow account
-        </div>
+        <h2>Business Settings</h2>
 
-        <h2>
-          Account & Settings
-        </h2>
-
-        <p>
-          Review and update the information VendorFlow uses
-          for your business.
+        <p class="vf-settings-facts">
+          <span id="accountSubscription">VendorFlow Beta</span>
+          <span class="vf-settings-sep" aria-hidden="true">&middot;</span>
+          <span id="accountEmail"></span>
         </p>
-
-
-        <div class="vf-account-readonly-grid">
-
-          <div class="vf-account-field">
-            <small>Subscription</small>
-            <strong id="accountSubscription">
-              VendorFlow Beta
-            </strong>
-          </div>
-
-          <div class="vf-account-field">
-            <small>Login email</small>
-            <strong id="accountEmail"></strong>
-          </div>
-
-        </div>
-
-
-        <div class="vf-account-checklist-row">
-
-          <div>
-            <strong>Setup checklist</strong>
-            <small>
-              Bring it back if you removed it.
-            </small>
-          </div>
-
-          <button
-            type="button"
-            id="vfShowSetupChecklist"
-            class="vf-secondary-button">
-            Show checklist
-          </button>
-
-        </div>
 
 
 
 
         <div class="vf-inbound-email-card">
 
-          <div class="eyebrow">
-            Your VendorFlow email
-          </div>
-
-          <h3>
-            Send or forward business messages here
-          </h3>
-
-          <p>
-            Save this address in your contacts as
-            <strong>VendorFlow</strong>.
-            Use it for certificates, student changes,
-            payment updates, and other VendorFlow business.
-          </p>
+          <h3>Your VendorFlow address</h3>
 
           <div class="vf-inbound-email-row">
 
@@ -3566,7 +3512,7 @@ Thank you,
           </div>
 
           <small>
-            This address is unique to your VendorFlow account.
+            Forward certificates, student changes and payment updates here.
           </small>
 
         </div>
@@ -3574,7 +3520,7 @@ Thank you,
 
         <div class="vf-account-edit-grid">
 
-          <label>
+          <label class="vf-fld-3">
             <span>Vendor / owner</span>
             <input
               id="accountOwnerInput"
@@ -3582,7 +3528,7 @@ Thank you,
               placeholder="Vendor / owner name">
           </label>
 
-          <label>
+          <label class="vf-fld-3">
             <span>Business name</span>
             <input
               id="accountBusinessInput"
@@ -3598,7 +3544,7 @@ Thank you,
               placeholder="Street address">
           </label>
 
-          <label>
+          <label class="vf-fld-2">
             <span>City</span>
             <input
               id="accountCityInput"
@@ -3606,7 +3552,7 @@ Thank you,
               placeholder="City">
           </label>
 
-          <label>
+          <label class="vf-fld-1">
             <span>State</span>
             <input
               id="accountStateInput"
@@ -3614,7 +3560,7 @@ Thank you,
               placeholder="State">
           </label>
 
-          <label>
+          <label class="vf-fld-1">
             <span>ZIP</span>
             <input
               id="accountZipInput"
@@ -3622,7 +3568,7 @@ Thank you,
               placeholder="ZIP">
           </label>
 
-          <label>
+          <label class="vf-fld-2">
             <span>Business phone</span>
             <input
               id="accountPhoneInput"
@@ -3636,45 +3582,44 @@ Thank you,
         <button
           id="saveAccountInfo"
           class="primary">
-          Save account information
+          Save changes
         </button>
 
 
         <hr>
 
 
-        <div class="vf-account-actions">
+        <div class="vf-settings-rows">
 
-          <div>
-            <strong>Password</strong>
-            <p>
-              VendorFlow will email a secure password-reset link
-              to your login email.
-            </p>
+          <div class="vf-settings-row">
+            <span>Password</span>
+            <button
+              type="button"
+              id="accountResetPassword"
+              class="vf-secondary-button">
+              Reset password
+            </button>
           </div>
 
-          <button
-            id="accountResetPassword"
-            class="primary">
-            Reset password
-          </button>
-
-        </div>
-
-
-        <div class="vf-account-actions">
-
-          <div>
-            <strong>More business information</strong>
-            <p>
-              Manage learning centers and other business details.
-            </p>
+          <div class="vf-settings-row">
+            <span>Business profile</span>
+            <button
+              type="button"
+              id="accountEditBusiness"
+              class="vf-secondary-button">
+              Open
+            </button>
           </div>
 
-          <button
-            id="accountEditBusiness">
-            Open Business Profile
-          </button>
+          <div class="vf-settings-row">
+            <span>Setup checklist</span>
+            <button
+              type="button"
+              id="vfShowSetupChecklist"
+              class="vf-secondary-button">
+              Show
+            </button>
+          </div>
 
         </div>
 
@@ -4138,5 +4083,5 @@ Thank you,
 </div>
 
 
-<script type="module" src="app.js?v=dup-method-20260913-14"></script>
+<script type="module" src="app.js?v=settings-density-20260913-15"></script>
 </body></html>

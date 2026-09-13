@@ -10937,3 +10937,127 @@ table,
   text-transform:uppercase;
   color:var(--muted);
 }
+
+
+/* VF_SETTINGS_DENSITY */
+/* Settings, saying the same things in a quarter of the space. */
+
+/* The two facts that used to need two boxes. Stated once, quietly,
+   because one of them is already in the corner of every page. */
+.vf-settings-facts{
+  margin:2px 0 22px;
+  color:var(--muted);
+  font-size:13px;
+}
+
+.vf-settings-sep{
+  margin:0 8px;
+  opacity:.55;
+}
+
+/* The card's heading is a heading again, and the address is the
+   biggest thing in it, because the address is the point of it. */
+.vf-inbound-email-card{
+  margin:0 0 22px;
+  padding:16px 18px;
+  border-color:var(--line);
+  background:var(--surface,#F7F9FC);
+}
+
+.vf-inbound-email-card h3{
+  margin:0 0 10px;
+  font-family:var(--display);
+  font-size:14px;
+  font-weight:700;
+  color:var(--ink);
+}
+
+.vf-inbound-email-row{
+  margin-bottom:8px;
+  padding:10px 12px;
+  border-color:var(--line);
+}
+
+.vf-inbound-email-row strong{
+  font-size:17px;
+  font-weight:700;
+}
+
+.vf-inbound-email-card > small{
+  color:var(--muted);
+}
+
+/* A field as wide as what it holds. State is two letters and should
+   never have been as wide as Business name. */
+.vf-account-edit-grid{
+  grid-template-columns:repeat(6,1fr);
+  gap:12px 14px;
+  margin:0 0 16px;
+}
+
+.vf-account-edit-grid .vf-fld-3{grid-column:span 3;}
+.vf-account-edit-grid .vf-fld-2{grid-column:span 2;}
+.vf-account-edit-grid .vf-fld-1{grid-column:span 1;}
+
+.vf-account-edit-grid label > span{
+  font-family:var(--display);
+  font-size:10.5px;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+
+/* Three blocks, each with a sentence explaining its own button,
+   become three rows. */
+.vf-settings-rows{
+  margin-top:26px;
+  border-top:1px solid var(--line);
+}
+
+.vf-settings-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding:11px 0;
+  border-bottom:1px solid var(--line);
+}
+
+.vf-settings-row > span{
+  font-weight:600;
+  color:var(--ink);
+}
+
+.vf-settings-row button{
+  flex:0 0 auto;
+}
+
+/* Restated, not inherited -- see the note above this block. */
+@media(max-width:700px){
+
+  .vf-account-edit-grid{
+    grid-template-columns:repeat(2,1fr);
+  }
+
+  .vf-account-edit-grid .vf-fld-3,
+  .vf-account-edit-grid .vf-fld-2{
+    grid-column:span 2;
+  }
+
+  .vf-account-edit-grid .vf-fld-1{
+    grid-column:span 1;
+  }
+
+  /* A row is still a row on a phone: a short label and a small
+     button sit side by side perfectly well. */
+  .vf-settings-row{
+    padding:12px 0;
+  }
+}
+
+@media(max-width:650px){
+
+  .vf-inbound-email-row strong{
+    font-size:15px;
+  }
+}
