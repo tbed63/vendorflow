@@ -9352,6 +9352,47 @@ function renderCertificateCharterOptions(){
    three numbers always describe the same roster.
 */
 
+/*
+ * Certificates received and not yet billed to the charter school.
+ *
+ * Money the vendor is holding and has not asked for. Keyed on the same
+ * status certificateIsInvoiceReady() uses, so this tile and the
+ * invoicing flow can never disagree about what "not billed" means.
+ */
+function vfCertificateValueNotInvoiced(){
+
+  return certs
+    .filter(cert=>
+      !cert.deleted &&
+      String(cert.status||'').trim()==='Received - Not Billed'
+    )
+    .reduce(
+      (sum,cert)=>
+        sum+Number(cert.amount||0),
+      0
+    );
+}
+
+
+/*
+ * Invoices sent to a charter school and not yet paid.
+ *
+ * Deliberately NOT counting "Ready to Send". An invoice waiting to be
+ * sent is a different job -- Notifications already raises those -- and
+ * counting it here would say a school is late paying for something it
+ * has never been shown.
+ */
+function vfUnpaidInvoiceCount(){
+
+  return invoices
+    .filter(invoice=>
+      !invoice.deleted &&
+      invoiceStatus(invoice)==='Sent'
+    )
+    .length;
+}
+
+
 function vfPortfolioBalances(){
 
   let owed=0;
@@ -9388,33 +9429,114 @@ function vfPortfolioBalances(){
 }
 
 
+/*
+ * What each number on the dashboard actually counts.
+ *
+ * These exist because Tim asked the right question of the old tiles --
+ * "what does this include?" -- and the labels had no answer. A number
+ * about somebody's money that cannot explain itself is not worth
+ * showing.
+ */
+const VF_STAT_EXPLANATIONS={
+
+  behind:
+    'Families who still owe you money, counted after everything they '+
+    'have paid and after every charter certificate they have handed in '+
+    'has been credited to them. Late fees you have charged are included. '+
+    'A family who covered their whole bill with a certificate does not '+
+    'appear here.',
+
+  notinvoiced:
+    'Charter certificates you have received but have not yet billed the '+
+    'charter school for. This is money you are holding that you have not '+
+    'asked anybody for yet.',
+
+  unpaid:
+    'Invoices you have sent to charter schools that have not been paid '+
+    'yet. Invoices still waiting to be sent are not counted here -- '+
+    'those show up in Notifications instead.',
+
+  credit:
+    'Families who have paid more than they have been charged, in money '+
+    'or in certificates. This is sitting on their account. It is not '+
+    'yours to count as earned, and it is not subtracted from what other '+
+    'families owe.'
+};
+
+
+function wireDashboardStatInfo(){
+
+  $$('[data-stat-info]').forEach(button=>{
+
+    button.onclick=event=>{
+
+      /*
+       * The tile behind this button navigates. Without this, asking
+       * what a number means would send you to another page instead of
+       * answering.
+       */
+      event.stopPropagation();
+      event.preventDefault();
+
+      const panel=$('#vfStatExplainer');
+
+      if(!panel){
+        return;
+      }
+
+      const key=button.dataset.statInfo;
+
+      const text=
+        VF_STAT_EXPLANATIONS[key]||'';
+
+      /* Clicking the same one again closes it. */
+      const alreadyOpen=
+        panel.dataset.openFor===key &&
+        !panel.classList.contains('hidden');
+
+      if(alreadyOpen || !text){
+        panel.classList.add('hidden');
+        panel.dataset.openFor='';
+        return;
+      }
+
+      panel.textContent=text;
+      panel.dataset.openFor=key;
+      panel.classList.remove('hidden');
+    };
+  });
+}
+
+
 function wireDashboardStatCards(){
 
   const cards=[
     {
-      value:'#statOwed',
+      value:'#statBehind',
       view:'students',
       chip:'balance',
-      title:'See every family with a balance'
+      title:'See every family who still owes you'
+    },
+    {
+      value:'#statNotInvoiced',
+      view:'certificates',
+      title:'Open Certificates'
+    },
+    {
+      value:'#statUnpaidInvoices',
+      view:'invoices',
+      title:'Open Invoices'
     },
     {
       value:'#statCredit',
       view:'students',
       chip:'credit',
       title:'See every family holding a credit'
-    },
-    {
-      value:'#statStudents',
-      view:'students',
-      title:'Open Students & Services'
-    },
-    {
-      value:'#statHistory',
-      view:'history',
-      title:'Open VendorFlow Actions'
     }
   ];
 
+
+  wireDashboardStatInfo();
 
   cards.forEach(item=>{
 
@@ -9526,29 +9648,28 @@ function renderDashboard(){
   const balances=
     vfPortfolioBalances();
 
-  const owedTile=$('#statOwed');
+  const tiles={
+    statBehind:
+      String(balances.owedFamilies),
 
-  if(owedTile){
-    owedTile.textContent=
-      money(balances.owed);
+    statNotInvoiced:
+      money(vfCertificateValueNotInvoiced()),
+
+    statUnpaidInvoices:
+      String(vfUnpaidInvoiceCount()),
+
+    statCredit:
+      money(balances.credit)
+  };
+
+  for(const [id,value] of Object.entries(tiles)){
+
+    const tile=document.getElementById(id);
+
+    if(tile){
+      tile.textContent=value;
+    }
   }
-
-  const creditTile=$('#statCredit');
-
-  if(creditTile){
-    creditTile.textContent=
-      money(balances.credit);
-  }
-
-
-  $('#statStudents').textContent=
-    students.filter(
-      studentVisibleInServices
-    ).length;
-
-
-  $('#statHistory').textContent=
-    history.length;
 
 
   $('#reviewBadge').textContent=

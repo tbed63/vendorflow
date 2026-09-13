@@ -11120,3 +11120,149 @@ table,
     grid-column:span 1;
   }
 }
+
+
+/* VF_MY_STATS */
+/* The top of the dashboard, smaller. It was a 188px hero with a 28px
+   heading and a 38px counter, over four 112px tiles each capped with a
+   4px navy bar. Four thick bars across the top of a page is decoration,
+   not information. */
+
+.hero{
+  min-height:0;
+  padding:20px 24px;
+  border-radius:16px;
+  box-shadow:none;
+}
+
+.hero h2{
+  font-size:19px;
+  margin-bottom:8px;
+}
+
+.hero p{
+  font-size:13px;
+  line-height:1.5;
+}
+
+.vf-attention-number strong{
+  font-size:26px;
+}
+
+.vf-attention-number span{
+  font-size:10px;
+}
+
+/* "My Stats" sits to the left of the row rather than above it, so the
+   label costs no vertical space at all. */
+.stats{
+  display:flex;
+  align-items:center;
+  gap:16px;
+  margin:16px 0 10px;
+}
+
+.vf-stats-heading{
+  flex:0 0 auto;
+  width:74px;
+  margin:0;
+  font-family:var(--display);
+  font-size:13px;
+  font-weight:800;
+  line-height:1.2;
+  letter-spacing:-.01em;
+  color:var(--ink);
+}
+
+.vf-stats-tiles{
+  flex:1 1 auto;
+  min-width:0;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+}
+
+.stat{
+  min-height:0;
+  padding:11px 13px;
+  border:1px solid var(--line);
+  border-top:1px solid var(--line);
+  border-radius:10px;
+  box-shadow:none;
+  gap:3px;
+}
+
+.stat span{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  font-size:10.5px;
+  font-weight:700;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+
+.stat strong{
+  font-size:21px;
+  letter-spacing:-.02em;
+}
+
+/* The button that answers "what is in this number?" */
+.vf-stat-info{
+  flex:0 0 auto;
+  width:14px;
+  height:14px;
+  padding:0;
+  border:1px solid var(--line);
+  border-radius:50%;
+  background:#fff;
+  color:var(--muted);
+  font-family:var(--display);
+  font-size:9px;
+  font-weight:800;
+  line-height:1;
+  font-style:italic;
+  cursor:help;
+}
+
+.vf-stat-info:hover,
+.vf-stat-info:focus-visible{
+  border-color:var(--navy);
+  color:var(--navy);
+}
+
+.vf-stat-explainer{
+  margin:0 0 16px 90px;
+  padding:10px 13px;
+  border:1px solid var(--line);
+  border-left:3px solid var(--navy);
+  border-radius:8px;
+  background:var(--surface,#F7F9FC);
+  color:var(--ink);
+  font-size:12.5px;
+  line-height:1.55;
+}
+
+/* Restated, not inherited: this block lands after the file's own
+   small-screen rules, so without these the row would stay four across
+   on a phone. */
+@media(max-width:700px){
+
+  .stats{
+    display:block;
+  }
+
+  .vf-stats-heading{
+    width:auto;
+    margin:0 0 8px;
+  }
+
+  .vf-stats-tiles{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .vf-stat-explainer{
+    margin-left:0;
+  }
+}
