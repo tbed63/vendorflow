@@ -28164,6 +28164,56 @@ let vfRosterReviewState=null;
  * never review.itemType, which is exactly what got this wrong: the
  * worker calls these charges.
  */
+/*
+ * The words the review itself kept, with no fetch involved.
+ *
+ * Not the classification -- not itemType, proposedType or reviewType.
+ * Those are a guess ABOUT the email, and that guess is what announced a
+ * roster as a charge against a family picked off the list. These are
+ * the email's own subject and text, copied onto the review when it was
+ * written.
+ */
+function vfReviewOwnText(review){
+
+  return [
+    review?.subject,
+    review?.title,
+    review?.aiSummary,
+    review?.detail
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+
+/*
+ * A Homeschool-Life roster subject ends "- Updated Class Roster". The
+ * full three-marker test needs the body, which is why this one is only
+ * ever used to decide what a CARD says: nothing is compared and no
+ * change is proposed until vfOpenRosterReview() has the real email.
+ */
+function vfLooksLikeRosterText(text){
+
+  return /updated\s+class\s+roster/i.test(
+    String(text||'')
+  );
+}
+
+
+/*
+ * The roster behind a review, or null.
+ *
+ * Reads the stored email whenever it is loaded -- that is the real
+ * test, and it gives the class name and the student count. But the
+ * inbox is usually NOT loaded when Notifications first draws, and the
+ * re-render that follows the fetch is held back whenever anything in
+ * the list looks part-way edited (the certificate card opens its own
+ * editor when it has no student matched, which is enough). The first,
+ * wrong render was the one that stayed on screen.
+ *
+ * So when the email is not to hand, the review's own subject answers
+ * it. message and parsed are then null and the card says less.
+ */
 function vfReviewRosterEmail(review){
 
   const emailId=
@@ -28176,17 +28226,22 @@ function vfReviewRosterEmail(review){
   const message=
     inboundInboxMessages.find(
       item=>String(item.id||'')===emailId
-    );
+    ) || null;
 
-  if(!message){
-    return null;
+  if(message){
+
+    const parsed=
+      vfParseRosterEmail(message.bodyText||'');
+
+    return parsed.isRoster
+      ? {emailId,message,parsed}
+      : null;
   }
 
-  const parsed=
-    vfParseRosterEmail(message.bodyText||'');
-
-  return parsed.isRoster
-    ? {message,parsed}
+  return vfLooksLikeRosterText(
+    vfReviewOwnText(review)
+  )
+    ? {emailId,message:null,parsed:null}
     : null;
 }
 
@@ -29673,14 +29728,21 @@ function findDuplicatePayment(candidate){
 }
 
 
+/* The obligation types that are a charge for something delivered, as
+   opposed to tuition or a fee. Shared so the strict duplicate check and
+   the warning shown on a proposal can never disagree about what counts. */
+const VF_CHARGE_OBLIGATION_TYPES=
+  new Set([
+    'Charge for service rendered',
+    'Tutoring session',
+    'Manual charge'
+  ]);
+
+
 function findDuplicateCharge(candidate){
 
   const chargeTypeObligations=
-    new Set([
-      'Charge for service rendered',
-      'Tutoring session',
-      'Manual charge'
-    ]);
+    VF_CHARGE_OBLIGATION_TYPES;
 
   const studentId=
     String(candidate.studentId||'').trim();
@@ -37732,7 +37794,7 @@ function inboundReviewActionsHTML(
         <button
           type="button"
           class="primary"
-          data-roster-review="${esc(rosterBehind.message.id)}">
+          data-roster-review="${esc(rosterBehind.emailId)}">
           Review roster update
         </button>
         <button
@@ -38605,11 +38667,7 @@ function vfPaymentsSamePartyLoose(a,b){
  * Asked with the fields Approve would actually send, so the thing
  * checked is the thing that would be created.
  */
-function vfProposalDuplicateWarning(review){
-
-  if(review?.itemType!=='payment'){
-    return null;
-  }
+function vfProposalDuplicatePayment(review){
 
   const fields=
     review.proposalFields || {};
@@ -38633,7 +38691,7 @@ function vfProposalDuplicateWarning(review){
     findDuplicatePayment(candidate);
 
   if(strict){
-    return {existing:strict,amount};
+    return vfDuplicateWarningText('payment',strict,amount);
   }
 
   /*
@@ -38676,8 +38734,411 @@ function vfProposalDuplicateWarning(review){
     });
 
   return loose
-    ? {existing:loose,amount}
+    ? vfDuplicateWarningText('payment',loose,amount)
     : null;
+}
+
+
+/*
+ * Is this proposed charge one the student already has?
+ *
+ * findDuplicateCharge() has always been able to answer this. It was
+ * only ever asked by the session form inside the app, which an emailed
+ * charge does not use -- so a forwarded session email could be approved
+ * on top of the identical charge with nothing said.
+ */
+function vfProposalDuplicateCharge(review){
+
+  const fields=
+    review.proposalFields || {};
+
+  const amount=
+    Number(
+      proposalDisplayAmount(fields) || 0
+    );
+
+  if(!(amount>.009)){
+    return null;
+  }
+
+  const studentId=
+    String(fields.studentId||'').trim();
+
+  const day=
+    String(fields.date||'').trim().slice(0,10);
+
+  if(!studentId){
+    return null;
+  }
+
+  /* The proposal names the service by id; the duplicate check compares
+     names, because that is what an obligation stores. */
+  const service=
+    services.find(
+      sv=>sv.id===String(fields.serviceId||'').trim()
+    );
+
+  const className=
+    fields.className ||
+    fields.serviceName ||
+    service?.name ||
+    service?.className ||
+    '';
+
+  /*
+   * No date at all. The extractor sometimes writes it into the summary
+   * sentence -- "Add a tutoring session to Isabella Hunt for $80 on
+   * 8/27" -- and leaves the field empty, and both duplicate checks key
+   * on the date, so a charge like that was compared against nothing.
+   *
+   * Match on what it does have instead, and let the warning say when
+   * the one already on the books was. The service has to be named on
+   * both sides: "this student owes $80 for something" describes too
+   * much to be worth saying.
+   */
+  if(!day){
+
+    if(!className){
+      return null;
+    }
+
+    const undated=
+      obligations.find(existing=>{
+
+        if(existing.deleted){
+          return false;
+        }
+
+        if(
+          !VF_CHARGE_OBLIGATION_TYPES.has(
+            existing.obligationType
+          )
+        ){
+          return false;
+        }
+
+        if(
+          String(existing.studentId||'').trim()!==studentId
+        ){
+          return false;
+        }
+
+        if(
+          Math.abs(
+            Number(existing.amount||0)-amount
+          )>.009
+        ){
+          return false;
+        }
+
+        return normalizeDuplicateKey(
+          existing.className ||
+          existing.serviceName ||
+          ''
+        )===normalizeDuplicateKey(className);
+      });
+
+    return undated
+      ? vfDuplicateWarningText('charge',undated,amount)
+      : null;
+  }
+
+  const strict=
+    findDuplicateCharge({
+      ...fields,
+      className,
+      amount,
+      date:fields.date
+    });
+
+  if(strict){
+    return vfDuplicateWarningText('charge',strict,amount);
+  }
+
+  /*
+   * Then the same charge under a different service name. A resent
+   * session email, or one the vendor pointed at a different group while
+   * editing, differs by exactly that and by nothing else that matters:
+   * same student, same day, same money.
+   */
+  const loose=
+    obligations.find(existing=>{
+
+      if(existing.deleted){
+        return false;
+      }
+
+      if(
+        !VF_CHARGE_OBLIGATION_TYPES.has(
+          existing.obligationType
+        )
+      ){
+        return false;
+      }
+
+      if(
+        String(existing.studentId||'').trim()!==studentId
+      ){
+        return false;
+      }
+
+      if(
+        Math.abs(
+          Number(existing.amount||0)-amount
+        )>.009
+      ){
+        return false;
+      }
+
+      const existingDay=
+        String(
+          existing.serviceDate ||
+          existing.dueDate ||
+          ''
+        ).trim().slice(0,10);
+
+      return existingDay===day;
+    });
+
+  return loose
+    ? vfDuplicateWarningText('charge',loose,amount)
+    : null;
+}
+
+
+/*
+ * Is this proposed certificate already on file?
+ *
+ * findDuplicateCertificate() reads candidate.number. A certificate
+ * proposal carries the number as certificateNumber, so handing it the
+ * proposal unchanged would have matched nothing at all, every time,
+ * without ever looking like a failure. It is given the number under the
+ * name it expects.
+ */
+function vfProposalDuplicateCertificate(review){
+
+  const fields=
+    review.proposalFields || {};
+
+  const amount=
+    Number(fields.amount||0);
+
+  const number=
+    String(
+      fields.certificateNumber ||
+      fields.purchaseOrderNumber ||
+      ''
+    ).trim();
+
+  if(number){
+
+    const strict=
+      findDuplicateCertificate({number});
+
+    if(strict){
+      return vfDuplicateWarningText('certificate',strict,amount);
+    }
+  }
+
+  if(!(amount>.009)){
+    return null;
+  }
+
+  const studentId=
+    String(fields.studentId||'').trim();
+
+  const studentName=
+    normalizedName(fields.studentName||'');
+
+  const school=
+    normalizedName(
+      fields.charterSchool ||
+      fields.charterSchoolName ||
+      ''
+    );
+
+  if(!studentId && !studentName){
+    return null;
+  }
+
+  const start=
+    String(fields.serviceStartDate||'').trim().slice(0,10);
+
+  /*
+   * Same family, same charter, same money, no number to tell them
+   * apart. A charter that funds the same student twice in one year does
+   * so for two different service periods, so when both sides name a
+   * period and the periods differ, this is a second term and not a
+   * duplicate.
+   */
+  const loose=
+    certs.find(existing=>{
+
+      if(existing.deleted){
+        return false;
+      }
+
+      if(
+        Math.abs(
+          Number(existing.amount||0)-amount
+        )>.009
+      ){
+        return false;
+      }
+
+      const sameStudent=
+        studentId && existing.studentId
+          ? String(existing.studentId).trim()===studentId
+          : (
+              Boolean(studentName) &&
+              normalizedName(existing.student||'')===studentName
+            );
+
+      if(!sameStudent){
+        return false;
+      }
+
+      if(school){
+
+        const existingSchool=
+          normalizedName(
+            existing.school ||
+            existing.charterSchoolName ||
+            ''
+          );
+
+        if(existingSchool && existingSchool!==school){
+          return false;
+        }
+      }
+
+      const existingStart=
+        String(existing.serviceStartDate||'').trim().slice(0,10);
+
+      if(start && existingStart && existingStart!==start){
+        return false;
+      }
+
+      return true;
+    });
+
+  return loose
+    ? vfDuplicateWarningText('certificate',loose,amount)
+    : null;
+}
+
+
+/*
+ * One sentence the card can print, built here so the card does not have
+ * to know which of three differently shaped records it was handed.
+ *
+ * Every one of them ends by saying what Approve still means, because
+ * Approve is deliberately left enabled: two sessions on one day, two
+ * children paying the same amount, and two certificates for one family
+ * are all real.
+ */
+function vfDuplicateWarningText(kind,existing,amount){
+
+  const when=
+    String(
+      existing.date ||
+      existing.paymentDate ||
+      existing.serviceDate ||
+      existing.dueDate ||
+      existing.serviceStartDate ||
+      ''
+    ).slice(0,10);
+
+  if(kind==='charge'){
+
+    return {
+      kind,
+      existing,
+      amount,
+      headline:
+        'You may already have charged for this.',
+      body:
+        `${money(amount)} for ${
+          existing.className ||
+          existing.serviceName ||
+          'this service'
+        }${
+          when ? ` on ${when}` : ''
+        } is already on ${
+          existing.studentName || 'this student'
+        }'s account. Approve only if this is a second, separate charge.`
+    };
+  }
+
+  if(kind==='certificate'){
+
+    return {
+      kind,
+      existing,
+      amount,
+      headline:
+        'You may already have this certificate.',
+      body:
+        `${money(Number(existing.amount||amount))} from ${
+          existing.school ||
+          existing.charterSchoolName ||
+          'this charter'
+        } for ${
+          existing.student || 'this student'
+        }${
+          existing.number ? ` (#${existing.number})` : ''
+        }${
+          when ? `, starting ${when}` : ''
+        } is already on file. Approve only if this is a second, separate certificate.`
+    };
+  }
+
+  return {
+    kind:'payment',
+    existing,
+    amount,
+    headline:
+      'You may already have this payment.',
+    body:
+      `${money(amount)} from ${
+        existing.payer ||
+        existing.student ||
+        'this family'
+      }${
+        when ? ` on ${when}` : ''
+      } is already recorded${
+        existing.method ? ` (${existing.method})` : ''
+      }. Approve only if this is a second, separate payment.`
+  };
+}
+
+
+/*
+ * The one moment nobody was checking: while the vendor is deciding.
+ *
+ * findDuplicate*() guard the doors inside this app and an emailed item
+ * uses none of them; the notification scan walks RECORDED items and a
+ * proposal is not recorded yet. All three kinds fall through that gap
+ * in exactly the same way.
+ */
+function vfProposalDuplicateWarning(review){
+
+  const kind=
+    String(review?.itemType||'');
+
+  if(kind==='payment'){
+    return vfProposalDuplicatePayment(review);
+  }
+
+  if(kind==='charge'){
+    return vfProposalDuplicateCharge(review);
+  }
+
+  if(kind==='certificate'){
+    return vfProposalDuplicateCertificate(review);
+  }
+
+  return null;
 }
 
 
@@ -38923,20 +39384,22 @@ function renderReviews(force){
               <strong>Class roster update</strong>
 
               <div class="meta vf-proposal-summary">
-                ${esc(rosterBehind.parsed.className||'A class roster was forwarded.')}
+                ${esc(rosterBehind.parsed?.className||'A class roster was forwarded.')}
               </div>
 
               <div class="vf-roster-notice">
-                This is a roster, not a charge. VendorFlow read
-                ${esc(String(rosterBehind.parsed.students.length))} students from
-                it and can compare them against the group you choose.
+                This is a roster, not a charge.${
+                  rosterBehind.parsed
+                    ? ` VendorFlow read ${esc(String(rosterBehind.parsed.students.length))} students from it and can`
+                    : ' VendorFlow can read it and'
+                } compare them against the group you choose.
               </div>
 
               <div class="vf-review-actions">
                 <button
                   type="button"
                   class="primary"
-                  data-roster-review="${esc(rosterBehind.message.id)}">
+                  data-roster-review="${esc(rosterBehind.emailId)}">
                   Review roster update
                 </button>
                 ${sourceButton}
@@ -38997,35 +39460,16 @@ function renderReviews(force){
                 }
 
                 /*
-                 * Deliberately does not block Approve. Two separate
-                 * payments of the same amount on the same day by the
-                 * same family are possible -- two children, two
-                 * invoices. Taking the decision away is how a real
-                 * payment goes missing.
+                 * Deliberately does not block Approve, for any of the
+                 * three kinds. Two payments of the same amount on the
+                 * same day by the same family, two sessions on one day,
+                 * two certificates for one family -- all real. Taking
+                 * the decision away is how a real record goes missing.
                  */
-                const when=
-                  esc(
-                    String(
-                      duplicate.existing.date ||
-                      duplicate.existing.paymentDate ||
-                      ''
-                    ).slice(0,10)
-                  );
-
                 return `
                   <div class="vf-proposal-duplicate">
-                    <strong>You may already have this payment.</strong>
-                    ${esc(money(duplicate.amount))} from
-                    ${esc(
-                      duplicate.existing.payer ||
-                      duplicate.existing.student ||
-                      'this family'
-                    )}${when?` on ${when}`:''}
-                    is already recorded${
-                      duplicate.existing.method
-                        ? ` (${esc(duplicate.existing.method)})`
-                        : ''
-                    }. Approve only if this is a second, separate payment.
+                    <strong>${esc(duplicate.headline)}</strong>
+                    ${esc(duplicate.body)}
                   </div>
                 `;
               })()
@@ -39692,11 +40136,19 @@ function renderReviews(force){
 
                 if(roster){
                   return `<div class="vf-proposal-summary">${
-                    esc(roster.parsed.className||'A class roster was forwarded.')
+                    esc(
+                      roster.parsed?.className ||
+                      review.subject ||
+                      'A class roster was forwarded.'
+                    )
                   }</div>
                   <div class="vf-roster-notice">
-                    This roster lists ${esc(String(roster.parsed.students.length))} students.
-                    VendorFlow can compare them against the group you choose and
+                    ${
+                      roster.parsed
+                        ? `This roster lists ${esc(String(roster.parsed.students.length))} students.`
+                        : ''
+                    }
+                    VendorFlow can compare it against the group you choose and
                     show you only what changed.
                   </div>`;
                 }
