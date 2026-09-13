@@ -16474,7 +16474,7 @@ function renderVault(){
                           Restore
                         </button>`
                      : `<span class="muted vf-vault-managed">
-                          Managed with the certificate
+                          Archive or delete on the student's account
                         </span>`
                  }
                </div>`
