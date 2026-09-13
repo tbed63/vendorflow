@@ -37715,6 +37715,37 @@ function inboundReviewActionsHTML(
 ){
 
   /*
+   * A roster. One action that does something, plus Ignore.
+   *
+   * The four buttons below are all wrong for this: Open Groups goes to
+   * group setup, Mark Completed claims work is finished that has not
+   * started, and Open Source Email hands back the raw email, which is
+   * the work rather than a reduction of it.
+   */
+  const rosterBehind=
+    vfReviewRosterEmail(review);
+
+  if(rosterBehind){
+
+    return `
+      <div class="vf-review-actions">
+        <button
+          type="button"
+          class="primary"
+          data-roster-review="${esc(rosterBehind.message.id)}">
+          Review roster update
+        </button>
+        <button
+          type="button"
+          class="vf-secondary-button"
+          data-ignore-inbound-review="${esc(review.id)}">
+          Ignore
+        </button>
+      </div>
+    `;
+  }
+
+  /*
    * A handful of older review records were written without an
    * inboundEmailId (Tim ran into this as a "Payment needs review"
    * card with no buttons at all and no way to dismiss it). Rather
@@ -39431,24 +39462,54 @@ function renderReviews(force){
           }">
 
             <strong>
-              ${esc(
-                review.title ||
-                vfReviewFallbackTitle(review)
-              )}
+              ${
+                vfReviewRosterEmail(review)
+                  ? 'Class roster update'
+                  : esc(
+                      review.title ||
+                      vfReviewFallbackTitle(review)
+                    )
+              }
             </strong>
 
             ${
-              review.aiSummary
-                ? `<div class="vf-proposal-summary">${esc(review.aiSummary)}</div>`
-                : ''
+              (()=>{
+
+                /*
+                 * For a roster, the stored summary and detail both
+                 * name ONE student -- whichever the extractor happened
+                 * to pick off the list. Naming Tennyson Conroy or
+                 * Brooklynn Kenney implies they are the change, when
+                 * the change is whatever the comparison finds.
+                 */
+                const roster=
+                  vfReviewRosterEmail(review);
+
+                if(roster){
+                  return `<div class="vf-proposal-summary">${
+                    esc(roster.parsed.className||'A class roster was forwarded.')
+                  }</div>
+                  <div class="vf-roster-notice">
+                    This roster lists ${esc(String(roster.parsed.students.length))} students.
+                    VendorFlow can compare them against the group you choose and
+                    show you only what changed.
+                  </div>`;
+                }
+
+                return review.aiSummary
+                  ? `<div class="vf-proposal-summary">${esc(review.aiSummary)}</div>`
+                  : '';
+              })()
             }
 
-            <div class="meta">
-              ${esc(
-                review.detail ||
-                vfReviewFallbackDetail(review)
-              )}
-            </div>
+            ${
+              vfReviewRosterEmail(review)
+                ? ''
+                : `<div class="meta">${esc(
+                     review.detail ||
+                     vfReviewFallbackDetail(review)
+                   )}</div>`
+            }
 
             ${
               isCertificateAttention
