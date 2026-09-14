@@ -6,3 +6,8 @@
 # in history permanently, where it cannot be removed without a rewrite.
 # They are local undo, not history; git already is the history.
 *.bak
+
+.claude_scratch/
+patch_*.py
+"Claude outputs/"
+main

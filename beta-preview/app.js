@@ -56267,6 +56267,8 @@ function vfTutorialSlides(){
       eyebrow:'What VendorFlow does',
       title:'Turn hours of vendor paperwork into a few quick checks',
       summary:'VendorFlow organizes your groups and students, records payments and charter certificates, prepares invoices, watches deadlines, and tells you what needs attention.',
+      image:'dashboard.webp',imageW:2240,imageH:1707,
+      imageAlt:'The VendorFlow dashboard: invoices ready to send, families behind, money not yet invoiced, and credit held.',
       task:'Your work becomes one connected system',
       steps:[
         'Set up each group and upload its student roster.',
@@ -56294,6 +56296,8 @@ function vfTutorialSlides(){
       eyebrow:'Set up once',
       title:'Create groups and load each roster',
       summary:'Start by giving VendorFlow the information you already maintain at your learning center.',
+      image:'groups.webp',imageW:2240,imageH:1413,
+      imageAlt:'The Groups page: each group with its price, schedule, payment terms and student count.',
       task:'Add a group and its students',
       steps:[
         'Open Groups and create the group with its price, schedule, and payment terms.',
@@ -56348,6 +56352,8 @@ function vfTutorialSlides(){
       eyebrow:'Nothing gets lost',
       title:'Every document you upload is kept in the Vault',
       summary:'Certificates, bank statements, Venmo exports — the Vault is one searchable library of every file VendorFlow has been given.',
+      image:'vault.webp',imageW:2240,imageH:1467,
+      imageAlt:'The Vault: an upload box, a search field, and every certificate and statement that has been imported.',
       task:'Find the document behind a number',
       steps:[
         'Open the Vault and search by student, charter, or file name.',
@@ -56362,6 +56368,8 @@ function vfTutorialSlides(){
       eyebrow:'Prepare charter invoices',
       title:'Build invoices from work VendorFlow already knows about',
       summary:'VendorFlow connects services, students, certificates, charter billing details, and your invoice rules.',
+      image:'invoices.webp',imageW:2240,imageH:1707,
+      imageAlt:'The Invoices page: each invoice with its charter school, student, service, date, amount and status.',
       task:'Create and send a charter invoice',
       steps:[
         'Confirm the charter school and its billing instructions.',
@@ -56377,6 +56385,8 @@ function vfTutorialSlides(){
       eyebrow:'Use your VendorFlow email',
       title:'Forward the email instead of retyping the information',
       summary:'Your private VendorFlow address turns messages you already receive into organized intake.',
+      image:'roster-update.webp',imageW:1400,imageH:1088,
+      imageAlt:'A forwarded class roster, compared against the group, with the one new student and their parent details already filled in.',
       task:'Let an email start the work',
       steps:[
         'Forward a payment, certificate, student-change, or compliance email from a trusted address.',
@@ -56390,6 +56400,8 @@ function vfTutorialSlides(){
       eyebrow:'Start here every day',
       title:'Notifications is the list of things only you can decide',
       summary:'Anything that needs a human lands here, so you never have to hunt through every page to find out what is waiting.',
+      image:'notifications.webp',imageW:2240,imageH:1413,
+      imageAlt:'The Notifications page, with a payment held back because the same amount from the same family is already recorded.',
       task:'Clear the work that needs your attention',
       steps:[
         'Open Notifications when you sign in.',
@@ -56418,6 +56430,8 @@ function vfTutorialSlides(){
       eyebrow:'Answer questions quickly',
       title:'Open one student to see the complete story',
       summary:'Every student account brings contact information and financial activity together.',
+      image:'student-account.webp',imageW:2240,imageH:1707,
+      imageAlt:'A student account: the balance, the parent, and every charge, payment, certificate and late fee behind it.',
       task:'Find out why a balance looks wrong',
       steps:[
         'Open Students and select the student.',
@@ -56431,6 +56445,8 @@ function vfTutorialSlides(){
       eyebrow:'You have final authority',
       title:'VendorFlow does the work, but you make the decisions',
       summary:'Automation saves time only when you can see it, understand it, and correct it.',
+      image:'student-history.webp',imageW:2240,imageH:1440,
+      imageAlt:"A student's history: every invoice, late fee, payment, certificate and reminder with the date it happened and whether it was manual or automatic.",
       task:'Verify anything VendorFlow does',
       steps:[
         'Use Email Inbox to see what arrived and how it was processed.',
@@ -56453,6 +56469,7 @@ function vfRenderTutorial(){
     <div class="eyebrow">${esc(slide.eyebrow)}</div>
     <h2>${esc(slide.title)}</h2>
     <p class="vf-real-tutorial-body">${esc(slide.summary)}</p>
+    ${slide.image?`<figure class="vf-tutorial-shot" style="max-width:${slide.imageW/2}px"><img src="img/tutorial/${esc(slide.image)}" width="${slide.imageW}" height="${slide.imageH}" loading="lazy" alt="${esc(slide.imageAlt||'')}"></figure>`:''}
     <section class="vf-tutorial-workflow">
       <h3>${esc(slide.task)}</h3>
       <ol>${slide.steps.map(step=>`<li>${esc(step)}</li>`).join('')}</ol>
