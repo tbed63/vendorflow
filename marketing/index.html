@@ -186,6 +186,41 @@ a:focus-visible,button:focus-visible{
 .hero .btn-ghost:hover{border-color:rgba(255,255,255,.62)}
 .hero-fine{font-size:var(--t-sm);color:#8C9DBC;margin:0}
 
+/* ---------------- product shots ---------------- */
+
+/* Each image is rendered from the app's own stylesheet and already
+   carries its drop shadow and a transparent margin, so it needs no
+   frame, border or shadow here -- that would be a box around a box. */
+.shot{display:block;width:100%;height:auto}
+
+.hero-shot{
+  max-width:1120px;
+  margin:48px auto 0;
+  padding-inline:24px;
+}
+
+/* The sentence, then the picture under it at full width. Side by side
+   would halve the picture, and at half width a screenshot of software is
+   texture -- you can tell it is an application and nothing more. */
+.showcase{margin-top:64px}
+
+.showcase-item + .showcase-item{margin-top:72px}
+
+.showcase-item h3{
+  font-family:var(--display);font-weight:700;font-size:var(--t-xl);
+  line-height:1.2;letter-spacing:-.015em;margin:0 0 10px;
+}
+.showcase-item > p{
+  margin:0 0 26px;color:var(--muted);max-width:64ch;
+}
+
+.shot-single{max-width:760px;margin:52px auto 0}
+.shot-wide{margin-top:40px}
+.shot-note{
+  margin:16px auto 0;max-width:58ch;
+  text-align:center;color:var(--muted);font-size:var(--t-sm);
+}
+
 /* ---------------- sections ---------------- */
 
 .section{padding-block:72px;background:var(--surface)}
@@ -367,6 +402,15 @@ footer{background:var(--surface);border-top:1px solid var(--line);padding-block:
     </div>
     <p class="hero-fine">Cancel anytime. 30-day money-back guarantee.</p>
   </div>
+
+  <div class="hero-shot">
+    <img
+      class="shot"
+      src="img/student-directory.webp"
+      width="2240" height="1744"
+      alt="The VendorFlow student directory: every family, the group they
+           are in, and what each one still owes.">
+  </div>
 </section>
 
 <section class="section">
@@ -423,6 +467,42 @@ footer{background:var(--surface);border-top:1px solid var(--line);padding-block:
         <p>Zelle, Venmo, PayPal, Cash App, check, cash. Set up once, then included in every reminder you send.</p>
       </div>
     </div>
+
+    <div class="showcase">
+
+      <div class="showcase-item">
+        <h3>Who is actually behind, in one click.</h3>
+        <p>Owing money and being behind are not the same thing, and VendorFlow
+           knows the difference: a family whose charter certificate already
+           covers their charges is not chased. Filter to the ones who genuinely
+           owe you, largest first.</p>
+        <img
+          class="shot"
+          loading="lazy"
+          src="img/behind-on-payments.webp"
+          width="2240" height="1611"
+          alt="The student directory filtered to families who are behind,
+               sorted with the largest balance first."
+        >
+      </div>
+
+      <div class="showcase-item">
+        <h3>It catches the payment you already recorded.</h3>
+        <p>The same money, the same family, a day already on your books &mdash;
+           and you are told before you approve it, not after. VendorFlow never
+           decides for you: two real payments of the same amount do happen, so
+           the choice stays yours.</p>
+        <img
+          class="shot"
+          loading="lazy"
+          src="img/duplicate-warning.webp"
+          width="2240" height="1326"
+          alt="A payment waiting for approval, with a warning that the same
+               amount from the same family is already recorded."
+        >
+      </div>
+
+    </div>
   </div>
 </section>
 
@@ -443,6 +523,41 @@ footer{background:var(--surface);border-top:1px solid var(--line);padding-block:
         <h3>Let VendorFlow watch</h3>
         <p>Reminders, invoices and notifications happen on schedule, and tax time is already organised.</p>
       </div>
+    </div>
+
+    <div class="shot-single">
+      <img
+        class="shot"
+        loading="lazy"
+        src="img/roster-update.webp"
+        width="1400" height="1088"
+        alt="A forwarded class roster, compared against the group, showing the
+             one new student with their parent, email and phone already filled in."
+      >
+      <p class="shot-note">
+        Forward the roster your school sends. VendorFlow compares it against
+        the group, finds the one student who changed, and fills in the parent,
+        email and phone for you. Nothing is added until you say so.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="section alt">
+  <div class="wrap">
+    <h2>Tax time is already done.</h2>
+    <p class="lead">Every dollar in and out, sorted into the categories your
+       Schedule C actually uses &mdash; not a pile of receipts in April.</p>
+
+    <div class="shot-wide">
+      <img
+        class="shot"
+        loading="lazy"
+        src="img/summary.webp"
+        width="2240" height="1999"
+        alt="A year's summary: gross income, total expenses, net, and every
+             expense category beside its IRS line number."
+      >
     </div>
   </div>
 </section>
