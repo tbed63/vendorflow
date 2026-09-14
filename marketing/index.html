@@ -215,6 +215,7 @@ a:focus-visible,button:focus-visible{
 }
 
 .shot-single{max-width:760px;margin:52px auto 0}
+.shot-page{max-width:560px;margin:0 auto}
 .shot-wide{margin-top:40px}
 .shot-note{
   margin:16px auto 0;max-width:58ch;
@@ -406,10 +407,11 @@ footer{background:var(--surface);border-top:1px solid var(--line);padding-block:
   <div class="hero-shot">
     <img
       class="shot"
-      src="img/student-directory.webp"
-      width="2240" height="1744"
-      alt="The VendorFlow student directory: every family, the group they
-           are in, and what each one still owes.">
+      src="img/dashboard.webp"
+      width="2240" height="1440"
+      alt="The VendorFlow dashboard: two invoices already prepared and waiting
+           to send, families behind, money not yet invoiced, unpaid invoices,
+           and credit held.">
   </div>
 </section>
 
@@ -506,7 +508,53 @@ footer{background:var(--surface);border-top:1px solid var(--line);padding-block:
   </div>
 </section>
 
-<section class="section" id="how-it-works">
+<section class="section" id="invoicing">
+  <div class="wrap">
+    <h2>You never write another invoice.</h2>
+    <p class="lead">Every charter school has its own rule about when a bill can
+       go out. VendorFlow knows each one, prepares the invoice on that schedule,
+       and then keeps track of what happened to it.</p>
+
+    <div class="showcase">
+
+      <div class="showcase-item">
+        <h3>The finished document, which you did not write.</h3>
+        <p>Your business details, the school's billing address, the student, the
+           certificate number and the service period &mdash; pulled from what
+           VendorFlow already has. It arrives ready to send.</p>
+        <div class="shot-page">
+          <img
+            class="shot"
+            loading="lazy"
+            src="img/invoice-document.webp"
+            width="1500" height="1897"
+            alt="A finished VendorFlow invoice: vendor details, the charter
+                 school billed, the student, certificate number, service period
+                 and total."
+          >
+        </div>
+      </div>
+
+      <div class="showcase-item">
+        <h3>And the list that keeps track of them.</h3>
+        <p>Anyone can produce a PDF. The work is knowing which invoices are still
+           sitting at the school, which came back paid, and which have not gone
+           out yet &mdash; on one screen, without a spreadsheet.</p>
+        <img
+          class="shot"
+          loading="lazy"
+          src="img/invoices-list.webp"
+          width="2240" height="1705"
+          alt="The invoice ledger: invoice number, charter school, student,
+               service, date and amount, each marked ready to send, sent, or paid."
+        >
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="how-it-works">
   <div class="wrap">
     <h2>Up and running in three steps.</h2>
     <p class="lead">A guided setup does the walking. No manual, no training.</p>
@@ -543,7 +591,7 @@ footer{background:var(--surface);border-top:1px solid var(--line);padding-block:
   </div>
 </section>
 
-<section class="section alt">
+<section class="section">
   <div class="wrap">
     <h2>Tax time is already done.</h2>
     <p class="lead">Every dollar in and out, sorted into the categories your
