@@ -252,11 +252,16 @@ a:focus-visible,button:focus-visible{
 }
 .problem-card p{margin:0;color:var(--muted);font-size:var(--t-sm);line-height:1.6}
 
-/* Features -- one object divided, rather than six floating cards. */
+/* Features -- one object divided, rather than four floating cards.
+   Two by two: with four cards an auto-fit grid makes three columns on a
+   desktop and leaves the fourth stranded on its own row. */
 .feature-grid{
-  display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  display:grid;grid-template-columns:repeat(2,1fr);
   gap:1px;background:var(--line);
   border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;
+}
+@media (max-width:640px){
+  .feature-grid{grid-template-columns:1fr}
 }
 .feature-card{background:var(--surface);padding:26px 24px}
 .feature-card h3{
@@ -422,18 +427,18 @@ footer{background:var(--surface);border-top:1px solid var(--line);padding-block:
     <div class="problem-grid">
       <div class="problem-card">
         <div class="rule"></div>
-        <h3>Certificates pile up</h3>
-        <p>They arrive by email, get buried, and someone has to match each one to the right student and school by hand.</p>
+        <h3>Emails overwhelm</h3>
+        <p>Certificates. Venmo payments. Roster changes. It's just too much!</p>
       </div>
       <div class="problem-card">
         <div class="rule"></div>
-        <h3>Payments are scattered</h3>
-        <p>Zelle here, a check there, Venmo from someone else. Working out who has actually paid means piecing it together yourself.</p>
+        <h3>Too much to keep track of!</h3>
+        <p>Payments. Certificates. Invoicing. Expenses. And MORE!</p>
       </div>
       <div class="problem-card">
         <div class="rule"></div>
-        <h3>Invoice timing is a guess</h3>
-        <p>Every charter school has its own window for when a bill can go out, and getting it wrong delays your money.</p>
+        <h3>Invoicing is a PAIN!</h3>
+        <p>Copy every certificate number, description, amount, and more? It takes forever!</p>
       </div>
     </div>
   </div>
@@ -441,33 +446,24 @@ footer{background:var(--surface);border-top:1px solid var(--line);padding-block:
 
 <section class="section alt" id="features">
   <div class="wrap">
-    <h2>Built for how charter vendors actually get paid.</h2>
-    <p class="lead">Built around charter certificates, each school's billing
-       window, and the six ways families actually pay you.</p>
+    <h2>Built for vendors.</h2>
+    <p class="lead">Repetitive tasks automated.</p>
     <div class="feature-grid">
       <div class="feature-card">
         <h3>Forward-to-import inbox</h3>
-        <p>Forward a certificate, roster or statement to your VendorFlow address. It reads it and files it. No data entry.</p>
+        <p>Just forward all important emails to VendorFlow, it extracts important details and takes care of the rest.</p>
       </div>
       <div class="feature-card">
         <h3>Certificate tracking</h3>
-        <p>Read automatically, matched to the right student, queued for one click of approval.</p>
+        <p>Read automatically, matched to the right student, queued for one click approval.</p>
       </div>
       <div class="feature-card">
         <h3>Groups and rosters</h3>
-        <p>Upload a CSV or build groups by hand, with the payment plans, due dates and late fees you actually use.</p>
+        <p>Upload a CSV or build groups by hand, with the payment plans, due dates and late fees. You control everything. VendorFlow does the work.</p>
       </div>
       <div class="feature-card">
-        <h3>Payment reminders</h3>
-        <p>Sent on your schedule, in your words, and only once you say you are ready. Never before.</p>
-      </div>
-      <div class="feature-card">
-        <h3>Charter-timed invoicing</h3>
-        <p>Invoices generate on each school's own schedule, so you are never guessing when it is safe to bill.</p>
-      </div>
-      <div class="feature-card">
-        <h3>Every way families pay</h3>
-        <p>Zelle, Venmo, PayPal, Cash App, check, cash. Set up once, then included in every reminder you send.</p>
+        <h3>Automated Emails</h3>
+        <p>Sent on your schedule, in your words, and only once you preview and hit send.</p>
       </div>
     </div>
 
@@ -489,11 +485,10 @@ footer{background:var(--surface);border-top:1px solid var(--line);padding-block:
       </div>
 
       <div class="showcase-item">
-        <h3>It catches the payment you already recorded.</h3>
-        <p>Same amount, same family, a day already on your books. VendorFlow says so
-           while the payment is still waiting for your approval, and shows you the
-           one it matched &mdash; so you can tell a second payment from the same
-           one twice, and decide.</p>
+        <h3>Potential Duplicates Flagged</h3>
+        <p>VendorFlow keeps a close eye out for duplicates. You never have to worry
+           about putting in a payment, certificate, or charge twice. VendorFlow will
+           bring it to your attention.</p>
         <img
           class="shot"
           loading="lazy"
@@ -511,9 +506,9 @@ footer{background:var(--surface);border-top:1px solid var(--line);padding-block:
 <section class="section" id="invoicing">
   <div class="wrap">
     <h2>You never write another invoice.</h2>
-    <p class="lead">Every charter school has its own rule about when a bill can
-       go out. VendorFlow knows each one, prepares the invoice on that schedule,
-       and then keeps track of what happened to it.</p>
+    <p class="lead">VendorFlow generates invoices automatically on your custom
+       schedule. VendorFlow then attaches it to a charter-ready email for you to
+       approve and send.</p>
 
     <div class="showcase">
 
@@ -604,7 +599,8 @@ footer{background:var(--surface);border-top:1px solid var(--line);padding-block:
 <section class="section" id="how-it-works">
   <div class="wrap">
     <h2>Up and running in three steps.</h2>
-    <p class="lead">A guided setup does the walking. No manual, no training.</p>
+    <p class="lead">Work through the simple setup checklist to get your
+       VendorFlow AI assistant up to speed.</p>
     <div class="how-steps">
       <div class="how-step">
         <h3>Set up your business</h3>
@@ -616,7 +612,7 @@ footer{background:var(--surface);border-top:1px solid var(--line);padding-block:
       </div>
       <div class="how-step">
         <h3>Let VendorFlow watch</h3>
-        <p>Reminders, invoices and notifications happen on schedule, and tax time is already organised.</p>
+        <p>Reminders, invoices and notifications happen on schedule, and tax time is already organized.</p>
       </div>
     </div>
 
@@ -642,7 +638,7 @@ footer{background:var(--surface);border-top:1px solid var(--line);padding-block:
   <div class="wrap">
     <h2>Tax time is already done.</h2>
     <p class="lead">Every dollar in and out, sorted into the categories your
-       Schedule C uses and totalled as the year goes. In April you print it.</p>
+       Schedule C uses and totaled as the year goes. In April you print it.</p>
 
     <div class="shot-wide">
       <img
@@ -665,7 +661,7 @@ footer{background:var(--surface);border-top:1px solid var(--line);padding-block:
       <ul class="trust">
         <li>
           <svg width="17" height="17" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.5 13.5 4v4c0 3-2.3 5.6-5.5 6.5C4.8 13.6 2.5 11 2.5 8V4L8 1.5Z" stroke="#A8761B" stroke-width="1.4" stroke-linejoin="round"/></svg>
-          <span><b>30-day money back.</b> A full refund within 30 days, no questions asked.</span>
+          <span><b>30-day money back guarantee.</b> A full refund within 30 days, no questions asked.</span>
         </li>
         <li>
           <svg width="17" height="17" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="#A8761B" stroke-width="1.4"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" stroke="#A8761B" stroke-width="1.4"/></svg>
@@ -687,7 +683,9 @@ footer{background:var(--surface);border-top:1px solid var(--line);padding-block:
         <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5" stroke="#1A346F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Payment reminders and late fees</span></li>
         <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5" stroke="#1A346F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Charter-timed invoice generation</span></li>
         <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5" stroke="#1A346F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Forward-to-import email inbox</span></li>
-        <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5" stroke="#1A346F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Every common payment method</span></li>
+        <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5" stroke="#1A346F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Parent email notifications automatically written when a payment or
+            certificate is received or a late payment applied. (No more &ldquo;Did you
+            get that certificate? Venmo I sent?&rdquo;)</span></li>
       </ul>
       <a class="btn btn-primary btn-lg" style="display:block;text-align:center" href="../subscribe/">Start your free 7-day trial</a>
       <p class="trial-note">Free for 7 days. Cancel before it ends and you are not charged.</p>
