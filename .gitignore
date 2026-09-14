@@ -9,5 +9,5 @@
 
 .claude_scratch/
 patch_*.py
-"Claude outputs/"
+Claude outputs/
 main
