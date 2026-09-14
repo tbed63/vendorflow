@@ -3881,9 +3881,15 @@ aside nav{
 }
 
 
-.vf-ledger-mark-paid{
+/* Both ledger buttons, not just one. Mark Unpaid had no rule, so it
+   came out full size, would not fit the column, wrapped onto two lines
+   and made every paid row taller than its neighbours. nowrap keeps them
+   on one line whatever the label says. */
+.vf-ledger-mark-paid,
+.vf-ledger-mark-unpaid{
   font-size:11px;
   padding:4px 9px;
+  white-space:nowrap;
 }
 
 
