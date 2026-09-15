@@ -56282,6 +56282,8 @@ function vfTutorialSlides(){
       eyebrow:'One front door',
       title:'When something arrives, press + Add',
       summary:'The + Add button sits in the top bar on every page. It is for anything you need to put into VendorFlow, whether that is a file or a fact.',
+      image:'add-panel.webp',imageW:1360,imageH:1254,
+      imageAlt:'The Add to VendorFlow popup: a drop zone for any document, and buttons for adding a student, group, certificate, income, expense, to-do, charter school, charge or payment by hand.',
       task:'Add something without deciding where it belongs',
       steps:[
         'Press + Add, then drop the file in. You do not have to say what it is.',
@@ -56312,6 +56314,8 @@ function vfTutorialSlides(){
       eyebrow:'Your files, wherever they live',
       title:'Import straight from Google Drive or Dropbox',
       summary:'Every upload in VendorFlow accepts a file from your cloud storage, so you never download something just to upload it again.',
+      image:'cloud-import.webp',imageW:1520,imageH:450,
+      imageAlt:'An upload box with an "or import from" row underneath offering Google Drive and Dropbox.',
       task:'Skip the round trip',
       steps:[
         'Look under any upload box for "or import from".',
@@ -56325,6 +56329,8 @@ function vfTutorialSlides(){
       eyebrow:'Record payments',
       title:'Stop entering the same payment in multiple places',
       summary:'Record a payment on the website, import a statement, or forward a trusted payment email.',
+      image:'payments.webp',imageW:2240,imageH:1707,
+      imageAlt:'The Payments/Charges page: a statement upload box, buttons for a single entry, and the payments and charges recorded so far.',
       task:'Turn payment evidence into an updated student balance',
       steps:[
         'Open Payments/Charges and enter a payment, or upload a Venmo or bank statement.',
