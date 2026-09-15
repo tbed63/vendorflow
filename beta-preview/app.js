@@ -16286,10 +16286,23 @@ function vfVaultItems(){
     .filter(cert=>!cert.deleted && cert.pdfObjectKey)
     .forEach(cert=>{
 
+      /*
+       * Invoiced or not is not a field on the certificate: it is
+       * whether an invoice was raised against it. That is the same
+       * test "Invoice now" and the delete guard already use, so the
+       * Vault cannot disagree with the rest of the app.
+       */
+      const certInvoice=
+        invoices.find(
+          invoice=>
+            invoice.certificateId===cert.id
+        );
+
       items.push({
         id:`cert:${cert.id}`,
         certificateId:cert.id,
         kind:'certificate',
+        invoiced:Boolean(certInvoice),
         archived:Boolean(cert.archived),
         objectKey:cert.pdfObjectKey,
         name:
@@ -16301,7 +16314,14 @@ function vfVaultItems(){
             cert.number ? `#${cert.number}` : '',
             Number.isFinite(Number(cert.amount))
               ? money(Number(cert.amount))
-              : ''
+              : '',
+            certInvoice
+              ? `Invoiced${
+                  certInvoice.invoiceNumber
+                    ? ' · '+certInvoice.invoiceNumber
+                    : ''
+                }`
+              : 'Not invoiced'
           ].filter(Boolean).join(' · '),
         source:'Certificate',
         uploadedAt:
@@ -16348,6 +16368,30 @@ function vfVaultItems(){
 }
 
 
+/*
+ * The Type dropdown is one control doing two jobs: what kind of file,
+ * and -- for certificates -- whether it has been invoiced. Keeping
+ * both in one dropdown is what stops the toolbar growing a third
+ * control for a question with only two answers.
+ */
+function vfVaultItemMatchesKind(item){
+
+  if(vfVaultKindFilter==='all'){
+    return true;
+  }
+
+  if(vfVaultKindFilter==='certificate-invoiced'){
+    return item.kind==='certificate' && item.invoiced===true;
+  }
+
+  if(vfVaultKindFilter==='certificate-open'){
+    return item.kind==='certificate' && item.invoiced===false;
+  }
+
+  return item.kind===vfVaultKindFilter;
+}
+
+
 function renderVault(){
 
   const list=$('#vaultFileList');
@@ -16362,10 +16406,7 @@ function renderVault(){
   let shown=
     all.filter(item=>{
 
-      if(
-        vfVaultKindFilter!=='all' &&
-        item.kind!==vfVaultKindFilter
-      ){
+      if(!vfVaultItemMatchesKind(item)){
         return false;
       }
 
