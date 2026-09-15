@@ -56422,6 +56422,8 @@ function vfTutorialSlides(){
       eyebrow:'Without keeping it open',
       title:'Have VendorFlow email you when something needs you',
       summary:'You do not have to leave VendorFlow open to find out that money is waiting. It can send what needs your attention to the address you sign in with.',
+      image:'notification-emails.webp',imageW:1520,imageH:670,
+      imageAlt:'The notification-email setting in Settings: off, as things come up, or once a day at 7am.',
       task:'Choose how you want to hear about it',
       steps:[
         'Open Settings and find Notification emails. It is off until you choose otherwise.',
