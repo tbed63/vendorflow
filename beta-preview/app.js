@@ -38505,7 +38505,22 @@ function vfProposalEditFormHTML(review){
   }
 
   const currentType=
-    review.itemType==='charge' ? 'charge' : 'payment';
+    review.itemType==='charge'
+      ? 'charge'
+      : (
+          review.itemType==='income'
+            ? 'income'
+            : 'payment'
+        );
+
+  const incomeCategoryOptions=
+    VF_INCOME_CATEGORIES
+      .map(category=>
+        `<option value="${esc(category.key)}" ${
+          category.key===(f.category||'other')?'selected':''
+        }>${esc(category.label)}</option>`
+      )
+      .join('');
 
   const studentOptions=
     students
@@ -38535,22 +38550,29 @@ function vfProposalEditFormHTML(review){
 
       <label class="vf-field-label"><span>This is actually a</span>
         <select class="input" data-proposal-type-select>
-          <option value="payment" ${currentType==='payment'?'selected':''}>Payment received</option>
+          <option value="payment" ${currentType==='payment'?'selected':''}>Payment from a family, against what they owe</option>
+          <option value="income" ${currentType==='income'?'selected':''}>Income with no student behind it</option>
           <option value="charge" ${currentType==='charge'?'selected':''}>Charge for a service rendered</option>
         </select>
       </label>
 
-      <label class="vf-field-label"><span>Student</span>
+      <label class="vf-field-label" data-student-field-label ${currentType==='income'?'hidden':''}><span>Student</span>
         <select class="input" data-proposal-field="studentId">
           <option value="">Choose a student…</option>
           ${studentOptions}
         </select>
       </label>
 
-      <label class="vf-field-label"><span>Service / group</span>
+      <label class="vf-field-label" data-service-field-label ${currentType==='income'?'hidden':''}><span>Service / group</span>
         <select class="input" data-proposal-field="serviceId" data-session-count="${sessionCount}">
           <option value="">Choose a service…</option>
           ${serviceOptions}
+        </select>
+      </label>
+
+      <label class="vf-field-label" data-category-field-label ${currentType==='income'?'':'hidden'}><span>Income category</span>
+        <select class="input" data-proposal-field="category">
+          ${incomeCategoryOptions}
         </select>
       </label>
 
@@ -39425,6 +39447,7 @@ function renderReviews(force){
          * cross-check at intake was confident).
          */
         const hasConfidentStudentMatch=
+          review.itemType==='income' ||
           Boolean(f.studentId);
 
         const editing=
@@ -39489,6 +39512,14 @@ function renderReviews(force){
               <div>Amount: ${money(Number(f.amount||0))}</div>
               <div>Service dates: ${esc(f.serviceStartDate||'—')} through ${esc(f.serviceEndDate||'—')}</div>
             `
+            : review.itemType==='income'
+            ? `
+              <div>Paid by: ${esc(f.payer||'—')}</div>
+              <div>Category: ${esc(vfIncomeCategoryLabel(f.category||'other'))}</div>
+              <div>Amount: ${money(proposalDisplayAmount(f))}</div>
+              <div>Date: ${esc(f.date||'—')}</div>
+              ${f.memo?`<div>Note: ${esc(f.memo)}</div>`:''}
+            `
             : `
               <div>${review.itemType==='charge'?'Owed by':'Payer'}: ${esc(f.payer||f.studentName||'—')}</div>
               <div>Student: ${esc(f.studentName||'—')}</div>
@@ -39510,6 +39541,12 @@ function renderReviews(force){
             ${
               review.incomplete
                 ? `<div class="vf-proposal-incomplete">VendorFlow couldn't fill in everything (${esc(review.incompleteReason||'some details are missing')}) -- use Edit and approve to fill in the rest.</div>`
+                : ''
+            }
+
+            ${
+              f.decisionNote
+                ? `<div class="vf-proposal-why">${esc(f.decisionNote)}</div>`
                 : ''
             }
 
@@ -40619,17 +40656,26 @@ function renderReviews(force){
         const form=
           select.closest('.vf-proposal-edit-form');
 
-        const payerLabel=
-          form?.querySelector(
-            '[data-payer-field-label]'
-          );
-
-        if(!payerLabel){
+        if(!form){
           return;
         }
 
-        payerLabel.hidden=
-          select.value==='charge';
+        const show=(selector,visible)=>{
+
+          const label=
+            form.querySelector(selector);
+
+          if(label){
+            label.hidden=!visible;
+          }
+        };
+
+        const type=select.value;
+
+        show('[data-payer-field-label]',   type!=='charge');
+        show('[data-student-field-label]', type!=='income');
+        show('[data-service-field-label]', type!=='income');
+        show('[data-category-field-label]',type==='income');
       };
     });
 
@@ -41407,6 +41453,11 @@ async function approveEmailProposal(
           studentMatch,
           linkedService?.classId || ''
         );
+
+      }else if(data.itemType==='income'){
+
+        renderIncome();
+        renderTaxSummary();
 
       }else if(data.itemType==='certificate'){
 

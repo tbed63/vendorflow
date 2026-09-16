@@ -4505,6 +4505,16 @@ button.vf-certificate-problem:focus-visible{
   font-size:13px;
 }
 
+.vf-proposal-why{
+  background:#eef4fb;
+  border-left:4px solid #173e7a;
+  border-radius:0 8px 8px 0;
+  padding:8px 11px;
+  margin:6px 0;
+  font-size:13px;
+  color:#26383f;
+}
+
 .vf-proposal-details{
   display:grid;
   gap:4px;
