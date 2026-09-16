@@ -16455,11 +16455,34 @@ function renderVault(){
     return;
   }
 
+  /*
+    * On a certificate filter the total must be certificates, counted
+    * the same way the list counts them -- otherwise "32 of 49 files"
+    * measures 32 certificates against a number that includes every
+    * bank statement in the Vault, and invoiced plus not-invoiced
+    * never add up to anything.
+    */
+  const onCertificates=
+    vfVaultKindFilter==='certificate' ||
+    vfVaultKindFilter==='certificate-invoiced' ||
+    vfVaultKindFilter==='certificate-open';
+
+  const total=
+    onCertificates
+      ? all.filter(item=>
+          item.kind==='certificate' &&
+          (!item.archived || vfVaultShowArchived || query)
+        ).length
+      : all.length;
+
+  const noun=
+    onCertificates ? 'certificate' : 'file';
+
   const countNote=
     query || vfVaultKindFilter!=='all'
       ? `<p class="muted vf-incexp-count">${shown.length} of ${
-          all.length
-        } file${all.length===1?'':'s'} shown.</p>`
+          total
+        } ${noun}${total===1?'':'s'} shown.</p>`
       : '';
 
   list.innerHTML=
