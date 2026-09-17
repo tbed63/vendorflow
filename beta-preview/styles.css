@@ -4515,6 +4515,50 @@ button.vf-certificate-problem:focus-visible{
   color:#26383f;
 }
 
+.vf-proposal-switch{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:8px;
+  margin:10px 0;
+}
+
+.vf-proposal-switch-option{
+  display:block;
+  text-align:left;
+  padding:9px 12px;
+  border:1.5px solid #cbd8e8;
+  border-radius:10px;
+  background:#fff;
+  cursor:pointer;
+}
+
+.vf-proposal-switch-option strong{
+  display:block;
+  font-size:13.5px;
+  color:#26383f;
+}
+
+.vf-proposal-switch-option small{
+  display:block;
+  margin-top:2px;
+  font-size:12px;
+  color:#66757d;
+  line-height:1.35;
+}
+
+.vf-proposal-switch-option.on{
+  border-color:#173e7a;
+  background:#eef4fb;
+}
+
+.vf-proposal-switch-option.on strong{
+  color:#173e7a;
+}
+
+.vf-proposal-switch-option.on strong::before{
+  content:"\2713\00a0";
+}
+
 .vf-proposal-details{
   display:grid;
   gap:4px;

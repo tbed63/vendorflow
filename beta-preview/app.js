@@ -38228,6 +38228,171 @@ function vfBulkReviewControlsHTML(eligibleCount){
 
 let vfProposalEditingId=null;
 
+
+/*
+ * A card the vendor has flipped between income and payment, before
+ * approving it. Held here rather than written back to the review,
+ * because nothing has been decided until Approve is pressed -- and a
+ * flip that saved itself would be an edit to a record the vendor
+ * never agreed to.
+ */
+const vfProposalTypeChoice={};
+
+
+/*
+ * Does this student have anything outstanding right now?
+ *
+ * studentAccountTotals() is the same figure their account screen
+ * prints, so a card can never claim they owe something the account
+ * says they do not.
+ */
+function vfStudentOwesMoney(studentId){
+
+  const student=
+    students.find(record=>record.id===studentId);
+
+  if(!student){
+    return false;
+  }
+
+  return Number(
+    studentAccountTotals(student).parentBalance||0
+  ) > .009;
+}
+
+
+/*
+ * What VendorFlow proposes before the vendor touches anything.
+ *
+ * The worker settles the cases it can see from the email alone: a
+ * payer nobody on the roster matches, or a payer the vendor has
+ * already decided about. Everything it hands over as a payment
+ * against a real student is decided here instead, on the balance.
+ */
+function vfProposalDefaultType(review){
+
+  const type=
+    String(review?.itemType||'');
+
+  if(type!=='payment'){
+    return type;
+  }
+
+  const fields=
+    review.proposalFields||{};
+
+  /* No student to owe anything, or a decision already on record. */
+  if(!fields.studentId || fields.decisionNote){
+    return type;
+  }
+
+  return vfStudentOwesMoney(fields.studentId)
+    ? 'payment'
+    : 'income';
+}
+
+
+function vfProposalType(review){
+
+  return (
+    vfProposalTypeChoice[review?.id] ||
+    vfProposalDefaultType(review)
+  );
+}
+
+
+/*
+ * The sentence under the guess. The vendor should never have to open
+ * the student's account to find out why VendorFlow chose what it
+ * chose.
+ */
+function vfProposalWhy(review){
+
+  const fields=
+    review.proposalFields||{};
+
+  if(fields.decisionNote){
+    return String(fields.decisionNote);
+  }
+
+  if(
+    review.itemType!=='payment' ||
+    !fields.studentId
+  ){
+    return '';
+  }
+
+  const student=
+    students.find(
+      record=>record.id===fields.studentId
+    );
+
+  const name=
+    student?.studentName ||
+    fields.studentName ||
+    'That student';
+
+  if(!student){
+    return '';
+  }
+
+  const owed=
+    Number(
+      studentAccountTotals(student).parentBalance||0
+    );
+
+  return owed > .009
+    ? `${name} still owes ${money(owed)}, so VendorFlow is proposing `+
+      `this against their account.`
+    : `${name} does not owe anything right now, so there is nothing `+
+      `for this to come off -- VendorFlow is proposing it as income.`;
+}
+
+
+/*
+ * The two buttons themselves. Only for money that arrived: a charge
+ * is money owed and has no income reading, and a certificate is
+ * neither.
+ */
+function vfProposalTypeSwitchHTML(review,fields){
+
+  const type=vfProposalType(review);
+
+  if(type!=='payment' && type!=='income'){
+    return '';
+  }
+
+  const student=
+    String(fields?.studentName||'').trim();
+
+  const option=(value,label,note)=>`
+    <button
+      type="button"
+      class="vf-proposal-switch-option${type===value?' on':''}"
+      aria-pressed="${type===value?'true':'false'}"
+      data-proposal-as="${esc(value)}"
+      data-proposal-as-review="${esc(review.id)}">
+      <strong>${esc(label)}</strong>
+      <small>${esc(note)}</small>
+    </button>`;
+
+  return `
+    <div class="vf-proposal-switch">
+      ${option(
+        'payment',
+        'Payment from a family',
+        student
+          ? `Comes off ${student}'s balance`
+          : 'Comes off a student\u2019s balance'
+      )}
+      ${option(
+        'income',
+        'Income',
+        'Money with no student account behind it'
+      )}
+    </div>`;
+}
+
 /*
  * The inline "Edit and approve" form for one email-proposal card.
  * Certificates get their own simpler set of fields (no student/
@@ -38504,11 +38669,14 @@ function vfProposalEditFormHTML(review){
     `;
   }
 
+  const chosenType=
+    vfProposalType(review);
+
   const currentType=
-    review.itemType==='charge'
+    chosenType==='charge'
       ? 'charge'
       : (
-          review.itemType==='income'
+          chosenType==='income'
             ? 'income'
             : 'payment'
         );
@@ -39446,8 +39614,11 @@ function renderReviews(force){
          * alone; charges/payments only carry one when the roster
          * cross-check at intake was confident).
          */
+        const shownType=
+          vfProposalType(review);
+
         const hasConfidentStudentMatch=
-          review.itemType==='income' ||
+          shownType==='income' ||
           Boolean(f.studentId);
 
         const editing=
@@ -39512,7 +39683,7 @@ function renderReviews(force){
               <div>Amount: ${money(Number(f.amount||0))}</div>
               <div>Service dates: ${esc(f.serviceStartDate||'—')} through ${esc(f.serviceEndDate||'—')}</div>
             `
-            : review.itemType==='income'
+            : shownType==='income'
             ? `
               <div>Paid by: ${esc(f.payer||'—')}</div>
               <div>Category: ${esc(vfIncomeCategoryLabel(f.category||'other'))}</div>
@@ -39521,11 +39692,11 @@ function renderReviews(force){
               ${f.memo?`<div>Note: ${esc(f.memo)}</div>`:''}
             `
             : `
-              <div>${review.itemType==='charge'?'Owed by':'Payer'}: ${esc(f.payer||f.studentName||'—')}</div>
+              <div>${shownType==='charge'?'Owed by':'Payer'}: ${esc(f.payer||f.studentName||'—')}</div>
               <div>Student: ${esc(f.studentName||'—')}</div>
               <div>Service: ${esc(f.serviceName||'—')}</div>
               <div>Amount: ${money(proposalDisplayAmount(f))}</div>
-              ${review.itemType!=='charge'?`<div>Method: ${esc(f.method||'—')}</div>`:''}
+              ${shownType!=='charge'?`<div>Method: ${esc(f.method||'—')}</div>`:''}
               <div>Date: ${esc(f.date||'—')}</div>
             `;
 
@@ -39545,10 +39716,17 @@ function renderReviews(force){
             }
 
             ${
-              f.decisionNote
-                ? `<div class="vf-proposal-why">${esc(f.decisionNote)}</div>`
-                : ''
+              (()=>{
+
+                const why=vfProposalWhy(review);
+
+                return why
+                  ? `<div class="vf-proposal-why">${esc(why)}</div>`
+                  : '';
+              })()
             }
+
+            ${vfProposalTypeSwitchHTML(review,f)}
 
             ${
               (()=>{
@@ -40627,6 +40805,36 @@ function renderReviews(force){
       };
     });
 
+  $$('[data-proposal-as]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        const reviewId=
+          button.dataset.proposalAsReview;
+
+        vfProposalTypeChoice[reviewId]=
+          button.dataset.proposalAs;
+
+        /*
+         * Switching to a family payment on a card that has no student
+         * attached needs one -- open the editor so the vendor can
+         * choose, instead of approving into nowhere.
+         */
+        const review=
+          reviews.find(item=>item.id===reviewId);
+
+        if(
+          button.dataset.proposalAs==='payment' &&
+          !review?.proposalFields?.studentId
+        ){
+          vfProposalEditingId=reviewId;
+        }
+
+        renderReviews(true);
+      };
+    });
+
   $$('[data-cancel-proposal-edit]')
     .forEach(button=>{
       button.onclick=()=>{
@@ -40782,6 +40990,11 @@ function renderReviews(force){
   $$('[data-dismiss-proposal]')
     .forEach(button=>{
       button.onclick=()=>{
+
+        delete vfProposalTypeChoice[
+          button.dataset.dismissProposal
+        ];
+
         dismissEmailProposal(
           button.dataset.dismissProposal
         );
@@ -41298,7 +41511,8 @@ async function approveEmailProposal(
   }
 
   const itemType=
-    overrideType || review.itemType;
+    overrideType ||
+    vfProposalType(review);
 
   const fieldsToSend=
     overrideFields ||
@@ -41391,6 +41605,7 @@ async function approveEmailProposal(
     );
 
     vfProposalEditingId=null;
+    delete vfProposalTypeChoice[reviewId];
 
     await log(
       'Email proposal approved',
