@@ -65,7 +65,32 @@ let editingCertificateId='';
 let vfPendingCertificateReceivedEmail=null;
 let vfCommandCenterStudentId=null;
 const questions=[['businessName','What is the name of your business?','This will appear on invoices.'],['ownerName','What name should VendorFlow use for you?','Your name as vendor or owner.'],['address','What is your business mailing address?','Street address.'],['cityStateZip','What city, state, and ZIP go with that address?','Example: Encinitas, CA 92024'],['phone','What business phone number should VendorFlow use?','You can change this later.'],['locations','Where do you teach or conduct business?','Learning centers, campuses, tutoring locations, etc.'],['schools','Which charter schools or organizations do you work with?','List as many as you know now.']];
-const aliases={registrationId:['id','registration id'],status:['status','registration status'],classTitle:['title','class title','class'],studentFirst:['registrant first name','student first name','child first name'],studentLast:['registrant last name','student last name','child last name'],parentFirst:['primary first name','parent first name','guardian first name'],parentLast:['primary last name','parent last name','guardian last name'],parentEmail:['email address','parent email','guardian email'],parentPhone:['phone','parent phone','guardian phone'],grade:['grade level','grade']};
+/*
+ * Column headings VendorFlow recognises, most specific first --
+ * find() takes the first one that matches, so 'registrant first name'
+ * must be tried before a bare 'first name'.
+ *
+ * studentName and parentName are for files that carry a whole name in
+ * one column instead of separate first and last. They are listed
+ * after the split versions so a file with both keeps using the split.
+ *
+ * A guess made here is only ever a starting point now: the vendor
+ * sees every one of these decisions on the preview and can change it.
+ */
+const aliases={
+  registrationId:['registration id','registrant id','id'],
+  status:['registration status','enrollment status','status'],
+  classTitle:['class title','class name','title','class'],
+  studentFirst:['registrant first name','student first name','child first name','participant first name','first name','student first','child first'],
+  studentLast:['registrant last name','student last name','child last name','participant last name','last name','student last','child last'],
+  studentName:['registrant name','student name','child name','participant name','student','child','participant'],
+  parentFirst:['primary first name','parent first name','guardian first name','parent first','guardian first'],
+  parentLast:['primary last name','parent last name','guardian last name','parent last','guardian last'],
+  parentName:['parent name','guardian name','parent/guardian','parent or guardian','primary contact','primary name','parent','guardian'],
+  parentEmail:['email address','parent email','guardian email','primary email','contact email','parent e-mail','e-mail address','email','e-mail'],
+  parentPhone:['parent phone','guardian phone','primary phone','contact phone','phone number','mobile','cell phone','cell','phone'],
+  grade:['grade level','current grade','grade']
+};
 const vendorDoc=()=>doc(db,'vendors',user.uid),sub=n=>collection(db,'vendors',user.uid,n),toast=m=>{let t=$('#toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)};
 
 
@@ -13025,11 +13050,47 @@ function val(r,k){
   return map[k]?String(r[map[k]]??'').trim():'';
 }
 
+/*
+ * "Arabelle Hirsch" out of one column, when a file has no separate
+ * first and last. Everything after the first space is the surname,
+ * which keeps "Ryder San Antonio" intact.
+ */
+function splitWholeName(whole){
+
+  const parts=
+    String(whole||'')
+      .trim()
+      .replace(/\s+/g,' ')
+      .split(' ');
+
+  if(!parts[0]){
+    return {first:'',last:''};
+  }
+
+  return {
+    first:parts[0],
+    last:parts.slice(1).join(' ')
+  };
+}
+
+
 function transform(r){
   let sf=val(r,'studentFirst'),
       sl=val(r,'studentLast'),
       pf=val(r,'parentFirst'),
       pl=val(r,'parentLast');
+
+  if(!sf && !sl){
+    const whole=splitWholeName(val(r,'studentName'));
+    sf=whole.first;
+    sl=whole.last;
+  }
+
+  if(!pf && !pl){
+    const whole=splitWholeName(val(r,'parentName'));
+    pf=whole.first;
+    pl=whole.last;
+  }
 
   return{
     registrationId:val(r,'registrationId'),
@@ -13056,6 +13117,63 @@ function active(s){
   ].includes(norm(s.status));
 }
 
+/*
+ * The file exactly as it was read, kept so that correcting a column
+ * re-reads these rows instead of asking for the file again.
+ */
+let vfRosterRawRows=[];
+let vfRosterFileName='';
+
+
+/*
+ * Rebuilds the preview from the raw rows under the current mapping.
+ *
+ * Every row is kept here, including the ones that cannot become a
+ * student -- they are counted and named on screen instead of being
+ * filtered away where nobody can see them. Only the save filters.
+ */
+function vfApplyRosterMapping(){
+
+  preview=
+    vfRosterRawRows.map((row,index)=>({
+      ...transform(row),
+      sourceRow:index+2   /* +2: one for the header, one for 1-based */
+    }));
+
+  renderPreview();
+}
+
+
+/*
+ * A row VendorFlow cannot turn into a student, and the reason.
+ *
+ * A blank student name is the important one: such a row used to be
+ * counted as usable, written into the class roster, and then dropped
+ * without a word by syncRosterToCoreRecords. That is the bug this
+ * whole screen exists to make impossible.
+ */
+function vfRosterSkippedRows(){
+
+  return preview
+    .filter(row=>!String(row.studentName||'').trim())
+    .map(row=>({
+      row:row.sourceRow,
+      reason:
+        String(row.parentEmail||'').trim()
+          ? `no student name (has ${row.parentEmail})`
+          : 'no student name'
+    }));
+}
+
+
+function vfRosterImportableRows(){
+
+  return preview.filter(
+    row=>String(row.studentName||'').trim()
+  );
+}
+
+
 $('#csv').onchange=e=>{
   let f=e.target.files[0];
 
@@ -13070,14 +13188,15 @@ $('#csv').onchange=e=>{
       headers=r.meta.fields||[];
       map=mapHeaders(headers);
 
-      preview=(r.data||[])
-        .map(transform)
-        .filter(x=>x.studentName||x.parentEmail);
+      vfRosterRawRows=r.data||[];
+      vfRosterFileName=f.name;
+
+      vfApplyRosterMapping();
 
       $('#csvStatus').textContent=
-        `${f.name}: ${preview.length} usable rows found.`;
-
-      renderPreview();
+        `${f.name}: ${vfRosterRawRows.length} row${
+          vfRosterRawRows.length===1?'':'s'
+        } read.`;
     }
   });
 };
@@ -13111,25 +13230,56 @@ if($('#csvHelpModal')){
 function renderPreview(){
   show($('#previewCard'));
 
+  vfRenderRosterMapping();
+
+  const importable=vfRosterImportableRows();
+  const skipped=vfRosterSkippedRows();
+
   $('#mapping').textContent=
-    `${preview.length} rows found. VendorFlow recognized ${Object.keys(map).length} useful fields.`;
+    `${importable.length} of ${preview.length} row${
+      preview.length===1?'':'s'
+    } will be added as students.`;
+
+  $('#saveRoster').disabled=
+    importable.length===0;
 
   $('#previewBody').innerHTML=
-    preview.map(s=>
-      `<tr>
-        <td>${esc(s.studentName)}</td>
+    preview.map(s=>{
+
+      const blank=
+        !String(s.studentName||'').trim();
+
+      return `<tr class="${blank?'vf-roster-row-skipped':''}">
+        <td>${blank?'<em>no name — will be skipped</em>':esc(s.studentName)}</td>
         <td>${esc(s.parentName)}</td>
         <td>${esc(s.parentEmail)}</td>
         <td>${esc(s.parentPhone)}</td>
         <td>${esc(s.status)}</td>
         <td>${esc(s.grade)}</td>
-      </tr>`
-    ).join('');
+      </tr>`;
+    }).join('');
 
+  /*
+   * Said before the roster is saved, never after. A vendor finding
+   * out that eight of their twelve families are missing by counting
+   * the directory afterwards is the whole complaint.
+   */
   let issues=[];
 
-  if(!map.studentFirst||!map.studentLast){
-    issues.push('Student name columns were not fully recognized.');
+  if(!importable.length){
+    issues.push(
+      'VendorFlow cannot find a student name in any row. '+
+      'Check the "Student name" line above and point it at the right column.'
+    );
+  }else if(skipped.length){
+    issues.push(
+      `${skipped.length} row${skipped.length===1?'':'s'} will be skipped `+
+      `because ${skipped.length===1?'it has':'they have'} no student name `+
+      `(row${skipped.length===1?'':'s'} ${
+        skipped.slice(0,12).map(s=>s.row).join(', ')
+      }${skipped.length>12?', …':''}). `+
+      'If the name is in a column VendorFlow did not pick, change it above.'
+    );
   }
 
   if(issues.length){
@@ -13138,6 +13288,82 @@ function renderPreview(){
   }else{
     hide($('#warnings'));
   }
+}
+
+
+/*
+ * Which column VendorFlow is reading as what, as a row of dropdowns
+ * built from the file's own headings.
+ *
+ * This is the part that makes every guess above safe. VendorFlow
+ * proposes; the vendor can see each decision and change any of it
+ * before a single record is written.
+ */
+const VF_ROSTER_FIELDS=[
+  {key:'studentFirst', label:'Student first name'},
+  {key:'studentLast',  label:'Student last name'},
+  {key:'studentName',  label:'Student name (one column)'},
+  {key:'parentFirst',  label:'Parent first name'},
+  {key:'parentLast',   label:'Parent last name'},
+  {key:'parentName',   label:'Parent name (one column)'},
+  {key:'parentEmail',  label:'Parent email'},
+  {key:'parentPhone',  label:'Parent phone'},
+  {key:'grade',        label:'Grade'},
+  {key:'status',       label:'Status'}
+];
+
+
+function vfRenderRosterMapping(){
+
+  const box=$('#rosterMapping');
+
+  if(!box){
+    return;
+  }
+
+  const options=column=>
+    ['<option value="">— not in this file —</option>']
+      .concat(
+        headers.map(header=>
+          `<option value="${esc(header)}" ${
+            header===column?'selected':''
+          }>${esc(header)}</option>`
+        )
+      )
+      .join('');
+
+  box.innerHTML=`
+    <div class="vf-roster-mapping-head">
+      <strong>What VendorFlow is reading from your file</strong>
+      <span>Change any of these if it picked the wrong column.</span>
+    </div>
+    <div class="vf-roster-mapping-grid">
+      ${VF_ROSTER_FIELDS.map(field=>`
+        <label class="vf-roster-map-field">
+          <span>${esc(field.label)}</span>
+          <select data-roster-map="${esc(field.key)}">
+            ${options(map[field.key]||'')}
+          </select>
+        </label>
+      `).join('')}
+    </div>
+  `;
+
+  box.querySelectorAll('[data-roster-map]').forEach(select=>{
+
+    select.onchange=()=>{
+
+      const key=select.dataset.rosterMap;
+
+      if(select.value){
+        map[key]=select.value;
+      }else{
+        delete map[key];
+      }
+
+      vfApplyRosterMapping();
+    };
+  });
 }
 
 $('#saveRoster').onclick=async()=>{
@@ -13156,7 +13382,14 @@ $('#saveRoster').onclick=async()=>{
 
   old.forEach(d=>b.delete(d.ref));
 
-  preview.forEach(s=>
+  /*
+    * Only rows that can become a student are written. A nameless row
+    * used to be saved here and then dropped without a word further
+    * down; now it is reported on the preview and never saved at all.
+    */
+  const importable=vfRosterImportableRows();
+
+  importable.forEach(s=>
     b.set(
       doc(col),
       {
@@ -13167,24 +13400,32 @@ $('#saveRoster').onclick=async()=>{
     )
   );
 
-  let count=preview.filter(active).length;
+  let count=importable.filter(active).length;
 
   b.update(
     doc(db,'vendors',user.uid,'classes',c.id),
     {
       activeStudentCount:count,
-      rosterCount:preview.length,
+      rosterCount:importable.length,
       lastImportAt:serverTimestamp()
     }
   );
 
   await b.commit();
 
-  await syncRosterToCoreRecords(c,preview);
+  await syncRosterToCoreRecords(c,importable);
+
+  const skippedCount=
+    preview.length-importable.length;
 
   await log(
     'Roster imported',
-    `${preview.length} students imported into ${c.name}; ${count} active.`,
+    `${importable.length} students imported into ${c.name}; ${count} active`+
+    `${
+      skippedCount
+        ? `; ${skippedCount} row${skippedCount===1?'':'s'} skipped for having no student name`
+        : ''
+    }.`,
     'CSV import'
   );
 
@@ -13197,6 +13438,7 @@ $('#saveRoster').onclick=async()=>{
   renderRoster();
 
   preview=[];
+  vfRosterRawRows=[];
   hide($('#previewCard'));
 
   if($('#csvStatus')){
@@ -13211,7 +13453,15 @@ $('#saveRoster').onclick=async()=>{
 
   saveRosterButton.textContent='Saved \u2713';
 
-  toast('Roster saved.');
+  toast(
+    skippedCount
+      ? `${importable.length} students saved. ${skippedCount} row${
+          skippedCount===1?'':'s'
+        } skipped — no student name.`
+      : `${importable.length} student${
+          importable.length===1?'':'s'
+        } saved.`
+  );
 
   setTimeout(()=>{
     saveRosterButton.disabled=false;

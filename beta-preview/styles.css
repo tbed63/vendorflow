@@ -4515,6 +4515,66 @@ button.vf-certificate-problem:focus-visible{
   color:#26383f;
 }
 
+/* VF_ROSTER_MAPPING */
+.vf-roster-mapping{
+  margin:14px 0;
+  padding:14px 16px;
+  border:1px solid #cbd8e8;
+  border-radius:12px;
+  background:#f5f8fc;
+}
+
+.vf-roster-mapping-head strong{
+  display:block;
+  font-size:14px;
+  color:#18283b;
+}
+
+.vf-roster-mapping-head span{
+  display:block;
+  margin-top:2px;
+  font-size:12.5px;
+  color:#66757d;
+}
+
+.vf-roster-mapping-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+  gap:10px 16px;
+  margin-top:12px;
+}
+
+.vf-roster-map-field{
+  display:block;
+}
+
+.vf-roster-map-field span{
+  display:block;
+  font-size:12px;
+  font-weight:700;
+  color:#26383f;
+  margin-bottom:3px;
+}
+
+.vf-roster-map-field select{
+  width:100%;
+  padding:6px 8px;
+  border:1px solid #cbd8e8;
+  border-radius:8px;
+  background:#fff;
+  font-size:13px;
+}
+
+.vf-roster-row-skipped{
+  background:#fff4e5;
+  color:#8a5a00;
+}
+
+.vf-roster-row-skipped em{
+  font-style:normal;
+  font-weight:700;
+}
+
 .vf-proposal-switch{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
