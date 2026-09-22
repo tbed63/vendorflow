@@ -3867,6 +3867,18 @@ aside nav{
 }
 
 
+/*
+ * Received by Charter sits between Sent and Paid: a deeper, warmer
+ * blue than Sent so the two read as the same family (both unpaid)
+ * while still being tellable apart at a glance, and clearly not the
+ * green of money actually in hand.
+ */
+.vf-ledger-status.received{
+  background:#DCE7F7;
+  color:#1F4A80;
+}
+
+
 .vf-ledger-status.paid{
   background:#E5F4EB;
   color:#2D7048;

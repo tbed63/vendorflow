@@ -1074,7 +1074,7 @@ function overdueInvoiceNotificationItems(){
 
   return invoices
     .filter(invoice=>
-      invoiceStatus(invoice)==='Sent'
+      invoiceIsOutstanding(invoice)
     )
     .map(invoice=>{
 
@@ -1961,6 +1961,7 @@ const VF_REVIEW_KINDS={
 
   /* Money arriving, or a worry going away. */
   'certificate-received-email':      {label:'Certificate received', tone:'ok'},
+  'invoice-receipt-confirmation':    {label:'Invoice received',     tone:'ok'},
   'payment-received-email':          {label:'Payment received',     tone:'ok'},
   'late-fee-removed-email':          {label:'Late fee removed',     tone:'ok'},
 
@@ -6168,6 +6169,42 @@ function invoiceStatus(invoice){
 }
 
 
+/*
+ * A charter school wrote back to say it has the invoice and is
+ * processing it for payment. That is a real, useful fact -- it says
+ * the invoice did not vanish into a mailbox -- but it is NOT money.
+ *
+ * So this is a Sent invoice wearing a label: still owed, still
+ * counted as outstanding, still chased when it goes past due.
+ * Anywhere in this file that means "billed and not yet paid" must
+ * ask vfStatusIsOutstanding()/invoiceIsOutstanding() rather than
+ * compare against 'Sent' on its own, or an invoice disappears from
+ * the dashboard the moment a school is polite enough to reply.
+ */
+const VF_INVOICE_STATUS_RECEIVED=
+  'Received by Charter';
+
+
+function vfStatusIsOutstanding(status){
+
+  const value=
+    String(status||'').trim();
+
+  return (
+    value==='Sent' ||
+    value===VF_INVOICE_STATUS_RECEIVED
+  );
+}
+
+
+function invoiceIsOutstanding(invoice){
+
+  return vfStatusIsOutstanding(
+    invoiceStatus(invoice)
+  );
+}
+
+
 function invoiceCharter(cert){
 
   if(cert.charterSchoolId){
@@ -7732,6 +7769,13 @@ function invoiceLedgerStatusClass(status){
     return 'sent';
   }
 
+  if(
+    value===
+    VF_INVOICE_STATUS_RECEIVED.toLowerCase()
+  ){
+    return 'received';
+  }
+
   return 'ready';
 }
 
@@ -8384,7 +8428,16 @@ async function markInvoiceUnpaidManually(invoice){
       invoice.id
     ),
     {
-      status:'Sent',
+      /*
+       * Back to where it was before it was paid. A charter's
+       * confirmation that it received the invoice is still true
+       * after a mistaken Mark Paid is undone, so it is not thrown
+       * away here.
+       */
+      status:
+        invoice.receivedByCharterAt
+          ? VF_INVOICE_STATUS_RECEIVED
+          : 'Sent',
       paidAt:null,
       updatedAt:serverTimestamp()
     },
@@ -8397,6 +8450,144 @@ async function markInvoiceUnpaidManually(invoice){
   await log(
     'Invoice marked unpaid',
     `${invoice.invoiceNumber} — ${invoice.charterSchoolName} — ${money(invoice.amount)}.`,
+    'Manual',
+    {
+      type:'invoice',
+      id:invoice.id
+    }
+  );
+
+
+  closeInvoiceLedgerDetail();
+
+  await refreshAll();
+}
+
+
+/*
+ * The charter school has told you it has the invoice.
+ *
+ * Money has not moved, so nothing about the amount owed changes --
+ * this records contact, and nothing more. `source` says where the
+ * confirmation came from so the Actions log can tell a forwarded
+ * email apart from a button click months later.
+ */
+async function markInvoiceReceivedByCharter(
+  invoice,
+  options
+){
+
+  const settings=
+    options||{};
+
+
+  if(!settings.skipConfirm){
+
+    const ok=
+      confirm(
+        `Mark ${invoice.invoiceNumber} as received by ${invoice.charterSchoolName||'the charter school'}?\n\n`+
+        `This records that the school confirmed it has the invoice. `+
+        `It is still unpaid, still counted as owed, and reminders `+
+        `continue as normal.`
+      );
+
+    if(!ok){
+      return false;
+    }
+  }
+
+
+  await setDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'invoices',
+      invoice.id
+    ),
+    {
+      status:
+        VF_INVOICE_STATUS_RECEIVED,
+
+      receivedByCharterAt:
+        serverTimestamp(),
+
+      receivedByCharterSource:
+        String(settings.source||'Manual'),
+
+      receivedByCharterNote:
+        String(settings.note||''),
+
+      updatedAt:
+        serverTimestamp()
+    },
+    {
+      merge:true
+    }
+  );
+
+
+  await log(
+    'Charter confirmed receipt',
+    `${invoice.invoiceNumber} — ${invoice.charterSchoolName} — ${money(invoice.amount)}. `+
+    `Still unpaid.`,
+    String(settings.source||'Manual'),
+    {
+      type:'invoice',
+      id:invoice.id
+    }
+  );
+
+
+  if(!settings.keepDetailOpen){
+    closeInvoiceLedgerDetail();
+  }
+
+  if(!settings.skipRefresh){
+    await refreshAll();
+  }
+
+  return true;
+}
+
+
+async function undoInvoiceReceivedByCharter(invoice){
+
+  const ok=
+    confirm(
+      `Put ${invoice.invoiceNumber} back to Sent?\n\n`+
+      `Use this if the confirmation was matched to the wrong invoice.`
+    );
+
+  if(!ok){
+    return;
+  }
+
+
+  await setDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'invoices',
+      invoice.id
+    ),
+    {
+      status:'Sent',
+      receivedByCharterAt:null,
+      receivedByCharterSource:'',
+      receivedByCharterNote:'',
+      updatedAt:serverTimestamp()
+    },
+    {
+      merge:true
+    }
+  );
+
+
+  await log(
+    'Confirmed receipt undone',
+    `${invoice.invoiceNumber} — ${invoice.charterSchoolName} — back to Sent.`,
     'Manual',
     {
       type:'invoice',
@@ -8540,7 +8731,7 @@ function showInvoiceLedgerDetail(invoice){
       }
 
       ${
-        status==='Sent'
+        vfStatusIsOutstanding(status)
           ? `
             <button
               type="button"
@@ -8548,6 +8739,20 @@ function showInvoiceLedgerDetail(invoice){
               class="primary">
               Mark Paid
             </button>
+
+            ${status==='Sent'
+              ? `<button
+                  type="button"
+                  id="ledgerMarkReceived"
+                  class="vf-secondary-button">
+                  Charter confirmed receipt
+                </button>`
+              : `<button
+                  type="button"
+                  id="ledgerUndoReceived"
+                  class="vf-secondary-button">
+                  Undo confirmed receipt
+                </button>`}
 
             <button
               type="button"
@@ -8623,6 +8828,30 @@ function showInvoiceLedgerDetail(invoice){
 
     markPaid.onclick=
       ()=>markInvoicePaidManually(
+        invoice
+      );
+  }
+
+
+  const markReceived=
+    $('#ledgerMarkReceived');
+
+  if(markReceived){
+
+    markReceived.onclick=
+      ()=>markInvoiceReceivedByCharter(
+        invoice
+      );
+  }
+
+
+  const undoReceived=
+    $('#ledgerUndoReceived');
+
+  if(undoReceived){
+
+    undoReceived.onclick=
+      ()=>undoInvoiceReceivedByCharter(
         invoice
       );
   }
@@ -8927,6 +9156,13 @@ function renderInvoices(){
         invoiceStatus(invoice)==='Sent'
     );
 
+  const received=
+    invoices.filter(
+      invoice=>
+        invoiceStatus(invoice)===
+          VF_INVOICE_STATUS_RECEIVED
+    );
+
   const paid=
     invoices.filter(
       invoice=>
@@ -8936,7 +9172,7 @@ function renderInvoices(){
 
   if($('#invoiceAllCount')){
     $('#invoiceAllCount').textContent=
-      `(${ready.length+sent.length})`;
+      `(${ready.length+sent.length+received.length})`;
   }
 
   if($('#invoiceReadyCount')){
@@ -8947,6 +9183,12 @@ function renderInvoices(){
   if($('#invoiceSentCount')){
     $('#invoiceSentCount').textContent=
       `(${sent.length})`;
+  }
+
+  /* Guarded: older cached index.html files have no such span. */
+  if($('#invoiceReceivedCount')){
+    $('#invoiceReceivedCount').textContent=
+      `(${received.length})`;
   }
 
   if($('#invoicePaidCount')){
@@ -9097,7 +9339,7 @@ function renderInvoices(){
 
 
   let visible=
-    [...ready,...sent];
+    [...ready,...sent,...received];
 
 
   if(invoiceStatusFilter==='ready'){
@@ -9106,6 +9348,10 @@ function renderInvoices(){
 
   if(invoiceStatusFilter==='sent'){
     visible=sent;
+  }
+
+  if(invoiceStatusFilter==='received'){
+    visible=received;
   }
 
   if(invoiceStatusFilter==='paid'){
@@ -9206,7 +9452,7 @@ function renderInvoices(){
               ${esc(status.toUpperCase())}
             </span>
 
-            ${status==='Sent'
+            ${vfStatusIsOutstanding(status)
               ? `<button
                   type="button"
                   class="vf-secondary-button vf-ledger-mark-paid"
@@ -9561,7 +9807,7 @@ function vfUnpaidInvoiceCount(){
   return invoices
     .filter(invoice=>
       !invoice.deleted &&
-      invoiceStatus(invoice)==='Sent'
+      invoiceIsOutstanding(invoice)
     )
     .length;
 }
@@ -32630,6 +32876,147 @@ async function approveLateFeeChargeReview(reviewId,{silent=false}={}){
 }
 
 
+/*
+ * Approve: mark the matched invoice Received by Charter and clear
+ * the notification. Reuses markInvoiceReceivedByCharter() so an
+ * approval from a notification and a click in the invoice ledger
+ * write exactly the same fields and the same Actions entry.
+ */
+async function approveInvoiceReceiptConfirmation(reviewId){
+
+  const review=
+    reviews.find(r=>r.id===reviewId);
+
+  if(
+    !review ||
+    review.reviewType!=='invoice-receipt-confirmation'
+  ){
+    return false;
+  }
+
+
+  const invoice=
+    invoices.find(
+      item=>item.id===review.invoiceId
+    );
+
+
+  /*
+   * The invoice was deleted, or was paid, or was already confirmed
+   * while this card sat here. Nothing to do -- drop the card rather
+   * than write a status backwards over a later one.
+   */
+  if(
+    !invoice ||
+    invoiceStatus(invoice)!=='Sent'
+  ){
+
+    await deleteDoc(
+      doc(db,'vendors',user.uid,'review',reviewId)
+    );
+
+    await refreshAll();
+
+    toast(
+      invoice
+        ? 'That invoice has already moved on -- nothing was changed.'
+        : 'That invoice no longer exists.'
+    );
+
+    return false;
+  }
+
+
+  try{
+
+    await markInvoiceReceivedByCharter(
+      invoice,
+      {
+        skipConfirm:true,
+        skipRefresh:true,
+        keepDetailOpen:true,
+        source:'VendorFlow Email',
+        note:
+          String(review.sender||'')
+      }
+    );
+
+    await deleteDoc(
+      doc(db,'vendors',user.uid,'review',reviewId)
+    );
+
+  }catch(error){
+
+    toast(
+      error.message ||
+      'Could not update that invoice.'
+    );
+
+    return false;
+  }
+
+
+  await refreshAll();
+
+  toast(
+    `${invoice.invoiceNumber||'Invoice'} marked received by charter.`
+  );
+
+  return true;
+}
+
+
+/*
+ * "Not this invoice." The match was wrong, or the email was not
+ * what VendorFlow took it for. The invoice is left exactly as it
+ * was and the card goes away.
+ */
+async function declineInvoiceReceiptConfirmation(reviewId){
+
+  const review=
+    reviews.find(r=>r.id===reviewId);
+
+  if(
+    !review ||
+    review.reviewType!=='invoice-receipt-confirmation'
+  ){
+    return false;
+  }
+
+
+  try{
+
+    await deleteDoc(
+      doc(db,'vendors',user.uid,'review',reviewId)
+    );
+
+    await log(
+      'Receipt confirmation dismissed',
+      `${review.invoiceNumber||'An invoice'} was not marked received `+
+      `-- the emailed confirmation was dismissed.`,
+      'Manual',
+      review.invoiceId
+        ? {type:'invoice',id:review.invoiceId}
+        : undefined
+    );
+
+  }catch(error){
+
+    toast(
+      error.message ||
+      'Could not dismiss that notification.'
+    );
+
+    return false;
+  }
+
+
+  await refreshAll();
+
+  return true;
+}
+
+
 async function declineLateFeeChargeReview(reviewId){
 
   const review=
@@ -40067,6 +40454,97 @@ function renderReviews(force){
       }
 
 
+      /*
+       * A charter school wrote back to say it has one of your
+       * invoices and is processing it for payment.
+       *
+       * Approving this touches no money at all -- it sets that one
+       * invoice to "Received by Charter" and stops. The card names
+       * the invoice VendorFlow matched and says how it matched it,
+       * because a confirmation pinned to the wrong invoice is worse
+       * than no confirmation at all, and the only person who can tell
+       * is the one reading the card.
+       */
+      if(
+        review.reviewType===
+          'invoice-receipt-confirmation'
+      ){
+
+        const matchedInvoice=
+          invoices.find(
+            item=>
+              item.id===review.invoiceId
+          );
+
+        const nothingToDo=
+          matchedInvoice &&
+          invoiceStatus(matchedInvoice)!=='Sent';
+
+        const actionable=
+          Boolean(matchedInvoice) &&
+          !nothingToDo;
+
+        return `
+          <div class="record vf-receipt-confirmation-review">
+
+            ${vfReviewKindChip(review)}
+
+            <strong>${esc(vfReviewHeadline(review))}</strong>
+
+            <div class="meta">${esc(review.detail||'')}</div>
+
+            ${
+              review.matchedOn
+                ? `<div class="vf-proposal-why">Matched on ${esc(review.matchedOn)}.</div>`
+                : ''
+            }
+
+            ${
+              !matchedInvoice
+                ? `<div class="vf-proposal-incomplete">VendorFlow can no longer find that invoice, so there is nothing to mark.</div>`
+                : nothingToDo
+                ? `<div class="vf-proposal-incomplete">${esc(matchedInvoice.invoiceNumber||'That invoice')} is already ${esc(invoiceStatus(matchedInvoice))}, so nothing needs to change.</div>`
+                : ''
+            }
+
+            <div class="vf-review-actions">
+
+              ${
+                actionable
+                  ? `<button
+                      type="button"
+                      class="primary"
+                      data-approve-receipt-confirmation="${esc(review.id)}">
+                      Mark received by charter
+                    </button>`
+                  : ''
+              }
+
+              ${
+                review.inboundEmailId
+                  ? `<button
+                      type="button"
+                      class="vf-secondary-button"
+                      data-open-review-email="${esc(review.inboundEmailId)}">
+                      Open Source Email
+                    </button>`
+                  : ''
+              }
+
+              <button
+                type="button"
+                class="vf-secondary-button"
+                data-decline-receipt-confirmation="${esc(review.id)}">
+                ${actionable?'Not this invoice':'Dismiss'}
+              </button>
+
+            </div>
+
+          </div>
+        `;
+      }
+
+
       if(
         review.reviewType===
         'invoice-numbering'
@@ -41280,6 +41758,39 @@ function renderReviews(force){
 
           button.disabled=false;
         }
+      };
+    });
+
+
+  $$('[data-approve-receipt-confirmation]')
+    .forEach(button=>{
+
+      button.onclick=async()=>{
+
+        button.disabled=true;
+
+        try{
+
+          await approveInvoiceReceiptConfirmation(
+            button.dataset.approveReceiptConfirmation
+          );
+
+        }finally{
+
+          button.disabled=false;
+        }
+      };
+    });
+
+
+  $$('[data-decline-receipt-confirmation]')
+    .forEach(button=>{
+
+      button.onclick=()=>{
+
+        declineInvoiceReceiptConfirmation(
+          button.dataset.declineReceiptConfirmation
+        );
       };
     });
 
