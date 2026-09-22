@@ -6185,6 +6185,36 @@ const VF_INVOICE_STATUS_RECEIVED=
   'Received by Charter';
 
 
+/*
+ * "Reset to Ready to Send" and "Simulate overdue reminder" were
+ * built to test the overdue notifications and were left sitting on
+ * every invoice, where a beta vendor sees two buttons labelled
+ * "testing only" on their own real money and reasonably wonders
+ * what they are. One of them rewrites a real invoice's due date.
+ *
+ * They still exist, and still work, behind a switch: add ?vftest=1
+ * to the address once and they stay on for that browser tab.
+ */
+function vfTestingToolsOn(){
+
+  try{
+
+    if(
+      new URLSearchParams(location.search)
+        .has('vftest')
+    ){
+      sessionStorage.setItem('vfTestingTools','1');
+    }
+
+    return sessionStorage.getItem('vfTestingTools')==='1';
+
+  }catch(error){
+
+    return false;
+  }
+}
+
+
 function vfStatusIsOutstanding(status){
 
   const value=
@@ -8754,19 +8784,21 @@ function showInvoiceLedgerDetail(invoice){
                   Undo confirmed receipt
                 </button>`}
 
-            <button
-              type="button"
-              id="ledgerResetToReady"
-              class="vf-secondary-button">
-              Reset to Ready to Send (testing only)
-            </button>
+            ${vfTestingToolsOn()
+              ? `<button
+                  type="button"
+                  id="ledgerResetToReady"
+                  class="vf-secondary-button">
+                  Reset to Ready to Send (testing only)
+                </button>
 
-            <button
-              type="button"
-              id="ledgerSimulateOverdue"
-              class="vf-secondary-button">
-              Simulate overdue reminder (testing only)
-            </button>
+                <button
+                  type="button"
+                  id="ledgerSimulateOverdue"
+                  class="vf-secondary-button">
+                  Simulate overdue reminder (testing only)
+                </button>`
+              : ''}
           `
           : ''
       }
