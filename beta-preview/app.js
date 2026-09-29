@@ -966,6 +966,102 @@ async function cleanupLegacyPaymentDuplicateReviews(){
 
 
 
+/*
+ * Two certificate records for the same certificate: same number, same
+ * charter school, same student name. It happens when a student is
+ * entered twice (two accounts, one child) or a duplicate is kept on
+ * purpose from review -- and then each copy got its own invoice.
+ *
+ * The student name is part of the key on purpose: some charter
+ * schools put one PO number on several students, and those are
+ * separate bills.
+ *
+ * Of each group, one copy is the one VendorFlow bills: the one that
+ * already has a live invoice, otherwise the one saved first. The rest
+ * are never invoiced and are raised in Notifications instead.
+ */
+function vfCertificateDuplicateKey(cert){
+
+  const number=
+    normalizeDuplicateKey(cert?.number);
+
+  const student=
+    normalizeDuplicateKey(cert?.student);
+
+  if(!number || !student || !cert?.charterSchoolId){
+    return '';
+  }
+
+  return `${cert.charterSchoolId}|${number}|${student}`;
+}
+
+
+function vfCertificateHasLiveInvoice(cert){
+
+  return invoices.some(
+    invoice=>
+      invoice.certificateId===cert.id &&
+      invoiceStatus(invoice)!==VF_INVOICE_STATUS_VOID
+  );
+}
+
+
+function vfCertificateCreatedSeconds(cert){
+
+  return Number(
+    cert?.createdAt?.seconds ??
+    (typeof cert?.createdAt?.toDate==='function'
+      ? cert.createdAt.toDate().getTime()/1000
+      : Infinity)
+  );
+}
+
+
+/* The other active copies of this certificate, or [] if none. */
+function vfCertificateDuplicates(cert){
+
+  const key=
+    vfCertificateDuplicateKey(cert);
+
+  if(!key || cert.deleted){
+    return [];
+  }
+
+  return certs.filter(
+    other=>
+      other.id!==cert.id &&
+      !other.deleted &&
+      !other.archived &&
+      vfCertificateDuplicateKey(other)===key
+  );
+}
+
+
+/* The copy VendorFlow bills for this certificate's group. */
+function vfCertificateKeeper(cert){
+
+  const group=
+    [cert,...vfCertificateDuplicates(cert)];
+
+  return group
+    .slice()
+    .sort((a,b)=>
+      (vfCertificateHasLiveInvoice(b)-vfCertificateHasLiveInvoice(a)) ||
+      (vfCertificateCreatedSeconds(a)-vfCertificateCreatedSeconds(b)) ||
+      String(a.id).localeCompare(String(b.id))
+    )[0];
+}
+
+
+function vfCertificateIsExtraCopy(cert){
+
+  return (
+    vfCertificateDuplicates(cert).length>0 &&
+    vfCertificateKeeper(cert).id!==cert.id
+  );
+}
+
+
 function certificateAttentionIssue(cert){
 
   if(
@@ -973,6 +1069,35 @@ function certificateAttentionIssue(cert){
     cert.deleted
   ){
     return null;
+  }
+
+
+  if(vfCertificateIsExtraCopy(cert)){
+
+    const keeper=
+      vfCertificateKeeper(cert);
+
+    const doubleBilled=
+      vfCertificateHasLiveInvoice(cert);
+
+    return {
+      code:'duplicate-certificate',
+      title:
+        doubleBilled
+          ? 'Certificate invoiced twice'
+          : 'Duplicate certificate',
+      detail:
+        `${cert.student||'Student'} — certificate ${cert.number} — ${money(cert.amount)} — `+
+        `is saved twice for ${cert.school||'this charter school'}`+
+        (keeper.invoiceNumber
+          ? ` (the other copy is on invoice ${keeper.invoiceNumber})`
+          : '')+
+        '. '+
+        (doubleBilled
+          ? 'Open this copy\'s invoice on the Invoices page and choose Void invoice, then delete this copy of the certificate.'
+          : 'VendorFlow will not invoice it twice. If this copy is a mistake, delete it.')+
+        ' If the student has two accounts, remove the extra one too.'
+    };
   }
 
 
@@ -6193,6 +6318,17 @@ const VF_INVOICE_STATUS_RECEIVED=
 
 
 /*
+ * An invoice the vendor told VendorFlow to forget -- a duplicate, or
+ * one made by mistake. It is never deleted: its number stays used and
+ * it stays visible under Voided, as an audit trail. Every count of
+ * money owed or invoices to send asks for a specific live status, so
+ * a Void invoice drops out of all of them without special cases.
+ */
+const VF_INVOICE_STATUS_VOID=
+  'Void';
+
+
+/*
  * "Reset to Ready to Send" and "Simulate overdue reminder" were
  * built to test the overdue notifications and were left sitting on
  * every invoice, where a beta vendor sees two buttons labelled
@@ -6574,6 +6710,25 @@ async function vfCreateInvoiceForCertificateNow(cert){
           !charter
             ? 'This certificate is not linked to a charter school yet.'
             : 'This certificate is not linked to a student yet.'
+      };
+    }
+
+
+        if(vfCertificateIsExtraCopy(cert)){
+
+      const keeper=
+        vfCertificateKeeper(cert);
+
+      return {
+        ok:false,
+        reason:'duplicate',
+        detail:
+          `Certificate ${cert.number} for ${cert.student||'this student'} is already saved`+
+          (keeper.invoiceNumber
+            ? ` and billed on invoice ${keeper.invoiceNumber}`
+            : '')+
+          '. VendorFlow will not invoice the same certificate twice. '+
+          'If this copy is a mistake, delete it.'
       };
     }
 
@@ -7292,8 +7447,15 @@ async function sendInvoiceThroughVendorFlow(
   overrides
 ){
 
-  if(!user || !invoice){
+    if(!user || !invoice){
     return;
+  }
+
+
+  if(invoiceStatus(invoice)===VF_INVOICE_STATUS_VOID){
+    throw new Error(
+      `Invoice ${invoice.invoiceNumber||''} is void and cannot be sent.`
+    );
   }
 
 
@@ -7808,9 +7970,16 @@ function invoiceLedgerStatusClass(status){
 
   if(
     value===
-    VF_INVOICE_STATUS_RECEIVED.toLowerCase()
+        VF_INVOICE_STATUS_RECEIVED.toLowerCase()
   ){
     return 'received';
+  }
+
+  if(
+    value===
+    VF_INVOICE_STATUS_VOID.toLowerCase()
+  ){
+    return 'void';
   }
 
   return 'ready';
@@ -8330,6 +8499,131 @@ async function markInvoiceSentManually(invoice,options){
 }
 
 
+/*
+ * Void: "forget this invoice". Offered on Ready to Send, Sent and
+ * Received by Charter -- not on Paid, where money has been matched to
+ * it; Mark Unpaid first. The record stays (status Void) so its number
+ * is not reused and History can still explain it.
+ *
+ * The certificate is left as it is. The usual reason to void -- the
+ * same certificate saved twice -- is finished by deleting that copy,
+ * which Notifications asks for.
+ */
+async function voidInvoice(invoice){
+
+  const status=
+    invoiceStatus(invoice);
+
+  const alreadySent=
+    vfStatusIsOutstanding(status);
+
+  const reason=
+    prompt(
+      `Void invoice ${invoice.invoiceNumber}?\n\n`+
+      `${invoice.studentName||'Student'} — ${invoice.charterSchoolName||'Charter school'} — ${money(invoice.amount)}\n\n`+
+      'VendorFlow will stop sending it, reminding you about it, and counting it as owed. '+
+      'It stays in your records under Voided, and its invoice number is not reused.'+
+      (alreadySent
+        ? `\n\nThis invoice was already sent. VendorFlow will not tell ${invoice.charterSchoolName||'the charter school'}, so let them know it is void.`
+        : '')+
+      '\n\nWhy are you voiding it?',
+      'Duplicate'
+    );
+
+  if(reason===null){
+    return;
+  }
+
+  await setDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'invoices',
+      invoice.id
+    ),
+    {
+      status:VF_INVOICE_STATUS_VOID,
+      voidedFromStatus:status,
+      voidReason:String(reason).trim().slice(0,300),
+      voidedOn:vfLocalDate(),
+      voidedAt:serverTimestamp(),
+      updatedAt:serverTimestamp()
+    },
+    {
+      merge:true
+    }
+  );
+
+  await log(
+    'Invoice voided',
+    `${invoice.invoiceNumber} — ${invoice.studentName||'Student'} — ${invoice.charterSchoolName} — ${money(invoice.amount)}`+
+    (String(reason).trim() ? ` — ${String(reason).trim()}` : '')+
+    '.',
+    'Manual',
+    {
+      type:'invoice',
+      id:invoice.id
+    }
+  );
+
+  closeInvoiceLedgerDetail();
+  await refreshAll();
+  toast(`Invoice ${invoice.invoiceNumber} voided.`);
+}
+
+
+async function undoVoidInvoice(invoice){
+
+  const restoreTo=
+    invoice.voidedFromStatus ||
+    'Ready to Send';
+
+  const ok=
+    confirm(
+      `Undo void on ${invoice.invoiceNumber}?\n\n`+
+      `It goes back to ${restoreTo}.`
+    );
+
+  if(!ok){
+    return;
+  }
+
+  await setDoc(
+    doc(
+      db,
+      'vendors',
+      user.uid,
+      'invoices',
+      invoice.id
+    ),
+    {
+      status:restoreTo,
+      voidReason:'',
+      voidedOn:'',
+      voidedFromStatus:'',
+      updatedAt:serverTimestamp()
+    },
+    {
+      merge:true
+    }
+  );
+
+  await log(
+    'Invoice void undone',
+    `${invoice.invoiceNumber} — back to ${restoreTo}.`,
+    'Manual',
+    {
+      type:'invoice',
+      id:invoice.id
+    }
+  );
+
+  closeInvoiceLedgerDetail();
+  await refreshAll();
+}
+
+
 async function markInvoicePaidManually(invoice){
 
   const ok=
@@ -8730,14 +9024,22 @@ function showInvoiceLedgerDetail(invoice){
           : ''
       }
 
-      <div>
+            <div>
         <small>Total</small>
         <strong>${money(invoice.amount)}</strong>
       </div>
-
     </div>
-
-
+    ${
+      status===VF_INVOICE_STATUS_VOID
+        ? `
+          <p class="vf-invoice-void-note">
+            Voided${invoice.voidedOn ? ' on '+esc(invoiceLedgerDate(invoice.voidedOn)) : ''}.
+            ${invoice.voidReason ? 'Reason: '+esc(invoice.voidReason)+'. ' : ''}
+            VendorFlow will not send it, remind you about it, or count it as owed.
+          </p>
+        `
+        : ''
+    }
     <div class="vf-invoice-detail-actions">
 
       <button
@@ -8815,14 +9117,38 @@ function showInvoiceLedgerDetail(invoice){
           ? `
             <button
               type="button"
-              id="ledgerMarkUnpaid"
+                            id="ledgerMarkUnpaid"
               class="vf-secondary-button">
               Mark Unpaid
             </button>
           `
           : ''
       }
-
+      ${
+        status==='Ready to Send' ||
+        vfStatusIsOutstanding(status)
+          ? `
+            <button
+              type="button"
+              id="ledgerVoidInvoice"
+              class="vf-secondary-button vf-void-button">
+              Void invoice
+            </button>
+          `
+          : ''
+      }
+      ${
+        status===VF_INVOICE_STATUS_VOID
+          ? `
+            <button
+              type="button"
+              id="ledgerUndoVoid"
+              class="vf-secondary-button">
+              Undo void
+            </button>
+          `
+          : ''
+      }
     </div>
   `;
 
@@ -8907,6 +9233,26 @@ function showInvoiceLedgerDetail(invoice){
       );
   }
 
+
+    const voidButton=
+    $('#ledgerVoidInvoice');
+
+  if(voidButton){
+    voidButton.onclick=
+      ()=>voidInvoice(
+        invoice
+      );
+  }
+
+  const undoVoid=
+    $('#ledgerUndoVoid');
+
+  if(undoVoid){
+    undoVoid.onclick=
+      ()=>undoVoidInvoice(
+        invoice
+      );
+  }
 
   const resetToReady=
     $('#ledgerResetToReady');
@@ -9202,11 +9548,22 @@ function renderInvoices(){
           VF_INVOICE_STATUS_RECEIVED
     );
 
-  const paid=
+    const paid=
     invoices.filter(
       invoice=>
         invoiceStatus(invoice)==='Paid'
     );
+
+  const voided=
+    invoices.filter(
+      invoice=>
+        invoiceStatus(invoice)===VF_INVOICE_STATUS_VOID
+    );
+
+  if($('#invoiceVoidCount')){
+    $('#invoiceVoidCount').textContent=
+      `(${voided.length})`;
+  }
 
 
   if($('#invoiceAllCount')){
@@ -9393,8 +9750,12 @@ function renderInvoices(){
     visible=received;
   }
 
-  if(invoiceStatusFilter==='paid'){
+    if(invoiceStatusFilter==='paid'){
     visible=paid;
+  }
+
+  if(invoiceStatusFilter==='void'){
+    visible=voided;
   }
 
 
