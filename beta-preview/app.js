@@ -33004,7 +33004,17 @@ async function applyLateFees(){
         classRecord
       );
 
-    if(lateFee<=0){
+        if(lateFee<=0){
+      continue;
+    }
+
+    /* The vendor already said no to this exact fee. Switching on
+       automatic late fees later must not charge it anyway; a new
+       late-fee date is a new fee. Same rule on the server. */
+    if(
+      obligation.lateFeeChargeDeclinedForDate &&
+      obligation.lateFeeChargeDeclinedForDate===obligation.lateFeeDate
+    ){
       continue;
     }
 
@@ -33254,8 +33264,31 @@ async function approveLateFeeChargeReview(reviewId,{silent=false}={}){
     return false;
   }
 
-  const remaining=
+    const remaining=
     Number(obligation.remainingAmount ?? obligation.amount ?? 0);
+
+  /*
+   * The 7am server run charges late fees too now, and a card can sit
+   * here while that happens (automatic late fees switched on in the
+   * meantime), or be approved on a second device. Already charged,
+   * or nothing owed any more: the card is out of date -- clear it,
+   * never add the fee twice.
+   */
+  if(
+    obligation.lateFeeApplied ||
+    remaining<=0.009
+  ){
+    await deleteDoc(doc(db,'vendors',user.uid,'review',reviewId));
+    if(!silent){
+      await refreshAll();
+      toast(
+        obligation.lateFeeApplied
+          ? 'That late fee was already added.'
+          : 'That payment is no longer owed, so no late fee was added.'
+      );
+    }
+    return false;
+  }
 
   const classRecord=
     classes.find(c=>c.id===obligation.classId) || {};
