@@ -38,6 +38,13 @@ let user=null,profile={},classes=[],roster=[],students=[],services=[],obligation
 let invoiceStatusFilter='all';
 let invoiceSearchQuery='';
 
+// Today's date (YYYY-MM-DD) on the user's own clock. toISOString() is UTC,
+// so in the evening in the US it already says tomorrow.
+function vfLocalDate(d=new Date()){
+  const pad=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
 let invoiceAdvancedFilters={
   charter:'',
   student:'',
@@ -16167,7 +16174,7 @@ function vfRepeatClear(prefix){
   set('EndDate','');
   set('Count',12);
 
-  vfRepeatSyncVisibility(prefix,new Date().toISOString().slice(0,10));
+  vfRepeatSyncVisibility(prefix,vfLocalDate());
 }
 
 
@@ -16283,7 +16290,7 @@ async function vfRepeatSaveRule(prefix,template,startDate){
     editing
       ? vfRecurFirstOnOrAfter(
           rule,
-          new Date().toISOString().slice(0,10)
+          vfLocalDate()
         )
       : vfRecurNextAfter(rule,startDate);
 
@@ -16660,7 +16667,7 @@ Object.keys(VF_REPEAT_FORMS).forEach(prefix=>{
     (prefix==='exp'
       ? $('#expDate')?.value
       : $('#compDue')?.value) ||
-    new Date().toISOString().slice(0,10);
+    vfLocalDate();
 
   [
     'On','Freq','Interval','Weekday','MonthDay',
@@ -17739,7 +17746,7 @@ function vfClearIncomeForm(){
 
   if($('#saveIncome'))$('#saveIncome').textContent='Save income';
 
-  if($('#incDateEarned'))$('#incDateEarned').value=new Date().toISOString().slice(0,10);
+  if($('#incDateEarned'))$('#incDateEarned').value=vfLocalDate();
   if($('#incAmount'))$('#incAmount').value='';
   if($('#incPayer'))$('#incPayer').value='';
   if($('#incCategory'))$('#incCategory').value='other';
@@ -18664,7 +18671,7 @@ async function vfRunIncomeImport(){
           amount:row.amount,
           dateEarned:
             row.dateEarned ||
-            new Date().toISOString().slice(0,10),
+            vfLocalDate(),
           payer:row.payer,
           category:row.category||'other',
           memo:row.memo,
@@ -19048,7 +19055,7 @@ if($('#saveIncome')){
       amount,
       dateEarned:
         $('#incDateEarned').value ||
-        new Date().toISOString().slice(0,10),
+        vfLocalDate(),
       payer:
         $('#incPayer').value.trim(),
       category:
@@ -19177,7 +19184,7 @@ function clearExpenseForm(){
   editingExpenseId=null;
   if($('#expCategory'))$('#expCategory').value='advertising';
   if($('#expAmount'))$('#expAmount').value='';
-  if($('#expDate'))$('#expDate').value=new Date().toISOString().slice(0,10);
+  if($('#expDate'))$('#expDate').value=vfLocalDate();
   if($('#expNote'))$('#expNote').value='';
   if($('#saveExpense'))$('#saveExpense').textContent='Save expense';
 }
@@ -19326,7 +19333,7 @@ if($('#saveExpense')){
     const d={
       category:$('#expCategory').value,
       amount,
-      date:$('#expDate').value || new Date().toISOString().slice(0,10),
+      date:$('#expDate').value || vfLocalDate(),
       note:$('#expNote').value.trim(),
       updatedAt:serverTimestamp()
     };
@@ -19822,7 +19829,7 @@ async function vfRunExpenseImport(){
           amount:row.amount,
           date:
             row.date ||
-            new Date().toISOString().slice(0,10),
+            vfLocalDate(),
           category:row.category||'other',
           note:row.note,
           method:row.method,
@@ -21869,13 +21876,11 @@ function studentFinancialDate(value){
   }
 
   if(typeof value?.toDate==='function'){
-    return value.toDate().toISOString().slice(0,10);
+    return vfLocalDate(value.toDate());
   }
 
   if(Number(value?.seconds)){
-    return new Date(Number(value.seconds)*1000)
-      .toISOString()
-      .slice(0,10);
+    return vfLocalDate(new Date(Number(value.seconds)*1000));
   }
 
   return '';
@@ -23490,7 +23495,7 @@ function renderStudentCommandCenter(studentId){
   if($('#ccStudentNotes'))$('#ccStudentNotes').value=student.notes||'';
   if($('#ccEmailTo'))$('#ccEmailTo').value=student.parentEmail||'';
 
-  const today=new Date().toISOString().slice(0,10);
+  const today=vfLocalDate();
   if($('#ccChargeDate'))$('#ccChargeDate').value=today;
   if($('#ccPaymentDate'))$('#ccPaymentDate').value=today;
 
@@ -24529,7 +24534,7 @@ async function saveStudentCommandCenterCharge(){
 
   const dateVal=
     $('#ccChargeDate').value ||
-    new Date().toISOString().slice(0,10);
+    vfLocalDate();
 
   const note=$('#ccChargeNote').value.trim();
 
@@ -24640,7 +24645,7 @@ async function saveStudentCommandCenterPayment(){
 
   const dateVal=
     $('#ccPaymentDate').value ||
-    new Date().toISOString().slice(0,10);
+    vfLocalDate();
 
   const payer=
     $('#ccPaymentPayer').value.trim() ||
@@ -24729,7 +24734,7 @@ async function editStudentCommandCenterCharge(obligationId){
   const newDateRaw=
     window.prompt(
       'Edit charge date (YYYY-MM-DD):',
-      charge.serviceDate||charge.dueDate||new Date().toISOString().slice(0,10)
+      charge.serviceDate||charge.dueDate||vfLocalDate()
     );
 
   if(newDateRaw===null)return;
@@ -24816,7 +24821,7 @@ async function editStudentCommandCenterPayment(paymentId){
   const newDateRaw=
     window.prompt(
       'Edit payment date (YYYY-MM-DD):',
-      payment.date||payment.paymentDate||new Date().toISOString().slice(0,10)
+      payment.date||payment.paymentDate||vfLocalDate()
     );
 
   if(newDateRaw===null)return;
@@ -34845,9 +34850,7 @@ $('#addRefund').onclick=()=>{
   resetRefundForm();
 
   $('#refundDate').value=
-    new Date()
-      .toISOString()
-      .slice(0,10);
+    vfLocalDate();
 
   show(
     $('#refundForm')
@@ -34955,9 +34958,7 @@ $('#saveRefund').onclick=async()=>{
 
     date:
       $('#refundDate').value ||
-      new Date()
-        .toISOString()
-        .slice(0,10),
+      vfLocalDate(),
 
     payer:
       student.parentName||'',
@@ -35109,7 +35110,7 @@ $('#savePayment').onclick=async()=>{
 
     date:
       $('#payDate').value ||
-      new Date().toISOString().slice(0,10),
+      vfLocalDate(),
 
     payer:
       $('#payPayer').value.trim() ||
@@ -37343,7 +37344,7 @@ $('#saveCompliance').onclick=async()=>{
     await vfRepeatSaveRule(
       'comp',
       d,
-      d.due || new Date().toISOString().slice(0,10)
+      d.due || vfLocalDate()
     );
 
     clearTodoForm();
@@ -37419,7 +37420,7 @@ $('#saveCompliance').onclick=async()=>{
   const wasEditing=
     Boolean(editingComplianceId);
 
-  await vfRepeatSaveRule('comp',d,d.due||new Date().toISOString().slice(0,10));
+  await vfRepeatSaveRule('comp',d,d.due||vfLocalDate());
 
   clearTodoForm();
   vfRepeatClear('comp');
@@ -52274,9 +52275,7 @@ async function recordTutoringSessionCharge(
 
 
   const defaultDate=
-    new Date()
-      .toISOString()
-      .slice(0,10);
+    vfLocalDate();
 
 
   const date=
@@ -52841,9 +52840,7 @@ function resetChargeForm(){
   $('#chargeStudent').value='';
 
   $('#chargeDate').value=
-    new Date()
-      .toISOString()
-      .slice(0,10);
+    vfLocalDate();
 
   $('#chargeService').innerHTML=
     '<option value="">Choose service / group</option>';
@@ -53109,9 +53106,7 @@ if($('#saveCharge')){
 
     const date=
       $('#chargeDate').value ||
-      new Date()
-        .toISOString()
-        .slice(0,10);
+      vfLocalDate();
 
 
     const note=
@@ -54338,9 +54333,7 @@ async function importSelectedStatementPayments(){
 
         date:
           String(tx.date||'').trim() ||
-          new Date()
-            .toISOString()
-            .slice(0,10),
+          vfLocalDate(),
 
         payer:
           String(tx.payer||'').trim() ||
