@@ -2460,6 +2460,33 @@ function allNeedsReviewItems(){
 }
 
 
+/*
+ * Stored review cards plus the ones worked out from the records
+ * (certificates and payments that need attention).
+ *
+ * The worked-out ones are not in the 'review' collection, so every
+ * reload of that collection has to add them back. refreshAll()
+ * reloads it after its daily jobs -- payment reminders, late fees --
+ * and used to drop them there, so on the first login of the day a
+ * vendor with fifty certificate issues saw an empty Notifications
+ * page until they clicked it and it recomputed. Strips any earlier
+ * copies first, so calling it twice never doubles a card.
+ */
+function vfWithDerivedReviews(list){
+
+  const derived=
+    id=>
+      String(id||'').startsWith('certificate-attention-') ||
+      String(id||'').startsWith('payment-attention-');
+
+  return [
+    ...(list||[]).filter(review=>!derived(review?.id)),
+    ...certificateAttentionReviews(),
+    ...paymentAttentionReviews()
+  ];
+}
+
+
 function certificateAttentionReviews(){
 
   return certs
@@ -2680,12 +2707,8 @@ async function refreshAll(){
    * from the certificate records. This makes them impossible
    * to forget and lets them clear automatically when fixed.
    */
-  reviews=[
-    ...reviews,
-    ...certificateAttentionReviews(),
-    ...paymentAttentionReviews()
-  ];
-
+    reviews=
+    vfWithDerivedReviews(reviews);
 
   history=await getList('history');
 
@@ -2764,6 +2787,13 @@ async function refreshAll(){
     reviews=await getList('review');
   }
 
+
+    /* The daily jobs above may have reloaded the stored cards, which
+     drops the worked-out ones -- put them back before drawing. */
+    reviews=
+    vfWithDerivedReviews(reviews);
+
+  vfNotificationsLoaded=true;
 
   renderAll();
 }
@@ -2844,27 +2874,44 @@ async function repairRosterCoreLinksOnce(){
 }
 
 
+/*
+ * Each page is drawn on its own. They used to run as one chain, so a
+ * single page failing on one odd record stopped every page after it
+ * -- Notifications, which is near the end, stayed empty with no count
+ * until the vendor clicked it. Now a failure on one page is logged
+ * and skipped, and the rest still draw.
+ */
 function renderAll(){
-  vfRenderAllRepeatLists();
-  renderClassSelect();
-  renderDashboard();
-  renderAccountPage();
-  renderCharterSchools();
-  renderCertificateCharterOptions();
-  renderRoster();
-  renderArchivedClasses();
-  renderStudentsServices();
-  renderRefundStudentSelect();
-  renderRecords();
-  renderChargeRecords();
-
-  renderCertificateReviewPreference();
-  renderInvoices();
-  renderReviews();
-  renderHistory();
-  renderExpenses();
-  renderTaxSummary();
-  renderStudentCommandCenterIfActive();
+  [
+    vfRenderAllRepeatLists,
+    renderClassSelect,
+    renderDashboard,
+    renderAccountPage,
+    renderCharterSchools,
+    renderCertificateCharterOptions,
+    renderRoster,
+    renderArchivedClasses,
+    renderStudentsServices,
+    renderRefundStudentSelect,
+    renderRecords,
+    renderChargeRecords,
+    renderCertificateReviewPreference,
+    renderInvoices,
+    renderReviews,
+    renderHistory,
+    renderExpenses,
+    renderTaxSummary,
+    renderStudentCommandCenterIfActive
+  ].forEach(render=>{
+    try{
+      render();
+    }catch(error){
+      console.error(
+        `VendorFlow could not draw ${render.name}:`,
+        error
+      );
+    }
+  });
 }
 
 
@@ -39820,13 +39867,10 @@ async function refreshReviewsView(){
 
   try{
 
-    reviews=await getList('review');
-
-    reviews=[
-      ...reviews,
-      ...certificateAttentionReviews(),
-      ...paymentAttentionReviews()
-    ];
+        reviews=
+      vfWithDerivedReviews(
+        await getList('review')
+      );
 
     /*
      * A roster email arrives labelled as something else entirely, so
@@ -40550,6 +40594,81 @@ function vfReleaseReviewListHold(){
  * Only the open and cancel handlers pass force. Nobody is typing at
  * the instant either is clicked -- the click IS the request.
  */
+/*
+ * A copy of what Notifications shows, saved on the vendor record for
+ * the email summary.
+ *
+ * The server works most notifications out for itself, from the same
+ * records and with the same ids, so it can email about things that
+ * became due while nobody was logged in. This copy is its safety
+ * net: any kind of notification the server does not know how to
+ * work out is taken from here, so a new kind added to the app can
+ * never again be silently missing from the email.
+ *
+ * Saved only once refreshAll() has loaded everything -- an early,
+ * half-loaded list must never replace a complete one -- and only
+ * when it has changed.
+ */
+let vfNotificationsLoaded=false;
+let vfLastNotificationSnapshot=null;
+
+function vfSaveNotificationSnapshot(items){
+
+  if(!user || !vfNotificationsLoaded){
+    return;
+  }
+
+  const snapshot=
+    items
+      .slice(0,200)
+      .map(item=>({
+        id:String(item?.id||''),
+        text:[
+          String(item?.title||'').trim(),
+          String(item?.detail||'').trim()
+        ]
+          .filter(Boolean)
+          .join(' — ')
+          .slice(0,200)
+      }))
+      .filter(item=>item.id);
+
+  const key=
+    JSON.stringify(snapshot);
+
+  if(key===vfLastNotificationSnapshot){
+    return;
+  }
+
+  vfLastNotificationSnapshot=key;
+
+  let timeZone='';
+
+  try{
+    timeZone=
+      Intl.DateTimeFormat().resolvedOptions().timeZone||'';
+  }catch(error){}
+
+  setDoc(
+    vendorDoc(),
+    {
+      notificationSnapshot:snapshot,
+      notificationSnapshotAt:new Date().toISOString(),
+      timeZone
+    },
+    {
+      merge:true
+    }
+  ).catch(error=>{
+    vfLastNotificationSnapshot=null;
+    console.error(
+      'VendorFlow could not save the notification list for email:',
+      error
+    );
+  });
+}
+
+
 function renderReviews(force){
 
   const list=
@@ -40573,8 +40692,12 @@ function renderReviews(force){
   vfReviewRenderPending=false;
 
 
-  const displayReviews=
+    const displayReviews=
     allNeedsReviewItems();
+
+  vfSaveNotificationSnapshot(
+    displayReviews
+  );
 
   const notificationBadge=
     $('#reviewBadge');
