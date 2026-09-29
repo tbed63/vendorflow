@@ -3885,6 +3885,29 @@ aside nav{
 }
 
 
+/* Void: grey and struck through -- still readable, clearly not money. */
+.vf-ledger-status.void{
+  background:#EEF0F2;
+  color:#6B7278;
+  text-decoration:line-through;
+}
+
+
+.vf-invoice-void-note{
+  margin:14px 0 0;
+  padding:10px 12px;
+  border-radius:8px;
+  background:#EEF0F2;
+  color:#4A5157;
+  font-size:13px;
+}
+
+
+.vf-invoice-detail-actions .vf-void-button{
+  color:#A33A2B;
+}
+
+
 .vf-ledger-status-cell{
   display:flex;
   flex-direction:column;
