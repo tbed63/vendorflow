@@ -17038,6 +17038,7 @@ function vfEditRecurrence(prefix,ruleId){
 
   if(prefix==='exp'){
 
+    if($('#expPaidTo'))$('#expPaidTo').value=template.paidTo||'';
     if($('#expCategory'))$('#expCategory').value=template.category||'other';
     if($('#expAmount'))$('#expAmount').value=template.amount||'';
     if($('#expDate'))$('#expDate').value=rule.nextRunAt||rule.startDate||'';
@@ -17883,7 +17884,7 @@ function vfVaultImportedRows(fileId){
       kind:'Expense',
       date:x.date||'',
       label:
-        [vfExpenseCategoryLabel(x.category),x.note]
+        [vfExpenseCategoryLabel(x.category),x.paidTo,x.note]
           .filter(Boolean).join(' · '),
       amount:Number(x.amount||0)
     }));
@@ -19590,6 +19591,7 @@ let editingExpenseId=null;
 
 function clearExpenseForm(){
   editingExpenseId=null;
+  if($('#expPaidTo'))$('#expPaidTo').value='';
   if($('#expCategory'))$('#expCategory').value='advertising';
   if($('#expAmount'))$('#expAmount').value='';
   if($('#expDate'))$('#expDate').value=vfLocalDate();
@@ -19615,6 +19617,7 @@ function renderExpenses(){
       vfIncExpMatches(
         [
           vfExpenseCategoryLabel(e.category),
+          e.paidTo,
           e.date,
           e.note,
           money(Number(e.amount||0)),
@@ -19638,6 +19641,7 @@ function renderExpenses(){
       <div class="vf-expense-row-main">
         <strong>${esc(vfExpenseCategoryLabel(e.category))}</strong>
         <span class="muted">${esc(e.date||'')}</span>
+        ${e.paidTo?`<p class="muted">Paid to ${esc(e.paidTo)}</p>`:''}
         ${e.note?`<p class="muted">${esc(e.note)}</p>`:''}
       </div>
       <div class="vf-expense-row-amount">${money(Number(e.amount||0))}</div>
@@ -19677,6 +19681,7 @@ function vfEditExpense(expenseId){
 
   editingExpenseId=expenseId;
 
+  if($('#expPaidTo'))$('#expPaidTo').value=item.paidTo||'';
   if($('#expCategory'))$('#expCategory').value=item.category||'other';
   if($('#expAmount'))$('#expAmount').value=item.amount ?? '';
   if($('#expDate'))$('#expDate').value=item.date||'';
@@ -19739,6 +19744,7 @@ if($('#saveExpense')){
     }
 
     const d={
+      paidTo:($('#expPaidTo')?.value||'').trim(),
       category:$('#expCategory').value,
       amount,
       date:$('#expDate').value || vfLocalDate(),
@@ -19952,6 +19958,7 @@ function vfFindExpenseDuplicates(entry){
         kind:'expense',
         label:
           `${vfExpenseCategoryLabel(item.category)}`+
+          `${item.paidTo?` — paid to ${item.paidTo}`:''}`+
           `${item.note?` — ${item.note}`:''}`+
           ` on ${item.date||'an unknown date'}`,
         confident:sameNote(item.note)
@@ -20239,6 +20246,7 @@ async function vfRunExpenseImport(){
             row.date ||
             vfLocalDate(),
           category:row.category||'other',
+          paidTo:row.merchant||'',
           note:row.note,
           method:row.method,
           source:'Statement import',
@@ -38940,29 +38948,8 @@ async function startGeneralReviewAsProposal(reviewId){
     return;
   }
 
-  let message=null;
-
-  if(review.inboundEmailId){
-
-    message=
-      inboundInboxMessages.find(
-        item=>String(item.id||'')===String(review.inboundEmailId)
-      ) || null;
-
-    if(!message){
-
-      try{
-        await loadInboundInbox();
-      }catch(error){
-        console.error(error);
-      }
-
-      message=
-        inboundInboxMessages.find(
-          item=>String(item.id||'')===String(review.inboundEmailId)
-        ) || null;
-    }
-  }
+  const message=
+    await vfSourceEmailFor(review);
 
   /* The list may have reloaded while the inbox was fetched. */
   review=
@@ -38972,32 +38959,6 @@ async function startGeneralReviewAsProposal(reviewId){
 
   const guess=
     vfGuessFromReceiptEmail(review,message);
-
-  const workerFields=
-    review.proposalFields || {};
-
-  /* The worker's own guess wins where it has one; ours only fills gaps. */
-  const fields={...workerFields};
-
-  if(!(Number(fields.amount)>0) && guess.amount>0){
-    fields.amount=guess.amount;
-  }
-
-  if(!fields.date && guess.date){
-    fields.date=guess.date;
-  }
-
-  if(!fields.memo && guess.memo){
-    fields.memo=guess.memo;
-  }
-
-  if(!fields.payer && guess.company && guess.type!=='expense'){
-    fields.payer=guess.company;
-  }
-
-  if(!fields.expenseCategory){
-    fields.expenseCategory=guess.category||'other';
-  }
 
   review.reviewType=
     'email-proposal';
@@ -39010,11 +38971,7 @@ async function startGeneralReviewAsProposal(reviewId){
         : 'charge'
     );
 
-  review.proposalFields=
-    fields;
-
-  review.vfPrefillNote=
-    guess.note;
+  vfApplyReceiptGuess(review,guess);
 
   vfProposalEditingId=
     review.id;
@@ -39152,12 +39109,19 @@ function vfGuessFromReceiptEmail(review,message){
         : '';
     };
 
+  /*
+   * "Receipt from X" / "Your order from X" / "Payment to X" name who
+   * got the vendor's money. "Payment from X" is the opposite (money
+   * coming in), so it is deliberately not on this list.
+   */
   let company='';
+  let companyFromReceipt=false;
 
   for(const source of [subject,body,notes]){
 
     const found=
-      source.match(/\b(?:receipt|invoice|order|payment|purchase)\s+(?:from|to)\s+([^\n#$<>|]{2,80})/i);
+      source.match(/\b(?:receipt|invoice|order|purchase)\s+from\s+([^\n#$<>|]{2,80})/i) ||
+      source.match(/\bpayment\s+to\s+([^\n#$<>|]{2,80})/i);
 
     company=
       found
@@ -39165,8 +39129,21 @@ function vfGuessFromReceiptEmail(review,message){
         : '';
 
     if(company){
+      companyFromReceipt=true;
       break;
     }
+  }
+
+  /* The vendor's own forwarding note: "Expense 11 for subscription to eleven labs". */
+  if(!company){
+
+    const typedPayee=
+      text.match(/\b(?:subscription|membership|paid|payment)\s+(?:to|at)\s+([^\n#$<>|]{2,60})/i);
+
+    company=
+      typedPayee
+        ? cleanName(typedPayee[1])
+        : '';
   }
 
   if(!company){
@@ -39216,25 +39193,72 @@ function vfGuessFromReceiptEmail(review,message){
   const workerFoundStudent=
     Boolean(review?.proposalFields?.studentId);
 
+  /* A receipt from the vendor's own business is a family's receipt, not a purchase. */
+  const squash=
+    value=>String(value||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+
+  const ownBusiness=
+    [profile?.businessName,profile?.ownerName]
+      .map(squash)
+      .filter(name=>name.length>=3);
+
+  const fromOwnBusiness=
+    Boolean(company) &&
+    ownBusiness.some(
+      name=>squash(company).includes(name) || name.includes(squash(company))
+    );
+
   const type=
-    saysExpense && !receivedMoney && !workerFoundStudent
+    saysExpense && !receivedMoney && !workerFoundStudent && !fromOwnBusiness
       ? 'expense'
       : '';
 
+  /*
+   * Strong enough to overrule the worker's own guess: the email names
+   * who it is a receipt FROM, nothing says money came in, and it is not
+   * the vendor's own business. The worker's AI has read these as
+   * "a payment made by <the store>" on behalf of a random student.
+   */
+  const receipt=
+    companyFromReceipt &&
+    !receivedMoney &&
+    !fromOwnBusiness;
+
+  /*
+   * What was bought. Stripe, Square and most shops print the item on
+   * the line with (or just before) "Qty 1".
+   */
+  let item='';
+
+  const qty=
+    body.match(/(?:^|\n)([^\n$]{3,80}?)\s*(?:\n\s*)?\bQty\s*:?\s*\d+/i);
+
+  if(qty){
+    item=
+      qty[1]
+        .replace(/\s+/g,' ')
+        .trim();
+  }
+
   const memo=
     [
-      company
-        ? `${company}${isSubscription?' subscription':''}`
-        : subject.replace(/^\s*(fwd?|re):\s*/i,'').trim(),
+      item ||
+        (isSubscription ? 'Subscription' : '') ||
+        (company ? '' : subject.replace(/^\s*(fwd?|re):\s*/i,'').trim()),
       receiptNumber
-        ? `receipt #${receiptNumber}`
+        ? `Receipt #${receiptNumber}`
         : ''
     ]
       .filter(Boolean)
       .join(' — ');
 
-  /* Name and subject only -- whole bodies trip the hints ("current" has "rent" in it). */
+  /*
+   * Whatever the vendor chose last time for this same payee wins over
+   * the keyword hints. Then name and subject only -- whole bodies trip
+   * the hints ("current" has "rent" in it).
+   */
   const category=
+    vfExpenseCategoryForPayee(company) ||
     vfGuessExpenseCategory(`${company} ${subject}`);
 
   const foundParts=[
@@ -39251,6 +39275,7 @@ function vfGuessFromReceiptEmail(review,message){
 
   return {
     type,
+    receipt,
     amount,
     date,
     company,
@@ -39258,6 +39283,219 @@ function vfGuessFromReceiptEmail(review,message){
     category,
     note
   };
+}
+
+
+/*
+ * The category most recently used for this payee, so "Eleven Labs"
+ * lands where the vendor filed it last month. '' when there is none.
+ */
+function vfExpenseCategoryForPayee(paidTo){
+
+  const squash=
+    value=>
+      String(value||'')
+        .toLowerCase()
+        .replace(/\b(inc|llc|ltd|co|corp|company)\b\.?/g,'')
+        .replace(/[^a-z0-9]/g,'');
+
+  const key=
+    squash(paidTo);
+
+  if(key.length<3){
+    return '';
+  }
+
+  const last=
+    [...expenses]
+      .filter(item=>item.category && squash(item.paidTo)===key)
+      .sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')))[0];
+
+  return last?.category || '';
+}
+
+
+/*
+ * Guesses are kept by review id, because the review list is reloaded
+ * from Firestore often and every reload brings back fresh objects
+ * without them. Each email is read at most once per page load.
+ */
+const vfReceiptGuesses={};
+const vfReceiptGuessTried=new Set();
+
+
+async function vfSourceEmailFor(review){
+
+  if(!review?.inboundEmailId){
+    return null;
+  }
+
+  const find=
+    ()=>
+      inboundInboxMessages.find(
+        item=>String(item.id||'')===String(review.inboundEmailId)
+      ) || null;
+
+  /*
+   * loadInboundInbox() returns at once when a load is already running
+   * (the app loads the inbox as it starts), so wait that one out
+   * rather than reading a card before its email has arrived.
+   */
+  const settle=
+    async()=>{
+      for(let tries=0; tries<50 && inboundInboxLoading; tries++){
+        await new Promise(resolve=>setTimeout(resolve,200));
+      }
+    };
+
+  await settle();
+
+  if(find()){
+    return find();
+  }
+
+  try{
+    await loadInboundInbox();
+    await settle();
+  }catch(error){
+    console.error(error);
+  }
+
+  return find();
+}
+
+
+/*
+ * Fills the gaps in a proposal from what the email says. The worker's
+ * own values always win where it has one. When the email is plainly a
+ * receipt for a purchase, the card starts as an Expense -- unless the
+ * vendor already picked a type for it.
+ */
+function vfApplyReceiptGuess(review,guess){
+
+  if(!review || !guess){
+    return;
+  }
+
+  const fields=
+    {...(review.proposalFields||{})};
+
+  if(!(Number(fields.amount)>0) && guess.amount>0){
+    fields.amount=guess.amount;
+  }
+
+  if(!fields.date && guess.date){
+    fields.date=guess.date;
+  }
+
+  if(!fields.memo && guess.memo){
+    fields.memo=guess.memo;
+  }
+
+  if(!fields.paidTo && guess.company){
+    fields.paidTo=guess.company;
+  }
+
+  if(!fields.expenseCategory){
+    fields.expenseCategory=guess.category||'other';
+  }
+
+  review.proposalFields=fields;
+  review.vfPrefillNote=guess.note;
+  review.vfGuessApplied=true;
+
+  if(
+    guess.receipt &&
+    review.reviewType==='email-proposal' &&
+    review.itemType!=='certificate' &&
+    !vfProposalTypeChoice[review.id]
+  ){
+    vfProposalTypeChoice[review.id]='expense';
+  }
+
+  if(guess.receipt){
+    review.vfReceiptSummary=
+      `This is a receipt for something you bought${
+        guess.company ? ` from ${guess.company}` : ''
+      }, so VendorFlow set it up as an expense. If it is something else, choose Edit and approve.`;
+  }
+}
+
+
+async function vfReadReceiptFor(review){
+
+  if(!review || vfReceiptGuesses[review.id]){
+    return;
+  }
+
+  const message=
+    await vfSourceEmailFor(review);
+
+  /* The list may have reloaded while the inbox was fetched. */
+  const current=
+    reviews.find(item=>item.id===review.id) || review;
+
+  vfReceiptGuesses[review.id]=
+    vfGuessFromReceiptEmail(current,message);
+
+  vfApplyReceiptGuess(current,vfReceiptGuesses[review.id]);
+}
+
+
+function vfReceiptGuessWanted(review){
+
+  return (
+    review?.reviewType==='email-proposal' &&
+    review.itemType!=='certificate' &&
+    Boolean(review.inboundEmailId) &&
+    !vfReviewRosterEmail(review)
+  );
+}
+
+
+/*
+ * Called at the top of every Notifications render: puts back guesses
+ * already worked out, then reads any new emails in the background and
+ * renders once more when they are done.
+ */
+function vfReceiptGuessesForRender(list){
+
+  const fresh=[];
+
+  (list||[]).forEach(review=>{
+
+    if(!vfReceiptGuessWanted(review)){
+      return;
+    }
+
+    if(vfReceiptGuesses[review.id]){
+
+      if(!review.vfGuessApplied){
+        vfApplyReceiptGuess(review,vfReceiptGuesses[review.id]);
+      }
+
+      return;
+    }
+
+    if(!vfReceiptGuessTried.has(review.id)){
+      vfReceiptGuessTried.add(review.id);
+      fresh.push(review);
+    }
+  });
+
+  if(!fresh.length){
+    return;
+  }
+
+  (async()=>{
+
+    for(const review of fresh){
+      await vfReadReceiptFor(review);
+    }
+
+    renderReviews();
+
+  })().catch(error=>console.error(error));
 }
 
 
@@ -39278,6 +39516,8 @@ async function vfSaveProposalAsExpense(review,fields){
   }
 
   const entry={
+    paidTo:
+      String(fields.paidTo||'').trim(),
     category:
       fields.expenseCategory || 'other',
     amount,
@@ -39328,6 +39568,7 @@ async function vfSaveProposalAsExpense(review,fields){
 
   const detail=
     `Saved as an expense: ${vfExpenseCategoryLabel(entry.category)} — ${money(amount)}`+
+    `${entry.paidTo?` paid to ${entry.paidTo}`:''}`+
     `${entry.note?` (${entry.note})`:''}.`;
 
   await log(
@@ -40288,6 +40529,10 @@ function vfProposalEditFormHTML(review){
         </select>
       </label>
 
+      <label class="vf-field-label" data-paidto-field-label ${currentType==='expense'?'':'hidden'}><span>Paid to</span>
+        <input class="input" data-proposal-field="paidTo" value="${esc(f.paidTo||'')}" placeholder="Who got the money, e.g. Amazon, Walmart, City of Encinitas">
+      </label>
+
       <label class="vf-field-label" data-expense-category-field-label ${currentType==='expense'?'':'hidden'}><span>Expense category</span>
         <select class="input" data-proposal-field="expenseCategory">
           ${expenseCategoryOptions}
@@ -41187,6 +41432,10 @@ function renderReviews(force){
     const displayReviews=
     allNeedsReviewItems();
 
+  vfReceiptGuessesForRender(
+    displayReviews
+  );
+
   vfSaveNotificationSnapshot(
     displayReviews
   );
@@ -41332,6 +41581,7 @@ function renderReviews(force){
             `
             : shownType==='expense'
             ? `
+              <div>Paid to: ${esc(f.paidTo||'—')}</div>
               <div>Expense category: ${esc(vfExpenseCategoryLabel(f.expenseCategory||'other'))}</div>
               <div>Amount: ${money(Number(f.amount||0))}</div>
               <div>Date: ${esc(f.date||'—')}</div>
@@ -41357,22 +41607,35 @@ function renderReviews(force){
         return `
           <div class="record vf-email-proposal">
 
-            <strong>${esc(review.title||'Email needs your decision')}</strong>
+            <strong>${esc(
+              shownType==='expense' && review.itemType!=='expense'
+                ? 'Expense: approve, edit, or dismiss'
+                : (review.title||'Email needs your decision')
+            )}</strong>
 
             <div class="meta vf-proposal-summary">
-              ${esc(review.aiSummary||review.detail||'')}
+              ${esc(
+                shownType==='expense' && review.vfReceiptSummary
+                  ? review.vfReceiptSummary
+                  : (review.aiSummary||review.detail||'')
+              )}
             </div>
 
             ${
-              review.incomplete
-                ? `<div class="vf-proposal-incomplete">VendorFlow couldn't fill in everything (${esc(review.incompleteReason||'some details are missing')}) -- use Edit and approve to fill in the rest.</div>`
+              /* The worker's "missing payer" is about a payment; an expense has no payer. */
+              review.incomplete && shownType!=='expense'
+                ? `<div class="vf-proposal-incomplete" data-proposal-incomplete>VendorFlow couldn't fill in everything (${esc(review.incompleteReason||'some details are missing')}) -- use Edit and approve to fill in the rest.</div>`
                 : ''
             }
 
             ${
               (()=>{
 
-                const why=vfProposalWhy(review);
+                /* Why it chose payment or income -- beside the point for an expense. */
+                const why=
+                  shownType==='expense'
+                    ? ''
+                    : vfProposalWhy(review);
 
                 return why
                   ? `<div class="vf-proposal-why">${esc(why)}</div>`
@@ -41380,7 +41643,12 @@ function renderReviews(force){
               })()
             }
 
-            ${vfProposalTypeSwitchHTML(review,f)}
+            ${
+              /* The form has its own "This is actually a" menu. Two controls for one choice disagreed. */
+              editing
+                ? ''
+                : vfProposalTypeSwitchHTML(review,f)
+            }
 
             ${
               (()=>{
@@ -42549,7 +42817,22 @@ function renderReviews(force){
 
   $$('[data-edit-proposal]')
     .forEach(button=>{
-      button.onclick=()=>{
+      button.onclick=async()=>{
+
+        const review=
+          reviews.find(item=>item.id===button.dataset.editProposal);
+
+        /* Usually already done in the background; this covers a slow inbox. */
+        if(vfReceiptGuessWanted(review) && !vfReceiptGuesses[review.id]){
+          button.disabled=true;
+          button.textContent='Reading the email…';
+          try{
+            await vfReadReceiptFor(review);
+          }catch(error){
+            console.error(error);
+          }
+        }
+
         vfProposalEditingId=
           button.dataset.editProposal;
 
@@ -42641,6 +42924,15 @@ function renderReviews(force){
         show('[data-service-field-label]', !noStudent);
         show('[data-category-field-label]',type==='income');
         show('[data-expense-category-field-label]',type==='expense');
+        show('[data-paidto-field-label]',type==='expense');
+
+        const incomplete=
+          form.closest('.vf-email-proposal')
+            ?.querySelector('[data-proposal-incomplete]');
+
+        if(incomplete){
+          incomplete.hidden=type==='expense';
+        }
       };
     });
 
