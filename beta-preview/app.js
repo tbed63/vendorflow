@@ -39396,7 +39396,16 @@ function vfApplyReceiptGuess(review,guess){
     fields.paidTo=guess.company;
   }
 
-  if(!fields.expenseCategory){
+  /*
+   * Category: what the vendor chose last time for this same payee
+   * beats the worker's AI guess, which beats the keyword hints.
+   */
+  const remembered=
+    vfExpenseCategoryForPayee(fields.paidTo||guess.company);
+
+  if(remembered){
+    fields.expenseCategory=remembered;
+  }else if(!fields.expenseCategory){
     fields.expenseCategory=guess.category||'other';
   }
 
@@ -41615,17 +41624,40 @@ function renderReviews(force){
 
             <div class="meta vf-proposal-summary">
               ${esc(
-                shownType==='expense' && review.vfReceiptSummary
+                /* Only replaces a summary written for some other type; the worker's own expense summary stays. */
+                shownType==='expense' &&
+                review.itemType!=='expense' &&
+                review.vfReceiptSummary
                   ? review.vfReceiptSummary
                   : (review.aiSummary||review.detail||'')
               )}
             </div>
 
             ${
-              /* The worker's "missing payer" is about a payment; an expense has no payer. */
-              review.incomplete && shownType!=='expense'
-                ? `<div class="vf-proposal-incomplete" data-proposal-incomplete>VendorFlow couldn't fill in everything (${esc(review.incompleteReason||'some details are missing')}) -- use Edit and approve to fill in the rest.</div>`
-                : ''
+              (()=>{
+
+                /*
+                 * An expense is checked here, against what the card
+                 * holds now: the worker's list was made before the app
+                 * read the email, and its "missing payer" on an old
+                 * payment card means nothing for an expense.
+                 */
+                const missing=
+                  shownType==='expense'
+                    ? [
+                        Number(f.amount)>0 ? '' : 'amount',
+                        String(f.paidTo||'').trim() ? '' : 'who was paid'
+                      ].filter(Boolean).join('; ')
+                    : (
+                        review.incomplete
+                          ? (review.incompleteReason||'some details are missing')
+                          : ''
+                      );
+
+                return missing
+                  ? `<div class="vf-proposal-incomplete" data-proposal-incomplete>VendorFlow couldn't fill in everything (${esc(missing)}) -- use Edit and approve to fill in the rest.</div>`
+                  : '';
+              })()
             }
 
             ${
