@@ -98,7 +98,7 @@ const aliases={
   parentPhone:['parent phone','guardian phone','primary phone','contact phone','phone number','mobile','cell phone','cell','phone'],
   grade:['grade level','current grade','grade']
 };
-const vendorDoc=()=>doc(db,'vendors',user.uid),sub=n=>collection(db,'vendors',user.uid,n),toast=m=>{let t=$('#toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)};
+const vendorDoc=()=>doc(db,'vendors',user.uid),sub=n=>collection(db,'vendors',user.uid,n),toast=m=>{let t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._vfHide);t._vfHide=setTimeout(()=>t.classList.remove('show'),Math.min(8000,Math.max(1800,1000+String(m||'').length*45)))};
 
 
 function installVendorFlowBranding(){
@@ -2748,6 +2748,8 @@ async function refreshAll(){
       ]);
   }
 
+
+  await vfWithdrawCoveredReminders();
 
   const queuedPaymentReminders=
     await queuePaymentReminderReviews();
@@ -7794,6 +7796,56 @@ async function sendInvoiceThroughVendorFlow(
  * the vendor approves it in Needs Review: certificate-received
  * notices, payment reminders, and anything similar added later.
  */
+/*
+ * Tim: "a super quick error message pops up that is too quick to even
+ * read." Send failures used toast(), which disappears after 1.8
+ * seconds whatever it says. They now stay on screen until closed, and
+ * say who the email was for.
+ */
+let vfLastEmailSendError='';
+
+function vfEmailSendErrorText(review,error){
+
+  const to=
+    String(review?.to||'').trim();
+
+  const reason=
+    String(error?.message||'').trim() ||
+    'VendorFlow could not send this email.';
+
+  return to
+    ? `To ${to}: ${reason}`
+    : reason;
+}
+
+
+function vfShowStickyError(title,detail){
+
+  document
+    .querySelectorAll('.vf-sticky-error')
+    .forEach(item=>item.remove());
+
+  const box=
+    document.createElement('div');
+
+  box.className=
+    'vf-sticky-error';
+
+  box.setAttribute('role','alert');
+
+  box.innerHTML=`
+    <strong>${esc(title)}</strong>
+    <p>${esc(detail)}</p>
+    <button type="button" class="primary">OK</button>
+  `;
+
+  box.querySelector('button').onclick=
+    ()=>box.remove();
+
+  document.body.appendChild(box);
+}
+
+
 async function sendParentEmailThroughVendorFlow(
   kind,
   emailId,
@@ -31635,6 +31687,195 @@ ${profile.businessName||''}`;
 
 
 /*
+ * What a payment reminder may ask a family for.
+ *
+ * Tim: "emails to remind parents to pay are being generated when they
+ * have certificates in place that cover the cost of the class." The
+ * reminders read obligation.remainingAmount, which only payments ever
+ * reduce -- a charter certificate never touches it. Everything else
+ * in the app that asks "does this family owe money" already counts
+ * certificates; the reminders were the odd ones out.
+ *
+ * Same two tests as vfStudentIdsBehindOnPayments():
+ *  - what is left on THIS charge once expectedObligationFunding() has
+ *    spread every certificate and payment across the charges they
+ *    cover, and
+ *  - the family's account-level parentBalance, which also catches a
+ *    certificate filed under a name variant or credit sitting on a
+ *    different charge.
+ * The reminder asks for the smaller of the two, and nothing when
+ * either is zero.
+ */
+function vfReminderAmountOwed(obligation,funding){
+
+  const entry=
+    funding?.get?.(obligation?.id);
+
+  const obligationLeft=
+    Number(
+      entry
+        ? entry.remainingAmount
+        : (obligation?.remainingAmount ?? obligation?.amount ?? 0)
+    );
+
+  if(!(obligationLeft>0.009)){
+    return 0;
+  }
+
+  const student=
+    students.find(
+      s=>s.id===obligation.studentId
+    );
+
+  if(!student){
+    return Math.round(obligationLeft*100)/100;
+  }
+
+  const accountLeft=
+    Number(
+      studentAccountTotals(student).parentBalance||0
+    );
+
+  if(!(accountLeft>0.009)){
+    return 0;
+  }
+
+  return Math.round(
+    Math.min(obligationLeft,accountLeft)*100
+  )/100;
+}
+
+
+/*
+ * true (and the reminder taken down) when the family this reminder is
+ * for owes nothing once certificates and payments are counted.
+ */
+async function vfReminderNoLongerOwed(review,{silent=false}={}){
+
+  const obligation=
+    obligations.find(
+      item=>item.id===review?.obligationId
+    );
+
+  if(
+    !obligation ||
+    vfReminderAmountOwed(obligation,expectedObligationFunding())>0.009
+  ){
+    return false;
+  }
+
+  await deleteDoc(
+    doc(db,'vendors',user.uid,'review',review.id)
+  );
+
+  await log(
+    'Payment reminder withdrawn',
+    `${obligation.studentName||'This family'} owes nothing on `+
+    `${obligation.serviceName||obligation.className||'this charge'} `+
+    `once certificates and payments are counted, so the reminder to `+
+    `${review.to||'the parent'} was not sent.`,
+    'Manual',
+    {
+      type:'parent-email',
+      studentId:obligation.studentId||''
+    }
+  );
+
+  if(!silent){
+
+    await refreshAll();
+
+    vfShowStickyError(
+      'Not sent -- nothing is owed',
+      `${obligation.studentName||'This family'} owes nothing on this `+
+      `charge once their certificate and payments are counted, so `+
+      `VendorFlow took this reminder down instead of sending it.`
+    );
+  }
+
+  return true;
+}
+
+
+/*
+ * Reminders already waiting in Notifications for a family that no
+ * longer owes anything -- queued before this check existed, or before
+ * the certificate arrived -- are taken back down so they cannot be
+ * sent. Logged, so the vendor can see why one disappeared.
+ */
+async function vfWithdrawCoveredReminders(){
+
+  let withdrawn=0;
+
+  try{
+
+    const waiting=
+      reviews.filter(
+        review=>
+          (
+            review.reviewType==='payment-reminder-email' ||
+            review.reviewType==='payment-reminder-followup-email'
+          ) &&
+          review.obligationId
+      );
+
+    if(!waiting.length){
+      return 0;
+    }
+
+    const funding=
+      expectedObligationFunding();
+
+    for(const review of waiting){
+
+      const obligation=
+        obligations.find(
+          item=>item.id===review.obligationId
+        );
+
+      if(
+        !obligation ||
+        vfReminderAmountOwed(obligation,funding)>0.009
+      ){
+        continue;
+      }
+
+      await deleteDoc(
+        doc(db,'vendors',user.uid,'review',review.id)
+      );
+
+      reviews=
+        reviews.filter(item=>item.id!==review.id);
+
+      await log(
+        'Payment reminder withdrawn',
+        `${obligation.studentName||'This family'} owes nothing on `+
+        `${obligation.serviceName||obligation.className||'this charge'} `+
+        `once certificates and payments are counted, so the reminder to `+
+        `${review.to||'the parent'} was not sent.`,
+        'Automatic',
+        {
+          type:'parent-email',
+          studentId:obligation.studentId||''
+        }
+      );
+
+      withdrawn++;
+    }
+
+  }catch(error){
+
+    console.error(
+      'Could not withdraw covered payment reminders:',
+      error
+    );
+  }
+
+  return withdrawn;
+}
+
+
+/*
  * Scans every dated payment obligation and queues a payment
  * reminder for the parent when it's due within the class's
  * configured reminder window and hasn't been reviewed yet.
@@ -31671,6 +31912,9 @@ async function queuePaymentReminderReviews(){
 
     let queued=0;
 
+    const funding=
+      expectedObligationFunding();
+
 
     for(const obligation of obligations){
 
@@ -31694,11 +31938,11 @@ async function queuePaymentReminderReviews(){
         continue;
       }
 
+      /* Certificates and payments counted -- see vfReminderAmountOwed(). */
       const remaining=
-        Number(
-          obligation.remainingAmount ??
-          obligation.amount ??
-          0
+        vfReminderAmountOwed(
+          obligation,
+          funding
         );
 
       if(remaining<=0.009){
@@ -32404,10 +32648,13 @@ async function sendCertificateReceivedEmailReview(
 
     console.error(error);
 
+    vfLastEmailSendError=
+      vfEmailSendErrorText(review,error);
+
     if(!silent){
-      toast(
-        error.message ||
-        'This email could not be sent.'
+      vfShowStickyError(
+        'This email was not sent',
+        vfLastEmailSendError
       );
     }
 
@@ -32515,10 +32762,13 @@ async function sendPaymentReceivedEmailReview(
 
     console.error(error);
 
+    vfLastEmailSendError=
+      vfEmailSendErrorText(review,error);
+
     if(!silent){
-      toast(
-        error.message ||
-        'This email could not be sent.'
+      vfShowStickyError(
+        'This email was not sent',
+        vfLastEmailSendError
       );
     }
 
@@ -32612,6 +32862,15 @@ async function sendPaymentReminderReview(
   }
 
 
+  /*
+   * Checked again at the moment of sending: a certificate or payment
+   * may have come in after this reminder was queued.
+   */
+  if(await vfReminderNoLongerOwed(review,{silent})){
+    return 'withdrawn';
+  }
+
+
   try{
 
     await sendParentEmailThroughVendorFlow(
@@ -32626,10 +32885,13 @@ async function sendPaymentReminderReview(
 
     console.error(error);
 
+    vfLastEmailSendError=
+      vfEmailSendErrorText(review,error);
+
     if(!silent){
-      toast(
-        error.message ||
-        'This email could not be sent.'
+      vfShowStickyError(
+        'This email was not sent',
+        vfLastEmailSendError
       );
     }
 
@@ -33815,10 +34077,13 @@ async function sendLateFeeChargedReview(
 
     console.error(error);
 
+    vfLastEmailSendError=
+      vfEmailSendErrorText(review,error);
+
     if(!silent){
-      toast(
-        error.message ||
-        'This email could not be sent.'
+      vfShowStickyError(
+        'This email was not sent',
+        vfLastEmailSendError
       );
     }
 
@@ -34201,10 +34466,13 @@ async function sendLateFeeRemovedReview(
 
     console.error(error);
 
+    vfLastEmailSendError=
+      vfEmailSendErrorText(review,error);
+
     if(!silent){
-      toast(
-        error.message ||
-        'This email could not be sent.'
+      vfShowStickyError(
+        'This email was not sent',
+        vfLastEmailSendError
       );
     }
 
@@ -34358,6 +34626,9 @@ async function queueRecurringPaymentReminders(){
     const todayMs=
       Date.now();
 
+    const funding=
+      expectedObligationFunding();
+
     let queued=0;
 
     for(const obligation of obligations){
@@ -34370,11 +34641,11 @@ async function queueRecurringPaymentReminders(){
         continue;
       }
 
+      /* Certificates and payments counted -- see vfReminderAmountOwed(). */
       const remaining=
-        Number(
-          obligation.remainingAmount ??
-          obligation.amount ??
-          0
+        vfReminderAmountOwed(
+          obligation,
+          funding
         );
 
       if(remaining<=0.009){
@@ -34651,6 +34922,15 @@ async function sendRecurringReminderReview(
     return false;
   }
 
+
+  /*
+   * Checked again at the moment of sending: a certificate or payment
+   * may have come in after this reminder was queued.
+   */
+  if(await vfReminderNoLongerOwed(review,{silent})){
+    return 'withdrawn';
+  }
+
   try{
 
     await sendParentEmailThroughVendorFlow(
@@ -34665,10 +34945,13 @@ async function sendRecurringReminderReview(
 
     console.error(error);
 
+    vfLastEmailSendError=
+      vfEmailSendErrorText(review,error);
+
     if(!silent){
-      toast(
-        error.message ||
-        'This email could not be sent.'
+      vfShowStickyError(
+        'This email was not sent',
+        vfLastEmailSendError
       );
     }
 
@@ -34798,6 +35081,8 @@ async function bulkApproveSelectedReviews(reviewIds){
 
   let sent=0;
   let failed=0;
+  let withdrawn=0;
+  const failures=[];
 
   for(const reviewId of reviewIds){
 
@@ -34824,22 +35109,46 @@ async function bulkApproveSelectedReviews(reviewIds){
       continue;
     }
 
-    if(ok){
+    if(ok==='withdrawn'){
+      withdrawn++;
+    }else if(ok){
       sent++;
     }else{
       failed++;
+      failures.push(
+        vfLastEmailSendError ||
+        `${review.to||'An email'}: not sent.`
+      );
     }
+
+    vfLastEmailSendError='';
   }
 
   selectedReviewIds.clear();
 
   await refreshAll();
 
-  toast(
-    failed
-      ? `Sent ${sent} email${sent===1?'':'s'}, ${failed} failed.`
-      : `Sent ${sent} email${sent===1?'':'s'}.`
-  );
+  const summary=
+    `Sent ${sent} email${sent===1?'':'s'}`+
+    (
+      withdrawn
+        ? `, ${withdrawn} reminder${withdrawn===1?'':'s'} taken down because nothing is owed`
+        : ''
+    )+
+    (
+      failed
+        ? `, ${failed} not sent.`
+        : '.'
+    );
+
+  if(failed){
+    vfShowStickyError(
+      summary,
+      failures.join('\n')
+    );
+  }else{
+    toast(summary);
+  }
 }
 
 

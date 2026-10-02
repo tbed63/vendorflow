@@ -11708,3 +11708,41 @@ table,
   font-style:normal;
   font-weight:600;
 }
+
+/* ==========================================================
+   STICKY ERROR
+   A failure the vendor has to read (an email that did not send)
+   stays until closed, unlike #toast.
+   ========================================================== */
+
+.vf-sticky-error{
+  position:fixed;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  z-index:100001;
+  width:min(520px, calc(100vw - 32px));
+  max-height:calc(100vh - 32px);
+  overflow:auto;
+  padding:22px 24px;
+  border:2px solid #f04438;
+  border-radius:16px;
+  background:#fff;
+  color:#26353B;
+  box-shadow:0 24px 70px rgba(16,24,40,.28);
+  font-size:16px;
+  line-height:1.45;
+}
+
+.vf-sticky-error strong{
+  display:block;
+  color:#b42318;
+  font-size:18px;
+  margin-bottom:8px;
+}
+
+.vf-sticky-error p{
+  margin:0 0 16px;
+  white-space:pre-line;
+  overflow-wrap:anywhere;
+}
