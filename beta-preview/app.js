@@ -35247,9 +35247,38 @@ function paymentStudentMatches(searchText){
 }
 
 
+/*
+ * The groups a payment for this student can go to: their active
+ * services. Tim: "He's only in one group so this should happen
+ * automatically." Picking the student filled in the parent but left
+ * Group blank.
+ */
+function vfPaymentGroupsFor(student){
+
+  return studentServices(student?.id)
+    .filter(serviceCountsAsActive);
+}
+
+
+function vfPaymentGroupName(service){
+
+  return String(
+    service?.name ||
+    service?.className ||
+    ''
+  ).trim();
+}
+
+
 function clearPaymentStudentSelection(){
 
   selectedPaymentStudentId=null;
+
+  const groupOptions=$('#payClassOptions');
+
+  if(groupOptions){
+    groupOptions.innerHTML='';
+  }
 
   const matches=$('#payStudentMatches');
 
@@ -35275,13 +35304,66 @@ function selectPaymentStudent(studentId){
   $('#payStudent').value=
     student.studentName||'';
 
-  if(
-    $('#payPayer') &&
-    !$('#payPayer').value.trim() &&
-    student.parentName
-  ){
-    $('#payPayer').value=
-      student.parentName;
+  /*
+   * Same rule as Group below: a parent VendorFlow filled in for the
+   * previous student is replaced; a name the vendor typed is kept.
+   */
+  const payerBox=
+    $('#payPayer');
+
+  if(payerBox){
+
+    const payerWasAutoFilled=
+      payerBox.value.trim() &&
+      payerBox.value===payerBox.dataset.vfAuto;
+
+    if(!payerBox.value.trim() || payerWasAutoFilled){
+
+      payerBox.value=
+        student.parentName || '';
+
+      payerBox.dataset.vfAuto=
+        payerBox.value;
+    }
+  }
+
+  /*
+   * One group: fill it in. Several: offer them as suggestions in the
+   * box, and leave the choice to the vendor.
+   */
+  const groups=
+    vfPaymentGroupsFor(student);
+
+  const groupOptions=
+    $('#payClassOptions');
+
+  if(groupOptions){
+    groupOptions.innerHTML=
+      groups
+        .map(service=>`<option value="${esc(vfPaymentGroupName(service))}"></option>`)
+        .join('');
+  }
+
+  /* A group VendorFlow filled in for the previous student is replaced; one the vendor typed is not. */
+  const groupBox=
+    $('#payClass');
+
+  if(groupBox){
+
+    const wasAutoFilled=
+      groupBox.value.trim() &&
+      groupBox.value===groupBox.dataset.vfAuto;
+
+    if(!groupBox.value.trim() || wasAutoFilled){
+
+      groupBox.value=
+        groups.length===1
+          ? vfPaymentGroupName(groups[0])
+          : '';
+
+      groupBox.dataset.vfAuto=
+        groupBox.value;
+    }
   }
 
   const matches=
@@ -35905,6 +35987,43 @@ $('#savePayment').onclick=async()=>{
     updatedAt:
       serverTimestamp()
   };
+
+  /*
+   * Link the payment to the group itself, not only its name, so it
+   * counts against that class's balance the same way an approved
+   * email payment does. A blank Group with only one group on the
+   * student means that one.
+   */
+  const paymentGroups=
+    vfPaymentGroupsFor(selectedStudent);
+
+  const typedGroup=
+    normalizedName(d.className);
+
+  const paymentGroup=
+    typedGroup
+      ? paymentGroups.find(
+          service=>normalizedName(vfPaymentGroupName(service))===typedGroup
+        )
+      : (
+          paymentGroups.length===1
+            ? paymentGroups[0]
+            : null
+        );
+
+  if(paymentGroup){
+
+    d.serviceId=
+      paymentGroup.id;
+
+    d.className=
+      vfPaymentGroupName(paymentGroup);
+
+    if(paymentGroup.classId){
+      d.classId=
+        paymentGroup.classId;
+    }
+  }
 
   const duplicatePayment=
     findDuplicatePayment(d);
