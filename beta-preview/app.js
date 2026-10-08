@@ -19746,7 +19746,8 @@ let editingExpenseId=null;
 function clearExpenseForm(){
   editingExpenseId=null;
   if($('#expPaidTo'))$('#expPaidTo').value='';
-  if($('#expCategory'))$('#expCategory').value='advertising';
+  /* Other Expenses until the vendor picks; Advertising (first in the list) was a poor guess for most. */
+  if($('#expCategory'))$('#expCategory').value='other';
   if($('#expAmount'))$('#expAmount').value='';
   if($('#expDate'))$('#expDate').value=vfLocalDate();
   if($('#expNote'))$('#expNote').value='';
