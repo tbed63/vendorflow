@@ -16634,6 +16634,15 @@ function vfRepeatClear(prefix){
   set('EndDate','');
   set('Count',12);
 
+  ['MonthDay','Weekday'].forEach(suffix=>{
+    const el=vfRepeatEl(prefix,suffix);
+    if(el){
+      delete el.dataset.vfTouched;
+    }
+  });
+
+  vfRepeatFollowDate(prefix);
+
   vfRepeatSyncVisibility(prefix,vfLocalDate());
 }
 
@@ -16657,6 +16666,14 @@ function vfRepeatLoadRule(prefix,rule){
   set('Freq',rule.freq||'monthly');
   set('Weekday',String(rule.weekday??0));
   set('MonthDay',rule.monthDay||1);
+
+  /* A saved schedule's own day is kept, even if the date field changes. */
+  ['MonthDay','Weekday'].forEach(suffix=>{
+    const el=vfRepeatEl(prefix,suffix);
+    if(el){
+      el.dataset.vfTouched='1';
+    }
+  });
   set('EndMode',rule.endMode||'never');
   set('EndDate',rule.endDate||'');
   set('Count',rule.maxOccurrences||12);
@@ -16673,7 +16690,16 @@ function vfRepeatLoadRule(prefix,rule){
  * is the next date AFTER today. Anything else would create today's
  * entry twice, once by hand and once by the cron tonight.
  */
-async function vfRepeatSaveRule(prefix,template,startDate){
+/*
+ * forwardOnly: the schedule starts from today, never from the past.
+ * Used when an EXISTING expense is turned into a repeat -- otherwise a
+ * June expense made monthly would have the 7am run fill in July,
+ * August and September at once, on top of any the vendor had already
+ * entered by hand.
+ *
+ * Returns the id of the rule it created or updated ('' if none).
+ */
+async function vfRepeatSaveRule(prefix,template,startDate,{forwardOnly=false}={}){
 
   const config=VF_REPEAT_FORMS[prefix];
 
@@ -16746,7 +16772,7 @@ async function vfRepeatSaveRule(prefix,template,startDate){
 
   const existing=editingRule;
 
-  const next=
+  let next=
     editing
       ? vfRecurFirstOnOrAfter(
           rule,
@@ -16754,12 +16780,25 @@ async function vfRepeatSaveRule(prefix,template,startDate){
         )
       : vfRecurNextAfter(rule,startDate);
 
+  if(
+    forwardOnly &&
+    next &&
+    vfRecurFormatDate(next)<vfLocalDate()
+  ){
+    next=
+      vfRecurFirstOnOrAfter(
+        rule,
+        vfLocalDate()
+      );
+  }
+
   const record={
     type:config.type,
     label:
       String(
         template.task ||
         template.note ||
+        template.paidTo ||
         vfExpenseCategoryLabel(template.category) ||
         'Scheduled item'
       ).slice(0,120),
@@ -16797,6 +16836,9 @@ async function vfRepeatSaveRule(prefix,template,startDate){
 
   if(vfEditingRecurrenceId){
 
+    const updatedRuleId=
+      vfEditingRecurrenceId;
+
     await setDoc(
       doc(db,'vendors',user.uid,'recurrences',vfEditingRecurrenceId),
       record,
@@ -16811,8 +16853,10 @@ async function vfRepeatSaveRule(prefix,template,startDate){
 
     vfEditingRecurrenceId=null;
 
-  }else{
+    return updatedRuleId;
+  }
 
+  const ruleRef=
     await addDoc(
       sub('recurrences'),
       {
@@ -16821,13 +16865,19 @@ async function vfRepeatSaveRule(prefix,template,startDate){
       }
     );
 
-    await log(
-      'Repeat scheduled',
-      `${record.label} — ${vfRepeatDescribe(rule)}. `+
-      `Next on ${record.nextRunAt||'—'}.`,
-      'Manual'
-    );
-  }
+  vfLastSavedRepeat={
+    id:ruleRef.id,
+    nextRunAt:record.nextRunAt
+  };
+
+  await log(
+    'Repeat scheduled',
+    `${record.label} — ${vfRepeatDescribe(rule)}. `+
+    `Next on ${record.nextRunAt||'—'}.`,
+    'Manual'
+  );
+
+  return ruleRef.id;
 }
 
 
@@ -17112,6 +17162,48 @@ function vfEditRecurrence(prefix,ruleId){
 }
 
 
+/*
+ * The day a monthly repeat lands on, and the weekday a weekly one
+ * does, follow the item's own date unless the vendor has set them by
+ * hand. They used to default to TODAY's date whatever the item said,
+ * so a June 15 expense made monthly from the edit form repeated on
+ * the 8th because it was edited on the 8th.
+ */
+function vfRepeatFollowDate(prefix){
+
+  const raw=
+    (prefix==='exp'
+      ? $('#expDate')?.value
+      : $('#compDue')?.value) || '';
+
+  const found=
+    String(raw).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if(!found){
+    return;
+  }
+
+  const when=
+    new Date(Number(found[1]),Number(found[2])-1,Number(found[3]));
+
+  const monthDay=
+    vfRepeatEl(prefix,'MonthDay');
+
+  if(monthDay && !monthDay.dataset.vfTouched){
+    monthDay.value=
+      String(when.getDate());
+  }
+
+  const weekday=
+    vfRepeatEl(prefix,'Weekday');
+
+  if(weekday && !weekday.dataset.vfTouched){
+    weekday.value=
+      String(when.getDay());
+  }
+}
+
+
 function vfRenderAllRepeatLists(){
   vfRenderRepeatList('exp');
   vfRenderRepeatList('comp');
@@ -17151,10 +17243,20 @@ Object.keys(VF_REPEAT_FORMS).forEach(prefix=>{
     prefix==='exp' ? $('#expDate') : $('#compDue');
 
   if(dateField){
-    dateField.addEventListener('change',()=>
-      vfRepeatUpdatePreview(prefix,startFor())
-    );
+    dateField.addEventListener('change',()=>{
+      vfRepeatFollowDate(prefix);
+      vfRepeatUpdatePreview(prefix,startFor());
+    });
   }
+
+  /* Once set by hand, the day stays where the vendor put it. */
+  ['MonthDay','Weekday'].forEach(suffix=>{
+    const el=vfRepeatEl(prefix,suffix);
+    if(el){
+      el.addEventListener('input',()=>{ el.dataset.vfTouched='1'; });
+      el.addEventListener('change',()=>{ el.dataset.vfTouched='1'; });
+    }
+  });
 });
 
 
@@ -19644,7 +19746,8 @@ let editingExpenseId=null;
 function clearExpenseForm(){
   editingExpenseId=null;
   if($('#expPaidTo'))$('#expPaidTo').value='';
-  if($('#expCategory'))$('#expCategory').value='advertising';
+  /* Other Expenses until the vendor picks; Advertising (first in the list) was a poor guess for most. */
+  if($('#expCategory'))$('#expCategory').value='other';
   if($('#expAmount'))$('#expAmount').value='';
   if($('#expDate'))$('#expDate').value=vfLocalDate();
   if($('#expNote'))$('#expNote').value='';
@@ -19737,6 +19840,7 @@ function vfEditExpense(expenseId){
   if($('#expCategory'))$('#expCategory').value=item.category||'other';
   if($('#expAmount'))$('#expAmount').value=item.amount ?? '';
   if($('#expDate'))$('#expDate').value=item.date||'';
+  vfRepeatFollowDate('exp');
   if($('#expNote'))$('#expNote').value=item.note||'';
   if($('#saveExpense'))$('#saveExpense').textContent='Update expense';
 
@@ -19765,9 +19869,12 @@ async function deleteExpense(expenseId){
     'Manual'
   );
 
-  await refreshAll();
-  renderExpenses();
-  renderTaxSummary();
+  /* Gone from the list now; the full refresh follows without holding it up. */
+  expenses=
+    expenses.filter(item=>item.id!==expenseId);
+
+  vfShowExpenseChangeNow();
+  vfRefreshAfterExpenseChange();
 
   toast('Expense deleted.');
 }
@@ -19786,8 +19893,75 @@ if($('#cancelExpense')){
   };
 }
 
+/*
+ * Tim: "when I add an expense it doesn't update on the ledger without
+ * me manually refreshing the page." The list was only redrawn after
+ * refreshAll() -- every collection reloaded plus the daily jobs
+ * (reminders, late fees, invoices) -- so the new expense appeared
+ * only once all of that finished, and never if any of it failed.
+ *
+ * Now the change is put into the list the moment it is saved, and
+ * the full refresh runs afterwards without holding the screen up. A
+ * failure in that refresh is logged and leaves the list as it is.
+ */
+function vfShowExpenseChangeNow(){
+
+  renderExpenses();
+  renderTaxSummary();
+  vfRenderAllRepeatLists();
+}
+
+
+/*
+ * " -- next on Oct 8, 2026" for a rule just saved. The rule is also
+ * noted in the local list straight away, so editing the same expense
+ * again before the refresh lands cannot start a second repeat.
+ */
+let vfLastSavedRepeat=null;
+
+function vfNextRepeatText(ruleId){
+
+  if(
+    ruleId &&
+    !recurrences.some(rule=>rule.id===ruleId)
+  ){
+    recurrences=[
+      ...recurrences,
+      {
+        id:ruleId,
+        active:true,
+        type:'expense',
+        nextRunAt:vfLastSavedRepeat?.nextRunAt||''
+      }
+    ];
+  }
+
+  const next=
+    vfLastSavedRepeat?.id===ruleId
+      ? vfLastSavedRepeat.nextRunAt
+      : '';
+
+  return next
+    ? ` -- next one on ${formatVendorDate(next)||next}`
+    : '';
+}
+
+
+function vfRefreshAfterExpenseChange(){
+
+  refreshAll()
+    .then(()=>vfShowExpenseChangeNow())
+    .catch(error=>
+      console.error('Refresh after an expense change failed:',error)
+    );
+}
+
+
 if($('#saveExpense')){
   $('#saveExpense').onclick=async()=>{
+
+    const saveButton=
+      $('#saveExpense');
 
     const amount=Number($('#expAmount').value);
 
@@ -19804,85 +19978,195 @@ if($('#saveExpense')){
       updatedAt:serverTimestamp()
     };
 
-    /*
-     * Editing a repeat, not adding an expense. The form is being
-     * used to change the rule's own settings and template, so no
-     * expense is created -- doing so added a duplicate every time a
-     * schedule was adjusted.
-     */
-    if(vfEditingRecurrenceId){
+    /* What the list shows until the reload brings the stored copy. */
+    const shown={
+      ...d,
+      updatedAt:null
+    };
 
-      await vfRepeatSaveRule('exp',d,d.date);
-
-      clearExpenseForm();
-      vfRepeatClear('exp');
-      hide($('#expenseForm'));
-
-      await refreshAll();
-      renderExpenses();
-      renderTaxSummary();
-      vfRenderAllRepeatLists();
-
-      return toast('Repeat updated.');
+    if(saveButton){
+      saveButton.disabled=true;
     }
 
-    /*
-     * Editing an expense that already exists. Update in place, and
-     * do NOT touch any repeat rule -- vfRepeatSaveRule below is for
-     * newly added expenses only.
-     */
-    if(editingExpenseId){
+    try{
 
-      const editingId=editingExpenseId;
+      /*
+       * Editing a repeat, not adding an expense. The form is being
+       * used to change the rule's own settings and template, so no
+       * expense is created -- doing so added a duplicate every time a
+       * schedule was adjusted.
+       */
+      if(vfEditingRecurrenceId){
 
-      await updateDoc(
-        doc(db,'vendors',user.uid,'expenses',editingId),
-        d
-      );
+        await vfRepeatSaveRule('exp',d,d.date);
+
+        clearExpenseForm();
+        vfRepeatClear('exp');
+        hide($('#expenseForm'));
+
+        vfShowExpenseChangeNow();
+        vfRefreshAfterExpenseChange();
+
+        return toast('Repeat updated.');
+      }
+
+      /*
+       * Editing an expense that already exists: updated in place.
+       *
+       * Tim: "when I edit a previously created expense and change it
+       * to a repeated expense, hit update, nothing happens." Repeat
+       * was ignored here on purpose (to stop a schedule edit adding a
+       * duplicate), so ticking it did nothing. Now ticking it makes
+       * this expense the start of a new repeat -- running from today
+       * forward, so no back months are filled in -- unless it already
+       * belongs to one.
+       */
+      if(editingExpenseId){
+
+        const editingId=editingExpenseId;
+
+        const before=
+          expenses.find(item=>item.id===editingId) || {};
+
+        const wantsRepeat=
+          Boolean($('#expRepeatOn')?.checked);
+
+        const alreadyRepeats=
+          Boolean(
+            before.recurrenceId &&
+            recurrences.some(
+              rule=>rule.id===before.recurrenceId && rule.active!==false
+            )
+          );
+
+        await updateDoc(
+          doc(db,'vendors',user.uid,'expenses',editingId),
+          d
+        );
+
+        let repeatMessage='';
+
+        if(wantsRepeat && alreadyRepeats){
+
+          repeatMessage=
+            ' It already repeats -- change the schedule from the repeat list below.';
+
+        }else if(wantsRepeat){
+
+          const ruleId=
+            await vfRepeatSaveRule(
+              'exp',
+              d,
+              d.date,
+              {forwardOnly:true}
+            );
+
+          if(ruleId){
+
+            await updateDoc(
+              doc(db,'vendors',user.uid,'expenses',editingId),
+              {recurrenceId:ruleId}
+            );
+
+            shown.recurrenceId=ruleId;
+
+            repeatMessage=
+              ' It now repeats'+vfNextRepeatText(ruleId)+'.';
+          }
+        }
+
+        await log(
+          'Expense updated',
+          `${vfExpenseCategoryLabel(d.category)} — ${money(amount)}.`,
+          'Manual'
+        );
+
+        expenses=
+          expenses.map(item=>
+            item.id===editingId
+              ? {...item,...shown}
+              : item
+          );
+
+        clearExpenseForm();
+        vfRepeatClear('exp');
+        hide($('#expenseForm'));
+
+        vfShowExpenseChangeNow();
+        vfRefreshAfterExpenseChange();
+
+        return toast(`Expense updated.${repeatMessage}`);
+      }
+
+      const expenseRef=
+        await addDoc(
+          sub('expenses'),
+          {
+            ...d,
+            createdAt:serverTimestamp()
+          }
+        );
 
       await log(
-        'Expense updated',
+        'Expense added',
         `${vfExpenseCategoryLabel(d.category)} — ${money(amount)}.`,
         'Manual'
       );
 
+      const ruleId=
+        await vfRepeatSaveRule('exp',d,d.date);
+
+      const addedRepeatText=
+        ruleId
+          ? vfNextRepeatText(ruleId)
+          : '';
+
+      if(ruleId){
+
+        await updateDoc(
+          doc(db,'vendors',user.uid,'expenses',expenseRef.id),
+          {recurrenceId:ruleId}
+        );
+
+        shown.recurrenceId=ruleId;
+      }
+
+      expenses=[
+        {
+          id:expenseRef.id,
+          ...shown
+        },
+        ...expenses
+      ];
+
       clearExpenseForm();
       vfRepeatClear('exp');
       hide($('#expenseForm'));
 
-      await refreshAll();
-      renderExpenses();
-      renderTaxSummary();
+      vfShowExpenseChangeNow();
+      vfRefreshAfterExpenseChange();
 
-      return toast('Expense updated.');
-    }
+      toast(
+        ruleId
+          ? `Expense saved. It repeats${addedRepeatText}.`
+          : 'Expense saved.'
+      );
 
-    await addDoc(
-      sub('expenses'),
-      {
-        ...d,
-        createdAt:serverTimestamp()
+    }catch(error){
+
+      console.error('Saving the expense failed:',error);
+
+      vfShowStickyError(
+        'The expense was not saved',
+        error?.message || 'VendorFlow could not save this expense. Try again.'
+      );
+
+    }finally{
+
+      if(saveButton){
+        saveButton.disabled=false;
       }
-    );
-
-    await log(
-      'Expense added',
-      `${vfExpenseCategoryLabel(d.category)} — ${money(amount)}.`,
-      'Manual'
-    );
-
-    await vfRepeatSaveRule('exp',d,d.date);
-
-    clearExpenseForm();
-    vfRepeatClear('exp');
-    hide($('#expenseForm'));
-
-    await refreshAll();
-    renderExpenses();
-    renderTaxSummary();
-    vfRenderAllRepeatLists();
-
-    toast('Expense saved.');
+    }
   };
 }
 
