@@ -11760,3 +11760,83 @@ table,
 .vf-quick-student-card .row{
   flex-wrap:wrap;
 }
+
+/* Student picker on Notification cards: always opens downward, scrolls, searchable. */
+
+.vf-student-picker-native{
+  display:none !important;
+}
+
+.vf-student-picker{
+  position:relative;
+}
+
+.vf-student-picker-button{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  text-align:left;
+  cursor:pointer;
+  color:inherit;
+}
+
+.vf-student-picker-caret{
+  color:#5D757D;
+  font-size:14px;
+}
+
+.vf-student-picker-panel{
+  margin-top:4px;
+  padding:8px;
+  border:1px solid #D8DEE1;
+  border-radius:12px;
+  background:#fff;
+  box-shadow:0 10px 30px rgba(16,24,40,.12);
+}
+
+.vf-student-picker-panel .vf-student-picker-search{
+  margin:0 0 6px;
+}
+
+.vf-student-picker-list{
+  max-height:300px;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
+
+.vf-student-picker-option{
+  display:block;
+  width:100%;
+  padding:10px 12px;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  color:inherit;
+  font-size:15px;
+  text-align:left;
+  cursor:pointer;
+}
+
+.vf-student-picker-option:hover,
+.vf-student-picker-option:focus-visible{
+  background:#eef2f8;
+  outline:none;
+}
+
+.vf-student-picker-option.selected{
+  font-weight:700;
+}
+
+.vf-student-picker-add{
+  color:#1A346F;
+  font-weight:700;
+  border-bottom:1px solid #D8DEE1;
+  border-radius:8px 8px 0 0;
+  margin-bottom:4px;
+}
+
+.vf-student-picker-empty{
+  padding:10px 12px;
+  color:#5D757D;
+}
