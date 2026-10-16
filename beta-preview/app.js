@@ -26946,72 +26946,329 @@ $('#cancelCoreStudent').onclick=()=>{
 };
 
 
-$('#saveCoreStudent').onclick=async()=>{
+/*
+ * "+ Add a new student…" in the student dropdowns on Notifications.
+ *
+ * Tim: "if you receive a certificate but you have no student to
+ * attach that certificate to, make the top option be 'Add Student'
+ * and then bring a pop-up ... and then that student will be the one
+ * attached to that cert." The pop-up has the Students page fields,
+ * filled in from what VendorFlow read; saving adds the student to
+ * every student dropdown on the page and picks them in this one, so
+ * Approve attaches the certificate or payment to them. Nothing else
+ * typed into the card is touched.
+ */
+const VF_ADD_STUDENT_OPTION='__vf_add_student__';
 
-  const first=
-    $('#coreStudentFirst').value.trim();
 
-  const last=
-    $('#coreStudentLast').value.trim();
+function vfQuickAddStudentGuess(select){
 
+  const form=
+    select?.closest('.vf-proposal-edit-form');
+
+  const reviewId=
+    form?.querySelector('[data-submit-proposal-edit]')
+      ?.dataset.submitProposalEdit || '';
+
+  const review=
+    reviews.find(item=>item.id===reviewId);
+
+  const fields=
+    review?.proposalFields || {};
+
+  /* "Gabriel Jackson" -> first "Gabriel", last "Jackson". */
+  const nameParts=
+    String(fields.studentName||'')
+      .replace(/\s+/g,' ')
+      .trim()
+      .split(' ')
+      .filter(Boolean);
+
+  const payer=
+    String(fields.payer||'').trim();
+
+  return {
+    first:nameParts.length>1 ? nameParts.slice(0,-1).join(' ') : (nameParts[0]||''),
+    last:nameParts.length>1 ? nameParts[nameParts.length-1] : '',
+    /* A payer who is not the student is usually the parent. */
+    parentName:
+      payer && normalizedName(payer)!==normalizedName(fields.studentName)
+        ? payer
+        : ''
+  };
+}
+
+
+/* Puts the student in every student dropdown on Notifications and picks them in `select`. */
+function vfUseStudentInDropdown(select,student){
+
+  $$('select[data-proposal-field="studentId"]')
+    .forEach(other=>{
+
+      if(![...other.options].some(option=>option.value===student.id)){
+
+        const option=
+          document.createElement('option');
+
+        option.value=student.id;
+        option.textContent=student.studentName||'';
+
+        /* Straight after "+ Add a new student…", where it will be seen. */
+        const anchor=
+          [...other.options].find(item=>item.value===VF_ADD_STUDENT_OPTION);
+
+        other.insertBefore(option,anchor ? anchor.nextSibling : null);
+      }
+    });
+
+  select.value=student.id;
+
+  /* The usual change handling: its services, and the list held open as "being edited". */
+  select.dispatchEvent(new Event('change',{bubbles:true}));
+}
+
+
+function vfOpenQuickAddStudent(select){
+
+  document
+    .querySelectorAll('.vf-quick-student-overlay')
+    .forEach(item=>item.remove());
+
+  const guess=
+    vfQuickAddStudentGuess(select);
+
+  const overlay=
+    document.createElement('div');
+
+  overlay.className=
+    'vf-modal-overlay vf-quick-student-overlay';
+
+  overlay.innerHTML=`
+    <div class="vf-modal-card vf-quick-student-card" role="dialog" aria-modal="true" aria-labelledby="vfQuickStudentTitle">
+
+      <h2 id="vfQuickStudentTitle">Add a new student</h2>
+
+      <p class="muted">
+        They are added to your Students list and attached to this
+        notification. You can put them in a group later from the
+        Students page.
+      </p>
+
+      <!-- Labelled, not only placeholders: these open already filled in, and a filled box hides its placeholder. -->
+      <div class="vf-student-form-grid">
+        <label class="vf-field-label vf-fld-2"><span>Student first name</span>
+          <input class="input" data-quick-student="first" value="${esc(guess.first)}"></label>
+        <label class="vf-field-label vf-fld-2"><span>Student last name</span>
+          <input class="input" data-quick-student="last" value="${esc(guess.last)}"></label>
+        <label class="vf-field-label vf-fld-2"><span>Parent / guardian</span>
+          <input class="input" data-quick-student="parentName" value="${esc(guess.parentName)}"></label>
+        <label class="vf-field-label vf-fld-3"><span>Parent email</span>
+          <input class="input" data-quick-student="parentEmail" type="email"></label>
+        <label class="vf-field-label vf-fld-3"><span>Parent phone</span>
+          <input class="input" data-quick-student="parentPhone"></label>
+      </div>
+
+      <div class="vf-quick-student-error error hidden" role="alert"></div>
+
+      <div class="row">
+        <button type="button" class="primary" data-quick-student-save>Save student</button>
+        <button type="button" data-quick-student-cancel>Cancel</button>
+      </div>
+
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const value=
+    key=>overlay.querySelector(`[data-quick-student="${key}"]`)?.value || '';
+
+  const errorBox=
+    overlay.querySelector('.vf-quick-student-error');
+
+  const close=
+    ()=>overlay.remove();
+
+  overlay.querySelector('[data-quick-student-cancel]').onclick=close;
+
+  overlay.onclick=
+    event=>{
+      if(event.target===overlay){
+        close();
+      }
+    };
+
+  overlay.addEventListener('keydown',event=>{
+    if(event.key==='Escape'){
+      close();
+    }
+  });
+
+  const saveButton=
+    overlay.querySelector('[data-quick-student-save]');
+
+  saveButton.onclick=async()=>{
+
+    saveButton.disabled=true;
+    errorBox.classList.add('hidden');
+
+    try{
+
+      const result=
+        await vfCreateStudentRecord({
+          first:value('first'),
+          last:value('last'),
+          parentName:value('parentName'),
+          parentEmail:value('parentEmail'),
+          parentPhone:value('parentPhone')
+        });
+
+      if(result.error){
+        errorBox.textContent=result.error;
+        errorBox.classList.remove('hidden');
+        return;
+      }
+
+      /* Already on file: use that student rather than make a second one. */
+      const student=
+        result.student || result.existing;
+
+      vfUseStudentInDropdown(select,student);
+
+      close();
+
+      toast(
+        result.existing
+          ? `${student.studentName} is already a student -- picked them for you.`
+          : `${student.studentName} added and picked. Approve to attach them.`
+      );
+
+    }catch(error){
+
+      console.error('Adding a student from Notifications failed:',error);
+
+      errorBox.textContent=
+        error?.message || 'VendorFlow could not save this student. Try again.';
+
+      errorBox.classList.remove('hidden');
+
+    }finally{
+
+      saveButton.disabled=false;
+    }
+  };
+
+  setTimeout(()=>{
+    try{
+      overlay.querySelector(
+        guess.first && guess.last
+          ? '[data-quick-student="parentName"]'
+          : '[data-quick-student="first"]'
+      )?.focus();
+    }catch{}
+  },40);
+}
+
+
+/*
+ * Creates one student directory record -- the Students page form and
+ * the "Add a new student" pop-up on Notifications both save through
+ * here, so a student is the same however they were added.
+ *
+ * Returns {student} for the new record, {existing} when a student by
+ * that name is already on file (nothing is created), or {error}.
+ */
+async function vfCreateStudentRecord({
+  first,
+  last,
+  parentName='',
+  parentEmail='',
+  parentPhone='',
+  source='Manual'
+}){
+
+  first=String(first||'').trim();
+  last=String(last||'').trim();
 
   if(!first || !last){
-
-    return toast(
-      'Enter the student first and last name.'
-    );
+    return {error:'Enter the student first and last name.'};
   }
-
 
   const studentName=
     `${first} ${last}`;
 
-
-  if(
-    students.some(
-      s=>
-        normalizedName(s.studentName)===
-        normalizedName(studentName)
-    )
-  ){
-
-    return toast(
-      'That student already exists.'
+  const existing=
+    students.find(
+      s=>vfStudentAllNames(s).includes(normalizedName(studentName))
     );
+
+  if(existing){
+    return {existing};
   }
 
+  const record={
+    studentFirst:first,
+    studentLast:last,
+    studentName,
+    parentName:String(parentName||'').trim(),
+    parentEmail:String(parentEmail||'').trim(),
+    parentPhone:String(parentPhone||'').trim(),
+    source,
+    active:true,
+    createdAt:serverTimestamp(),
+    updatedAt:serverTimestamp()
+  };
 
   const newStudentRef=
     await addDoc(
       sub('students'),
-      {
-        studentFirst:first,
-        studentLast:last,
-        studentName,
-
-        parentName:
-          $('#coreParentName').value.trim(),
-
-        parentEmail:
-          $('#coreParentEmail').value.trim(),
-
-        parentPhone:
-          $('#coreParentPhone').value.trim(),
-
-        source:'Manual',
-        active:true,
-
-        createdAt:serverTimestamp(),
-        updatedAt:serverTimestamp()
-      }
+      record
     );
-
 
   await log(
     'Student added',
     `${studentName} added to VendorFlow.`,
     'Manual'
   );
+
+  const student={
+    id:newStudentRef.id,
+    ...record
+  };
+
+  /* Usable right away, before the next full reload. */
+  students=[
+    ...students,
+    student
+  ];
+
+  return {student};
+}
+
+
+$('#saveCoreStudent').onclick=async()=>{
+
+  const result=
+    await vfCreateStudentRecord({
+      first:$('#coreStudentFirst').value,
+      last:$('#coreStudentLast').value,
+      parentName:$('#coreParentName').value,
+      parentEmail:$('#coreParentEmail').value,
+      parentPhone:$('#coreParentPhone').value
+    });
+
+  if(result.error){
+    return toast(result.error);
+  }
+
+  if(result.existing){
+    return toast(
+      'That student already exists.'
+    );
+  }
+
+  const newStudentRef=
+    result.student;
 
 
   [
@@ -41116,6 +41373,7 @@ function vfProposalEditFormHTML(review){
         <label class="vf-field-label"><span>Student</span>
           <select class="input" data-proposal-field="studentId">
             <option value="">Choose a student…</option>
+            <option value="${VF_ADD_STUDENT_OPTION}">+ Add a new student…</option>
             ${certStudentOptions}
           </select>
           ${
@@ -41233,6 +41491,7 @@ function vfProposalEditFormHTML(review){
       <label class="vf-field-label" data-student-field-label ${['income','expense'].includes(currentType)?'hidden':''}><span>Student</span>
         <select class="input" data-proposal-field="studentId">
           <option value="">Choose a student…</option>
+          <option value="${VF_ADD_STUDENT_OPTION}">+ Add a new student…</option>
           ${studentOptions}
         </select>
       </label>
@@ -43684,7 +43943,22 @@ function renderReviews(force){
   $$('select[data-proposal-field="studentId"]')
     .forEach(select=>{
 
+      /* Where to go back to if the pop-up is closed without saving. */
+      select.dataset.vfPrev=
+        select.value===VF_ADD_STUDENT_OPTION
+          ? ''
+          : select.value;
+
       select.onchange=()=>{
+
+        if(select.value===VF_ADD_STUDENT_OPTION){
+          select.value=select.dataset.vfPrev||'';
+          vfOpenQuickAddStudent(select);
+          return;
+        }
+
+        select.dataset.vfPrev=
+          select.value;
 
         const form=
           select.closest('.vf-proposal-edit-form');

@@ -11746,3 +11746,17 @@ table,
   white-space:pre-line;
   overflow-wrap:anywhere;
 }
+
+/* "+ Add a new student…" pop-up on Notifications */
+
+.vf-quick-student-card{
+  width:min(560px,100%);
+}
+
+.vf-quick-student-card .vf-student-form-grid{
+  margin:14px 0;
+}
+
+.vf-quick-student-card .row{
+  flex-wrap:wrap;
+}
