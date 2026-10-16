@@ -26961,6 +26961,183 @@ $('#cancelCoreStudent').onclick=()=>{
 const VF_ADD_STUDENT_OPTION='__vf_add_student__';
 
 
+/*
+ * The student dropdowns on Notifications, as VendorFlow's own picker.
+ *
+ * Tim: "the pull down for the students is now a pull up and goes off
+ * the top of the screen ... get that back to being something you can
+ * scroll through starting at the top of the list." A native <select>
+ * is drawn by the browser, which opens a long list UPWARD whenever the
+ * box sits low on the screen, and it cannot be told otherwise. This
+ * picker always opens below the box, starts at the top, scrolls in a
+ * fixed height and can be searched.
+ *
+ * The <select> stays (hidden) and holds the value, so the form reads
+ * it exactly as before; picking here sets it and fires its change.
+ */
+function vfEnhanceStudentSelect(select){
+
+  if(!select || select.dataset.vfPicker){
+    return;
+  }
+
+  select.dataset.vfPicker='1';
+  select.classList.add('vf-student-picker-native');
+
+  const picker=
+    document.createElement('div');
+
+  picker.className='vf-student-picker';
+
+  picker.innerHTML=`
+    <button type="button" class="input vf-student-picker-button" aria-haspopup="listbox" aria-expanded="false">
+      <span class="vf-student-picker-label"></span>
+      <span class="vf-student-picker-caret" aria-hidden="true">▾</span>
+    </button>
+    <div class="vf-student-picker-panel hidden">
+      <input class="input vf-student-picker-search" type="search" placeholder="Type to find a student" aria-label="Find a student">
+      <div class="vf-student-picker-list" role="listbox"></div>
+    </div>
+  `;
+
+  select.insertAdjacentElement('afterend',picker);
+
+  const button=picker.querySelector('.vf-student-picker-button');
+  const label=picker.querySelector('.vf-student-picker-label');
+  const panel=picker.querySelector('.vf-student-picker-panel');
+  const search=picker.querySelector('.vf-student-picker-search');
+  const list=picker.querySelector('.vf-student-picker-list');
+
+  const showLabel=
+    ()=>{
+      label.textContent=
+        select.selectedOptions[0]?.textContent?.trim() ||
+        'Choose a student…';
+    };
+
+  const close=
+    ()=>{
+      panel.classList.add('hidden');
+      button.setAttribute('aria-expanded','false');
+    };
+
+  const pick=
+    value=>{
+      close();
+      if(select.value===value && value!==VF_ADD_STUDENT_OPTION){
+        return;
+      }
+      select.value=value;
+      select.dispatchEvent(new Event('change',{bubbles:true}));
+      showLabel();
+      button.focus();
+    };
+
+  const drawList=
+    ()=>{
+
+      const query=
+        normalizedName(search.value);
+
+      /* "+ Add a new student…" always stays first; "Choose a student…" is not a choice. */
+      const options=
+        [...select.options]
+          .filter(option=>option.value)
+          .filter(option=>
+            option.value===VF_ADD_STUDENT_OPTION ||
+            !query ||
+            normalizedName(option.textContent).includes(query)
+          );
+
+      list.innerHTML=
+        options
+          .map(option=>`
+            <button
+              type="button"
+              role="option"
+              class="vf-student-picker-option${option.value===VF_ADD_STUDENT_OPTION?' vf-student-picker-add':''}${option.value===select.value?' selected':''}"
+              aria-selected="${option.value===select.value?'true':'false'}"
+              data-picker-value="${esc(option.value)}">
+              ${esc(option.textContent.trim())}
+            </button>`)
+          .join('') +
+        (
+          options.length<=1 && query
+            ? `<div class="vf-student-picker-empty">No student matches "${esc(search.value.trim())}".</div>`
+            : ''
+        );
+
+      list.querySelectorAll('[data-picker-value]')
+        .forEach(item=>{
+          item.onclick=()=>pick(item.dataset.pickerValue);
+        });
+
+      list.scrollTop=0;
+    };
+
+  button.onclick=()=>{
+
+    if(!panel.classList.contains('hidden')){
+      close();
+      return;
+    }
+
+    search.value='';
+    drawList();
+    panel.classList.remove('hidden');
+    button.setAttribute('aria-expanded','true');
+
+    /* Bring the whole list into view below the box, rather than opening upward. */
+    panel.scrollIntoView({block:'nearest'});
+    search.focus({preventScroll:true});
+  };
+
+  search.addEventListener('input',drawList);
+
+  search.addEventListener('keydown',event=>{
+
+    if(event.key==='Escape'){
+      close();
+      button.focus();
+    }
+
+    /* Enter takes the first student that matches, not "+ Add". */
+    if(event.key==='Enter'){
+      event.preventDefault();
+      const first=
+        list.querySelector('[data-picker-value]:not(.vf-student-picker-add)');
+      if(first){
+        pick(first.dataset.pickerValue);
+      }
+    }
+  });
+
+  /* Kept in step when the value changes another way (a new student added, the change handler). */
+  select.addEventListener('change',showLabel);
+
+  showLabel();
+}
+
+
+/* One listener for every picker: a click anywhere else closes an open list. */
+document.addEventListener('mousedown',event=>{
+
+  document
+    .querySelectorAll('.vf-student-picker-panel:not(.hidden)')
+    .forEach(panel=>{
+
+      const picker=
+        panel.closest('.vf-student-picker');
+
+      if(picker && !picker.contains(event.target)){
+        panel.classList.add('hidden');
+        picker.querySelector('.vf-student-picker-button')
+          ?.setAttribute('aria-expanded','false');
+      }
+    });
+});
+
+
 function vfQuickAddStudentGuess(select){
 
   const form=
@@ -43942,6 +44119,8 @@ function renderReviews(force){
 
   $$('select[data-proposal-field="studentId"]')
     .forEach(select=>{
+
+      vfEnhanceStudentSelect(select);
 
       /* Where to go back to if the pop-up is closed without saving. */
       select.dataset.vfPrev=
