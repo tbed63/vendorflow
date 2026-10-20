@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Start Your Free Trial — VendorFlow</title>
-<meta name="description" content="Start your free 7-day trial of VendorFlow. $199/year after your trial, cancel anytime, 30-day money-back guarantee.">
+<meta name="description" content="Start your free 7-day trial of VendorFlow. $99/year special beta pricing (regularly $199) after your trial, cancel anytime, 30-day money-back guarantee.">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -163,6 +163,17 @@
     letter-spacing:-.04em;color:var(--navy);font-variant-numeric:tabular-nums;
   }
   .price-card .period{font-size:var(--t-sm);color:var(--muted);margin-top:6px}
+  .price-card .amount-was{
+    font-family:var(--display);font-weight:700;font-size:26px;line-height:1;
+    color:var(--muted);margin-bottom:8px;
+  }
+  .price-card .amount-was s{text-decoration-thickness:3px;text-decoration-color:#C0392B}
+  .price-card .amount-was span{font-size:var(--t-sm);font-weight:500;text-decoration:none}
+  .price-card .beta-tag{
+    display:inline-block;margin-top:8px;padding:4px 10px;border-radius:999px;
+    background:#FFF4DC;color:#7A5410;font-size:var(--t-xs);font-weight:700;
+    letter-spacing:.02em;
+  }
   .price-card .trial-note{
     margin:16px 0 22px;font-size:var(--t-xs);color:var(--muted);line-height:1.55;
   }
@@ -341,8 +352,9 @@
   <div class="subscribe-grid">
 
     <div class="price-card">
-      <div class="amount">$199</div>
-      <div class="period">per year</div>
+      <div class="amount-was"><s>$199</s> <span>per year</span></div>
+      <div class="amount">$99</div>
+      <div class="period">per year<br><span class="beta-tag">Special Beta Pricing</span></div>
       <p class="trial-note">Starts with a free 7-day trial — cancel before it ends and you won't be charged. 30-day money-back guarantee after that.</p>
       <ul>
         <li><span class="check"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5" stroke="#1A346F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Unlimited classes, rosters, and students</li>
