@@ -31614,7 +31614,10 @@ function findDuplicateCertificate(candidate){
     return null;
   }
 
+  /* A deleted certificate no longer counts, so a rejected one that was
+     deleted can be re-sent with the same number. */
   return certs.find(existing=>
+    !existing.deleted &&
     normalizeDuplicateKey(
       existing.number
     )===number
