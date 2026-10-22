@@ -322,6 +322,17 @@ a:focus-visible,button:focus-visible{
   letter-spacing:-.04em;color:var(--navy);font-variant-numeric:tabular-nums;
 }
 .price-card .period{color:var(--muted);font-size:var(--t-sm);margin:6px 0 20px}
+.price-card .amount-was{
+  font-family:var(--display);font-weight:700;font-size:26px;line-height:1;
+  color:var(--muted);margin-bottom:8px;
+}
+.price-card .amount-was s{text-decoration-thickness:3px;text-decoration-color:#C0392B}
+.price-card .amount-was span{font-size:var(--t-sm);font-weight:500;text-decoration:none}
+.price-card .beta-tag{
+  display:inline-block;margin-top:8px;padding:4px 10px;border-radius:999px;
+  background:#FFF4DC;color:#7A5410;font-size:var(--t-xs);font-weight:700;
+  letter-spacing:.02em;
+}
 .price-card ul{list-style:none;margin:0 0 24px;padding:0;display:grid;gap:11px}
 .price-card li{
   display:flex;gap:10px;font-size:var(--t-sm);
@@ -675,8 +686,9 @@ footer{background:var(--surface);border-top:1px solid var(--line);padding-block:
     </div>
 
     <div class="price-card">
-      <div class="amount">$199</div>
-      <div class="period">per year</div>
+      <div class="amount-was"><s>$199</s> <span>per year</span></div>
+      <div class="amount">$99</div>
+      <div class="period">per year<br><span class="beta-tag">Special Beta Pricing</span></div>
       <ul>
         <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5" stroke="#1A346F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Unlimited groups, rosters and students</span></li>
         <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5" stroke="#1A346F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Certificate tracking, auto-read and approval</span></li>

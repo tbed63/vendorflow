@@ -31614,7 +31614,10 @@ function findDuplicateCertificate(candidate){
     return null;
   }
 
+  /* A deleted certificate no longer counts, so a rejected one that was
+     deleted can be re-sent with the same number. */
   return certs.find(existing=>
+    !existing.deleted &&
     normalizeDuplicateKey(
       existing.number
     )===number
@@ -46174,7 +46177,7 @@ function vfRenderSubscriptionCard(){
   if(status==='trialing'){
     html+=cancelAtEnd
       ?`<p class="muted">Your free trial ends${trialEnd?` ${trialEnd}`:' soon'} and you won't be charged.</p>`
-      :`<p class="muted">Your free trial is active${trialEnd?` and ends ${trialEnd}`:''}. You'll be charged $199/year once it ends, unless you cancel first.</p>
+      :`<p class="muted">Your free trial is active${trialEnd?` and ends ${trialEnd}`:''}. You'll be charged for your first year once it ends, at the price you signed up for, unless you cancel first.</p>
         <button id="vfCancelSubscriptionBtn" class="linkbtn">Cancel subscription</button>`;
   }else if(status==='active'){
     html+=cancelAtEnd
