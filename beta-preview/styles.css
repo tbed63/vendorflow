@@ -11840,3 +11840,10 @@ table,
   padding:10px 12px;
   color:#5D757D;
 }
+
+/* Remove a student from a group: keep what was paid, or delete */
+.vf-remove-group-card{max-width:520px}
+.vf-remove-group-choices{display:grid;gap:10px;margin:16px 0 12px}
+.vf-remove-group-choices button{width:100%;text-align:left;white-space:normal;line-height:1.35}
+.vf-service-deleted-notice{border:1px dashed #d9a441;background:#fff8e8}
+.vf-service-removed-row{opacity:.85}

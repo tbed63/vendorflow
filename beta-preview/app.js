@@ -14624,14 +14624,23 @@ async function dropStudentFromClass(id){
   const ok=
     confirm(
       `Remove ${s.studentName} from ${c.name}?\n\n` +
-      `VendorFlow will mark this enrollment Dropped. ` +
-      `The student's payment, certificate and account history will NOT be deleted.`
+      `Whatever has already been paid for this group is kept as nonrefundable, ` +
+      `and anything still unpaid is cancelled, so their balance for it ends at $0.\n\n` +
+      `The student's payment, certificate and account history will NOT be deleted. ` +
+      `If you're giving money back, record a refund afterwards.`
     );
 
   if(!ok){
     return;
   }
 
+  /*
+   * Removed, not Dropped. A Dropped group stops counting toward the
+   * bill at all, so everything the family had paid turned into a
+   * credit -- and with the group gone, there was nothing left to
+   * charge it against. Removed keeps the amount paid as the group's
+   * price (see applyRosterFinancialStatus).
+   */
   await updateDoc(
     doc(
       db,
@@ -14643,7 +14652,7 @@ async function dropStudentFromClass(id){
       id
     ),
     {
-      status:'Dropped',
+      status:'Removed',
       droppedAt:serverTimestamp(),
       updatedAt:serverTimestamp()
     }
@@ -14668,50 +14677,16 @@ async function dropStudentFromClass(id){
     }
   );
 
-  /*
-   * Preserve the core student and all financial records.
-   * If a linked class service exists, mark only that
-   * service/enrollment inactive rather than deleting it.
-   */
-  const core=
-    students.find(
-      x=>
-        normalizedName(x.studentName)===
-        normalizedName(s.studentName)
-    );
-
-  if(core){
-
-    const linked=
-      services.filter(
-        service=>
-          service.studentId===core.id &&
-          service.classId===c.id &&
-          norm(service.status)!=='dropped'
-      );
-
-    for(const service of linked){
-
-      await updateDoc(
-        doc(
-          db,
-          'vendors',
-          user.uid,
-          'services',
-          service.id
-        ),
-        {
-          status:'Dropped',
-          droppedAt:serverTimestamp(),
-          updatedAt:serverTimestamp()
-        }
-      );
-    }
-  }
+  /* Preserves the core student and all financial records. */
+  await applyRosterFinancialStatus(
+    c,
+    s,
+    'Removed'
+  );
 
   await log(
-    'Student dropped from group',
-    `${s.studentName} removed from ${c.name}. Financial history preserved.`,
+    'Student removed from group',
+    `${s.studentName} removed from ${c.name}. Amount already paid kept as nonrefundable; remaining unpaid cancelled. Financial history preserved.`,
     'Manual'
   );
 
@@ -14723,7 +14698,7 @@ async function dropStudentFromClass(id){
   renderRoster();
   updateRosterUploadTarget();
 
-  toast(`${s.studentName} marked Dropped.`);
+  toast(`${s.studentName} removed from ${c.name}. What they paid is kept.`);
 }
 
 
@@ -14762,7 +14737,8 @@ async function deleteRosterStudent(id){
       confirm(
         `${s.studentName} already has payment or certificate activity in ${c.name}, ` +
         `so VendorFlow can't permanently delete this roster entry -- that history needs to stay intact.\n\n` +
-        `Click OK to mark this enrollment Dropped instead (keeps the history, removes them from the active roster). ` +
+        `Click OK to remove them from the group instead: what's already been paid is kept as nonrefundable, ` +
+        `anything unpaid is cancelled, and all history stays. ` +
         `Click Cancel to do nothing.`
       );
 
@@ -14913,9 +14889,10 @@ function updateStudentStatusHelp(){
 
     box.innerHTML=`
       <strong>Removed:</strong>
-      The student leaves the active group roster and VendorFlow
-      removes the remaining unpaid group obligation.
-      Prior payments, certificates and history are preserved.
+      The student leaves the group. Whatever has already been paid
+      for it is kept as nonrefundable and anything still unpaid is
+      cancelled, so their balance for this group ends at $0.
+      Payments, certificates and history are preserved.
     `;
 
     return;
@@ -15399,6 +15376,62 @@ $('#addStudent').onclick=()=>{
 };
 
 
+/*
+ * How much the family has paid (or a certificate covered) toward
+ * these services: the credit the account would show if their charge
+ * were taken out. Capped at what the services cost. See the REMOVED
+ * branch of applyRosterFinancialStatus.
+ */
+function vfPaidTowardServices(coreStudent,serviceList){
+
+  if(!coreStudent){
+    return 0;
+  }
+
+  const itemizedServiceIds=
+    new Set(
+      obligations
+        .filter(o=>
+          !o.deleted &&
+          [
+            'Charge for service rendered',
+            'Tutoring session',
+            'Manual charge'
+          ].includes(o.obligationType)
+        )
+        .map(o=>o.serviceId)
+        .filter(Boolean)
+    );
+
+  const chargeNowCounted=
+    serviceList
+      .filter(service=>
+        !service.deleted &&
+        serviceCountsAsActive(service) &&
+        !itemizedServiceIds.has(service.id)
+      )
+      .reduce(
+        (sum,service)=>sum+Number(service.totalPrice||0),
+        0
+      );
+
+  const fullPrice=
+    serviceList.reduce(
+      (sum,service)=>
+        sum+Number(service.originalTotalPrice||service.totalPrice||0),
+      0
+    );
+
+  const paid=
+    chargeNowCounted-
+    Number(studentAccountTotals(coreStudent).parentBalance||0);
+
+  return Math.round(
+    Math.max(0,Math.min(fullPrice,paid))*100
+  )/100;
+}
+
+
 async function applyRosterFinancialStatus(
   classRecord,
   rosterRecord,
@@ -15501,25 +15534,47 @@ async function applyRosterFinancialStatus(
   /*
    * REMOVED:
    *
-   * Waive only the REMAINING UNPAID portion.
-   * This avoids creating an artificial refund for money
-   * the family already paid or funded with a certificate.
+   * What the family already paid (or a certificate covered) is
+   * kept as nonrefundable; only the REMAINING UNPAID portion is
+   * waived. The group's price becomes the amount paid, so the
+   * balance lands on zero -- no artificial refund, nothing owed.
+   *
+   * "Paid toward this group" is the credit the account would show
+   * without the group: the balance with the group's charge taken
+   * out. Working it out that way (rather than from the balance as
+   * it stands) also gives the right answer for a group that was
+   * already Dropped -- its charge no longer counts, so the balance
+   * shows the payments as a credit, and that credit is exactly what
+   * to keep.
+   *
+   * If every copy of the group was deleted from the student's
+   * account, the latest one is brought back as Removed so the kept
+   * amount has somewhere to live.
    */
-  const account=
-    coreStudent
-      ? studentAccountTotals(coreStudent)
-      : null;
+  let removing=
+    linked.filter(service=>!service.deleted);
 
-  let remainingUnpaid=
-    Math.max(
-      0,
-      Number(
-        account?.parentBalance||0
-      )
+  if(!removing.length){
+    removing=
+      [...linked]
+        .sort((a,b)=>{
+          const ms=service=>
+            service.deletedAt?.toMillis?.() ||
+            service.createdAt?.toMillis?.() ||
+            0;
+          return ms(b)-ms(a);
+        })
+        .slice(0,1);
+  }
+
+  let paidToKeep=
+    vfPaidTowardServices(
+      coreStudent,
+      removing
     );
 
 
-  for(const service of linked){
+  for(const service of removing){
 
     const currentPrice=
       Number(service.totalPrice||0);
@@ -15530,23 +15585,26 @@ async function applyRosterFinancialStatus(
         currentPrice
       );
 
-    const waiver=
-      Math.min(
-        currentPrice,
-        remainingUnpaid
-      );
-
     const adjustedPrice=
-      Math.max(
-        0,
-        currentPrice-waiver
+      Number(
+        Math.min(
+          originalPrice,
+          paidToKeep
+        ).toFixed(2)
       );
 
+    const waiver=
+      Number(
+        Math.max(
+          0,
+          originalPrice-adjustedPrice
+        ).toFixed(2)
+      );
 
-    remainingUnpaid=
+    paidToKeep=
       Math.max(
         0,
-        remainingUnpaid-waiver
+        paidToKeep-adjustedPrice
       );
 
 
@@ -15567,11 +15625,14 @@ async function applyRosterFinancialStatus(
         totalPrice:
           adjustedPrice,
 
+        deleted:
+          false,
+
         waivedAmount:
-          Number(service.waivedAmount||0)+waiver,
+          waiver,
 
         financialDisposition:
-          'Remaining unpaid obligation removed',
+          'Amount paid kept as nonrefundable; remaining unpaid obligation removed',
 
         removedAt:
           serverTimestamp(),
@@ -22970,7 +23031,183 @@ async function deleteStudentChargeFromLedger(obligationId){
 }
 
 
-async function deleteStudentServiceFromLedger(serviceId){
+/*
+ * A student who leaves a group partway through: what the family
+ * already paid is kept as nonrefundable and the rest is cancelled.
+ * The group stays on the account at the amount paid, status
+ * Removed, so the balance for it is $0 -- instead of the group
+ * vanishing and its payments turning into a credit with nothing
+ * left to charge against.
+ *
+ * Also used to put right a group that was deleted that way before
+ * (it is brought back as Removed).
+ */
+async function vfRemoveServiceKeepPaid(serviceId){
+
+  const service=
+    services.find(item=>item.id===serviceId);
+
+  if(!service){
+    return toast('That group could not be found.');
+  }
+
+  const coreStudent=
+    students.find(student=>student.id===service.studentId);
+
+  const fullPrice=
+    Number(service.originalTotalPrice||service.totalPrice||0);
+
+  const kept=
+    vfPaidTowardServices(coreStudent,[service]);
+
+  const waived=
+    Math.round(Math.max(0,fullPrice-kept)*100)/100;
+
+  /*
+   * Mark the roster row Removed too. The roster sync sets the
+   * group's status from the roster row, so a row left Active
+   * would quietly switch the group back on.
+   */
+  if(service.classId){
+    try{
+      const rosterSnapshot=
+        await getDocs(
+          collection(db,'vendors',user.uid,'classes',service.classId,'students')
+        );
+      const row=
+        rosterSnapshot.docs.find(d=>{
+          const data=d.data()||{};
+          return data.coreStudentId===service.studentId ||
+            normalizedName(data.studentName)===normalizedName(service.studentName||coreStudent?.studentName);
+        });
+      if(row && active(row.data()||{})){
+        await setDoc(
+          doc(db,'vendors',user.uid,'classes',service.classId,'students',row.id),
+          {status:'Removed',droppedAt:serverTimestamp(),updatedAt:serverTimestamp()},
+          {merge:true}
+        );
+      }
+    }catch(error){
+      console.warn('Could not update the roster row:',error);
+    }
+  }
+
+  await setDoc(
+    doc(db,'vendors',user.uid,'services',service.id),
+    {
+      status:'Removed',
+      deleted:false,
+      originalTotalPrice:fullPrice,
+      totalPrice:kept,
+      waivedAmount:waived,
+      financialDisposition:
+        'Amount paid kept as nonrefundable; remaining unpaid obligation removed',
+      removedAt:serverTimestamp(),
+      updatedAt:serverTimestamp()
+    },
+    {merge:true}
+  );
+
+  await log(
+    'Student removed from group',
+    `${service.studentName||coreStudent?.studentName||'Student'} — ${service.name||service.serviceType||'Group'}: `+
+    `${money(kept)} already paid kept as nonrefundable, remaining ${money(waived)} cancelled.`,
+    'Manual'
+  );
+
+  await refreshAll();
+
+  showCenteredActionConfirmation(
+    `Removed from the group. ${money(kept)} paid is kept and the remaining ${money(waived)} is cancelled.`
+  );
+}
+
+
+/*
+ * "Remove" on a group in the student's account. When money has
+ * already been paid toward it, ask whether the student dropped
+ * (keep what was paid) or the group was added by mistake (delete it).
+ */
+function deleteStudentServiceFromLedger(serviceId){
+
+  const service=
+    services.find(item=>item.id===serviceId);
+
+  if(!service){
+    return toast('That service could not be found.');
+  }
+
+  const coreStudent=
+    students.find(student=>student.id===service.studentId);
+
+  const itemized=
+    ccItemizedServiceIds().has(service.id);
+
+  const paid=
+    itemized
+      ? 0
+      : vfPaidTowardServices(coreStudent,[service]);
+
+  if(!(paid>0.009)){
+    return vfDeleteServiceCompletely(serviceId);
+  }
+
+  const fullPrice=
+    Number(service.originalTotalPrice||service.totalPrice||0);
+
+  const studentName=
+    service.studentName||coreStudent?.studentName||'This student';
+
+  const groupName=
+    service.name||service.serviceType||'this group';
+
+  document
+    .querySelectorAll('.vf-remove-group-overlay')
+    .forEach(item=>item.remove());
+
+  const overlay=
+    document.createElement('div');
+
+  overlay.className=
+    'vf-modal-overlay vf-remove-group-overlay';
+
+  overlay.innerHTML=`
+    <div class="vf-modal-card vf-remove-group-card" role="dialog" aria-modal="true" aria-labelledby="vfRemoveGroupTitle">
+      <h2 id="vfRemoveGroupTitle">Remove ${esc(studentName)} from ${esc(groupName)}?</h2>
+      <p>${money(paid)} of the ${money(fullPrice)} for this group has already been paid.</p>
+      <div class="vf-remove-group-choices">
+        <button type="button" class="primary" data-remove-group-keep>
+          They dropped: keep the ${money(paid)} paid, cancel the remaining ${money(Math.max(0,fullPrice-paid))}
+        </button>
+        <button type="button" data-remove-group-delete>
+          Delete the group completely (it was added by mistake)
+        </button>
+        <button type="button" data-remove-group-cancel>Cancel</button>
+      </div>
+      <p class="muted">Giving money back? Keep what was paid here, then record a refund.</p>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const close=()=>overlay.remove();
+
+  overlay.querySelector('[data-remove-group-cancel]').onclick=close;
+  overlay.onclick=event=>{ if(event.target===overlay){ close(); } };
+
+  overlay.querySelector('[data-remove-group-keep]').onclick=async()=>{
+    close();
+    await vfRemoveServiceKeepPaid(serviceId);
+  };
+
+  overlay.querySelector('[data-remove-group-delete]').onclick=async()=>{
+    close();
+    await vfDeleteServiceCompletely(serviceId);
+  };
+}
+
+
+async function vfDeleteServiceCompletely(serviceId){
 
   const service=
     services.find(item=>item.id===serviceId);
@@ -24310,8 +24547,77 @@ function renderStudentCommandCenterServices(student){
       serviceList.length ? `(${serviceList.length})` : '';
   }
 
+  /*
+   * A group deleted from the account after the family had paid
+   * toward it leaves those payments showing as a credit. Offer to
+   * keep them as nonrefundable instead (vfRemoveServiceKeepPaid).
+   */
+  const accountCredit=
+    Number(studentAccountTotals(student).parentBalance||0)< -0.009;
+
+  const deletedNotices=
+    accountCredit
+      ? services
+          .filter(service=>
+            service.studentId===student.id &&
+            service.deleted &&
+            Number(service.originalTotalPrice||service.totalPrice||0)>0
+          )
+          .slice(0,3)
+          .map(service=>`
+            <div class="vf-service-row vf-service-deleted-notice">
+              <div class="vf-service-main">
+                <div class="vf-service-name">${esc(service.name||service.serviceType||'Group')} (removed)</div>
+                <div class="vf-service-meta">
+                  <span>This group's charge was deleted, so what was paid for it shows as a credit.</span>
+                </div>
+              </div>
+              <div class="vf-student-record-actions">
+                <button type="button" class="primary" data-keep-paid-service="${esc(service.id)}">Keep what was paid</button>
+              </div>
+            </div>
+          `)
+          .join('')
+      : '';
+
+  /* Groups is a collapsed section -- open it so the fix is seen. */
+  if(deletedNotices){
+    const section=container.closest('details');
+    if(section){ section.open=true; }
+    if($('#ccServicesCountBadge')){
+      $('#ccServicesCountBadge').textContent='(1 to fix)';
+    }
+  }
+
+  /* Groups the student left, where what was paid is kept. */
+  const keptNotices=
+    studentServices(student.id)
+      .filter(service=>
+        String(service.status||'').toLowerCase()==='removed' &&
+        Number(service.totalPrice||0)>0
+      )
+      .map(service=>`
+        <div class="vf-service-row vf-service-removed-row">
+          <div class="vf-service-main">
+            <div class="vf-service-name">${esc(service.name||service.serviceType||'Group')}</div>
+            <div class="vf-service-meta">
+              <span>Left the group</span>
+              ${Number(service.waivedAmount||0)>0?`<span>${money(service.waivedAmount)} unpaid was cancelled</span>`:''}
+            </div>
+          </div>
+          <div class="vf-service-money">
+            <div>
+              <small>${String(service.financialDisposition||'').startsWith('Amount paid kept')?'Kept (nonrefundable)':'Still charged'}</small>
+              <strong>${money(service.totalPrice)}</strong>
+            </div>
+          </div>
+        </div>
+      `)
+      .join('');
+
   if(!serviceList.length){
     container.innerHTML=
+      (deletedNotices+keptNotices) ||
       `<div class="vf-student-financial-empty">No active services yet.</div>`;
     return;
   }
@@ -24319,6 +24625,7 @@ function renderStudentCommandCenterServices(student){
   const itemizedServiceIds=ccItemizedServiceIds();
 
   container.innerHTML=
+    deletedNotices+
     serviceList.map(service=>{
 
       const itemized=itemizedServiceIds.has(service.id);
@@ -24346,7 +24653,8 @@ function renderStudentCommandCenterServices(student){
           </div>
         </div>
       `;
-    }).join('');
+    }).join('')+
+    keptNotices;
 }
 
 
@@ -26168,6 +26476,15 @@ function wireStudentCommandCenterButtons(){
       if(editServiceButton){
         event.preventDefault();
         ccStartEditService(editServiceButton.dataset.editStudentService);
+        return;
+      }
+
+      const keepPaidButton=
+        event.target.closest('[data-keep-paid-service]');
+
+      if(keepPaidButton){
+        event.preventDefault();
+        vfRemoveServiceKeepPaid(keepPaidButton.dataset.keepPaidService);
         return;
       }
 
@@ -32443,6 +32760,22 @@ function vfReminderAmountOwed(obligation,funding){
     return 0;
   }
 
+  /* Nothing more is owed for a group the student has left. */
+  const service=
+    obligation?.serviceId
+      ? services.find(item=>item.id===obligation.serviceId)
+      : null;
+
+  if(
+    service &&
+    (
+      service.deleted ||
+      ['removed','dropped'].includes(norm(service.status))
+    )
+  ){
+    return 0;
+  }
+
   const student=
     students.find(
       s=>s.id===obligation.studentId
@@ -33941,6 +34274,22 @@ async function applyLateFees(){
     }
 
     if(obligation.lateFeeWaived){
+      continue;
+    }
+
+    /* Never a late fee for a group the student has left. */
+    const obligationService=
+      obligation.serviceId
+        ? services.find(service=>service.id===obligation.serviceId)
+        : null;
+
+    if(
+      obligationService &&
+      (
+        obligationService.deleted ||
+        ['removed','dropped'].includes(norm(obligationService.status))
+      )
+    ){
       continue;
     }
 
