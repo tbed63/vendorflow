@@ -11847,3 +11847,8 @@ table,
 .vf-remove-group-choices button{width:100%;text-align:left;white-space:normal;line-height:1.35}
 .vf-service-deleted-notice{border:1px dashed #d9a441;background:#fff8e8}
 .vf-service-removed-row{opacity:.85}
+
+/* Overdue invoice: email to the charter, and the contacted / pending badge */
+.vf-overdue-email{display:grid;gap:8px;margin:12px 0}
+.vf-overdue-email textarea{min-height:260px;font-family:inherit;line-height:1.45;white-space:pre-wrap}
+.vf-ledger-followup-badge{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:999px;background:#fff4dc;color:#7a5410;font-size:11px;font-weight:700;white-space:nowrap}

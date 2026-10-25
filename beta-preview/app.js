@@ -1193,6 +1193,190 @@ function invoiceNumberingReviewItems(){
 }
 
 
+/*
+ * OVERDUE INVOICES: asking the charter school, then keeping after it.
+ *
+ * 1. A sent invoice still unpaid `graceDays` (default 10) after its
+ *    due date shows in Notifications with a polite email to the
+ *    charter ready to go -- the invoice number, the certificate's
+ *    details, and the invoice PDF attached. Nothing goes out until
+ *    the vendor clicks Send.
+ * 2. Sending it marks the invoice "Charter contacted"
+ *    (invoice.charterFollowUp).
+ * 3. Still unpaid 14 days after that email, it comes back with a
+ *    follow-up email ready -- or 30 days after, when the charter has
+ *    said payment is coming ("Payment pending"). And so on until it
+ *    is paid, so the vendor never has to remember it herself.
+ */
+const VF_FOLLOWUP_DAYS=14;
+const VF_FOLLOWUP_PENDING_DAYS=30;
+
+function vfAddDaysISO(isoDate,days){
+  const base=parseVendorDate(isoDate);
+  if(!base){
+    return '';
+  }
+  const next=new Date(base.getFullYear(),base.getMonth(),base.getDate()+days,12);
+  return dateToLocalISO(next);
+}
+
+function vfInvoiceFollowUp(invoice){
+  return invoice?.charterFollowUp || {};
+}
+
+function vfInvoicePaymentPending(invoice){
+  return Boolean(vfInvoiceFollowUp(invoice).paymentPendingOn);
+}
+
+/*
+ * When the charter should next hear from us (and the vendor be
+ * reminded): 14 days after the last email, 30 when payment is
+ * pending. Empty until the charter has been contacted or has said
+ * payment is coming -- before that, the grace period decides.
+ */
+function vfInvoiceNextFollowUpOn(invoice){
+  const followUp=vfInvoiceFollowUp(invoice);
+  const anchor=followUp.lastEmailOn || followUp.paymentPendingOn || '';
+  if(!anchor){
+    return '';
+  }
+  return vfAddDaysISO(
+    anchor,
+    vfInvoicePaymentPending(invoice) ? VF_FOLLOWUP_PENDING_DAYS : VF_FOLLOWUP_DAYS
+  );
+}
+
+/* "Charter contacted 10/12" / "Payment pending" on the invoice ledger. */
+function vfInvoiceFollowUpBadge(invoice){
+  const followUp=vfInvoiceFollowUp(invoice);
+  const next=vfInvoiceNextFollowUpOn(invoice);
+  const nextText=next ? ` Next reminder ${invoiceLedgerDate(next)}.` : '';
+  if(vfInvoicePaymentPending(invoice)){
+    return {
+      label:'Payment pending',
+      title:`The charter said payment is coming (${invoiceLedgerDate(followUp.paymentPendingOn)}).${nextText}`
+    };
+  }
+  if(followUp.lastEmailOn){
+    return {
+      label:`Charter contacted ${invoiceLedgerDate(followUp.lastEmailOn)}`,
+      title:`${Number(followUp.emailCount||1)} email${Number(followUp.emailCount||1)===1?'':'s'} about this invoice.${nextText}`
+    };
+  }
+  return null;
+}
+
+function vfInvoiceDueDateRaw(invoice){
+  return invoice.dueDate ||
+    invoiceDueDateForTerms(
+      invoice.invoiceDate,
+      invoice.paymentTermsDays
+    );
+}
+
+/* The humble "is this paid?" email, with everything the charter needs to look it up. */
+function vfOverdueInvoiceEmailDraft(invoice){
+
+  const followUp=vfInvoiceFollowUp(invoice);
+  const isFollowUp=Boolean(followUp.lastEmailOn);
+  const pending=vfInvoicePaymentPending(invoice);
+
+  const charter=
+    charterSchools.find(item=>item.id===invoice.charterSchoolId) || {};
+
+  const cert=
+    certs.find(item=>item.id===invoice.certificateId) || null;
+
+  const ownerName=
+    invoice.vendorOwnerName || profile.ownerName || '';
+
+  const businessName=
+    invoice.vendorBusinessName || profile.businessName || '';
+
+  const contact=
+    String(invoice.charterBillingContact || charter.contactName || '').trim();
+
+  const dueRaw=vfInvoiceDueDateRaw(invoice);
+
+  const serviceDates=
+    [cert?.serviceStartDate||invoice.serviceStartDate, cert?.serviceEndDate||invoice.serviceEndDate]
+      .filter(Boolean)
+      .map(invoiceLedgerDate)
+      .join(' to ');
+
+  const details=[
+    `Invoice number: ${invoice.invoiceNumber||''}`,
+    invoice.invoiceDate ? `Invoice date: ${invoiceLedgerDate(invoice.invoiceDate)}` : null,
+    dueRaw ? `Due date: ${invoiceLedgerDate(dueRaw)}` : null,
+    `Amount: ${money(invoice.amount)}`,
+    '',
+    'From the certificate this invoice is for:',
+    `Student: ${cert?.student || invoice.studentName || ''}`,
+    `Certificate / PO number: ${cert?.number || invoice.certificateNumber || ''}`,
+    (cert?.amount ?? invoice.certificateAmount) ? `Certificate amount: ${money(cert?.amount ?? invoice.certificateAmount)}` : null,
+    cert?.issueDate ? `Certificate issued: ${invoiceLedgerDate(cert.issueDate)}` : null,
+    `Service: ${cert?.serviceDescription || invoice.serviceName || ''}`,
+    serviceDates ? `Service dates: ${serviceDates}` : null,
+    (cert?.school || invoice.charterSchoolName) ? `Charter school: ${cert?.school || invoice.charterSchoolName}` : null
+  ]
+    .filter(line=>line!==null)
+    .join('\n');
+
+  let opening;
+
+  if(!isFollowUp){
+    opening=
+      `I'm going through my records and invoice ${invoice.invoiceNumber} still shows as unpaid on my end. `+
+      `It's quite possible this is an error on my part, so I'm looking into it and wanted to check with you as well.`;
+  }else if(pending){
+    opening=
+      `Thank you for letting me know that payment for invoice ${invoice.invoiceNumber} was on its way. `+
+      `It still doesn't show as received on my end, so I wanted to check in. `+
+      `It may well be something I've missed, and I appreciate your patience while I look into it.`;
+  }else{
+    opening=
+      `I'm following up on my note from ${invoiceLedgerDate(followUp.lastEmailOn)} about invoice ${invoice.invoiceNumber}. `+
+      `It still shows as unpaid on my end. Again, this may very well be my mistake, and I'm continuing to look into it on my side.`;
+  }
+
+  const body=[
+    contact ? `Hello ${contact},` : 'Hello,',
+    '',
+    opening,
+    '',
+    'Here are the details:',
+    '',
+    details,
+    '',
+    'When you have a moment, could you let me know:',
+    '- whether you received this invoice,',
+    '- whether it has already been paid (if so, the payment date and check or reference number would help me find it), or',
+    '- whether payment is in process, or if you need anything else from me.',
+    '',
+    `I've attached a copy of the invoice in case the original never came through.`,
+    '',
+    `Thank you so much for your help, and my apologies if I've simply missed your payment.`,
+    '',
+    ownerName || businessName,
+    ownerName && businessName ? businessName : ''
+  ]
+    .join('\n')
+    .replace(/\n+$/,'');
+
+  const subject=
+    (isFollowUp ? 'Following up: ' : 'Checking on ')+
+    `invoice ${invoice.invoiceNumber}`+
+    (invoice.studentName ? ` (${invoice.studentName})` : '')+
+    (businessName ? ` — ${businessName}` : '');
+
+  return {
+    to: invoiceBillingEmail(invoice,charter) || '',
+    subject,
+    body
+  };
+}
+
+
 function overdueInvoiceNotificationItems(){
 
   const settings=
@@ -1204,6 +1388,9 @@ function overdueInvoiceNotificationItems(){
 
   today.setHours(0,0,0,0);
 
+  const todayISO=
+    dateToLocalISO(today);
+
   return invoices
     .filter(invoice=>
       invoiceIsOutstanding(invoice)
@@ -1211,11 +1398,7 @@ function overdueInvoiceNotificationItems(){
     .map(invoice=>{
 
       const dueDateRaw=
-        invoice.dueDate ||
-        invoiceDueDateForTerms(
-          invoice.invoiceDate,
-          invoice.paymentTermsDays
-        );
+        vfInvoiceDueDateRaw(invoice);
 
       const dueDate=
         parseVendorDate(dueDateRaw);
@@ -1224,19 +1407,35 @@ function overdueInvoiceNotificationItems(){
         return null;
       }
 
-      const graceDeadline=
-        new Date(
-          dueDate.getFullYear(),
-          dueDate.getMonth(),
-          dueDate.getDate() +
-            Number(settings.graceDays||0),
-          12,
-          0,
-          0
-        );
+      const followUp=
+        vfInvoiceFollowUp(invoice);
 
-      if(graceDeadline>today){
-        return null;
+      const nextOn=
+        vfInvoiceNextFollowUpOn(invoice);
+
+      if(nextOn){
+
+        /* Contacted, or told payment is coming: wait out the 14 / 30 days. */
+        if(nextOn>todayISO){
+          return null;
+        }
+
+      }else{
+
+        const graceDeadline=
+          new Date(
+            dueDate.getFullYear(),
+            dueDate.getMonth(),
+            dueDate.getDate() +
+              Number(settings.graceDays||0),
+            12,
+            0,
+            0
+          );
+
+        if(graceDeadline>today){
+          return null;
+        }
       }
 
       const dismissedUntil=
@@ -1246,9 +1445,14 @@ function overdueInvoiceNotificationItems(){
             )
           : null;
 
+      /* An old "Dismiss" hid a reminder for 50 years; those no longer count. */
+      const snoozeLimit=
+        new Date(today.getFullYear(),today.getMonth(),today.getDate()+VF_FOLLOWUP_PENDING_DAYS+1);
+
       if(
         dismissedUntil &&
-        dismissedUntil>today
+        dismissedUntil>today &&
+        dismissedUntil<=snoozeLimit
       ){
         return null;
       }
@@ -1261,6 +1465,18 @@ function overdueInvoiceNotificationItems(){
             (1000*60*60*24)
           )
         );
+
+      const history=
+        followUp.lastEmailOn
+          ? ` Charter contacted ${invoiceLedgerDate(followUp.firstEmailOn||followUp.lastEmailOn)}`+
+            (Number(followUp.emailCount||0)>1 ? ` (${followUp.emailCount} emails, last ${invoiceLedgerDate(followUp.lastEmailOn)})` : '')+
+            '.'
+          : '';
+
+      const pendingNote=
+        vfInvoicePaymentPending(invoice)
+          ? ` Charter said payment is coming (${invoiceLedgerDate(followUp.paymentPendingOn)}).`
+          : '';
 
       return {
 
@@ -1276,12 +1492,19 @@ function overdueInvoiceNotificationItems(){
         invoiceId:
           invoice.id,
 
+        followUpStage:
+          followUp.lastEmailOn ? 'follow-up' : 'first',
+
         title:
-          `Overdue: Invoice ${invoice.invoiceNumber||''}`,
+          followUp.lastEmailOn
+            ? `Still unpaid: Invoice ${invoice.invoiceNumber||''}`
+            : `Overdue: Invoice ${invoice.invoiceNumber||''}`,
 
         detail:
           `${invoice.charterSchoolName||'Charter school'} — ${money(invoice.amount)} — `+
-          `${daysOverdue} day${daysOverdue===1?'':'s'} past due (due ${invoiceLedgerDate(dueDateRaw)}).`,
+          `${daysOverdue} day${daysOverdue===1?'':'s'} past due (due ${invoiceLedgerDate(dueDateRaw)}).`+
+          history+
+          pendingNote,
 
         source:
           'VendorFlow'
@@ -7682,7 +7905,13 @@ async function sendInvoiceThroughVendorFlow(
       overrides?.subject || '',
 
     emailBody:
-      overrides?.body || ''
+      overrides?.body || '',
+
+    /* A follow-up is a separate email, not a resend of the invoice. */
+    idempotencySuffix:
+      overrides?.followUp
+        ? `followup-${Number(vfInvoiceFollowUp(invoice).emailCount||0)+1}-${vfLocalDate()}`
+        : ''
   };
 
 
@@ -7730,6 +7959,12 @@ async function sendInvoiceThroughVendorFlow(
       data.error ||
       'VendorFlow could not send this invoice.'
     );
+  }
+
+
+  if(overrides?.followUp){
+    await vfRecordCharterContacted(invoice,billingEmail,data.emailId||'');
+    return;
   }
 
 
@@ -9192,6 +9427,20 @@ function showInvoiceLedgerDetail(invoice){
                   Undo confirmed receipt
                 </button>`}
 
+            ${vfInvoicePaymentPending(invoice)
+              ? `<button
+                  type="button"
+                  id="ledgerClearPaymentPending"
+                  class="vf-secondary-button">
+                  Undo payment pending
+                </button>`
+              : `<button
+                  type="button"
+                  id="ledgerPaymentPending"
+                  class="vf-secondary-button">
+                  Charter says payment is coming
+                </button>`}
+
             ${vfTestingToolsOn()
               ? `<button
                   type="button"
@@ -9306,6 +9555,21 @@ function showInvoiceLedgerDetail(invoice){
       ()=>markInvoiceReceivedByCharter(
         invoice
       );
+  }
+
+
+  if($('#ledgerPaymentPending')){
+    $('#ledgerPaymentPending').onclick=async()=>{
+      await vfMarkInvoicePaymentPending(invoice.id);
+      closeInvoiceLedgerDetail();
+    };
+  }
+
+  if($('#ledgerClearPaymentPending')){
+    $('#ledgerClearPaymentPending').onclick=async()=>{
+      await vfClearInvoicePaymentPending(invoice.id);
+      closeInvoiceLedgerDetail();
+    };
   }
 
 
@@ -9509,6 +9773,150 @@ async function resetInvoiceToReadyForTesting(invoice){
 }
 
 
+/*
+ * The overdue email went out: remember that the charter was
+ * contacted, so the vendor (and VendorFlow) know, and the next
+ * reminder comes 14 days from now. A promise of payment is used up
+ * by the follow-up that chases it; it starts again only if the
+ * charter says so again.
+ */
+async function vfRecordCharterContacted(invoice,sentTo,emailId){
+
+  const followUp=
+    vfInvoiceFollowUp(invoice);
+
+  const today=
+    vfLocalDate();
+
+  const emailCount=
+    Number(followUp.emailCount||0)+1;
+
+  const update={
+    ...followUp,
+    status:'Charter contacted',
+    firstEmailOn:followUp.firstEmailOn || today,
+    lastEmailOn:today,
+    lastEmailTo:sentTo,
+    lastEmailId:emailId,
+    emailCount,
+    paymentPendingOn:'',
+    paymentPendingSource:''
+  };
+
+  await setDoc(
+    doc(db,'vendors',user.uid,'invoices',invoice.id),
+    {
+      charterFollowUp:update,
+      overdueReminder:{dismissedUntil:''},
+      updatedAt:serverTimestamp()
+    },
+    {merge:true}
+  );
+
+  invoice.charterFollowUp=update;
+
+  await log(
+    'Charter contacted about overdue invoice',
+    `${invoice.invoiceNumber} — ${invoice.charterSchoolName} — ${money(invoice.amount)} — `+
+    `${emailCount===1?'email':'follow-up email #'+emailCount} sent to ${sentTo}. `+
+    `VendorFlow will remind you again on ${invoiceLedgerDate(vfInvoiceNextFollowUpOn(invoice))} if it is still unpaid.`,
+    'Manual',
+    {type:'invoice',id:invoice.id}
+  );
+
+  await refreshAll();
+
+  showCenteredActionConfirmation(
+    `Email sent to ${sentTo}. Invoice ${invoice.invoiceNumber} is marked "Charter contacted". `+
+    `If it's still unpaid, VendorFlow will remind you on ${invoiceLedgerDate(vfInvoiceNextFollowUpOn(invoice))}.`
+  );
+}
+
+
+/*
+ * The charter said payment is on its way. The next reminder and
+ * follow-up wait 30 days from the email that asked (or from today,
+ * if no email has gone out yet).
+ */
+async function vfMarkInvoicePaymentPending(invoiceId,options={}){
+
+  const invoice=
+    invoices.find(item=>item.id===invoiceId);
+
+  if(!invoice || !user){
+    return;
+  }
+
+  const followUp=
+    vfInvoiceFollowUp(invoice);
+
+  const update={
+    ...followUp,
+    status:'Payment pending',
+    paymentPendingOn:vfLocalDate(),
+    paymentPendingSource:String(options.source||'Manual')
+  };
+
+  await setDoc(
+    doc(db,'vendors',user.uid,'invoices',invoice.id),
+    {
+      charterFollowUp:update,
+      overdueReminder:{dismissedUntil:''},
+      updatedAt:serverTimestamp()
+    },
+    {merge:true}
+  );
+
+  invoice.charterFollowUp=update;
+
+  await log(
+    'Payment pending',
+    `${invoice.invoiceNumber} — ${invoice.charterSchoolName} — ${money(invoice.amount)}. `+
+    `The charter says payment is coming. Next reminder ${invoiceLedgerDate(vfInvoiceNextFollowUpOn(invoice))} if it is still unpaid.`,
+    String(options.source||'Manual'),
+    {type:'invoice',id:invoice.id}
+  );
+
+  if(!options.skipRefresh){
+    await refreshAll();
+    toast(`Marked payment pending. VendorFlow will check back on ${invoiceLedgerDate(vfInvoiceNextFollowUpOn(invoice))}.`);
+  }
+}
+
+
+async function vfClearInvoicePaymentPending(invoiceId){
+
+  const invoice=
+    invoices.find(item=>item.id===invoiceId);
+
+  if(!invoice || !user){
+    return;
+  }
+
+  const update={
+    ...vfInvoiceFollowUp(invoice),
+    status:vfInvoiceFollowUp(invoice).lastEmailOn ? 'Charter contacted' : '',
+    paymentPendingOn:'',
+    paymentPendingSource:''
+  };
+
+  await setDoc(
+    doc(db,'vendors',user.uid,'invoices',invoice.id),
+    {charterFollowUp:update,updatedAt:serverTimestamp()},
+    {merge:true}
+  );
+
+  await log(
+    'Payment pending cleared',
+    `${invoice.invoiceNumber} — back to the 14-day follow-up.`,
+    'Manual',
+    {type:'invoice',id:invoice.id}
+  );
+
+  await refreshAll();
+}
+
+
 async function dismissOverdueInvoiceReminder(invoiceId){
 
   const invoice=
@@ -9521,45 +9929,20 @@ async function dismissOverdueInvoiceReminder(invoiceId){
   }
 
 
-  const settings=
-    profile.overdueInvoiceSettings ||
-    defaultOverdueInvoiceSettings();
-
-  const today=
-    new Date();
-
-  today.setHours(0,0,0,0);
-
-  let dismissedUntilDate=
-    new Date(today);
-
-  if(settings.repeatEnabled){
-
-    const intervalUnitDays=
-      settings.repeatUnit==='weeks'
-        ? 7
-        : 1;
-
-    const intervalDays=
-      Math.max(
-        1,
-        Number(settings.repeatInterval||1)
-      ) * intervalUnitDays;
-
-    dismissedUntilDate.setDate(
-      dismissedUntilDate.getDate()+intervalDays
-    );
-
-  } else {
-
-    dismissedUntilDate.setFullYear(
-      dismissedUntilDate.getFullYear()+50
-    );
-  }
+  /*
+   * "Remind me later": back in 14 days (30 while payment is
+   * pending). An unpaid invoice never drops out of sight for good --
+   * it leaves Notifications only when it is paid or voided.
+   */
+  const snoozeDays=
+    vfInvoicePaymentPending(invoice)
+      ? VF_FOLLOWUP_PENDING_DAYS
+      : VF_FOLLOWUP_DAYS;
 
   const dismissedUntil=
-    dateToLocalISO(
-      dismissedUntilDate
+    vfAddDaysISO(
+      vfLocalDate(),
+      snoozeDays
     );
 
   await setDoc(
@@ -9586,18 +9969,15 @@ async function dismissOverdueInvoiceReminder(invoiceId){
     {dismissedUntil};
 
   await log(
-    'Overdue reminder dismissed',
-    settings.repeatEnabled
-      ? `${invoice.invoiceNumber} — reminder dismissed until ${invoiceLedgerDate(dismissedUntil)}.`
-      : `${invoice.invoiceNumber} — reminder dismissed.`,
+    'Overdue reminder snoozed',
+    `${invoice.invoiceNumber} — reminder snoozed until ${invoiceLedgerDate(dismissedUntil)}.`,
     'Manual'
   );
 
   toast(
-    settings.repeatEnabled
-      ? "Reminder dismissed. VendorFlow will remind you again if it's still unpaid."
-      : 'Reminder dismissed.'
+    `OK. VendorFlow will remind you again on ${invoiceLedgerDate(dismissedUntil)} if it's still unpaid.`
   );
+
 
   renderReviews();
 }
@@ -9950,6 +10330,10 @@ function renderInvoices(){
             <span class="vf-ledger-status ${invoiceLedgerStatusClass(status)}">
               ${esc(status.toUpperCase())}
             </span>
+
+            ${vfStatusIsOutstanding(status) && vfInvoiceFollowUpBadge(invoice)
+              ? `<span class="vf-ledger-followup-badge" title="${esc(vfInvoiceFollowUpBadge(invoice).title)}">${esc(vfInvoiceFollowUpBadge(invoice).label)}</span>`
+              : ''}
 
             ${vfStatusIsOutstanding(status)
               ? `<button
@@ -34724,9 +35108,16 @@ async function approveInvoiceReceiptConfirmation(reviewId){
    * while this card sat here. Nothing to do -- drop the card rather
    * than write a status backwards over a later one.
    */
+  /* A reply saying payment is coming also counts on an invoice the charter already confirmed. */
+  const paymentComing=
+    Boolean(review.paymentComing);
+
   if(
     !invoice ||
-    invoiceStatus(invoice)!=='Sent'
+    !(
+      invoiceStatus(invoice)==='Sent' ||
+      (paymentComing && invoiceIsOutstanding(invoice))
+    )
   ){
 
     await deleteDoc(
@@ -34747,17 +35138,26 @@ async function approveInvoiceReceiptConfirmation(reviewId){
 
   try{
 
-    await markInvoiceReceivedByCharter(
-      invoice,
-      {
-        skipConfirm:true,
-        skipRefresh:true,
-        keepDetailOpen:true,
-        source:'VendorFlow Email',
-        note:
-          String(review.sender||'')
-      }
-    );
+    if(invoiceStatus(invoice)==='Sent'){
+      await markInvoiceReceivedByCharter(
+        invoice,
+        {
+          skipConfirm:true,
+          skipRefresh:true,
+          keepDetailOpen:true,
+          source:'VendorFlow Email',
+          note:
+            String(review.sender||'')
+        }
+      );
+    }
+
+    if(paymentComing){
+      await vfMarkInvoicePaymentPending(
+        invoice.id,
+        {source:'VendorFlow Email',skipRefresh:true}
+      );
+    }
 
     await deleteDoc(
       doc(db,'vendors',user.uid,'review',reviewId)
@@ -34777,7 +35177,9 @@ async function approveInvoiceReceiptConfirmation(reviewId){
   await refreshAll();
 
   toast(
-    `${invoice.invoiceNumber||'Invoice'} marked received by charter.`
+    paymentComing
+      ? `${invoice.invoiceNumber||'Invoice'} marked payment pending. VendorFlow will check back in 30 days if it's still unpaid.`
+      : `${invoice.invoiceNumber||'Invoice'} marked received by charter.`
   );
 
   return true;
@@ -43295,7 +43697,8 @@ function renderReviews(force){
 
         const nothingToDo=
           matchedInvoice &&
-          invoiceStatus(matchedInvoice)!=='Sent';
+          invoiceStatus(matchedInvoice)!=='Sent' &&
+          !(review.paymentComing && invoiceIsOutstanding(matchedInvoice));
 
         const actionable=
           Boolean(matchedInvoice) &&
@@ -43332,7 +43735,7 @@ function renderReviews(force){
                       type="button"
                       class="primary"
                       data-approve-receipt-confirmation="${esc(review.id)}">
-                      Mark received by charter
+                      ${review.paymentComing?'Mark payment pending':'Mark received by charter'}
                     </button>`
                   : ''
               }
@@ -43517,8 +43920,19 @@ function renderReviews(force){
         'overdue-invoice'
       ){
 
+        const overdueInvoice=
+          invoices.find(item=>item.id===review.invoiceId);
+
+        const draft=
+          overdueInvoice
+            ? vfOverdueInvoiceEmailDraft(overdueInvoice)
+            : {to:'',subject:'',body:''};
+
+        const pending=
+          overdueInvoice && vfInvoicePaymentPending(overdueInvoice);
+
         return `
-          <div class="record vf-overdue-invoice-review">
+          <div class="record vf-overdue-invoice-review" data-overdue-card="${esc(review.invoiceId)}">
 
             ${vfReviewKindChip(review)}
 
@@ -43530,11 +43944,41 @@ function renderReviews(force){
               ${esc(review.detail)}
             </div>
 
+            <div class="vf-overdue-email">
+              <div class="muted">
+                ${review.followUpStage==='follow-up'
+                  ? 'A follow-up email to the charter is ready. Read it over, change anything you like, then send. The invoice PDF is attached.'
+                  : 'An email asking the charter about this invoice is ready. Read it over, change anything you like, then send. The invoice PDF is attached.'}
+              </div>
+              <label class="vf-field-label"><span>To</span>
+                <input class="input" data-overdue-email-to value="${esc(draft.to)}" placeholder="Charter billing email"></label>
+              <label class="vf-field-label"><span>Subject</span>
+                <input class="input" data-overdue-email-subject value="${esc(draft.subject)}"></label>
+              <label class="vf-field-label"><span>Message</span>
+                <textarea class="input" rows="16" data-overdue-email-body>${esc(draft.body)}</textarea></label>
+            </div>
+
             <div class="vf-review-actions">
 
               <button
                 type="button"
                 class="primary"
+                data-send-overdue-email="${esc(review.invoiceId)}">
+                Send email to charter
+              </button>
+
+              ${pending
+                ? ''
+                : `<button
+                    type="button"
+                    class="vf-secondary-button"
+                    data-overdue-payment-pending="${esc(review.invoiceId)}">
+                    Charter says payment is coming
+                  </button>`}
+
+              <button
+                type="button"
+                class="vf-secondary-button"
                 data-open-overdue-invoice="${esc(review.invoiceId)}">
                 Open Invoice
               </button>
@@ -43543,7 +43987,7 @@ function renderReviews(force){
                 type="button"
                 class="vf-secondary-button"
                 data-dismiss-overdue-invoice="${esc(review.invoiceId)}">
-                Dismiss
+                Remind me later
               </button>
 
             </div>
@@ -44780,6 +45224,67 @@ function renderReviews(force){
       button.onclick=()=>
         removeLateFeeManually(
           button.dataset.removeLateFee
+        );
+    });
+
+
+  $$('[data-send-overdue-email]')
+    .forEach(button=>{
+
+      button.onclick=async()=>{
+
+        const invoiceId=
+          button.dataset.sendOverdueEmail;
+
+        const card=
+          button.closest('[data-overdue-card]');
+
+        const invoice=
+          invoices.find(item=>item.id===invoiceId);
+
+        if(!invoice || !card){
+          return;
+        }
+
+        const to=
+          card.querySelector('[data-overdue-email-to]')?.value.trim() || '';
+
+        if(!to){
+          return alert('Enter the charter school\'s billing email first.');
+        }
+
+        button.disabled=true;
+        button.textContent='Sending...';
+
+        try{
+          await sendInvoiceThroughVendorFlow(
+            invoice,
+            {
+              to,
+              subject:card.querySelector('[data-overdue-email-subject]')?.value || '',
+              body:card.querySelector('[data-overdue-email-body]')?.value || '',
+              followUp:true
+            }
+          );
+        }catch(error){
+          vfShowStickyError(
+            'The email to the charter was not sent.',
+            error?.message || 'Please try again.'
+          );
+        }finally{
+          button.disabled=false;
+          button.textContent='Send email to charter';
+        }
+      };
+    });
+
+
+  $$('[data-overdue-payment-pending]')
+    .forEach(button=>{
+
+      button.onclick=()=>
+        vfMarkInvoicePaymentPending(
+          button.dataset.overduePaymentPending
         );
     });
 
