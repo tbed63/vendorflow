@@ -11852,3 +11852,14 @@ table,
 .vf-overdue-email{display:grid;gap:8px;margin:12px 0}
 .vf-overdue-email textarea{min-height:260px;font-family:inherit;line-height:1.45;white-space:pre-wrap}
 .vf-ledger-followup-badge{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:999px;background:#fff4dc;color:#7a5410;font-size:11px;font-weight:700;white-space:nowrap}
+
+/* Split a payment between students */
+.vf-split-payment-card{width:min(560px,100%)}
+.vf-split-rows{display:grid;gap:8px;margin:14px 0 10px}
+.vf-split-row{display:grid;grid-template-columns:1fr 130px 36px;gap:8px;align-items:center}
+.vf-split-remove{height:36px;border-radius:10px;border:1px solid var(--line,#d9dee8);background:#fff;font-size:18px;line-height:1;cursor:pointer}
+.vf-split-remove:disabled{opacity:.35;cursor:default}
+.vf-split-left{margin:10px 0;font-weight:600;color:#9a3412}
+.vf-split-left.vf-split-left-ok{color:#166534}
+.vf-split-payment-card .row{flex-wrap:wrap}
+@media (max-width:520px){.vf-split-row{grid-template-columns:1fr 100px 36px}}

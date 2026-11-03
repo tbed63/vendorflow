@@ -25078,6 +25078,15 @@ function renderStudentCommandCenterFinancialActivity(student){
     editBtn.dataset.editStudentPayment=id;
 
     deleteBtn.insertAdjacentElement('beforebegin',editBtn);
+
+    const splitBtn=document.createElement('button');
+    splitBtn.type='button';
+    splitBtn.className='vf-delete-ledger-payment';
+    splitBtn.textContent='Split';
+    splitBtn.title='Split this payment between two or more students';
+    splitBtn.dataset.splitStudentPayment=id;
+
+    deleteBtn.insertAdjacentElement('beforebegin',splitBtn);
   });
 }
 
@@ -26302,6 +26311,317 @@ async function editStudentCommandCenterPayment(paymentId){
 }
 
 
+/*
+ * SPLIT A PAYMENT
+ *
+ * One payment that covers more than one student -- a parent paying
+ * for two kids with one Venmo. The original record keeps its share
+ * (and its transaction ID, so a re-import of the same email is still
+ * caught as a duplicate); each other student gets a new payment for
+ * their share with the same date, method, payer and source, all tied
+ * together by splitGroupId. The shares must add up to the original
+ * amount, so no money appears or disappears.
+ */
+function vfSplitStudentOptions(payment){
+
+  const owner=
+    students.find(student=>student.id===payment.studentId);
+
+  const familyKeys=
+    new Set(
+      [
+        payment.payer,
+        payment.parentName,
+        owner?.parentName
+      ]
+        .map(value=>normalizedName(value||''))
+        .filter(Boolean)
+    );
+
+  const familyEmails=
+    new Set(
+      [payment.parentEmail,owner?.parentEmail]
+        .map(value=>String(value||'').trim().toLowerCase())
+        .filter(Boolean)
+    );
+
+  return students
+    .filter(student=>!vfStudentIsArchived(student))
+    .map(student=>({
+      student,
+      family:
+        student.id!==payment.studentId &&
+        (
+          familyKeys.has(normalizedName(student.parentName||'')) ||
+          familyEmails.has(String(student.parentEmail||'').trim().toLowerCase())
+        )
+    }))
+    .sort((a,b)=>
+      Number(b.family)-Number(a.family) ||
+      String(a.student.studentName||'').localeCompare(String(b.student.studentName||''))
+    );
+}
+
+
+function vfOpenSplitPayment(paymentId){
+
+  const payment=
+    payments.find(item=>item.id===paymentId);
+
+  if(!payment){
+    return toast('That payment record could not be found.');
+  }
+
+  const total=
+    Math.round(Number(payment.amount||0)*100);
+
+  if(!(total>0)){
+    return toast('Only a payment with an amount can be split.');
+  }
+
+  const options=
+    vfSplitStudentOptions(payment);
+
+  const siblings=
+    options.filter(option=>option.family);
+
+  /* Start with this student and, when the family has exactly one
+     other child here, that child -- split evenly. */
+  const firstShare=
+    siblings.length===1 ? Math.ceil(total/2) : total;
+
+  const startRows=[
+    {studentId:payment.studentId||'',cents:firstShare},
+    {studentId:siblings.length===1 ? siblings[0].student.id : '',cents:total-firstShare}
+  ];
+
+  document
+    .querySelectorAll('.vf-split-payment-overlay')
+    .forEach(item=>item.remove());
+
+  const overlay=
+    document.createElement('div');
+
+  overlay.className=
+    'vf-modal-overlay vf-split-payment-overlay';
+
+  const optionHTML=
+    selected=>
+      '<option value="">Choose a student…</option>'+
+      options.map(({student,family})=>
+        `<option value="${esc(student.id)}" ${student.id===selected?'selected':''}>`+
+        `${esc(student.studentName||'Student')}${family?' (same family)':''}</option>`
+      ).join('');
+
+  const rowHTML=
+    row=>`
+      <div class="vf-split-row" data-split-row>
+        <select class="input" data-split-student>${optionHTML(row.studentId)}</select>
+        <input class="input" data-split-amount type="number" min="0" step="0.01" inputmode="decimal"
+          value="${row.cents?(row.cents/100).toFixed(2):''}" placeholder="0.00">
+        <button type="button" class="vf-split-remove" data-split-remove aria-label="Remove this student">×</button>
+      </div>`;
+
+  overlay.innerHTML=`
+    <div class="vf-modal-card vf-split-payment-card" role="dialog" aria-modal="true" aria-labelledby="vfSplitTitle">
+      <h2 id="vfSplitTitle">Split this payment</h2>
+      <p class="muted">
+        ${money(total/100)} from ${esc(payment.payer||payment.parentName||'this payer')}
+        ${payment.method?` by ${esc(payment.method)}`:''}
+        ${payment.date||payment.paymentDate?` on ${esc(invoiceLedgerDate(payment.date||payment.paymentDate))}`:''}.
+        Choose each student and how much of it is theirs.
+      </p>
+      <div class="vf-split-rows">${startRows.map(rowHTML).join('')}</div>
+      <button type="button" class="vf-secondary-button" data-split-add>+ Add another student</button>
+      <div class="vf-split-left" data-split-left></div>
+      <div class="vf-split-error error hidden" role="alert"></div>
+      <div class="row">
+        <button type="button" class="primary" data-split-save>Split payment</button>
+        <button type="button" data-split-cancel>Cancel</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const rowsBox=overlay.querySelector('.vf-split-rows');
+  const leftBox=overlay.querySelector('[data-split-left]');
+  const errorBox=overlay.querySelector('.vf-split-error');
+  const saveButton=overlay.querySelector('[data-split-save]');
+
+  const readRows=()=>
+    [...rowsBox.querySelectorAll('[data-split-row]')].map(row=>({
+      studentId:row.querySelector('[data-split-student]').value,
+      cents:Math.round(Number(row.querySelector('[data-split-amount]').value||0)*100)
+    }));
+
+  const update=()=>{
+    const left=total-readRows().reduce((sum,row)=>sum+row.cents,0);
+    leftBox.textContent=
+      left===0
+        ? `All ${money(total/100)} is assigned.`
+        : left>0
+          ? `${money(left/100)} still to assign.`
+          : `${money(-left/100)} too much -- the shares add up to more than the payment.`;
+    leftBox.classList.toggle('vf-split-left-ok',left===0);
+    rowsBox.querySelectorAll('[data-split-remove]').forEach(button=>{
+      button.disabled=rowsBox.querySelectorAll('[data-split-row]').length<=2;
+    });
+  };
+
+  overlay.addEventListener('input',update);
+  overlay.addEventListener('change',update);
+
+  overlay.querySelector('[data-split-add]').onclick=()=>{
+    const left=total-readRows().reduce((sum,row)=>sum+row.cents,0);
+    rowsBox.insertAdjacentHTML('beforeend',rowHTML({studentId:'',cents:Math.max(0,left)}));
+    update();
+  };
+
+  rowsBox.addEventListener('click',event=>{
+    const remove=event.target.closest('[data-split-remove]');
+    if(remove && rowsBox.querySelectorAll('[data-split-row]').length>2){
+      remove.closest('[data-split-row]').remove();
+      update();
+    }
+  });
+
+  const close=()=>overlay.remove();
+  overlay.querySelector('[data-split-cancel]').onclick=close;
+
+  saveButton.onclick=async()=>{
+
+    const rows=readRows().filter(row=>row.studentId||row.cents);
+    const problem=
+      rows.length<2
+        ? 'Choose at least two students.'
+        : rows.some(row=>!row.studentId)
+          ? 'Choose a student on every line.'
+          : new Set(rows.map(row=>row.studentId)).size!==rows.length
+            ? 'Each student can only appear once.'
+            : rows.some(row=>!(row.cents>0))
+              ? 'Every student needs an amount above $0.'
+              : rows.reduce((sum,row)=>sum+row.cents,0)!==total
+                ? `The shares must add up to exactly ${money(total/100)}.`
+                : '';
+
+    if(problem){
+      errorBox.textContent=problem;
+      errorBox.classList.remove('hidden');
+      return;
+    }
+
+    saveButton.disabled=true;
+    saveButton.textContent='Splitting…';
+
+    try{
+      await vfSavePaymentSplit(payment,rows);
+      close();
+    }catch(error){
+      console.error(error);
+      errorBox.textContent=error?.message||'The payment could not be split. Nothing was changed.';
+      errorBox.classList.remove('hidden');
+      saveButton.disabled=false;
+      saveButton.textContent='Split payment';
+    }
+  };
+
+  update();
+}
+
+
+async function vfSavePaymentSplit(payment,rows){
+
+  const groupId=
+    payment.splitGroupId || `split-${payment.id}`;
+
+  const originalAmount=
+    Number(payment.splitOriginalAmount||payment.amount||0);
+
+  const studentFields=
+    studentId=>{
+      const student=students.find(item=>item.id===studentId)||{};
+      const groups=
+        studentServices(studentId)
+          .filter(serviceKeepsStudentVisible)
+          .map(service=>service.name||service.className||'')
+          .filter(Boolean);
+      return {
+        studentId,
+        student:student.studentName||'',
+        className:groups.length===1 ? groups[0] : '',
+        parentName:student.parentName||payment.parentName||'',
+        parentEmail:student.parentEmail||payment.parentEmail||''
+      };
+    };
+
+  const [first,...others]=rows;
+
+  const batch=writeBatch(db);
+
+  /* The original record keeps the first share and its transaction ID. */
+  batch.set(
+    doc(db,'vendors',user.uid,'payments',payment.id),
+    {
+      ...(first.studentId!==payment.studentId ? studentFields(first.studentId) : {}),
+      amount:first.cents/100,
+      splitGroupId:groupId,
+      splitOriginalAmount:originalAmount,
+      splitAt:serverTimestamp(),
+      updatedAt:serverTimestamp()
+    },
+    {merge:true}
+  );
+
+  const copy={...payment};
+  [
+    'id','amount','createdAt','updatedAt',
+    'statementTransactionId','externalTransactionId',
+    'serviceId','obligationId','classId','className',
+    'duplicateOverride','studentId','student','parentName','parentEmail'
+  ].forEach(key=>delete copy[key]);
+
+  const newIds=[];
+
+  for(const row of others){
+    const ref=doc(sub('payments'));
+    newIds.push(ref.id);
+    batch.set(ref,{
+      ...copy,
+      ...studentFields(row.studentId),
+      amount:row.cents/100,
+      splitGroupId:groupId,
+      splitFromPaymentId:payment.id,
+      splitOriginalAmount:originalAmount,
+      splitFromTransactionId:paymentExternalTransactionId(payment)||'',
+      matchedBy:'Split from another payment',
+      createdAt:serverTimestamp(),
+      updatedAt:serverTimestamp()
+    });
+  }
+
+  await batch.commit();
+
+  const names=
+    rows.map(row=>`${students.find(item=>item.id===row.studentId)?.studentName||'Student'} ${money(row.cents/100)}`);
+
+  await log(
+    'Payment split between students',
+    `${money(originalAmount)} from ${payment.payer||payment.parentName||'payer'} `+
+    `(${payment.method||'payment'}${payment.date?`, ${payment.date}`:''}) split: ${names.join(', ')}. `+
+    `Original record ID: ${payment.id}; new record ID${newIds.length===1?'':'s'}: ${newIds.join(', ')}.`,
+    'Manual',
+    {type:'payment',id:payment.id}
+  );
+
+  await refreshAll();
+
+  showCenteredActionConfirmation(
+    `Payment split: ${names.join(' and ')}. Each student's balance has been updated.`
+  );
+}
+
+
 async function sendStudentCommandCenterEmail(){
 
   const current=students.find(s=>s.id===vfCommandCenterStudentId);
@@ -26842,6 +27162,15 @@ function wireStudentCommandCenterButtons(){
       if(editChargeButton){
         event.preventDefault();
         editStudentCommandCenterCharge(editChargeButton.dataset.editStudentCharge);
+        return;
+      }
+
+      const splitPaymentButton=
+        event.target.closest('[data-split-student-payment]');
+
+      if(splitPaymentButton){
+        event.preventDefault();
+        vfOpenSplitPayment(splitPaymentButton.dataset.splitStudentPayment);
         return;
       }
 
