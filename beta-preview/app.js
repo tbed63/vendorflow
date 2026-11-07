@@ -26363,9 +26363,10 @@ function vfSplitStudentOptions(payment){
 }
 
 
-function vfOpenSplitPayment(paymentId){
+function vfOpenSplitPayment(paymentId,preset=null){
 
   const payment=
+    preset?.payment ||
     payments.find(item=>item.id===paymentId);
 
   if(!payment){
@@ -26515,8 +26516,13 @@ function vfOpenSplitPayment(paymentId){
     saveButton.textContent='Splitting…';
 
     try{
-      await vfSavePaymentSplit(payment,rows);
-      close();
+      if(preset?.onSave){
+        close();
+        await preset.onSave(rows);
+      }else{
+        await vfSavePaymentSplit(payment,rows);
+        close();
+      }
     }catch(error){
       console.error(error);
       errorBox.textContent=error?.message||'The payment could not be split. Nothing was changed.';
@@ -26530,7 +26536,7 @@ function vfOpenSplitPayment(paymentId){
 }
 
 
-async function vfSavePaymentSplit(payment,rows){
+async function vfSavePaymentSplit(payment,rows,options={}){
 
   const groupId=
     payment.splitGroupId || `split-${payment.id}`;
@@ -26616,9 +26622,99 @@ async function vfSavePaymentSplit(payment,rows){
 
   await refreshAll();
 
+  /* Split while approving an emailed payment: one "we received it"
+     email per student, each with that student's own amount. */
+  if(options.queueEmails){
+    const ids=[payment.id,...newIds];
+    for(let index=0;index<rows.length;index++){
+      const studentMatch=students.find(item=>item.id===rows[index].studentId);
+      const fields=studentFields(rows[index].studentId);
+      const service=
+        studentServices(rows[index].studentId).filter(serviceKeepsStudentVisible)[0];
+      await queuePaymentReceivedEmail(
+        ids[index],
+        {...fields,amount:rows[index].cents/100},
+        studentMatch,
+        service?.classId||''
+      );
+    }
+  }
+
   showCenteredActionConfirmation(
     `Payment split: ${names.join(' and ')}. Each student's balance has been updated.`
   );
+}
+
+
+/*
+ * "Split between students" on an emailed payment in Notifications:
+ * approve it to the first student, then split it, in one step.
+ */
+function vfSplitPaymentProposal(reviewId){
+
+  const review=
+    reviews.find(item=>item.id===reviewId);
+
+  if(!review){
+    return;
+  }
+
+  const fields=
+    review.proposalFields || {};
+
+  const total=
+    proposalDisplayAmount(fields);
+
+  const guessed=
+    students.find(student=>student.id===fields.studentId) ||
+    (
+      fields.studentName
+        ? students.find(student=>
+            vfStudentAllNames(student).includes(normalizedName(fields.studentName))
+          )
+        : null
+    );
+
+  const payment={
+    id:'',
+    amount:total,
+    payer:fields.payer||fields.parentName||'',
+    parentName:fields.payer||guessed?.parentName||'',
+    parentEmail:guessed?.parentEmail||'',
+    method:fields.method||'',
+    date:fields.date||'',
+    studentId:guessed?.id||''
+  };
+
+  vfOpenSplitPayment('',{
+    payment,
+    onSave:async rows=>{
+      const first=
+        students.find(student=>student.id===rows[0].studentId)||{};
+      await approveEmailProposal(
+        reviewId,
+        {
+          ...fields,
+          amount:total,
+          studentId:first.id||'',
+          studentName:first.studentName||'',
+          serviceId:first.id===fields.studentId ? (fields.serviceId||'') : '',
+          serviceName:first.id===fields.studentId ? (fields.serviceName||'') : ''
+        },
+        'payment',
+        {
+          onPaymentCreated:async paymentId=>{
+            const created=payments.find(item=>item.id===paymentId);
+            if(!created){
+              toast('The payment was recorded, but VendorFlow could not find it to split. Open the student and use Split.');
+              return;
+            }
+            await vfSavePaymentSplit(created,rows,{queueEmails:true});
+          }
+        }
+      );
+    }
+  });
 }
 
 
@@ -43950,6 +44046,9 @@ function renderReviews(force){
                   <div class="vf-review-actions">
                     <button type="button" class="primary" data-approve-proposal="${esc(review.id)}">Approve</button>
                     <button type="button" class="vf-secondary-button" data-edit-proposal="${esc(review.id)}">Edit and approve</button>
+                    ${shownType==='payment'
+                      ? `<button type="button" class="vf-secondary-button" data-split-proposal="${esc(review.id)}">Split between students</button>`
+                      : ''}
                     <button type="button" class="vf-secondary-button" data-dismiss-proposal="${esc(review.id)}">Dismiss</button>
                   </div>
                 `
@@ -45097,6 +45196,12 @@ function renderReviews(force){
     });
 
 
+  $$('[data-split-proposal]')
+    .forEach(button=>{
+      button.onclick=()=>vfSplitPaymentProposal(button.dataset.splitProposal);
+    });
+
+
   $$('[data-approve-proposal]')
     .forEach(button=>{
       button.onclick=async()=>{
@@ -45965,7 +46070,8 @@ function renderReviews(force){
 async function approveEmailProposal(
   reviewId,
   overrideFields=null,
-  overrideType=null
+  overrideType=null,
+  options={}
 ){
 
   const review=
@@ -46123,7 +46229,10 @@ async function approveEmailProposal(
         );
       }
 
-      if(data.itemType==='payment'){
+      if(data.itemType==='payment' && options.onPaymentCreated && data.paymentId){
+        await options.onPaymentCreated(data.paymentId);
+        return;
+      }else if(data.itemType==='payment'){
 
         const linkedService=
           services.find(sv=>sv.id===data.serviceId);
