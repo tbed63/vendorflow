@@ -43613,13 +43613,180 @@ function vfDismissedNoticesFooter(){
    what releases the hold. */
 
 let vfReviewListDirty=false;
+let vfEmailEditingId=null;
 let vfReviewRenderPending=false;
+
+
+/*
+ * EDIT AN EMAIL BEFORE IT GOES
+ *
+ * Every family email waiting in Notifications (payment received,
+ * certificate received, payment reminder, late fee notices) gets an
+ * "Edit email" button. It turns the preview into To / Subject /
+ * Message boxes; "Save & Send" stores the edited version on the
+ * notification and sends exactly that, through the card's own
+ * Approve & Send, so the send, the log and the clean-up are the same
+ * as before. "Save" keeps the edit without sending.
+ */
+function vfAddEmailEditButtons(){
+
+  document
+    .querySelectorAll('#reviewList .vf-parent-email-review')
+    .forEach(card=>{
+
+      const reviewId=
+        card.querySelector('[data-review-select]')?.dataset.reviewSelect;
+
+      const actions=
+        card.querySelector('.vf-review-actions');
+
+      const review=
+        reviews.find(item=>item.id===reviewId);
+
+      if(!reviewId || !actions || !review || actions.querySelector('[data-edit-email]')){
+        return;
+      }
+
+      const button=
+        document.createElement('button');
+
+      button.type='button';
+      button.className='vf-secondary-button';
+      button.textContent='Edit email';
+      button.dataset.editEmail=reviewId;
+      button.onclick=()=>vfOpenEmailEditor(card,review);
+
+      const sendButton=actions.querySelector('.primary');
+      if(sendButton){
+        sendButton.insertAdjacentElement('afterend',button);
+      }else{
+        actions.prepend(button);
+      }
+
+      if(review.editedByVendor){
+        const note=document.createElement('div');
+        note.className='vf-email-edited-note';
+        note.textContent='You edited this email.';
+        actions.insertAdjacentElement('beforebegin',note);
+      }
+    });
+}
+
+
+function vfOpenEmailEditor(card,review){
+
+  vfEmailEditingId=review.id;
+
+  const preview=
+    card.querySelector('.vf-parent-email-preview');
+
+  const actions=
+    card.querySelector('.vf-review-actions');
+
+  const sendButton=
+    actions.querySelector('.primary');
+
+  const editor=
+    document.createElement('div');
+
+  editor.className='vf-email-editor';
+  editor.innerHTML=`
+    <label class="vf-field-label"><span>To</span>
+      <input class="input" type="email" data-email-edit="to" value="${esc(review.to||'')}"></label>
+    <label class="vf-field-label"><span>Subject</span>
+      <input class="input" data-email-edit="subject" value="${esc(review.subject||'')}"></label>
+    <label class="vf-field-label"><span>Message</span>
+      <textarea class="input" rows="12" data-email-edit="body">${esc(review.body||'')}</textarea></label>
+    <div class="vf-email-edit-error error hidden" role="alert"></div>
+    <div class="vf-review-actions">
+      <button type="button" class="primary" data-email-save-send>Save &amp; Send</button>
+      <button type="button" class="vf-secondary-button" data-email-save>Save without sending</button>
+      <button type="button" class="vf-secondary-button" data-email-cancel>Cancel</button>
+    </div>
+  `;
+
+  if(preview){
+    preview.classList.add('hidden');
+  }
+  actions.classList.add('hidden');
+  actions.insertAdjacentElement('beforebegin',editor);
+  editor.querySelector('[data-email-edit="body"]').focus();
+
+  const errorBox=editor.querySelector('.vf-email-edit-error');
+
+  const close=()=>{
+    vfEmailEditingId=null;
+    editor.remove();
+    if(preview){
+      preview.classList.remove('hidden');
+    }
+    actions.classList.remove('hidden');
+  };
+
+  const save=async()=>{
+    const to=editor.querySelector('[data-email-edit="to"]').value.trim();
+    const subject=editor.querySelector('[data-email-edit="subject"]').value.trim();
+    const body=editor.querySelector('[data-email-edit="body"]').value.replace(/\s+$/,'');
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)){
+      errorBox.textContent='Enter the email address it should go to.';
+      errorBox.classList.remove('hidden');
+      return false;
+    }
+    if(!subject || !body.trim()){
+      errorBox.textContent='The subject and the message cannot be empty.';
+      errorBox.classList.remove('hidden');
+      return false;
+    }
+    await setDoc(
+      doc(db,'vendors',user.uid,'review',review.id),
+      {to,subject,body,editedByVendor:true,updatedAt:serverTimestamp()},
+      {merge:true}
+    );
+    Object.assign(review,{to,subject,body,editedByVendor:true});
+    return true;
+  };
+
+  editor.querySelector('[data-email-cancel]').onclick=()=>{
+    close();
+    renderReviews();
+  };
+
+  editor.querySelector('[data-email-save]').onclick=async()=>{
+    if(await save()){
+      close();
+      renderReviews(true);
+      toast('Email saved. It has not been sent yet.');
+    }
+  };
+
+  editor.querySelector('[data-email-save-send]').onclick=async event=>{
+    const button=event.currentTarget;
+    button.disabled=true;
+    button.textContent='Sending…';
+    try{
+      if(!(await save())){
+        return;
+      }
+      close();
+      /* The card's own Approve & Send: it reads the review just updated. */
+      sendButton?.click();
+    }finally{
+      button.disabled=false;
+      button.textContent='Save & Send';
+    }
+  };
+}
 
 
 function vfReviewListIsBusy(){
 
   /* The proposal editor already had its own flag; keep honouring it. */
   if(typeof vfProposalEditingId!=='undefined' && vfProposalEditingId){
+    return true;
+  }
+
+  /* So does an email being edited (vfOpenEmailEditor). */
+  if(vfEmailEditingId){
     return true;
   }
 
@@ -43666,6 +43833,7 @@ document.addEventListener('click',event=>{
 function vfReleaseReviewListHold(){
 
   vfReviewListDirty=false;
+  vfEmailEditingId=null;
 
   /*
    * The open-editor flag is released here too. Leaving the page throws
@@ -43926,6 +44094,7 @@ function renderReviews(force){
       vfDismissedNoticesFooter();
 
     vfWireDismissControls();
+  vfAddEmailEditButtons();
 
     return;
   }
@@ -45748,6 +45917,7 @@ function renderReviews(force){
 
 
   vfWireDismissControls();
+  vfAddEmailEditButtons();
 
 
   $$('[data-open-student-setup]')
