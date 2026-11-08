@@ -11863,3 +11863,17 @@ table,
 .vf-split-left.vf-split-left-ok{color:#166534}
 .vf-split-payment-card .row{flex-wrap:wrap}
 @media (max-width:520px){.vf-split-row{grid-template-columns:1fr 100px 36px}}
+
+/* Notifications: "checking for new tasks" instead of a blank wait */
+.vf-review-checking{display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:10px 14px;border-radius:12px;background:#eef3ff;color:#1a346f;font-weight:600}
+.vf-checking-empty{display:flex;align-items:center;gap:10px;justify-content:center}
+.vf-spinner{width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;display:inline-block;animation:vf-spin .8s linear infinite;flex:0 0 auto}
+@keyframes vf-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.vf-spinner{animation-duration:2.4s}}
+/* Until everything has loaded, cards can be read but not acted on. */
+#reviewList.vf-reviews-loading button,#reviewList.vf-reviews-loading input,#reviewList.vf-reviews-loading select,#reviewList.vf-reviews-loading textarea{pointer-events:none;opacity:.55}
+
+/* Editing a family email before it is sent */
+.vf-email-editor{display:grid;gap:8px;margin:12px 0}
+.vf-email-editor textarea{min-height:220px;font-family:inherit;line-height:1.45}
+.vf-email-edited-note{margin:8px 0 0;font-size:12px;font-weight:700;color:#7a5410}
