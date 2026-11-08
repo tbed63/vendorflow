@@ -23,7 +23,8 @@ import {
   runTransaction,
   serverTimestamp,
   query,
-  orderBy
+  orderBy,
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
 const firebaseConfig={apiKey:"AIzaSyCjAnrOfpmDMGB3O5x9i0yDZ-JR8NZMa0o",authDomain:"vendorflow-68828.firebaseapp.com",projectId:"vendorflow-68828",storageBucket:"vendorflow-68828.firebasestorage.app",messagingSenderId:"803061946107",appId:"1:803061946107:web:fe9622dd2d0c1c5c13c25e"};
@@ -779,6 +780,10 @@ async function enterApp(){
   $('#bizNameSide').textContent=profile.businessName||'VendorFlow';
   $('#userEmail').textContent=user.email||'';
   fillProfile();
+  /* Notifications first, saying it is still checking, rather than a
+     blank wait while everything loads. */
+  switchView('review');
+  vfStartLiveNotifications();
   await refreshAll();
 
   /*
@@ -2834,6 +2839,20 @@ function paymentAttentionReviews(){
 
 
 async function refreshAll(){
+  vfNotificationsChecking++;
+  vfShowCheckingState();
+  try{
+    await vfRefreshAllNow();
+  }finally{
+    vfNotificationsChecking=Math.max(0,vfNotificationsChecking-1);
+    vfLastFullRefreshAt=Date.now();
+    if(!vfNotificationsChecking){
+      renderReviews();
+    }
+  }
+}
+
+async function vfRefreshAllNow(){
   classes=await getList('classes',false);
 
   await repairRosterCoreLinksOnce();
@@ -2855,7 +2874,8 @@ async function refreshAll(){
     expensesResult,
     incomeResult,
     recurrencesResult,
-    ignoredPayerVendorSnap
+    ignoredPayerVendorSnap,
+    historyResult
   ]=await Promise.all([
     getList('students',false),
     getList('services',false),
@@ -2865,7 +2885,8 @@ async function refreshAll(){
     getList('expenses'),
     getList('income'),
     getList('recurrences',false),
-    getDoc(vendorDoc())
+    getDoc(vendorDoc()),
+    getList('history')
   ]);
 
   students=studentsResult;
@@ -2876,6 +2897,7 @@ async function refreshAll(){
   expenses=expensesResult;
   income=incomeResult;
   recurrences=recurrencesResult;
+  history=historyResult;
 
   const ignoredPayerVendorData=
     ignoredPayerVendorSnap.exists()
@@ -2896,26 +2918,24 @@ async function refreshAll(){
           )
       : [];
 
-  [certs,invoices]=await Promise.all([
+  [certs,invoices,compliance,reviews,vaultFiles]=await Promise.all([
     getList('certificates'),
-    getList('invoices')
+    getList('invoices'),
+    getList('compliance'),
+    getList('review'),
+    getList('vaultFiles')
   ]);
 
   const createdInvoices=
     await createDueInvoices();
 
   if(createdInvoices>0){
-    [invoices,certs]=await Promise.all([
+    [invoices,certs,history]=await Promise.all([
       getList('invoices'),
-      getList('certificates')
+      getList('certificates'),
+      getList('history')
     ]);
   }
-
-  [compliance,reviews,vaultFiles]=await Promise.all([
-    getList('compliance'),
-    getList('review'),
-    getList('vaultFiles')
-  ]);
 
   const removedLegacyReviews=
     await cleanupLegacyPaymentDuplicateReviews();
@@ -2932,8 +2952,6 @@ async function refreshAll(){
    */
     reviews=
     vfWithDerivedReviews(reviews);
-
-  history=await getList('history');
 
   const repaired=
     await repairUnmatchedPayments();
@@ -26620,7 +26638,9 @@ async function vfSavePaymentSplit(payment,rows,options={}){
     {type:'payment',id:payment.id}
   );
 
-  await refreshAll();
+  /* The new shares, so each student's balance is right in their email;
+     the full refresh follows once the emails are queued. */
+  payments=await getList('payments');
 
   /* Split while approving an emailed payment: one "we received it"
      email per student, each with that student's own amount. */
@@ -26639,6 +26659,8 @@ async function vfSavePaymentSplit(payment,rows,options={}){
       );
     }
   }
+
+  await refreshAll();
 
   showCenteredActionConfirmation(
     `Payment split: ${names.join(' and ')}. Each student's balance has been updated.`
@@ -42935,21 +42957,22 @@ async function refreshReviewsView(){
      * and a failed inbox fetch must leave it exactly as it is rather
      * than taking it down.
      */
+    /* Show the cards now; the inbox (slow) only refines roster cards,
+       so it loads afterwards and the list redraws when it arrives. */
+    renderReviews();
     if(
       !inboundInboxMessages.length &&
       reviews.some(review=>review?.inboundEmailId)
     ){
-      try{
-        await loadInboundInbox();
-      }catch(inboxError){
-        console.error(
-          'VendorFlow could not load the inbox for roster detection:',
-          inboxError
-        );
-      }
+      loadInboundInbox()
+        .then(()=>renderReviews())
+        .catch(inboxError=>{
+          console.error(
+            'VendorFlow could not load the inbox for roster detection:',
+            inboxError
+          );
+        });
     }
-
-    renderReviews();
 
   }catch(error){
 
@@ -43683,6 +43706,104 @@ function vfReleaseReviewListHold(){
  * when it has changed.
  */
 let vfNotificationsLoaded=false;
+/* refreshAll() runs going on (it can overlap); while above 0 the list
+   says it is still checking, and never claims to be caught up. */
+let vfNotificationsChecking=0;
+let vfLastFullRefreshAt=0;
+let vfLiveNotificationsStop=null;
+let vfKnownStoredReviewIds=null;
+
+function vfShowCheckingState(){
+  if($('#reviewView')?.classList.contains('active')){
+    renderReviews();
+  }else{
+    vfUpdateCheckingBanner(true,null);
+  }
+}
+
+/* "Checking for new tasks…" above the list while VendorFlow is still
+   working out what needs attention. */
+function vfUpdateCheckingBanner(checking,count){
+  const list=$('#reviewList');
+  if(!list){
+    return;
+  }
+  let banner=$('#vfReviewCheckingBanner');
+  if(!banner){
+    banner=document.createElement('div');
+    banner.id='vfReviewCheckingBanner';
+    banner.className='vf-review-checking';
+    banner.setAttribute('role','status');
+    list.insertAdjacentElement('beforebegin',banner);
+  }
+  banner.innerHTML=
+    '<span class="vf-spinner" aria-hidden="true"></span>'+
+    (count
+      ? 'Checking for more new tasks… what is below is ready to use.'
+      : 'Hold on, checking for any new tasks…');
+  banner.classList.toggle('hidden',!(checking && count));
+}
+
+/*
+ * New notifications appear the moment they exist -- an emailed
+ * payment, a certificate, a reminder the app or the morning run
+ * queued -- on whatever page the vendor is on, with the badge and the
+ * browser tab title kept up to date. Before this the list only
+ * changed when the page reloaded or the tab was clicked.
+ */
+function vfStartLiveNotifications(){
+  if(vfLiveNotificationsStop || !user){
+    return;
+  }
+  try{
+    vfLiveNotificationsStop=
+      onSnapshot(
+        query(sub('review'),orderBy('createdAt','desc')),
+        snapshot=>{
+          const stored=
+            snapshot.docs.map(d=>({id:d.id,...d.data()}));
+          const ids=new Set(stored.map(item=>item.id));
+          const arrived=
+            vfKnownStoredReviewIds
+              ? stored.filter(item=>!vfKnownStoredReviewIds.has(item.id))
+              : [];
+          vfKnownStoredReviewIds=ids;
+          reviews=vfWithDerivedReviews(stored);
+          renderReviews();
+          if(arrived.length && vfNotificationsLoaded){
+            const first=arrived[0];
+            toast(
+              arrived.length===1
+                ? `New notification: ${first.title||first.aiSummary||'something needs your attention'}`
+                : `${arrived.length} new notifications`
+            );
+          }
+        },
+        error=>{
+          console.error('VendorFlow could not listen for new notifications:',error);
+          vfLiveNotificationsStop=null;
+        }
+      );
+  }catch(error){
+    console.error('VendorFlow could not listen for new notifications:',error);
+  }
+}
+
+/* Coming back to the tab after a while: re-check everything, so the
+   worked-out notifications (overdue invoices, reminders) are current. */
+document.addEventListener('visibilitychange',()=>{
+  if(
+    document.visibilityState==='visible' &&
+    user &&
+    vfNotificationsLoaded &&
+    !vfNotificationsChecking &&
+    Date.now()-vfLastFullRefreshAt>2*60*1000
+  ){
+    refreshAll().catch(error=>
+      console.error('VendorFlow could not refresh:',error)
+    );
+  }
+});
 let vfLastNotificationSnapshot=null;
 
 function vfSaveNotificationSnapshot(items){
@@ -43785,14 +43906,23 @@ function renderReviews(force){
         ? String(displayReviews.length)
         : '';
   }
+  document.title=
+    (displayReviews.length ? `(${displayReviews.length}) ` : '')+
+    document.title.replace(/^\(\d+\)\s*/,'');
 
 
+  const stillChecking=
+    !vfNotificationsLoaded || vfNotificationsChecking>0;
+  list.classList.toggle('vf-reviews-loading',!vfNotificationsLoaded);
+  vfUpdateCheckingBanner(stillChecking,displayReviews.length);
   if(!displayReviews.length){
-
     selectedReviewIds.clear();
-
     list.innerHTML=
-      '<div class="empty">Nothing needs review.</div>'+
+      (
+        stillChecking
+          ? '<div class="empty vf-checking-empty"><span class="vf-spinner" aria-hidden="true"></span>Hold on, checking for any new tasks…</div>'
+          : '<div class="empty vf-caught-up">You\'re all caught up. Nothing needs your attention right now.</div>'
+      )+
       vfDismissedNoticesFooter();
 
     vfWireDismissControls();
@@ -46192,7 +46322,28 @@ async function approveEmailProposal(
       'Manual'
     );
 
-    await refreshAll();
+    /*
+     * Only what the next step needs -- the new record and the balance
+     * it changes -- so the "we received it" email is in Notifications
+     * a moment after Approve. The full refresh (every daily job) used
+     * to run first and took long enough that the email seemed to come
+     * much later; it now runs once that email is queued.
+     */
+    [payments,certs,obligations,services,income]=
+      await Promise.all([
+        getList('payments'),
+        getList('certificates'),
+        getList('obligations',false),
+        getList('services',false),
+        getList('income')
+      ]);
+
+    reviews=
+      vfWithDerivedReviews(
+        reviews.filter(item=>item.id!==reviewId)
+      );
+
+    renderReviews();
 
     if(
       data.outcome==='created' ||
@@ -46273,6 +46424,10 @@ async function approveEmailProposal(
         );
       }
     }
+
+    refreshAll().catch(error=>
+      console.error('VendorFlow could not refresh after approving:',error)
+    );
 
     if(
       data.outcome==='created' ||
