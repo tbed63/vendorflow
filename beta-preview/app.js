@@ -2311,7 +2311,7 @@ const VF_REVIEW_KINDS={
   /* Somebody is late, or money is about to leave a family's
      pocket, or two records disagree. These are the ones worth
      spotting from the top of the page. */
-  'payment-reminder-followup-email': {label:'Follow-up reminder',   tone:'warn'},
+  'payment-reminder-followup-email': {label:'Past due reminder',    tone:'warn'},
   'late-fee-charged-email':          {label:'Late fee charged',     tone:'warn'},
   'late-fee-charge-approval':        {label:'Late fee to approve',  tone:'warn'},
   'duplicate':                       {label:'Possible duplicate',   tone:'warn'},
@@ -3238,9 +3238,9 @@ function vfScheduledItems(){
       items.push({
         key:`followup:${obligation.id}`,
         kind:'followup',
-        label:'Follow-up email',
+        label:'Past due reminder',
         date:vfAddDaysISO(baseline,repeatDays),
-        title:`Late payment follow-up to ${student.parentName||'the family'} for ${who}`,
+        title:`Past due payment reminder to ${student.parentName||'the family'} for ${who}`,
         detail:`${money(owed)} for ${what}, was due ${invoiceLedgerDate(obligation.dueDate)} · repeats every ${repeatDays} day${repeatDays===1?'':'s'}`,
         repeats:true,
         repeatDays,
@@ -3503,7 +3503,7 @@ async function vfScheduledRunNow(item,button){
       await queueRecurringPaymentReminders();
       await refreshAll();
       switchView('review');
-      toast('The follow-up email is ready in Notifications. Read it over, then send.');
+      toast('The past due payment reminder is ready in Notifications. Read it over, then send.');
       return;
     }
 
@@ -6841,10 +6841,19 @@ function vfEmailTemplateDefs(){
     },
     {
       key:'reminder', audience:'Families', name:'Payment reminder',
-      when:'Before a payment is due, and again every few days once it is late.',
+      when:'Before a payment is due.',
       tokens:['parentName','studentName','serviceName','amountDue','dueDate','paymentInstructions','lateFeeWarning','businessName'],
       perGroup:{subject:'reminderSubject',body:'reminderBody'},
       defaults:reminderDefaults
+    },
+    {
+      key:'pastDueReminder', audience:'Families', name:'Past due payment reminder',
+      when:'Once a payment is late, repeating every few days until it is paid (for groups with "Keep reminding until paid" on).',
+      tokens:['parentName','studentName','serviceName','amountDue','dueDate','paymentInstructions','lateFeeWarning','businessName'],
+      defaults:()=>({
+        subject:'Past due: payment for {{studentName}}',
+        body:defaultPastDueReminderBodyTemplate()
+      })
     },
     {
       key:'paymentReceived', audience:'Families', name:'Payment received',
@@ -13207,6 +13216,29 @@ function defaultReminderBodyTemplate(){
   return `Hi {{parentName}},
 
 Just a quick reminder that {{amountDue}} is due on {{dueDate}} for {{studentName}} — {{serviceName}}. If you've already sent this in, thank you -- it's possible it just hasn't been recorded yet.
+
+Payment instructions:
+{{paymentInstructions}}
+
+{{lateFeeWarning}}
+
+I'm testing a new tool that's helping me keep payments and charter certificates organized, so these emails may look a little different for now. If anything here doesn't look right, please don't hesitate to let me know and I'll check into it more carefully. Thank you for your understanding as I work through this new way of handling payments and charter funds.
+
+Please reach out if you have any questions -- I'm happy to help!
+
+Thank you,
+{{businessName}}`;
+}
+
+/*
+ * The past due payment reminder: the repeating email once a payment
+ * is late. Same as the reminder above, in the past tense.
+ * Keep in step with vfMorningDefaultPastDueBody() in the worker.
+ */
+function defaultPastDueReminderBodyTemplate(){
+  return `Hi {{parentName}},
+
+Just a reminder that your payment of {{amountDue}} for {{studentName}} — {{serviceName}} was due on {{dueDate}}. If you've already sent it in, thank you -- it's possible it just hasn't been recorded yet.
 
 Payment instructions:
 {{paymentInstructions}}
@@ -37782,11 +37814,12 @@ async function queueRecurringPaymentReminders(){
                 : ''
             );
 
-            const subjectTemplate=
-        vfEmailTemplate('reminder',classRecord).subject;
+      /* Past tense: this payment is already late. */
+      const subjectTemplate=
+        vfEmailTemplate('pastDueReminder').subject;
 
       const bodyTemplate=
-        vfEmailTemplate('reminder',classRecord).body;
+        vfEmailTemplate('pastDueReminder').body;
 
       const tokens={
         studentName:
@@ -37860,7 +37893,7 @@ async function queueRecurringPaymentReminders(){
             obligation.classId||'',
 
           title:
-            `Parent Email: Follow-up Payment Reminder — ${
+            `Parent Email: Past Due Payment Reminder — ${
               obligation.studentName ||
               student?.studentName ||
               'Student'
@@ -38019,7 +38052,7 @@ async function sendRecurringReminderReview(
 
   await log(
     'Parent email sent',
-    `Follow-up payment reminder sent to ${review.to}.`,
+    `Past due payment reminder sent to ${review.to}.`,
     'Manual',
     {
       type:'parent-email',
@@ -38085,7 +38118,7 @@ async function discardRecurringReminderReview(
 
   await log(
     'Parent email discarded',
-    'Follow-up payment reminder was not sent.',
+    'Past due payment reminder was not sent.',
     'Manual'
   );
 
