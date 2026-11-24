@@ -11930,3 +11930,8 @@ table,
 .vf-template-preview-subject{font-weight:700;margin-bottom:10px}
 .vf-template-preview-body{white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.5;margin:0}
 @media (max-width:900px){.vf-template-editor{grid-template-columns:1fr}}
+
+/* ---------- Group page: emails this group sends ---------- */
+.vf-group-emails{margin-top:16px;padding-top:12px;border-top:1px solid rgba(15,23,42,.08)}
+.vf-group-emails > strong{display:block;margin-bottom:4px}
+.vf-template-group-note{font-size:12px;margin:6px 0 0}
