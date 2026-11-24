@@ -1241,6 +1241,10 @@ function vfInvoicePaymentPending(invoice){
  */
 function vfInvoiceNextFollowUpOn(invoice){
   const followUp=vfInvoiceFollowUp(invoice);
+  /* Set from the Scheduled page: run now, a new date, or skip one. */
+  if(followUp.nextOn){
+    return followUp.nextOn;
+  }
   const anchor=followUp.lastEmailOn || followUp.paymentPendingOn || '';
   if(!anchor){
     return '';
@@ -1327,52 +1331,27 @@ function vfOverdueInvoiceEmailDraft(invoice){
     .filter(line=>line!==null)
     .join('\n');
 
-  let opening;
+  const template=
+    vfEmailTemplate(
+      !isFollowUp ? 'overdueFirst' : (pending ? 'overduePending' : 'overdueFollowUp')
+    );
 
-  if(!isFollowUp){
-    opening=
-      `I'm going through my records and invoice ${invoice.invoiceNumber} still shows as unpaid on my end. `+
-      `It's quite possible this is an error on my part, so I'm looking into it and wanted to check with you as well.`;
-  }else if(pending){
-    opening=
-      `Thank you for letting me know that payment for invoice ${invoice.invoiceNumber} was on its way. `+
-      `It still doesn't show as received on my end, so I wanted to check in. `+
-      `It may well be something I've missed, and I appreciate your patience while I look into it.`;
-  }else{
-    opening=
-      `I'm following up on my note from ${invoiceLedgerDate(followUp.lastEmailOn)} about invoice ${invoice.invoiceNumber}. `+
-      `It still shows as unpaid on my end. Again, this may very well be my mistake, and I'm continuing to look into it on my side.`;
-  }
-
-  const body=[
-    contact ? `Hello ${contact},` : 'Hello,',
-    '',
-    opening,
-    '',
-    'Here are the details:',
-    '',
-    details,
-    '',
-    'When you have a moment, could you let me know:',
-    '- whether you received this invoice,',
-    '- whether it has already been paid (if so, the payment date and check or reference number would help me find it), or',
-    '- whether payment is in process, or if you need anything else from me.',
-    '',
-    `I've attached a copy of the invoice in case the original never came through.`,
-    '',
-    `Thank you so much for your help, and my apologies if I've simply missed your payment.`,
-    '',
-    ownerName || businessName,
-    ownerName && businessName ? businessName : ''
-  ]
-    .join('\n')
-    .replace(/\n+$/,'');
+  const tokens={
+    contactName:contact,
+    invoiceNumber:invoice.invoiceNumber||'',
+    studentName:invoice.studentName||'',
+    lastEmailDate:followUp.lastEmailOn ? invoiceLedgerDate(followUp.lastEmailOn) : '',
+    invoiceDetails:details,
+    businessName,
+    ownerName,
+    signature:[ownerName||businessName, ownerName && businessName ? businessName : ''].filter(Boolean).join('\n')
+  };
 
   const subject=
-    (isFollowUp ? 'Following up: ' : 'Checking on ')+
-    `invoice ${invoice.invoiceNumber}`+
-    (invoice.studentName ? ` (${invoice.studentName})` : '')+
-    (businessName ? ` — ${businessName}` : '');
+    vfFillEmailTemplate(template.subject,tokens).trim();
+
+  const body=
+    vfFillEmailTemplate(template.body,tokens).replace(/\s+$/,'');
 
   return {
     to: invoiceBillingEmail(invoice,charter) || '',
@@ -1398,10 +1377,10 @@ function overdueInvoiceNotificationItems(){
 
   return invoices
     .filter(invoice=>
-      invoiceIsOutstanding(invoice)
+      invoiceIsOutstanding(invoice) &&
+      !vfInvoiceFollowUp(invoice).cancelled
     )
     .map(invoice=>{
-
       const dueDateRaw=
         vfInvoiceDueDateRaw(invoice);
 
@@ -3124,11 +3103,596 @@ async function repairRosterCoreLinksOnce(){
  * until the vendor clicked it. Now a failure on one page is logged
  * and skipped, and the rest still draw.
  */
+/* ==========================================================
+   SCHEDULED
+   ==========================================================
+
+   Everything VendorFlow will do on its own, with a date: invoices
+   it will create, reminder emails it will prepare, late fees it will
+   charge and charter follow-ups about overdue invoices. Each can be
+   run now, moved to another date, or cancelled -- just the next one,
+   or for good where the action repeats.
+
+   Dates are moved by writing the fields the schedule already reads
+   (invoiceReadyDate, parentReminderDays, lastRecurringReminderAt,
+   lateFeeDate), so the 7am server run sees exactly the same schedule
+   as the app. Only two cancellations needed a field of their own,
+   and the server run checks both: cert.autoInvoiceCancelled and
+   obligation.followupRemindersCancelled.
+*/
+let vfScheduledRange='60';
+let vfScheduledEditing='';
+let vfScheduledCancelling='';
+
+function vfDaysBetweenISO(fromISO,toISO){
+  const a=parseVendorDate(fromISO), b=parseVendorDate(toISO);
+  if(!a || !b){
+    return null;
+  }
+  return Math.round(
+    (Date.UTC(b.getFullYear(),b.getMonth(),b.getDate())-
+     Date.UTC(a.getFullYear(),a.getMonth(),a.getDate()))/86400000
+  );
+}
+
+function vfMillisToISO(value){
+  const ms=
+    value && typeof value.toMillis==='function'
+      ? value.toMillis()
+      : (value instanceof Date ? value.getTime() : NaN);
+  return Number.isFinite(ms) ? dateToLocalISO(new Date(ms)) : '';
+}
+
+/* Start of that day, local -- a Firestore timestamp for the follow-up
+   clock, so the follow-up is due from the first minute of its day. */
+function vfDayStart(iso){
+  const d=parseVendorDate(iso);
+  return d ? new Date(d.getFullYear(),d.getMonth(),d.getDate()) : new Date();
+}
+
+function vfScheduledItems(){
+
+  const items=[];
+  const today=vfLocalDate();
+  const funding=expectedObligationFunding();
+
+  /* 1. Invoices VendorFlow will create */
+  certs.forEach(cert=>{
+    if(
+      cert.deleted || cert.archived ||
+      cert.status!=='Received - Not Billed' ||
+      invoices.some(invoice=>invoice.certificateId===cert.id)
+    ){
+      return;
+    }
+    const charter=invoiceCharter(cert)||{};
+    items.push({
+      key:`invoice:${cert.id}`,
+      kind:'invoice',
+      label:'Invoice',
+      date:cert.invoiceReadyDate||'',
+      title:`Invoice ${charter.name||cert.school||'the charter school'} for ${cert.student||'a student'}`,
+      detail:[
+        cert.number?`Certificate #${cert.number}`:'',
+        Number(cert.amount)?money(cert.amount):'',
+        profile?.automations?.sendCharterInvoices
+          ? 'created and emailed to the charter'
+          : 'created, then waits for you to send it'
+      ].filter(Boolean).join(' · '),
+      repeats:false,
+      cancelled:Boolean(cert.autoInvoiceCancelled),
+      canRun:true,
+      ref:cert.id
+    });
+  });
+
+  obligations.forEach(obligation=>{
+
+    if(obligation.deleted || vfObligationStudentIsArchived(obligation)){
+      return;
+    }
+
+    const owed=vfReminderAmountOwed(obligation,funding);
+    const student=students.find(item=>item.id===obligation.studentId)||{};
+    const who=obligation.studentName||student.studentName||'a student';
+    const what=obligation.serviceName||obligation.className||'a payment';
+    const classRecord=classes.find(item=>item.id===obligation.classId)||{};
+    const hasParentEmail=Boolean(String(student.parentEmail||'').trim());
+
+    /* 2. First payment reminder email */
+    if(
+      obligation.parentReminderEnabled &&
+      obligation.dueDate &&
+      owed>0.009 &&
+      hasParentEmail &&
+      !reviews.some(r=>r.reviewType==='payment-reminder-email' && r.obligationId===obligation.id)
+    ){
+      const cancelledForGood=Boolean(obligation.followupRemindersCancelled && obligation.parentReminderSkipped);
+      if(!obligation.parentReminderReviewedAt || cancelledForGood){
+        items.push({
+          key:`reminder:${obligation.id}`,
+          kind:'reminder',
+          label:'Reminder email',
+          date:vfAddDaysISO(obligation.dueDate,-Number(obligation.parentReminderDays||0)),
+          title:`Payment reminder to ${student.parentName||'the family'} for ${who}`,
+          detail:`${money(owed)} for ${what}, due ${invoiceLedgerDate(obligation.dueDate)}`,
+          repeats:true,
+          cancelled:cancelledForGood,
+          canRun:true,
+          ref:obligation.id
+        });
+      }
+    }
+
+    /* 3. Follow-up reminder emails once a payment is late */
+    const repeatDays=Number(classRecord.recurringReminderDays||0);
+    if(
+      classRecord.recurringReminderEnabled &&
+      repeatDays>0 &&
+      obligation.dueDate &&
+      owed>0.009 &&
+      hasParentEmail &&
+      !reviews.some(r=>r.reviewType==='payment-reminder-followup-email' && r.obligationId===obligation.id)
+    ){
+      const baseline=vfMillisToISO(obligation.lastRecurringReminderAt)||obligation.dueDate;
+      items.push({
+        key:`followup:${obligation.id}`,
+        kind:'followup',
+        label:'Follow-up email',
+        date:vfAddDaysISO(baseline,repeatDays),
+        title:`Late payment follow-up to ${student.parentName||'the family'} for ${who}`,
+        detail:`${money(owed)} for ${what}, was due ${invoiceLedgerDate(obligation.dueDate)} · repeats every ${repeatDays} day${repeatDays===1?'':'s'}`,
+        repeats:true,
+        repeatDays,
+        cancelled:Boolean(obligation.followupRemindersCancelled),
+        canRun:true,
+        ref:obligation.id
+      });
+    }
+
+    /* 4. Late fees */
+    if(
+      obligation.lateFeeDate &&
+      !obligation.lateFeeApplied &&
+      obligation.lateFeeChargeDeclinedForDate!==obligation.lateFeeDate &&
+      owed>0.009 &&
+      !reviews.some(r=>r.reviewType==='late-fee-charge-approval' && r.obligationId===obligation.id)
+    ){
+      const fee=resolvedLateFeeForObligation(obligation,classRecord);
+      if(fee>0){
+        const pastDue=Boolean(obligation.dueDate) && obligation.dueDate<today;
+        items.push({
+          key:`latefee:${obligation.id}`,
+          kind:'latefee',
+          label:'Late fee',
+          date:obligation.lateFeeDate,
+          title:`${money(fee)} late fee for ${who}`,
+          detail:`${what}, due ${invoiceLedgerDate(obligation.dueDate)} · ${money(owed)} still owed`,
+          repeats:false,
+          cancelled:Boolean(obligation.lateFeeWaived),
+          canRun:pastDue,
+          runBlockedReason:pastDue?'':`Can be charged after the due date (${invoiceLedgerDate(obligation.dueDate)}).`,
+          ref:obligation.id
+        });
+      }
+    }
+  });
+
+  /* 5. Emails to charters about overdue invoices */
+  const settings=profile.overdueInvoiceSettings||defaultOverdueInvoiceSettings();
+  invoices.forEach(invoice=>{
+    if(!invoiceIsOutstanding(invoice)){
+      return;
+    }
+    const followUp=vfInvoiceFollowUp(invoice);
+    const dueRaw=vfInvoiceDueDateRaw(invoice);
+    const date=
+      vfInvoiceNextFollowUpOn(invoice) ||
+      (dueRaw ? vfAddDaysISO(dueRaw,Number(settings.graceDays||0)) : '');
+    items.push({
+      key:`charter:${invoice.id}`,
+      kind:'charter',
+      label:'Charter email',
+      date,
+      title:`${followUp.lastEmailOn?'Follow-up':'Ask'} ${invoice.charterSchoolName||'the charter school'} about invoice ${invoice.invoiceNumber||''}`,
+      detail:`${money(invoice.amount)} for ${invoice.studentName||'a student'}, due ${invoiceLedgerDate(dueRaw)}`+
+        (followUp.lastEmailOn?` · last emailed ${invoiceLedgerDate(followUp.lastEmailOn)}`:'')+
+        (vfInvoicePaymentPending(invoice)?' · payment pending':''),
+      repeats:true,
+      cancelled:Boolean(followUp.cancelled),
+      canRun:true,
+      ref:invoice.id
+    });
+  });
+
+  return items;
+}
+
+
+function renderScheduled(){
+
+  const list=$('#scheduledList');
+  if(!list){
+    return;
+  }
+
+  /* Never redraw under someone choosing a date or a cancel option. */
+  if(vfScheduledEditing || vfScheduledCancelling){
+    if(list.childElementCount){
+      return;
+    }
+  }
+
+  const today=vfLocalDate();
+  const horizon=vfScheduledRange==='all' ? '' : vfAddDaysISO(today,Number(vfScheduledRange||60));
+  const all=vfScheduledItems();
+
+  const active=
+    all
+      .filter(item=>!item.cancelled)
+      .filter(item=>!horizon || !item.date || item.date<=horizon)
+      .sort((a,b)=>String(a.date||'9999').localeCompare(String(b.date||'9999')));
+
+  const cancelled=all.filter(item=>item.cancelled);
+
+  const weekEnd=vfAddDaysISO(today,7);
+
+  const groups=[
+    ['Due now',item=>item.date && item.date<=today],
+    ['This week',item=>item.date && item.date>today && item.date<=weekEnd],
+    ['Later',item=>item.date && item.date>weekEnd],
+    ['No date set',item=>!item.date]
+  ];
+
+  const row=item=>{
+    const editing=vfScheduledEditing===item.key;
+    const cancelling=vfScheduledCancelling===item.key;
+    return `
+      <div class="vf-scheduled-row vf-scheduled-${esc(item.kind)}" data-scheduled-key="${esc(item.key)}">
+        <div class="vf-scheduled-when">
+          <span class="vf-scheduled-kind">${esc(item.label)}</span>
+          <strong>${item.date ? esc(invoiceLedgerDate(item.date)) : 'No date'}</strong>
+        </div>
+        <div class="vf-scheduled-what">
+          <strong>${esc(item.title)}</strong>
+          <span class="muted">${esc(item.detail)}</span>
+          ${!item.canRun && item.runBlockedReason ? `<span class="vf-scheduled-note">${esc(item.runBlockedReason)}</span>` : ''}
+        </div>
+        <div class="vf-scheduled-actions">
+          ${
+            editing
+              ? `<input type="date" class="input" data-scheduled-date value="${esc(item.date||today)}">
+                 <button type="button" class="primary" data-scheduled-save-date="${esc(item.key)}">Save date</button>
+                 <button type="button" class="vf-secondary-button" data-scheduled-close>Never mind</button>`
+              : cancelling
+                ? (
+                    item.repeats
+                      ? `<button type="button" class="vf-secondary-button" data-scheduled-skip="${esc(item.key)}">Skip just the next one</button>
+                         <button type="button" class="vf-danger-button" data-scheduled-cancel-forever="${esc(item.key)}">Cancel for good</button>`
+                      : `<button type="button" class="vf-danger-button" data-scheduled-cancel-forever="${esc(item.key)}">Yes, cancel it</button>`
+                  )+
+                  `<button type="button" class="vf-secondary-button" data-scheduled-close>Never mind</button>`
+                : `<button type="button" class="primary" data-scheduled-run="${esc(item.key)}" ${item.canRun?'':'disabled'}>Run now</button>
+                   <button type="button" class="vf-secondary-button" data-scheduled-edit="${esc(item.key)}">Edit</button>
+                   <button type="button" class="vf-secondary-button" data-scheduled-cancel="${esc(item.key)}">Cancel Action</button>`
+          }
+        </div>
+      </div>
+    `;
+  };
+
+  const sections=
+    groups
+      .map(([name,test])=>{
+        const rows=active.filter(test);
+        return rows.length
+          ? `<h3 class="vf-scheduled-group">${esc(name)} <span class="muted">(${rows.length})</span></h3>`+rows.map(row).join('')
+          : '';
+      })
+      .join('');
+
+  list.innerHTML=
+    (sections ||
+      `<p class="muted">Nothing is scheduled${horizon?' in the next 60 days':''}.</p>`)+
+    (cancelled.length
+      ? `<details class="vf-scheduled-cancelled">
+           <summary>Cancelled (${cancelled.length})</summary>
+           ${cancelled.map(item=>`
+             <div class="vf-scheduled-row vf-scheduled-${esc(item.kind)} is-cancelled">
+               <div class="vf-scheduled-when"><span class="vf-scheduled-kind">${esc(item.label)}</span></div>
+               <div class="vf-scheduled-what"><strong>${esc(item.title)}</strong><span class="muted">${esc(item.detail)}</span></div>
+               <div class="vf-scheduled-actions">
+                 <button type="button" class="vf-secondary-button" data-scheduled-restore="${esc(item.key)}">Turn back on</button>
+               </div>
+             </div>`).join('')}
+         </details>`
+      : '');
+
+  const find=key=>all.find(item=>item.key===key);
+
+  list.querySelectorAll('[data-scheduled-run]').forEach(button=>{
+    button.onclick=()=>vfScheduledRunNow(find(button.dataset.scheduledRun),button);
+  });
+  list.querySelectorAll('[data-scheduled-edit]').forEach(button=>{
+    button.onclick=()=>{ vfScheduledEditing=button.dataset.scheduledEdit; vfScheduledCancelling=''; vfRedrawScheduled(); };
+  });
+  list.querySelectorAll('[data-scheduled-cancel]').forEach(button=>{
+    button.onclick=()=>{ vfScheduledCancelling=button.dataset.scheduledCancel; vfScheduledEditing=''; vfRedrawScheduled(); };
+  });
+  list.querySelectorAll('[data-scheduled-close]').forEach(button=>{
+    button.onclick=()=>{ vfScheduledEditing=''; vfScheduledCancelling=''; vfRedrawScheduled(); };
+  });
+  list.querySelectorAll('[data-scheduled-save-date]').forEach(button=>{
+    button.onclick=()=>{
+      const input=button.closest('.vf-scheduled-row').querySelector('[data-scheduled-date]');
+      vfScheduledMove(find(button.dataset.scheduledSaveDate),input.value);
+    };
+  });
+  list.querySelectorAll('[data-scheduled-skip]').forEach(button=>{
+    button.onclick=()=>vfScheduledCancel(find(button.dataset.scheduledSkip),false);
+  });
+  list.querySelectorAll('[data-scheduled-cancel-forever]').forEach(button=>{
+    button.onclick=()=>vfScheduledCancel(find(button.dataset.scheduledCancelForever),true);
+  });
+  list.querySelectorAll('[data-scheduled-restore]').forEach(button=>{
+    button.onclick=()=>vfScheduledRestore(find(button.dataset.scheduledRestore));
+  });
+}
+
+function vfRedrawScheduled(){
+  const editing=vfScheduledEditing, cancelling=vfScheduledCancelling;
+  vfScheduledEditing=''; vfScheduledCancelling='';
+  const list=$('#scheduledList');
+  if(list){ list.innerHTML=''; }
+  vfScheduledEditing=editing; vfScheduledCancelling=cancelling;
+  renderScheduled();
+}
+
+async function vfScheduledDone(message){
+  vfScheduledEditing='';
+  vfScheduledCancelling='';
+  await refreshAll();
+  vfRedrawScheduled();
+  if(message){
+    toast(message);
+  }
+}
+
+const vfObligationRef=id=>doc(db,'vendors',user.uid,'obligations',id);
+const vfObligation=id=>obligations.find(item=>item.id===id)||{};
+
+
+async function vfScheduledRunNow(item,button){
+
+  if(!item || !item.canRun){
+    return;
+  }
+
+  if(button){
+    button.disabled=true;
+    button.textContent='Running…';
+  }
+
+  const today=vfLocalDate();
+
+  try{
+
+    if(item.kind==='invoice'){
+      await vfGenerateInvoiceNow(item.ref);
+      vfRedrawScheduled();
+      return;
+    }
+
+    if(item.kind==='reminder'){
+      const obligation=vfObligation(item.ref);
+      const days=vfDaysBetweenISO(today,obligation.dueDate);
+      await setDoc(vfObligationRef(item.ref),{parentReminderDays:days,updatedAt:serverTimestamp()},{merge:true});
+      obligation.parentReminderDays=days;
+      await queuePaymentReminderReviews();
+      await refreshAll();
+      switchView('review');
+      toast('The reminder email is ready in Notifications. Read it over, then send.');
+      return;
+    }
+
+    if(item.kind==='followup'){
+      const start=vfAddDaysISO(today,-Number(item.repeatDays||0));
+      const stamp=vfDayStart(start);
+      await setDoc(vfObligationRef(item.ref),{lastRecurringReminderAt:stamp,updatedAt:serverTimestamp()},{merge:true});
+      await refreshAll();
+      await queueRecurringPaymentReminders();
+      await refreshAll();
+      switchView('review');
+      toast('The follow-up email is ready in Notifications. Read it over, then send.');
+      return;
+    }
+
+    if(item.kind==='latefee'){
+      const obligation=vfObligation(item.ref);
+      const ok=confirm(`Charge this late fee now?\n\n${item.title} — ${item.detail}`);
+      if(!ok){
+        return;
+      }
+      if(!obligation.lateFeeDate || obligation.lateFeeDate>today){
+        await setDoc(vfObligationRef(item.ref),{lateFeeDate:today,updatedAt:serverTimestamp()},{merge:true});
+        obligation.lateFeeDate=today;
+      }
+      /* The same charge an approved late-fee card makes. */
+      const temporaryId=`scheduled-${item.ref}-${Date.now()}`;
+      reviews.push({id:temporaryId,reviewType:'late-fee-charge-approval',obligationId:item.ref});
+      await approveLateFeeChargeReview(temporaryId);
+      vfRedrawScheduled();
+      return;
+    }
+
+    if(item.kind==='charter'){
+      const invoice=invoices.find(entry=>entry.id===item.ref);
+      const update={...vfInvoiceFollowUp(invoice),nextOn:today};
+      await setDoc(
+        doc(db,'vendors',user.uid,'invoices',item.ref),
+        {charterFollowUp:update,overdueReminder:{dismissedUntil:''},updatedAt:serverTimestamp()},
+        {merge:true}
+      );
+      await refreshAll();
+      switchView('review');
+      toast('The email to the charter is ready in Notifications. Read it over, then send.');
+      return;
+    }
+
+  }catch(error){
+    console.error(error);
+    vfShowStickyError('That could not be run.',error?.message||'Please try again.');
+  }finally{
+    if(button){
+      button.disabled=false;
+      button.textContent='Run now';
+    }
+  }
+}
+
+
+async function vfScheduledMove(item,newDate){
+
+  if(!item || !parseVendorDate(newDate)){
+    return toast('Choose a date.');
+  }
+
+  if(item.kind==='invoice'){
+    await setDoc(doc(db,'vendors',user.uid,'certificates',item.ref),{invoiceReadyDate:newDate,updatedAt:serverTimestamp()},{merge:true});
+  }else if(item.kind==='reminder'){
+    const obligation=vfObligation(item.ref);
+    await setDoc(vfObligationRef(item.ref),{parentReminderDays:vfDaysBetweenISO(newDate,obligation.dueDate),updatedAt:serverTimestamp()},{merge:true});
+  }else if(item.kind==='followup'){
+    await setDoc(vfObligationRef(item.ref),{lastRecurringReminderAt:vfDayStart(vfAddDaysISO(newDate,-Number(item.repeatDays||0))),updatedAt:serverTimestamp()},{merge:true});
+  }else if(item.kind==='latefee'){
+    const obligation=vfObligation(item.ref);
+    if(obligation.dueDate && newDate<=obligation.dueDate){
+      return toast(`A late fee can only be charged after the due date (${invoiceLedgerDate(obligation.dueDate)}).`);
+    }
+    await setDoc(vfObligationRef(item.ref),{lateFeeDate:newDate,updatedAt:serverTimestamp()},{merge:true});
+  }else if(item.kind==='charter'){
+    const invoice=invoices.find(entry=>entry.id===item.ref);
+    await setDoc(
+      doc(db,'vendors',user.uid,'invoices',item.ref),
+      {charterFollowUp:{...vfInvoiceFollowUp(invoice),nextOn:newDate},overdueReminder:{dismissedUntil:''},updatedAt:serverTimestamp()},
+      {merge:true}
+    );
+  }
+
+  await log('Scheduled action moved',`${item.title} — now ${invoiceLedgerDate(newDate)}.`,'Manual');
+  await vfScheduledDone(`Moved to ${invoiceLedgerDate(newDate)}.`);
+}
+
+
+async function vfScheduledCancel(item,forGood){
+
+  if(!item){
+    return;
+  }
+
+  if(item.kind==='invoice'){
+    await setDoc(doc(db,'vendors',user.uid,'certificates',item.ref),{autoInvoiceCancelled:true,updatedAt:serverTimestamp()},{merge:true});
+  }else if(item.kind==='reminder'){
+    await setDoc(
+      vfObligationRef(item.ref),
+      {
+        parentReminderReviewedAt:serverTimestamp(),
+        parentReminderSkipped:true,
+        ...(forGood ? {followupRemindersCancelled:true} : {}),
+        updatedAt:serverTimestamp()
+      },
+      {merge:true}
+    );
+  }else if(item.kind==='followup'){
+    await setDoc(
+      vfObligationRef(item.ref),
+      forGood
+        ? {followupRemindersCancelled:true,updatedAt:serverTimestamp()}
+        : {lastRecurringReminderAt:vfDayStart(item.date||vfLocalDate()),updatedAt:serverTimestamp()},
+      {merge:true}
+    );
+  }else if(item.kind==='latefee'){
+    await setDoc(vfObligationRef(item.ref),{lateFeeWaived:true,lateFeeWaivedReason:'Cancelled on the Scheduled page',updatedAt:serverTimestamp()},{merge:true});
+  }else if(item.kind==='charter'){
+    const invoice=invoices.find(entry=>entry.id===item.ref);
+    const followUp=vfInvoiceFollowUp(invoice);
+    const interval=vfInvoicePaymentPending(invoice) ? VF_FOLLOWUP_PENDING_DAYS : VF_FOLLOWUP_DAYS;
+    await setDoc(
+      doc(db,'vendors',user.uid,'invoices',item.ref),
+      {
+        charterFollowUp:
+          forGood
+            ? {...followUp,cancelled:true}
+            : {...followUp,nextOn:vfAddDaysISO(item.date||vfLocalDate(),interval)},
+        updatedAt:serverTimestamp()
+      },
+      {merge:true}
+    );
+  }
+
+  await log(
+    forGood ? 'Scheduled action cancelled' : 'Scheduled action skipped',
+    `${item.title}${forGood?' — cancelled for good':' — next one skipped'}.`,
+    'Manual'
+  );
+
+  await vfScheduledDone(
+    forGood || !item.repeats
+      ? 'Cancelled. You can turn it back on under "Cancelled".'
+      : 'Skipped. The one after it is still scheduled.'
+  );
+}
+
+
+async function vfScheduledRestore(item){
+
+  if(!item){
+    return;
+  }
+
+  if(item.kind==='invoice'){
+    await setDoc(doc(db,'vendors',user.uid,'certificates',item.ref),{autoInvoiceCancelled:false,updatedAt:serverTimestamp()},{merge:true});
+  }else if(item.kind==='reminder' || item.kind==='followup'){
+    await setDoc(
+      vfObligationRef(item.ref),
+      {
+        followupRemindersCancelled:false,
+        ...(item.kind==='reminder' ? {parentReminderReviewedAt:null,parentReminderSkipped:false} : {}),
+        updatedAt:serverTimestamp()
+      },
+      {merge:true}
+    );
+  }else if(item.kind==='latefee'){
+    await setDoc(vfObligationRef(item.ref),{lateFeeWaived:false,lateFeeWaivedReason:'',updatedAt:serverTimestamp()},{merge:true});
+  }else if(item.kind==='charter'){
+    const invoice=invoices.find(entry=>entry.id===item.ref);
+    await setDoc(
+      doc(db,'vendors',user.uid,'invoices',item.ref),
+      {charterFollowUp:{...vfInvoiceFollowUp(invoice),cancelled:false},updatedAt:serverTimestamp()},
+      {merge:true}
+    );
+  }
+
+  await log('Scheduled action turned back on',`${item.title}.`,'Manual');
+  await vfScheduledDone('Turned back on.');
+}
+
+
+if($('#scheduledRange')){
+  $('#scheduledRange').onchange=()=>{
+    vfScheduledRange=$('#scheduledRange').value;
+    vfRedrawScheduled();
+  };
+}
+
+
 function renderAll(){
   [
     vfRenderAllRepeatLists,
     renderClassSelect,
     renderDashboard,
+    renderScheduled,
+    renderEmailTemplatesSettings,
     renderAccountPage,
     renderCharterSchools,
     renderCertificateCharterOptions,
@@ -5725,10 +6289,13 @@ function certificateInvoiceSchedule(
 
 
 function certificateIsInvoiceReady(cert){
-
   if(
     cert.status!=='Received - Not Billed'
   ){
+    return false;
+  }
+  /* Cancelled on the Scheduled page: invoice it by hand instead. */
+  if(cert.autoInvoiceCancelled){
     return false;
   }
 
@@ -6154,6 +6721,477 @@ function renderOverdueInvoiceSettings(){
 }
 
 
+/* ==========================================================
+   EMAIL TEMPLATES
+   ==========================================================
+
+   Every email VendorFlow drafts, editable in one place (Settings >
+   Email templates). Saved wording lives on the vendor profile:
+
+     profile.invoiceEmailTemplate         the invoice email (as before)
+     profile.emailTemplates.<key>         everything else
+
+   A group's own reminder / late-fee wording (set on the Groups page)
+   still wins -- but only when it really differs from the built-in
+   text, because every group saves a copy of the default when it is
+   created. The 7am server run resolves templates the same way.
+*/
+
+const VF_TESTING_NOTE_PARENTS=
+  "I'm testing a new tool that's helping me keep payments and charter certificates organized, so you may notice these confirmations look a little different for now. If anything here doesn't look right, please don't hesitate to let me know and I'll check into it more carefully. Thank you for your understanding as I work through this new way of handling payments and charter funds.";
+
+function vfOverdueDefaultTemplate(kind){
+
+  const opening={
+    first:
+      "I'm going through my records and invoice {{invoiceNumber}} still shows as unpaid on my end. "+
+      "It's quite possible this is an error on my part, so I'm looking into it and wanted to check with you as well.",
+    followUp:
+      "I'm following up on my note from {{lastEmailDate}} about invoice {{invoiceNumber}}. "+
+      "It still shows as unpaid on my end. Again, this may very well be my mistake, and I'm continuing to look into it on my side.",
+    pending:
+      "Thank you for letting me know that payment for invoice {{invoiceNumber}} was on its way. "+
+      "It still doesn't show as received on my end, so I wanted to check in. "+
+      "It may well be something I've missed, and I appreciate your patience while I look into it."
+  }[kind];
+
+  return {
+    subject:
+      (kind==='first' ? 'Checking on ' : 'Following up: ')+
+      'invoice {{invoiceNumber}} ({{studentName}}) — {{businessName}}',
+    body:[
+      'Hello {{contactName}},',
+      '',
+      opening,
+      '',
+      'Here are the details:',
+      '',
+      '{{invoiceDetails}}',
+      '',
+      'When you have a moment, could you let me know:',
+      '- whether you received this invoice,',
+      '- whether it has already been paid (if so, the payment date and check or reference number would help me find it), or',
+      '- whether payment is in process, or if you need anything else from me.',
+      '',
+      "I've attached a copy of the invoice in case the original never came through.",
+      '',
+      "Thank you so much for your help, and my apologies if I've simply missed your payment.",
+      '',
+      '{{signature}}'
+    ].join('\n')
+  };
+}
+
+const VF_TOKEN_SAMPLES={
+  studentName:['Student name','Mia Lopez'],
+  parentName:['Parent name','Ana Lopez'],
+  serviceName:['Class / service','Soccer Skills'],
+  amountDue:['Amount due','$120.00'],
+  dueDate:['Due date','December 10, 2026'],
+  paymentInstructions:['How to pay you','Venmo: @your-business\nZelle: you@example.com'],
+  lateFeeWarning:['Late fee sentence','A $25.00 late fee will be added on December 15, 2026 if payment has not been received.'],
+  businessName:['Business name',''],
+  ownerName:['Your name',''],
+  amount:['Amount','$360.00'],
+  balanceNote:['Balance sentence',' Their remaining balance is now $240.00.'],
+  lateFeeAmount:['Late fee','$25.00'],
+  originalAmountDue:['Amount that was due','$120.00'],
+  newBalance:['New balance','$145.00'],
+  invoiceNumber:['Invoice number','INV-0041'],
+  charterSchool:['Charter school','Pacific Coast Academy'],
+  certificateNumber:['Certificate / PO','PCA-1001'],
+  invoiceDate:['Invoice date','November 24, 2026'],
+  contactName:['Charter contact','Jordan'],
+  lastEmailDate:['Date of your last email','Nov 10, 2026'],
+  invoiceDetails:['Invoice details block','Invoice number: INV-0041\nInvoice date: Oct 1, 2026\nDue date: Oct 31, 2026\nAmount: $360.00\n\nFrom the certificate this invoice is for:\nStudent: Mia Lopez\nCertificate / PO number: PCA-1001\nService: Soccer Skills\nCharter school: Pacific Coast Academy'],
+  signature:['Your signature','']
+};
+
+function vfEmailTemplateDefs(){
+
+  const reminderDefaults=()=>({
+    subject:'Payment reminder for {{studentName}}',
+    body:defaultReminderBodyTemplate()
+  });
+
+  return [
+    {
+      key:'invoice', audience:'Charter schools', name:'Invoice',
+      when:'Sent with every invoice PDF.',
+      tokens:['invoiceNumber','charterSchool','studentName','certificateNumber','serviceName','amount','invoiceDate','dueDate','businessName','ownerName'],
+      defaults:defaultInvoiceEmailTemplate
+    },
+    {
+      key:'overdueFirst', audience:'Charter schools', name:'Overdue invoice: first email',
+      when:'Drafted in Notifications when an invoice is still unpaid after your grace period.',
+      tokens:['contactName','invoiceNumber','studentName','invoiceDetails','businessName','ownerName','signature'],
+      defaults:()=>vfOverdueDefaultTemplate('first')
+    },
+    {
+      key:'overdueFollowUp', audience:'Charter schools', name:'Overdue invoice: follow-up',
+      when:'Drafted 14 days after your last email if it is still unpaid.',
+      tokens:['contactName','invoiceNumber','studentName','lastEmailDate','invoiceDetails','businessName','ownerName','signature'],
+      defaults:()=>vfOverdueDefaultTemplate('followUp')
+    },
+    {
+      key:'overduePending', audience:'Charter schools', name:'Overdue invoice: after "payment is coming"',
+      when:'Drafted 30 days after the charter said payment was on its way, if it still has not arrived.',
+      tokens:['contactName','invoiceNumber','studentName','invoiceDetails','businessName','ownerName','signature'],
+      defaults:()=>vfOverdueDefaultTemplate('pending')
+    },
+    {
+      key:'reminder', audience:'Families', name:'Payment reminder',
+      when:'Before a payment is due, and again every few days once it is late.',
+      tokens:['parentName','studentName','serviceName','amountDue','dueDate','paymentInstructions','lateFeeWarning','businessName'],
+      perGroup:{subject:'reminderSubject',body:'reminderBody'},
+      defaults:reminderDefaults
+    },
+    {
+      key:'paymentReceived', audience:'Families', name:'Payment received',
+      when:'When you log or approve a payment from a family.',
+      tokens:['parentName','studentName','serviceName','amount','balanceNote','businessName'],
+      defaults:()=>({
+        subject:'We received your payment for {{studentName}}',
+        body:
+          'Hi {{parentName}},\n\n'+
+          'Good news — we received a payment of {{amount}} for {{studentName}} — {{serviceName}}.{{balanceNote}}\n\n'+
+          VF_TESTING_NOTE_PARENTS+'\n\n'+
+          'Thank you,\n{{businessName}}'
+      })
+    },
+    {
+      key:'certificateReceived', audience:'Families', name:'Certificate received',
+      when:'When a charter certificate arrives for a student.',
+      tokens:['parentName','studentName','serviceName','amount','balanceNote','businessName'],
+      defaults:()=>({
+        subject:"We received {{studentName}}'s certificate",
+        body:
+          'Hi {{parentName}},\n\n'+
+          'Good news — we received a certificate for {{studentName}} — {{serviceName}} in the amount of {{amount}}.{{balanceNote}}\n\n'+
+          VF_TESTING_NOTE_PARENTS+'\n\n'+
+          'Thank you,\n{{businessName}}'
+      })
+    },
+    {
+      key:'lateFeeCharged', audience:'Families', name:'Late fee added',
+      when:'When a late fee is charged to a family.',
+      tokens:['parentName','studentName','serviceName','lateFeeAmount','originalAmountDue','dueDate','newBalance','paymentInstructions','businessName'],
+      perGroup:{subject:'lateFeeChargedSubject',body:'lateFeeChargedBody'},
+      defaults:()=>({subject:defaultLateFeeChargedSubjectTemplate(),body:defaultLateFeeChargedBodyTemplate()})
+    },
+    {
+      key:'lateFeeRemoved', audience:'Families', name:'Late fee removed',
+      when:'When a late fee is taken back off.',
+      tokens:['parentName','studentName','serviceName','lateFeeAmount','dueDate','newBalance','businessName'],
+      perGroup:{subject:'lateFeeRemovedSubject',body:'lateFeeRemovedBody'},
+      defaults:()=>({subject:defaultLateFeeRemovedSubjectTemplate(),body:defaultLateFeeRemovedBodyTemplate()})
+    }
+  ];
+}
+
+function vfEmailTemplateDef(key){
+  return vfEmailTemplateDefs().find(item=>item.key===key);
+}
+
+const vfSameText=(a,b)=>
+  String(a||'').replace(/\s+/g,' ').trim()===String(b||'').replace(/\s+/g,' ').trim();
+
+/* A group's copy only counts as its own wording when it differs from the built-in text. */
+function vfGroupTemplateValue(def,classRecord,field){
+  const value=classRecord && def.perGroup ? String(classRecord[def.perGroup[field]]||'') : '';
+  if(!value.trim()){
+    return '';
+  }
+  const builtIn=def.defaults()[field];
+  if(
+    vfSameText(value,builtIn) ||
+    (def.key==='reminder' && field==='body' && vfSameText(value,reminderBodyForDisplay(builtIn,false)))
+  ){
+    return '';
+  }
+  return value;
+}
+
+/* What the vendor saved in Settings > Email templates (not a group's own wording). */
+function vfSavedEmailTemplate(key){
+  return key==='invoice'
+    ? (profile.invoiceEmailTemplate||{})
+    : (profile.emailTemplates?.[key]||{});
+}
+
+/* The wording to use: a group's own > Settings > built in. */
+function vfEmailTemplate(key,classRecord){
+  const def=vfEmailTemplateDef(key);
+  const saved=vfSavedEmailTemplate(key);
+  const defaults=def.defaults();
+  return {
+    subject:vfGroupTemplateValue(def,classRecord,'subject') || saved.subject || defaults.subject,
+    body:vfGroupTemplateValue(def,classRecord,'body') || saved.body || defaults.body
+  };
+}
+
+/*
+ * Fills {{tokens}}. A blank token takes its little joiner with it:
+ * "Mia — {{serviceName}}" becomes "Mia", "({{studentName}})" vanishes
+ * and "Hello {{contactName}}," becomes "Hello,".
+ */
+function vfFillEmailTemplate(text,tokens){
+  const value=key=>{
+    const v=tokens[key];
+    return v===undefined || v===null ? '' : String(v);
+  };
+  return String(text||'')
+    .replace(/[ \t]+—[ \t]+\{\{(\w+)\}\}/g,(match,key)=>value(key) ? ` — ${value(key)}` : '')
+    .replace(/[ \t]*\(\{\{(\w+)\}\}\)/g,(match,key)=>value(key) ? ` (${value(key)})` : '')
+    .replace(/\b(Hi|Hello|Dear)[ \t]+\{\{(\w+)\}\},/g,(match,word,key)=>value(key) ? `${word} ${value(key)},` : `${word},`)
+    .replace(/\{\{\s*(\w+)\s*\}\}/g,(match,key)=>value(key))
+    .replace(/\n{3,}/g,'\n\n');
+}
+
+function vfSampleTokens(){
+  const tokens={};
+  Object.entries(VF_TOKEN_SAMPLES).forEach(([key,[,sample]])=>{ tokens[key]=sample; });
+  tokens.businessName=profile.businessName||'Your Business';
+  tokens.ownerName=profile.ownerName||'Your Name';
+  tokens.signature=[tokens.ownerName,tokens.businessName].filter(Boolean).join('\n');
+  const methods=vfFormatPaymentInstructions(profile.paymentMethods||{});
+  if(methods){
+    tokens.paymentInstructions=methods;
+  }
+  return tokens;
+}
+
+
+let vfTemplateEditing='';
+
+function renderEmailTemplatesSettings(){
+
+  const list=$('#emailTemplatesList');
+  if(!list){
+    return;
+  }
+
+  /* Leave an open editor alone while the vendor is typing in it. */
+  if(vfTemplateEditing && list.querySelector('.vf-template-editor') && list.contains(document.activeElement)){
+    return;
+  }
+
+  const defs=vfEmailTemplateDefs();
+
+  const groupsWithOwn=def=>
+    def.perGroup
+      ? classes.filter(c=>!c.deleted && (vfGroupTemplateValue(def,c,'subject') || vfGroupTemplateValue(def,c,'body')))
+      : [];
+
+  const row=def=>{
+    const saved=vfSavedEmailTemplate(def.key);
+    const customized=Boolean(saved.subject||saved.body);
+    const own=groupsWithOwn(def);
+    const editing=vfTemplateEditing===def.key;
+    return `
+      <div class="vf-template-row ${editing?'is-editing':''}" data-template-row="${esc(def.key)}">
+        <div class="vf-template-summary">
+          <div>
+            <strong>${esc(def.name)}</strong>
+            ${customized?'<span class="vf-template-badge">Your wording</span>':''}
+            <div class="muted">${esc(def.when)}</div>
+            ${own.length?`<div class="vf-template-note">${own.length} group${own.length===1?' uses its':'s use their'} own wording: ${esc(own.map(c=>c.name||'Group').join(', '))}.</div>`:''}
+          </div>
+          ${editing?'':`<button type="button" class="vf-secondary-button" data-template-edit="${esc(def.key)}">Edit</button>`}
+        </div>
+        ${editing?vfTemplateEditorHtml(def,own):''}
+      </div>
+    `;
+  };
+
+  list.innerHTML=
+    ['Charter schools','Families']
+      .map(audience=>`
+        <h4 class="vf-template-audience">Emails to ${esc(audience.toLowerCase())}</h4>
+        ${defs.filter(def=>def.audience===audience).map(row).join('')}
+      `)
+      .join('');
+
+  list.querySelectorAll('[data-template-edit]').forEach(button=>{
+    button.onclick=()=>{
+      vfTemplateEditing=button.dataset.templateEdit;
+      list.innerHTML='';
+      renderEmailTemplatesSettings();
+      list.querySelector('.vf-template-editor [data-template-field="subject"]')?.focus();
+    };
+  });
+
+  const editor=list.querySelector('.vf-template-editor');
+  if(editor){
+    vfWireTemplateEditor(editor,vfEmailTemplateDef(vfTemplateEditing));
+  }
+}
+
+function vfTemplateEditorHtml(def,own){
+  const current=vfEmailTemplate(def.key);
+  return `
+    <div class="vf-template-editor">
+      <div class="vf-template-fields">
+        <label class="vf-field-label"><span>Subject</span>
+          <input class="input" data-template-field="subject" value="${esc(current.subject)}">
+        </label>
+        <label class="vf-field-label"><span>Message</span>
+          <textarea class="input" rows="14" data-template-field="body">${esc(current.body)}</textarea>
+        </label>
+        <div class="vf-template-chips">
+          <span class="muted">Click to add where your cursor is:</span>
+          ${def.tokens.map(key=>`<button type="button" class="vf-template-chip" data-template-token="${esc(key)}">${esc((VF_TOKEN_SAMPLES[key]||[key])[0])}</button>`).join('')}
+        </div>
+        ${own.length?`
+          <p class="vf-template-note">
+            ${own.length} group${own.length===1?' has its':'s have their'} own wording and will keep it.
+            <button type="button" class="linkbtn" data-template-all-groups>Use this wording for every group</button>
+          </p>`:''}
+        <div class="vf-template-buttons">
+          <button type="button" class="primary" data-template-save>Save</button>
+          <button type="button" class="vf-secondary-button" data-template-reset>Reset to default</button>
+          <button type="button" class="vf-secondary-button" data-template-close>Close</button>
+        </div>
+      </div>
+      <div class="vf-template-preview">
+        <div class="vf-template-preview-label">Preview (sample student)</div>
+        <div class="vf-template-preview-subject" data-template-preview-subject></div>
+        <pre class="vf-template-preview-body" data-template-preview-body></pre>
+      </div>
+    </div>
+  `;
+}
+
+function vfWireTemplateEditor(editor,def){
+
+  const subject=editor.querySelector('[data-template-field="subject"]');
+  const body=editor.querySelector('[data-template-field="body"]');
+  let lastField=body;
+
+  const preview=()=>{
+    const tokens=vfSampleTokens();
+    editor.querySelector('[data-template-preview-subject]').textContent=vfFillEmailTemplate(subject.value,tokens);
+    editor.querySelector('[data-template-preview-body]').textContent=vfFillEmailTemplate(body.value,tokens).trim();
+  };
+
+  [subject,body].forEach(field=>{
+    field.addEventListener('focus',()=>{ lastField=field; });
+    field.addEventListener('input',preview);
+  });
+
+  editor.querySelectorAll('[data-template-token]').forEach(chip=>{
+    chip.onmousedown=event=>event.preventDefault();
+    chip.onclick=()=>{
+      const field=lastField;
+      const text=`{{${chip.dataset.templateToken}}}`;
+      const start=field.selectionStart ?? field.value.length;
+      const end=field.selectionEnd ?? start;
+      field.value=field.value.slice(0,start)+text+field.value.slice(end);
+      field.focus();
+      field.selectionStart=field.selectionEnd=start+text.length;
+      preview();
+    };
+  });
+
+  const close=()=>{
+    vfTemplateEditing='';
+    $('#emailTemplatesList').innerHTML='';
+    renderEmailTemplatesSettings();
+  };
+
+  editor.querySelector('[data-template-close]').onclick=close;
+
+  editor.querySelector('[data-template-save]').onclick=async event=>{
+    const button=event.currentTarget;
+    const value={subject:subject.value.trim(),body:body.value.replace(/\s+$/,'')};
+    if(!value.subject || !value.body.trim()){
+      return toast('The subject and message cannot be empty.');
+    }
+    const defaults=def.defaults();
+    const isDefault=vfSameText(value.subject,defaults.subject) && vfSameText(value.body,defaults.body);
+    button.disabled=true;
+    try{
+      await vfSaveEmailTemplate(def.key,isDefault?null:value);
+      await log('Email template updated',`The "${def.name}" email wording was ${isDefault?'set back to the default':'changed'}.`,'Manual');
+      toast('Saved. New emails will use this wording.');
+      close();
+    }catch(error){
+      console.error(error);
+      button.disabled=false;
+      vfShowStickyError('The template could not be saved.',error?.message||'Please try again.');
+    }
+  };
+
+  editor.querySelector('[data-template-reset]').onclick=()=>{
+    if(!confirm(`Put the "${def.name}" email back to VendorFlow's original wording?`)){
+      return;
+    }
+    const defaults=def.defaults();
+    subject.value=defaults.subject;
+    body.value=defaults.body;
+    preview();
+    toast('Original wording restored. Click Save to keep it.');
+  };
+
+  const allGroups=editor.querySelector('[data-template-all-groups]');
+  if(allGroups){
+    allGroups.onclick=async()=>{
+      const own=classes.filter(c=>!c.deleted && (vfGroupTemplateValue(def,c,'subject') || vfGroupTemplateValue(def,c,'body')));
+      if(!confirm(`Remove the group wording from ${own.map(c=>c.name||'Group').join(', ')} so they use this one?`)){
+        return;
+      }
+      for(const c of own){
+        await setDoc(
+          doc(db,'vendors',user.uid,'classes',c.id),
+          {[def.perGroup.subject]:'',[def.perGroup.body]:'',updatedAt:serverTimestamp()},
+          {merge:true}
+        );
+        c[def.perGroup.subject]='';
+        c[def.perGroup.body]='';
+      }
+      toast('Every group now uses this wording. Click Save if you changed it.');
+      allGroups.closest('.vf-template-note').remove();
+    };
+  }
+
+  preview();
+}
+
+async function vfSaveEmailTemplate(key,value){
+  if(key==='invoice'){
+    await setDoc(vendorDoc(),{invoiceEmailTemplate:value||{subject:'',body:''},updatedAt:serverTimestamp()},{merge:true});
+    profile={...profile,invoiceEmailTemplate:value||{subject:'',body:''}};
+    return;
+  }
+  const next={...(profile.emailTemplates||{})};
+  if(value){
+    next[key]=value;
+  }else{
+    delete next[key];
+  }
+  /* The whole map is written so a removed template really goes. */
+  await updateDoc(vendorDoc(),{emailTemplates:next,updatedAt:serverTimestamp()});
+  profile={...profile,emailTemplates:next};
+}
+
+function vfOpenEmailTemplates(key){
+  switchView('settings');
+  if(key){
+    vfTemplateEditing=key;
+  }
+  const list=$('#emailTemplatesList');
+  if(list){
+    list.innerHTML='';
+  }
+  renderEmailTemplatesSettings();
+  setTimeout(()=>$('#emailTemplatesSettings')?.scrollIntoView({behavior:'smooth',block:'start'}),50);
+}
+
+if($('#scheduledTemplatesLink')){
+  $('#scheduledTemplatesLink').onclick=()=>vfOpenEmailTemplates();
+}
+
+
 function defaultInvoiceEmailTemplate(){
 
   return {
@@ -6336,7 +7374,7 @@ function buildInvoiceEmailPreview(invoice){
       invoice
     );
 
-  const subject=
+    const subject=
     fillInvoiceEmailTemplate(
       saved.subject ||
       defaults.subject,
@@ -9834,6 +10872,7 @@ async function vfRecordCharterContacted(invoice,sentTo,emailId){
     lastEmailTo:sentTo,
     lastEmailId:emailId,
     emailCount,
+    nextOn:'',
     paymentPendingOn:'',
     paymentPendingSource:''
   };
@@ -9888,6 +10927,7 @@ async function vfMarkInvoicePaymentPending(invoiceId,options={}){
   const update={
     ...followUp,
     status:'Payment pending',
+    nextOn:'',
     paymentPendingOn:vfLocalDate(),
     paymentPendingSource:String(options.source||'Manual')
   };
@@ -12229,9 +13269,14 @@ function isDefaultReminderBody(text){
       false
     ).trim();
 
+    const saved=
+    vfEmailTemplate('reminder').body;
+
   return (
     t===withToken ||
-    t===withoutToken
+    t===withoutToken ||
+    vfSameText(t,saved) ||
+    vfSameText(t,reminderBodyForDisplay(saved,false))
   );
 }
 
@@ -12263,11 +13308,11 @@ function syncReminderBodyLateFeeToken(){
   const hasLateFee=
     Number(feeEl.value||0)>0;
 
-  bodyEl.value=
+    bodyEl.value=
     hasLateFee
-      ? defaultReminderBodyTemplate()
+      ? vfEmailTemplate('reminder').body
       : reminderBodyForDisplay(
-          defaultReminderBodyTemplate(),
+          vfEmailTemplate('reminder').body,
           false
         );
 }
@@ -12408,14 +13453,12 @@ function editSavedClass(
   $('#classRecurringReminderDays').value=
     Number(c.recurringReminderDays||0);
 
-  $('#classReminderSubject').value=
-    c.reminderSubject ||
-    'Payment reminder for {{studentName}}';
+    $('#classReminderSubject').value=
+    vfEmailTemplate('reminder',c).subject;
 
   $('#classReminderBody').value=
     reminderBodyForDisplay(
-      c.reminderBody ||
-        defaultReminderBodyTemplate(),
+      vfEmailTemplate('reminder',c).body,
       Number(c.lateFee||0)>0
     );
 
@@ -13623,11 +14666,12 @@ function resetClassCreateFormFields(){
   $('#classRecurringReminderDays').value=
     profile?.notificationDefaults?.recurringReminderDays || 7;
   $('#classParentReminderDays').value='3';
-  $('#classReminderSubject').value=
-    'Payment reminder for {{studentName}}';
+    $('#classReminderSubject').value=
+    vfEmailTemplate('reminder').subject;
+
   $('#classReminderBody').value=
     reminderBodyForDisplay(
-      defaultReminderBodyTemplate(),
+      vfEmailTemplate('reminder').body,
       false
     );
 
@@ -13873,11 +14917,19 @@ $('#saveClass').onclick=async()=>{
     parentReminderDays:
       Number($('#classParentReminderDays').value||0),
 
+        /* Unchanged from Settings > Email templates: store nothing, so later template edits reach this group. */
     reminderSubject:
-      $('#classReminderSubject').value.trim(),
+      vfSameText($('#classReminderSubject').value,vfEmailTemplate('reminder').subject)
+        ? ''
+        : $('#classReminderSubject').value.trim(),
 
     reminderBody:
-      $('#classReminderBody').value.trim(),
+      (
+        vfSameText($('#classReminderBody').value,vfEmailTemplate('reminder').body) ||
+        vfSameText($('#classReminderBody').value,reminderBodyForDisplay(vfEmailTemplate('reminder').body,false))
+      )
+        ? ''
+        : $('#classReminderBody').value.trim(),
 
     lateFeeChargedReminderEnabled:
       Boolean($('#classLateFeeChargedReminderEnabled').checked),
@@ -33346,23 +34398,23 @@ async function queueCertificateReceivedEmail(
               : ` Their account is now paid in full.`
           );
 
+    const template=
+      vfEmailTemplate('certificateReceived');
+
+    const tokens={
+      parentName:certificateData?.parentName||studentMatch?.parentName||'there',
+      studentName,
+      serviceName:className,
+      amount:money(amount),
+      balanceNote:balanceLine,
+      businessName:profile.businessName||''
+    };
+
     const subject=
-      `We received ${studentName}'s certificate`;
+      vfFillEmailTemplate(template.subject,tokens).trim();
 
     const body=
-      `Hi ${certificateData?.parentName||studentMatch?.parentName||'there'},
-
-`+
-      `Good news — we received a certificate for `+
-      `${studentName}${className?` — ${className}`:''} in the amount of `+
-      `${money(amount)}.${balanceLine}
-
-`+
-      `I'm testing a new tool that's helping me keep payments and charter certificates organized, so you may notice these confirmations look a little different for now. If anything here doesn't look right, please don't hesitate to let me know and I'll check into it more carefully. Thank you for your understanding as I work through this new way of handling payments and charter funds.
-
-`+
-      `Thank you,
-${profile.businessName||''}`;
+      vfFillEmailTemplate(template.body,tokens).trim();
 
     const detail=
       `${money(amount)} certificate for ${studentName}` +
@@ -33522,22 +34574,23 @@ async function queuePaymentReceivedEmail(
               : ` Their account is now paid in full.`
           );
 
+    const template=
+      vfEmailTemplate('paymentReceived');
+
+    const tokens={
+      parentName:paymentData?.parentName||studentMatch?.parentName||'there',
+      studentName,
+      serviceName:className,
+      amount:money(amount),
+      balanceNote:balanceLine,
+      businessName:profile.businessName||''
+    };
+
     const subject=
-      `We received your payment for ${studentName}`;
+      vfFillEmailTemplate(template.subject,tokens).trim();
 
     const body=
-      `Hi ${paymentData?.parentName||studentMatch?.parentName||'there'},
-
-`+
-      `Good news — we received a payment of ${money(amount)} for `+
-      `${studentName}${className?` — ${className}`:''}.${balanceLine}
-
-`+
-      `I'm testing a new tool that's helping me keep payments and charter certificates organized, so you may notice these confirmations look a little different for now. If anything here doesn't look right, please don't hesitate to let me know and I'll check into it more carefully. Thank you for your understanding as I work through this new way of handling payments and charter funds.
-
-`+
-      `Thank you,
-${profile.businessName||''}`;
+      vfFillEmailTemplate(template.body,tokens).trim();
 
     const detail=
       `${money(amount)} payment for ${studentName}` +
@@ -33975,13 +35028,11 @@ async function queuePaymentReminderReviews(){
           : '';
 
 
-      const subjectTemplate=
-        classRecord.reminderSubject ||
-        'Payment reminder for {{studentName}}';
+            const subjectTemplate=
+        vfEmailTemplate('reminder',classRecord).subject;
 
       const bodyTemplate=
-        classRecord.reminderBody ||
-        defaultReminderBodyTemplate();
+        vfEmailTemplate('reminder',classRecord).body;
 
       const tokens={
         studentName:
@@ -35928,14 +36979,12 @@ async function queueLateFeeChargedReviews(){
 
       const subject=
         fillTemplate(
-          classRecord.lateFeeChargedSubject ||
-          defaultLateFeeChargedSubjectTemplate()
+                    vfEmailTemplate('lateFeeCharged',classRecord).subject
         );
 
       const body=
         fillTemplate(
-          classRecord.lateFeeChargedBody ||
-          defaultLateFeeChargedBodyTemplate()
+                    vfEmailTemplate('lateFeeCharged',classRecord).body
         )
           .replace(/\n{3,}/g,'\n\n')
           .trim();
@@ -36317,14 +37366,12 @@ async function queueLateFeeRemovedReviews(){
 
       const subject=
         fillTemplate(
-          classRecord.lateFeeRemovedSubject ||
-          defaultLateFeeRemovedSubjectTemplate()
+                    vfEmailTemplate('lateFeeRemoved',classRecord).subject
         );
 
       const body=
         fillTemplate(
-          classRecord.lateFeeRemovedBody ||
-          defaultLateFeeRemovedBodyTemplate()
+                    vfEmailTemplate('lateFeeRemoved',classRecord).body
         )
           .replace(/\n{3,}/g,'\n\n')
           .trim();
@@ -36613,6 +37660,11 @@ async function queueRecurringPaymentReminders(){
         continue;
       }
 
+      /* Cancelled for good on the Scheduled page. */
+      if(obligation.followupRemindersCancelled){
+        continue;
+      }
+
       if(!obligation.dueDate){
         continue;
       }
@@ -36730,13 +37782,11 @@ async function queueRecurringPaymentReminders(){
                 : ''
             );
 
-      const subjectTemplate=
-        classRecord.reminderSubject ||
-        'Payment reminder for {{studentName}}';
+            const subjectTemplate=
+        vfEmailTemplate('reminder',classRecord).subject;
 
       const bodyTemplate=
-        classRecord.reminderBody ||
-        defaultReminderBodyTemplate();
+        vfEmailTemplate('reminder',classRecord).body;
 
       const tokens={
         studentName:
@@ -49498,7 +50548,7 @@ function switchView(v){
   window.requestAnimationFrame(vfScrollToPageTop);
 
   let names={
-    dashboard:'Dashboard',
+    dashboard:'Scheduled',
     classes:'Groups',
     charters:'Charter Schools',
     students:'Students',
