@@ -6904,7 +6904,7 @@ function invoiceDueDateForTerms(
 const vfInvoicesBeingCreated=new Set();
 
 
-async function vfCreateInvoiceForCertificate(cert){
+async function vfCreateInvoiceForCertificate(cert,options={}){
 
   const claim=String(cert?.id||'');
 
@@ -6922,7 +6922,7 @@ async function vfCreateInvoiceForCertificate(cert){
 
   try{
 
-    return await vfCreateInvoiceForCertificateNow(cert);
+    return await vfCreateInvoiceForCertificateNow(cert,options);
 
   }finally{
 
@@ -6935,7 +6935,7 @@ async function vfCreateInvoiceForCertificate(cert){
 }
 
 
-async function vfCreateInvoiceForCertificateNow(cert){
+async function vfCreateInvoiceForCertificateNow(cert,options={}){
 
   if(!cert){
     return {
@@ -7282,7 +7282,8 @@ async function vfCreateInvoiceForCertificateNow(cert){
      */
     let vfEmailedNow=false;
 
-    if(profile?.automations?.sendCharterInvoices){
+    /* options.sendNow: the vendor clicked "Invoice charter now". */
+    if(profile?.automations?.sendCharterInvoices || options.sendNow){
 
       const invoiceForAutoSend={
         id:invoiceRef.id,
@@ -7360,21 +7361,31 @@ async function vfGenerateInvoiceNow(certificateId){
     );
   }
 
+  if(!profile.invoiceNumberMode){
+    return toast('Set up invoice numbering in Settings before creating invoices.');
+  }
+
+  const charter=
+    invoiceCharter(cert) || {};
+
+  const billingEmail=
+    invoiceBillingEmail({},charter);
+
   const ok=
     confirm(
-      `Create the invoice for ${cert.student||'this certificate'} now?`+
+      `Invoice ${charter.name||cert.school||'the charter school'} now for `+
+      `${cert.student||'this certificate'}${Number(cert.amount)?` (${money(cert.amount)})`:''}?`+
       `\n\n`+
       (
-        profile?.automations?.sendCharterInvoices
-          ? 'Your settings send invoices to charter schools '+
-            'automatically, so this will be emailed as soon as it '+
-            'is created.'
-          : 'It will wait in Invoices as "Ready to Send" so you can '+
-            'review and send it, or mark it as sent outside '+
-            'VendorFlow.'
+        billingEmail
+          ? `VendorFlow will create the invoice and email it to ${billingEmail} right away, with the invoice PDF attached.`
+          : `There is no billing email saved for ${charter.name||'this charter school'}, so the invoice will be created and wait in Invoices as "Ready to Send". Add the email on the Charter Schools page to send it.`
       )+
-      `\n\nThe scheduled invoice for this certificate will not be `+
-      `created as well.`
+      (
+        cert.invoiceReadyDate
+          ? `\n\nIt was scheduled for ${invoiceLedgerDate(cert.invoiceReadyDate)}; it will not be created again then.`
+          : ''
+      )
     );
 
   if(!ok){
@@ -7382,7 +7393,7 @@ async function vfGenerateInvoiceNow(certificateId){
   }
 
   const result=
-    await vfCreateInvoiceForCertificate(cert);
+    await vfCreateInvoiceForCertificate(cert,{sendNow:Boolean(billingEmail)});
 
   if(!result.ok){
     return toast(result.detail||'That invoice could not be created.');
@@ -7391,19 +7402,25 @@ async function vfGenerateInvoiceNow(certificateId){
   await log(
     'Invoice created early',
     `${result.invoiceNumber||'An invoice'} was created by hand for `+
-    `${cert.student||'a certificate'} instead of waiting for `+
-    `${cert.invoiceReadyDate||'its scheduled date'}.`,
+    `${cert.student||'a certificate'}`+
+    (cert.invoiceReadyDate ? ` instead of waiting for ${cert.invoiceReadyDate}` : '')+
+    (result.sent ? ` and emailed to ${billingEmail}.` : '.'),
     'Manual'
   );
 
   await refreshAll();
   renderAll();
 
-  toast(
-    result.sent
-      ? `Invoice ${result.invoiceNumber||''} created and emailed.`
-      : `Invoice ${result.invoiceNumber||''} is ready to send.`
-  );
+  if(result.sent){
+    toast(`Invoice ${result.invoiceNumber||''} created and emailed to ${billingEmail}.`);
+  }else if(billingEmail){
+    vfShowStickyError(
+      `Invoice ${result.invoiceNumber||''} was created but not emailed.`,
+      'Open it on the Invoices page and click Send to try again.'
+    );
+  }else{
+    toast(`Invoice ${result.invoiceNumber||''} is ready to send.`);
+  }
 }
 
 
@@ -18091,6 +18108,16 @@ function renderVault(){
                </div>`
             : `<div class="vf-vault-actions">
                  ${
+                   item.kind==='certificate' && !item.invoiced && !item.archived
+                     ? `<button
+                          type="button"
+                          class="primary"
+                          data-vault-invoice-cert="${esc(item.certificateId)}">
+                          Invoice Charter
+                        </button>`
+                     : ''
+                 }
+                 ${
                    item.canRestore
                      ? `<button
                           type="button"
@@ -18128,6 +18155,18 @@ function renderVault(){
   list.querySelectorAll('[data-vault-delete]').forEach(btn=>{
     btn.onclick=()=>
       vfDeleteVaultFile(btn.dataset.vaultDelete);
+  });
+
+  list.querySelectorAll('[data-vault-invoice-cert]').forEach(btn=>{
+    btn.onclick=async()=>{
+      btn.disabled=true;
+      try{
+        await vfGenerateInvoiceNow(btn.dataset.vaultInvoiceCert);
+      }finally{
+        btn.disabled=false;
+        renderVault();
+      }
+    };
   });
 
   list.querySelectorAll('[data-vault-restore-cert]').forEach(btn=>{
@@ -25120,29 +25159,47 @@ function renderStudentCommandCenterInvoiceActions(student){
     return;
   }
 
-  const readyCerts=
-    invoiceReadyCertificates().filter(cert=>{
+  /*
+   * Every certificate for this student that has no invoice yet --
+   * not only the ones whose scheduled invoice date has arrived. The
+   * button is for invoicing now; waiting for the date is what
+   * happens when nobody clicks it.
+   */
+  const openCerts=
+    certs.filter(cert=>{
       const linkedStudent=invoiceStudent(cert);
       return (
+        !cert.deleted &&
+        !cert.archived &&
+        !['void','cancelled','canceled','deleted'].includes(String(cert.status||'').toLowerCase()) &&
         linkedStudent &&
         linkedStudent.id===student.id &&
         !invoices.some(invoice=>invoice.certificateId===cert.id)
       );
     });
 
-  if(!readyCerts.length){
+  if(!openCerts.length){
     container.innerHTML=
-      `<p class="muted">No certificate is ready to invoice for this student right now.</p>`;
+      `<p class="muted">Every certificate for this student has already been invoiced.</p>`;
     return;
   }
 
   container.innerHTML=`
     <p class="muted">
-      ${readyCerts.length} certificate${readyCerts.length===1?' is':'s are'} ready to invoice for this student.
+      ${openCerts.length} certificate${openCerts.length===1?' has':'s have'} not been invoiced yet.
+      Invoicing creates the invoice and emails it to the charter school right away.
     </p>
-    <button type="button" class="primary" data-generate-student-invoices="true">
-      Generate Invoice${readyCerts.length===1?'':'s'}
-    </button>
+    ${openCerts.map(cert=>`
+      <div class="vf-cc-invoice-row">
+        <span>
+          <strong>${esc(cert.school||'Charter school')}</strong>
+          ${cert.number?` · #${esc(cert.number)}`:''}
+          ${Number(cert.amount)?` · ${money(cert.amount)}`:''}
+          ${cert.invoiceReadyDate?`<small class="muted"> · scheduled for ${esc(invoiceLedgerDate(cert.invoiceReadyDate))}</small>`:''}
+        </span>
+        <button type="button" class="primary" data-invoice-now="${esc(cert.id)}">Invoice charter now</button>
+      </div>
+    `).join('')}
   `;
 }
 
