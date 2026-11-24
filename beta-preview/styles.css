@@ -11877,3 +11877,6 @@ table,
 .vf-email-editor{display:grid;gap:8px;margin:12px 0}
 .vf-email-editor textarea{min-height:220px;font-family:inherit;line-height:1.45}
 .vf-email-edited-note{margin:8px 0 0;font-size:12px;font-weight:700;color:#7a5410}
+
+/* Student account: certificates not invoiced yet */
+.vf-cc-invoice-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line,#e3e7ef);flex-wrap:wrap}
