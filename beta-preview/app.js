@@ -6850,6 +6850,7 @@ function vfEmailTemplateDefs(){
       key:'pastDueReminder', audience:'Families', name:'Past due payment reminder',
       when:'Once a payment is late, repeating every few days until it is paid (for groups with "Keep reminding until paid" on).',
       tokens:['parentName','studentName','serviceName','amountDue','dueDate','paymentInstructions','lateFeeWarning','businessName'],
+      perGroup:{subject:'pastDueReminderSubject',body:'pastDueReminderBody'},
       defaults:()=>({
         subject:'Past due: payment for {{studentName}}',
         body:defaultPastDueReminderBodyTemplate()
@@ -7036,8 +7037,9 @@ function renderEmailTemplatesSettings(){
   }
 }
 
-function vfTemplateEditorHtml(def,own){
-  const current=vfEmailTemplate(def.key);
+/* group: edit that group's own wording instead of the main template. */
+function vfTemplateEditorHtml(def,own,group=null){
+  const current=vfEmailTemplate(def.key,group);
   return `
     <div class="vf-template-editor">
       <div class="vf-template-fields">
@@ -7056,9 +7058,10 @@ function vfTemplateEditorHtml(def,own){
             ${own.length} group${own.length===1?' has its':'s have their'} own wording and will keep it.
             <button type="button" class="linkbtn" data-template-all-groups>Use this wording for every group</button>
           </p>`:''}
+        ${group?`<p class="muted vf-template-group-note">Changes here are for ${esc(group.name||'this group')} only. Other groups keep the wording in Settings &gt; Email templates.</p>`:''}
         <div class="vf-template-buttons">
-          <button type="button" class="primary" data-template-save>Save</button>
-          <button type="button" class="vf-secondary-button" data-template-reset>Reset to default</button>
+          <button type="button" class="primary" data-template-save>${group?'Save for this group':'Save'}</button>
+          <button type="button" class="vf-secondary-button" data-template-reset>${group?'Use main wording':'Reset to default'}</button>
           <button type="button" class="vf-secondary-button" data-template-close>Close</button>
         </div>
       </div>
@@ -7071,7 +7074,7 @@ function vfTemplateEditorHtml(def,own){
   `;
 }
 
-function vfWireTemplateEditor(editor,def){
+function vfWireTemplateEditor(editor,def,group=null){
 
   const subject=editor.querySelector('[data-template-field="subject"]');
   const body=editor.querySelector('[data-template-field="body"]');
@@ -7103,6 +7106,11 @@ function vfWireTemplateEditor(editor,def){
   });
 
   const close=()=>{
+    if(group){
+      vfGroupTemplateEditing='';
+      renderSelectedClassDetails();
+      return;
+    }
     vfTemplateEditing='';
     $('#emailTemplatesList').innerHTML='';
     renderEmailTemplatesSettings();
@@ -7115,6 +7123,19 @@ function vfWireTemplateEditor(editor,def){
     const value={subject:subject.value.trim(),body:body.value.replace(/\s+$/,'')};
     if(!value.subject || !value.body.trim()){
       return toast('The subject and message cannot be empty.');
+    }
+    if(group){
+      button.disabled=true;
+      try{
+        await vfSaveGroupTemplate(def,group,value);
+        toast(`Saved for ${group.name||'this group'}.`);
+        close();
+      }catch(error){
+        console.error(error);
+        button.disabled=false;
+        vfShowStickyError('The email could not be saved.',error?.message||'Please try again.');
+      }
+      return;
     }
     const defaults=def.defaults();
     const isDefault=vfSameText(value.subject,defaults.subject) && vfSameText(value.body,defaults.body);
@@ -7132,6 +7153,14 @@ function vfWireTemplateEditor(editor,def){
   };
 
   editor.querySelector('[data-template-reset]').onclick=()=>{
+    if(group){
+      const main=vfEmailTemplate(def.key);
+      subject.value=main.subject;
+      body.value=main.body;
+      preview();
+      toast('Main wording filled in. Click Save to keep it.');
+      return;
+    }
     if(!confirm(`Put the "${def.name}" email back to VendorFlow's original wording?`)){
       return;
     }
@@ -7164,6 +7193,80 @@ function vfWireTemplateEditor(editor,def){
   }
 
   preview();
+}
+
+/* Saves a group's own wording; wording identical to the main template is stored as blank. */
+async function vfSaveGroupTemplate(def,group,value){
+  /* Each part is kept only where it differs, so the rest still follows the main template. */
+  const main=vfEmailTemplate(def.key);
+  const sameSubject=vfSameText(value.subject,main.subject);
+  const sameBody=
+    vfSameText(value.body,main.body) ||
+    (def.key==='reminder' && vfSameText(value.body,reminderBodyForDisplay(main.body,false)));
+  const sameAsMain=sameSubject && sameBody;
+  const update={
+    [def.perGroup.subject]:sameSubject?'':value.subject,
+    [def.perGroup.body]:sameBody?'':value.body
+  };
+  await setDoc(doc(db,'vendors',user.uid,'classes',group.id),{...update,updatedAt:serverTimestamp()},{merge:true});
+  Object.assign(group,update);
+  await log(
+    'Group email updated',
+    `${group.name||'A group'}: the "${def.name}" email ${sameAsMain?'now uses the main wording':'has its own wording'}.`,
+    'Manual'
+  );
+}
+
+let vfGroupTemplateEditing='';
+
+/* The emails a group sends, each with an Edit button. */
+function vfGroupEmailsHtml(c){
+  const hasLateFee=Number(c.lateFee||0)>0;
+  const keys=[
+    c.parentReminderEnabled ? 'reminder' : '',
+    c.recurringReminderEnabled ? 'pastDueReminder' : '',
+    hasLateFee && c.lateFeeChargedReminderEnabled ? 'lateFeeCharged' : '',
+    hasLateFee && c.lateFeeRemovedReminderEnabled ? 'lateFeeRemoved' : ''
+  ].filter(Boolean);
+  if(!keys.length){
+    return '';
+  }
+  return `
+    <div class="vf-group-emails">
+      <strong>Emails this group sends</strong>
+      ${keys.map(key=>{
+        const def=vfEmailTemplateDef(key);
+        const own=Boolean(vfGroupTemplateValue(def,c,'subject') || vfGroupTemplateValue(def,c,'body'));
+        const editing=vfGroupTemplateEditing===`${c.id}:${key}`;
+        return `
+          <div class="vf-template-row ${editing?'is-editing':''}" data-group-template-row="${esc(key)}">
+            <div class="vf-template-summary">
+              <div>
+                <strong>${esc(def.name)}</strong>
+                ${own?'<span class="vf-template-badge">This group\'s own wording</span>':''}
+                <div class="muted">${esc(vfFillEmailTemplate(vfEmailTemplate(key,c).subject,vfSampleTokens()))}</div>
+              </div>
+              ${editing?'':`<button type="button" class="vf-secondary-button" data-group-template-edit="${esc(key)}">Edit</button>`}
+            </div>
+            ${editing?vfTemplateEditorHtml(def,[],c):''}
+          </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+function vfWireGroupEmails(box,c){
+  box.querySelectorAll('[data-group-template-edit]').forEach(button=>{
+    button.onclick=()=>{
+      vfGroupTemplateEditing=`${c.id}:${button.dataset.groupTemplateEdit}`;
+      renderSelectedClassDetails();
+      box.querySelector('.vf-group-emails [data-template-field="body"]')?.focus();
+    };
+  });
+  const editor=box.querySelector('.vf-group-emails .vf-template-editor');
+  if(editor){
+    vfWireTemplateEditor(editor,vfEmailTemplateDef(vfGroupTemplateEditing.split(':')[1]),c);
+  }
 }
 
 async function vfSaveEmailTemplate(key,value){
@@ -12877,6 +12980,10 @@ function renderSelectedClassDetails(){
     return;
   }
 
+  if(vfGroupTemplateEditing && box.contains(document.activeElement) && document.activeElement.matches('input,textarea')){
+    return;
+  }
+
   const c=
     currentClass();
 
@@ -13078,53 +13185,14 @@ function renderSelectedClassDetails(){
     }
 
 
-    ${
-      c.parentReminderEnabled
-        ? `
-          <details class="vf-saved-reminder">
-            <summary>
-              View parent reminder settings
-            </summary>
-
-            <div>
-              <strong>Subject</strong>
-              <span>
-                ${esc(c.reminderSubject||'')}
-              </span>
-            </div>
-
-            <div>
-              <strong>Custom message</strong>
-              <span class="vf-reminder-message">
-                ${esc(
-                  reminderBodyForDisplay(
-                    c.reminderBody||'',
-                    Number(c.lateFee||0)>0
-                  )
-                )}
-              </span>
-            </div>
-
-            ${
-              Number(c.lateFee||0)>0
-                ? `
-                  <p>
-                    The late-fee notice above is added automatically;
-                    it does not need to be typed into this custom message.
-                  </p>
-                `
-                : ''
-            }
-
-          </details>
-        `
-        : ''
-    }
+    ${vfGroupEmailsHtml(c)}
 
   `;
 
 
   show(box);
+
+  vfWireGroupEmails(box,c);
 
 
   $('#editSelectedClass')
@@ -37816,10 +37884,10 @@ async function queueRecurringPaymentReminders(){
 
       /* Past tense: this payment is already late. */
       const subjectTemplate=
-        vfEmailTemplate('pastDueReminder').subject;
+        vfEmailTemplate('pastDueReminder',classRecord).subject;
 
       const bodyTemplate=
-        vfEmailTemplate('pastDueReminder').body;
+        vfEmailTemplate('pastDueReminder',classRecord).body;
 
       const tokens={
         studentName:
